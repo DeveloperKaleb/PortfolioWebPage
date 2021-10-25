@@ -4,15 +4,14 @@
 }
 
 body {
+	text-align: center;
 	background-color:  #035e7b;
 }
 
 header {
-	text-align: center;
 	color: black;
 }
 
 h1 {
-	text-align:  center;
-	color:  yellow;
+	color:  #eff1c5;
 }
