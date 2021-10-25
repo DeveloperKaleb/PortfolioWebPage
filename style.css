@@ -6,6 +6,7 @@
 .imageWrap {
 	width:  600;
 	margin: auto;
+
 }
 
 body {
@@ -15,6 +16,7 @@ body {
 
 header {
 	color: #a2a77f;
+	padding: 30px;
 }
 
 h1 {
