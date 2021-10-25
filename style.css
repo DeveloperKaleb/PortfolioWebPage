@@ -37,3 +37,8 @@ footer {
 	font-family: monospace, serif;
 	color: #eff1c5;
 }
+
+a:link     {color: #eff1c5;}
+a:visited  {color: #dfe38c;}
+a:hover    {color: #035e7b;}
+a:active   {color: #002e2c;}
