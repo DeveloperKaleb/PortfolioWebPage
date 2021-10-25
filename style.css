@@ -1,3 +1,8 @@
+header {
+	text-align: black;
+}
+
 h1 {
-	color:  magenta;
+	text-align:  center;
+	color:  yellow;
 }
