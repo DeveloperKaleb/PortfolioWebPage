@@ -4,7 +4,8 @@
 }
 
 .imageWrap {
-	width:  600;
+	width:  600px;
+	height: 400px;
 	margin: auto;
 
 }
@@ -15,10 +16,24 @@ body {
 }
 
 header {
+	font-family: monospace, serif;
 	color: #eff1c5;
-	padding: 30px;
+	padding: 23px;
+}
+
+main {
+	color: #e3e7af;
 }
 
 h1 {
 	color:  #e3e7af;
+	padding: 23px;
+	font-size: 30px;
+}
+h2 {
+	font-size: 23px;
+}
+footer {
+	font-family: monospace, serif;
+	color: #eff1c5;
 }
