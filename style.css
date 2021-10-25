@@ -3,13 +3,18 @@
 	margin: auto;
 }
 
+.imageWrap {
+	width:  600;
+	margin: auto;
+}
+
 body {
 	text-align: center;
 	background-color:  #035e7b;
 }
 
 header {
-	color: black;
+	color: #a2a77f;
 }
 
 h1 {
