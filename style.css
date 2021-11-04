@@ -1,0 +1,51 @@
+/* Color scheme used is #e3e7af (Pale Spring Bud), #eff1c5 (lighter Pale Spring Bud) #a2a77f (Artichoke),
+ #dfe38c (Green Yellow Crayola), #035e7b (Blue Sapphire), and #002e2c (Rich Black) */ 
+
+.wrapper {
+	width: 400px;
+	margin: auto;
+}
+
+.imageWrap {
+	width:  600px;
+	height: 400px;
+	margin: auto;
+}
+/* The wrappers above were separated so as to properly align the text and image */
+
+body {
+	text-align: center;
+	background: #51553a;
+}
+
+header {
+	font-family: monospace, serif;
+	color: #eff1c5;
+	padding: 23px;
+}
+
+main {
+	color: #e3e7af;
+}
+
+h1 {
+	color:  #e3e7af;
+	padding: 23px;
+	font-size: 30px;
+}
+h2 {
+	font-size: 23px;
+}
+/*body, header, main, h1, and h2 were separated out for my prefered visual effect */
+
+.footer {
+	font-family: monospace, serif;
+	color: #eff1c5;
+}
+
+a:link     {color: #eff1c5;}
+a:visited  {color: #dfe38c;}
+a:hover    {color: #035e7b;}
+a:active   {color: #002e2c;}
+
+/* Psuedo-code for links was chosen from the same color schem the page at large was */
