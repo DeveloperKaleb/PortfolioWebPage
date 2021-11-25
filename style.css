@@ -7,21 +7,29 @@
 }
 
 .imageWrap {
-	width:  600px;
+	flex: 1;
 	height: 400px;
 	margin: auto;
 }
 /* The wrappers above were separated so as to properly align the text and image */
 
 body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	text-align: center;
 	background: #51553a;
 }
 
 header {
+	flex: 1;
 	font-family: monospace, serif;
 	color: #eff1c5;
 	padding: 23px;
+}
+
+ul {
+	list-style-type: none;
 }
 
 main {
@@ -39,6 +47,7 @@ h2 {
 /*body, header, main, h1, and h2 were separated out for my prefered visual effect */
 
 .footer {
+	flex: 1;
 	font-family: monospace, serif;
 	color: #eff1c5;
 }
