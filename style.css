@@ -2,27 +2,25 @@
  #dfe38c (Green Yellow Crayola), #035e7b (Blue Sapphire), and #002e2c (Rich Black) */ 
 
 .wrapper {
-	width: 400px;
+	width: 80%;
+    flex: 1;
 	margin: auto;
 }
 
 .imageWrap {
-	flex: 1;
-	height: 400px;
-	margin: auto;
+	width: 100%;
 }
 /* The wrappers above were separated so as to properly align the text and image */
 
 body {
 	display: flex;
-	flex: 1;
 	flex-direction: column;
+	justify-content: center;
 	text-align: center;
 	background: #51553a;
 }
 
 header {
-	flex: 1;
 	font-family: monospace, serif;
 	color: #eff1c5;
 	padding: 23px;
@@ -47,7 +45,6 @@ h2 {
 /*body, header, main, h1, and h2 were separated out for my prefered visual effect */
 
 .footer {
-	flex: 1;
 	font-family: monospace, serif;
 	color: #eff1c5;
 }
@@ -58,3 +55,13 @@ a:hover    {color: #035e7b;}
 a:active   {color: #002e2c;}
 
 /* Psuedo-code for links was chosen from the same color schem the page at large was */
+
+@media all and (min-width: 720px) {
+	.imageWrap {
+		width: auto;
+		flex: 1;
+	}
+	.wrapper {
+		width: 400px;
+	}
+}
