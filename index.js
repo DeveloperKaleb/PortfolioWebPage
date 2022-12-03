@@ -10,12 +10,11 @@ let colorThree = "white";
 let colorFour = "white";
 
 function renderButtons(pOne = colorOne, pTwo = colorTwo, pThree = colorThree, pFour = colorFour) {
-  console.log('pTwo:', pTwo, 'colorTwo:', colorTwo);
   buttonSpace.innerHTML = `
-  <button class="butOne" style="color: ${pOne}"></button>
-  <button class="butTwo" style="color: ${pTwo}"></button>
-  <button class="butThree" style="color: ${pThree}"></button>
-  <button class="butFour" style="color: ${pFour}"></button>
+  <button class="butOne" style="background-color: ${pOne}"></button>
+  <button class="butTwo" style="background-color: ${pTwo}"></button>
+  <button class="butThree" style="background-color: ${pThree}"></button>
+  <button class="butFour" style="background-color: ${pFour}"></button>
   `;
 }
 renderButtons();
