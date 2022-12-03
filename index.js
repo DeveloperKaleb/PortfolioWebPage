@@ -1,20 +1,23 @@
 const buttonSpace = document.querySelector(".butMania");
 let one = true;
-let colorOne = "white";
 let two = true;
-let colorTwo = "white";
 let three = true;
-let colorThree = "white";
 let four = true;
+
+let colorOne = "white";
+let colorTwo = "white";
+let colorThree = "white";
 let colorFour = "white";
 
-function renderButtons() {
-  buttonSpace.innerHTML = `
-    <button class="butOne" style="color: ${colorOne}"></button>
-    <button class="butTwo" style="color: ${colorTwo}"></button>
-    <button class="butThree" style="color: ${colorThree}"></button>
-    <button class="butFour" style="color: ${colorFour}"></button>
+let buttonString = `
+<button class="butOne" style="color: ${colorOne}"></button>
+<button class="butTwo" style="color: ${colorTwo}"></button>
+<button class="butThree" style="color: ${colorThree}"></button>
+<button class="butFour" style="color: ${colorFour}"></button>
 `;
+
+function renderButtons() {
+  buttonSpace.innerHTML = buttonString;
 }
 renderButtons();
 
@@ -25,7 +28,6 @@ buttonSpace.addEventListener("click", (event) => {
     two ? (colorTwo = "white") : (colorTwo = "black");
     console.log(colorTwo);
     renderButtons();
-    console.log(buttonSpace);
   }
   if (event.target.className === "butTwo") {
     one = !one;
