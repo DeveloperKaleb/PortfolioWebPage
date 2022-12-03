@@ -9,16 +9,13 @@ let colorTwo = "white";
 let colorThree = "white";
 let colorFour = "white";
 
-let buttonString = `
-<button class="butOne" style="color: ${colorOne}"></button>
-<button class="butTwo" style="color: ${colorTwo}"></button>
-<button class="butThree" style="color: ${colorThree}"></button>
-<button class="butFour" style="color: ${colorFour}"></button>
-`;
-
-function renderButtons() {
-  console.log('buttonString:', buttonString);
-  buttonSpace.innerHTML = buttonString;
+function renderButtons(pOne = colorOne, pTwo = colorTwo, pThree = colorThree, pFour = colorFour) {
+  buttonSpace.innerHTML = `
+  <button class="butOne" style="color: ${pOne}"></button>
+  <button class="butTwo" style="color: ${pTwo}"></button>
+  <button class="butThree" style="color: ${pThree}"></button>
+  <button class="butFour" style="color: ${pFour}"></button>
+  `;
 }
 renderButtons();
 
@@ -26,8 +23,7 @@ buttonSpace.addEventListener("click", (event) => {
   if (event.target.className === "butOne") {
     two = !two;
     two ? (colorTwo = "white") : (colorTwo = "black");
-    console.log(colorTwo);
-    renderButtons();
+    renderButtons(colorOne, colorTwo);
   }
   if (event.target.className === "butTwo") {
     one = !one;
