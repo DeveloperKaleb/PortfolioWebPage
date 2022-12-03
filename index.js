@@ -17,6 +17,7 @@ let buttonString = `
 `;
 
 function renderButtons() {
+  console.log('buttonString:', buttonString);
   buttonSpace.innerHTML = buttonString;
 }
 renderButtons();
@@ -24,7 +25,6 @@ renderButtons();
 buttonSpace.addEventListener("click", (event) => {
   if (event.target.className === "butOne") {
     two = !two;
-    console.log(two);
     two ? (colorTwo = "white") : (colorTwo = "black");
     console.log(colorTwo);
     renderButtons();
