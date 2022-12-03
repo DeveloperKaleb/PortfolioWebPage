@@ -7,6 +7,12 @@
 	margin: auto;
 }
 
+.wrapper {
+	width: 80%;
+    flex: 1;
+	margin: auto;
+}
+
 .imageWrap {
 	width: 100%;
 }
