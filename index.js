@@ -1,4 +1,12 @@
 const buttonSpace = document.querySelector(".butMania");
+
+const colorArray = [
+  'white',
+  'black',
+  'red',
+  'green'
+];
+
 let one = true;
 let two = true;
 let three = true;
@@ -40,7 +48,7 @@ buttonSpace.addEventListener("click", (event) => {
     three ? (colorThree = 'white') : (colorThree = 'black');
     renderButtons(colorOne, colorTwo, colorThree);
   }
-  if (event.target.className === "butThreeRowOne" || event.target.className === "butFourRowTwo") {
+  if (event.target.className === "butThreeRowOne") {
     two = !two;
     four = !four;
     two ? (colorTwo = "white") : (colorTwo = "black");
@@ -50,6 +58,11 @@ buttonSpace.addEventListener("click", (event) => {
   if (event.target.className === "butFourRowOne" || event.target.className === "butOneRowTwo") {
     three = !three;
     three ? (colorThree = 'white') : (colorThree = 'black');
+    renderButtons(colorOne, colorTwo, colorThree);
+  }
+  if (event.target.className === "butFourRowTwo") {
+    three = !three;
+    three ? (colorThree = colorArray[Math.round(Math.random() * 4)]) : (colorThree = colorArray[Math.round(Math.random() * 2)]);
     renderButtons(colorOne, colorTwo, colorThree);
   }
 });
