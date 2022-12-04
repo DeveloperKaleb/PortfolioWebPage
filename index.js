@@ -28,26 +28,26 @@ function renderButtons(pOne = colorOne, pTwo = colorTwo, pThree = colorThree, pF
 renderButtons();
 
 buttonSpace.addEventListener("click", (event) => {
-  if (event.target.className === "butOne") {
+  if (event.target.className === "butOneRowOne" || event.target.className === "butTwoRowTwo") {
     two = !two;
     two ? (colorTwo = "white") : (colorTwo = "black");
     renderButtons(colorOne, colorTwo);
   }
-  if (event.target.className === "butTwo") {
+  if (event.target.className === "butTwoRowOne" || event.target.className === "butThreeRowTwo") {
     one = !one;
     three = !three;
     one ? (colorOne = 'white') : (colorOne = 'black');
     three ? (colorThree = 'white') : (colorThree = 'black');
     renderButtons(colorOne, colorTwo, colorThree);
   }
-  if (event.target.className === "butThree") {
+  if (event.target.className === "butThreeRowOne" || event.target.className === "butFourRowTwo") {
     two = !two;
     four = !four;
     two ? (colorTwo = "white") : (colorTwo = "black");
     four ? (colorFour = 'white') : (colorFour = 'black');
     renderButtons(colorOne, colorTwo, colorThree, colorFour);
   }
-  if (event.target.className === "butFour") {
+  if (event.target.className === "butFourRowOne" || event.target.className === "butOneRowTwo") {
     three = !three;
     three ? (colorThree = 'white') : (colorThree = 'black');
     renderButtons(colorOne, colorTwo, colorThree);
