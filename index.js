@@ -54,16 +54,14 @@ function renderButtons(width, height, html, row = 1, column = 1) {
     return;
   }
 
-  renderHtml.concat(`<div class="y${row}">`)
+  renderHtml = renderHtml.concat(`<div class="y${row}">`)
   while (column <= width) {
     renderHtml += `<button class="x${column}y${row}"></button>`
     column += 1;
   }
-  renderHtml.concat('</div>')
+  renderHtml = renderHtml.concat('</div>')
 
   row += 1;
-
-  console.log('html:', renderHtml, 'row:', row);
   renderButtons(width, height, renderHtml, row);
 }
 renderButtons(5, 3, renderHtml);
