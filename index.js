@@ -49,8 +49,8 @@ let colorFour = "white";
 let html = '';
 
 function renderButtons(width, height, html, row = 1, column = 1) {
-  if (row < height) {
-    return html;
+  if (row > height) {
+    buttonSpace.innerHTML = html;
   }
 
   html.concat(`<div class="y${row}">`)
@@ -64,9 +64,9 @@ function renderButtons(width, height, html, row = 1, column = 1) {
 
   renderButtons(width, height, html, row);
 }
-renderButtons();
+renderButtons(5, 3);
 
-buttonSpace.addEventListener("click", (event) => {
+/**buttonSpace.addEventListener("click", (event) => {
   if (event.target.className === "butOneRowOne" || event.target.className === "butTwoRowTwo") {
     two = !two;
     two ? (colorTwo = "white") : (colorTwo = "black");
@@ -96,4 +96,4 @@ buttonSpace.addEventListener("click", (event) => {
     three ? (colorThree = colorArray[Math.round(Math.random() * 4)]) : (colorThree = colorArray[Math.round(Math.random() * 2)]);
     renderButtons(colorOne, colorTwo, colorThree);
   }
-});
+});**/
