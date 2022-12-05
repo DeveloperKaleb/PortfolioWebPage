@@ -66,34 +66,15 @@ function renderButtons(width, height, html, row = 1, column = 1) {
 }
 renderButtons(5, 3, renderHtml);
 
-/**buttonSpace.addEventListener("click", (event) => {
-  if (event.target.className === "butOneRowOne" || event.target.className === "butTwoRowTwo") {
-    two = !two;
-    two ? (colorTwo = "white") : (colorTwo = "black");
-    renderButtons(colorOne, colorTwo);
+buttonSpace.addEventListener("click", (event) => {
+  const clickedClass = event.target.className;
+  const clickedElement = document.querySelector(`.${clickedClass}`)
+  const buttonBackColor = clickedElement.style.backgroundColor;
+  console.log('eventTarget:', event.target, 'clickedClass:', clickedClass, 'clickedElement:', clickedElement, 'buttonBackColor:', buttonBackColor);
+
+  if (buttonBackColor && buttonBackColor === 'white') {
+    buttonBackColor = 'black';
+  } else {
+    buttonBackColor = 'white';
   }
-  if (event.target.className === "butTwoRowOne" || event.target.className === "butThreeRowTwo") {
-    one = !one;
-    three = !three;
-    one ? (colorOne = 'white') : (colorOne = 'black');
-    three ? (colorThree = 'white') : (colorThree = 'black');
-    renderButtons(colorOne, colorTwo, colorThree);
-  }
-  if (event.target.className === "butThreeRowOne") {
-    two = !two;
-    four = !four;
-    two ? (colorTwo = "white") : (colorTwo = "black");
-    four ? (colorFour = 'white') : (colorFour = 'black');
-    renderButtons(colorOne, colorTwo, colorThree, colorFour);
-  }
-  if (event.target.className === "butFourRowOne" || event.target.className === "butOneRowTwo") {
-    three = !three;
-    three ? (colorThree = 'white') : (colorThree = 'black');
-    renderButtons(colorOne, colorTwo, colorThree);
-  }
-  if (event.target.className === "butFourRowTwo") {
-    three = !three;
-    three ? (colorThree = colorArray[Math.round(Math.random() * 4)]) : (colorThree = colorArray[Math.round(Math.random() * 2)]);
-    renderButtons(colorOne, colorTwo, colorThree);
-  }
-});**/
+});
