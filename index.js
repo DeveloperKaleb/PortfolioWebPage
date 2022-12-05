@@ -73,8 +73,8 @@ buttonSpace.addEventListener("click", (event) => {
   console.log('eventTarget:', event.target, 'clickedClass:', clickedClass, 'clickedElement:', clickedElement, 'buttonBackColor:', buttonBackColor);
 
   if (buttonBackColor && buttonBackColor === 'white') {
-    buttonBackColor = 'black';
+    clickedElement.style.backgroundColor = 'black';
   } else {
-    buttonBackColor = 'white';
+    clickedElement.style.backgroundColor = 'white';
   }
 });
