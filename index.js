@@ -46,25 +46,25 @@ let colorFour = "white";
   `;
 }**/
   
-let html = '';
+let renderHtml = '';
 
 function renderButtons(width, height, html, row = 1, column = 1) {
   if (row > height) {
     buttonSpace.innerHTML = html;
   }
 
-  html.concat(`<div class="y${row}">`)
+  renderHtml.concat(`<div class="y${row}">`)
   while (column <= width) {
     html += `<button class="x${column}y${row}"></button>`
     column += 1;
   }
-  html.concat('</div>')
+  renderHtml.concat('</div>')
 
   row += 1;
 
-  renderButtons(width, height, html, row);
+  renderButtons(width, height, renderHtml, row);
 }
-renderButtons(5, 3);
+renderButtons(5, 3, renderHtml);
 
 /**buttonSpace.addEventListener("click", (event) => {
   if (event.target.className === "butOneRowOne" || event.target.className === "butTwoRowTwo") {
