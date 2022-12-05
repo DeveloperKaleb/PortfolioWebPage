@@ -69,7 +69,7 @@ renderButtons(5, 3, renderHtml);
 buttonSpace.addEventListener("click", (event) => {
   const clickedClass = event.target.className;
   const clickedElement = document.querySelector(`.${clickedClass}`)
-  const buttonBackColor = clickedElement.style.backgroundColor;
+  let buttonBackColor = clickedElement.style.backgroundColor;
   console.log('eventTarget:', event.target, 'clickedClass:', clickedClass, 'clickedElement:', clickedElement, 'buttonBackColor:', buttonBackColor);
 
   if (buttonBackColor && buttonBackColor === 'white') {
