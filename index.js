@@ -51,18 +51,19 @@ let renderHtml = '';
 function renderButtons(width, height, html, row = 1, column = 1) {
   if (row > height) {
     buttonSpace.innerHTML = html;
+    return;
   }
 
   renderHtml.concat(`<div class="y${row}">`)
   while (column <= width) {
-    html += `<button class="x${column}y${row}"></button>`
+    renderHtml += `<button class="x${column}y${row}"></button>`
     column += 1;
   }
   renderHtml.concat('</div>')
 
   row += 1;
 
-  console.log('html:', html, 'row:', row);
+  console.log('html:', renderHtml, 'row:', row);
   renderButtons(width, height, renderHtml, row);
 }
 renderButtons(5, 3, renderHtml);
