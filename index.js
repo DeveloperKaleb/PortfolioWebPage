@@ -26,7 +26,9 @@ function renderButtons(width, height, html, row = 1, column = 1) {
   renderButtons(width, height, renderHtml, row);
 }
 
-function displayArray() {
+function displayArray(event) {
+  event.preventDefault()
+
   const columns = document.getElementById('xVal').value
   const rows = document.getElementById('yVal').value
 
