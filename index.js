@@ -9,6 +9,7 @@ const colorArray = [
 ];
   
 let renderHtml = '';
+let colorPickerRendered = false;
 
 function renderButtons(width, height, html, row = 1, column = 1) {
   if (row > height) {
@@ -36,10 +37,15 @@ function displayArray(event) {
   renderHtml = '';
   renderButtons(rows, columns, renderHtml);
 
-  const colorPickerForm = document.createElement('form');
-  colorPickerForm.innerHTML = '<select id="colorPicker"><option value="black">Black</option><option value="white">White</option><option value="red">Red</option><option value="green">Green</option><option value="purple">Purple</option><option value="pink">Pink</option><option value="yello">Yellow</option></select>';
+  // the eventListener below needs the value from the colorPicker, so the colorPicker is rendered first
+  if (!colorPickerRendered){
+    const colorPickerForm = document.createElement('form');
+    colorPickerForm.innerHTML = '<select id="colorPicker"><option value="black">Black</option><option value="white">White</option><option value="red">Red</option><option value="green">Green</option><option value="purple">Purple</option><option value="pink">Pink</option><option value="yellow">Yellow</option></select>';
 
-  main.insertBefore(colorPickerForm, buttonSpace);
+    main.insertBefore(colorPickerForm, buttonSpace);
+
+    colorPickerRendered = true;
+  }
 
   buttonSpace.addEventListener("click", (event) => {
     const clickedClass = event.target.className;
