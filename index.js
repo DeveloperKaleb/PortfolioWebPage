@@ -27,8 +27,15 @@ function renderButtons(width, height, html, row = 1, column = 1) {
 }
 renderButtons(5, 3, renderHtml);
 
+//TODO FIX ISSUE WITH THIS WHERE CLICKING THE DIV CHANGES THE DIVS BACKGROUND COLOR
 buttonSpace.addEventListener("click", (event) => {
   const clickedClass = event.target.className;
+  
+  const isNotRow = clickedClass.split('').includes('x');
+  if (!isNotRow) {
+    return
+  }
+
   const clickedElement = document.querySelector(`.${clickedClass}`)
   const buttonBackColor = clickedElement.style.backgroundColor;
 
