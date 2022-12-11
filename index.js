@@ -35,7 +35,7 @@ function displayArray(event) {
   const rows = document.getElementById('yVal').value
 
   renderHtml = '';
-  renderButtons(rows, columns, renderHtml);
+  renderButtons(columns, rows, renderHtml);
 
   // the eventListener below needs the value from the colorPicker, so the colorPicker is rendered first
   if (!colorPickerRendered){
