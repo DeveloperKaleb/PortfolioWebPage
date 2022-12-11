@@ -32,7 +32,13 @@ function displayArray(event) {
   const columns = document.getElementById('xVal').value
   const rows = document.getElementById('yVal').value
 
+  renderHtml = '';
   renderButtons(rows, columns, renderHtml);
+
+  const colorPickerForm = document.createElement('form');
+  colorPickerForm.innerHTML = '<select id="colorPicker"><option value="black">Black</option><option value="white">White</option><option value="red">Red</option><option value="green">Green</option><option value="purple">Purple</option><option value="pink">Pink</option><option value="yello">Yellow</option></select>';
+
+  document.body.insertBefore(colorPickerForm, buttonSpace);
 
   buttonSpace.addEventListener("click", (event) => {
     const clickedClass = event.target.className;
@@ -41,14 +47,12 @@ function displayArray(event) {
     if (!isNotRow) {
       return
     }
+
+    const colorPicker = document.getElementById('colorPicker');
   
     const clickedElement = document.querySelector(`.${clickedClass}`)
     const buttonBackColor = clickedElement.style.backgroundColor;
   
-    if (buttonBackColor && buttonBackColor === 'white') {
-      clickedElement.style.backgroundColor = 'black';
-    } else {
-      clickedElement.style.backgroundColor = 'white';
-    }
+    clickedElement.style.backgroundColor = `${colorPicker.value}`;
   });
 }
