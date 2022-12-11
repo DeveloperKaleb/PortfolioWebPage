@@ -18,6 +18,10 @@
 }
 /* The wrappers above were separated so as to properly align the text and image */
 
+form button {
+	width: auto;
+}
+
 body {
 	display: flex;
 	flex-direction: column;
