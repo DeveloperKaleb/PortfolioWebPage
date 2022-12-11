@@ -1,4 +1,5 @@
 const buttonSpace = document.querySelector(".butMania");
+const main = document.getElementById('main');
 
 const colorArray = [
   'white',
@@ -38,7 +39,7 @@ function displayArray(event) {
   const colorPickerForm = document.createElement('form');
   colorPickerForm.innerHTML = '<select id="colorPicker"><option value="black">Black</option><option value="white">White</option><option value="red">Red</option><option value="green">Green</option><option value="purple">Purple</option><option value="pink">Pink</option><option value="yello">Yellow</option></select>';
 
-  document.body.insertBefore(colorPickerForm, buttonSpace);
+  main.insertBefore(colorPickerForm, buttonSpace);
 
   buttonSpace.addEventListener("click", (event) => {
     const clickedClass = event.target.className;
