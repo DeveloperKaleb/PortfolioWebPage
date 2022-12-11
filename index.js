@@ -25,23 +25,28 @@ function renderButtons(width, height, html, row = 1, column = 1) {
   row += 1;
   renderButtons(width, height, renderHtml, row);
 }
-renderButtons(5, 3, renderHtml);
 
-//TODO FIX ISSUE WITH THIS WHERE CLICKING THE DIV CHANGES THE DIVS BACKGROUND COLOR
-buttonSpace.addEventListener("click", (event) => {
-  const clickedClass = event.target.className;
+function displayArray() {
+  const columns = document.getElementById('xVal').value
+  const rows = document.getElementById('yVal').value
+
+  renderButtons(rows, columns, renderHtml);
+
+  buttonSpace.addEventListener("click", (event) => {
+    const clickedClass = event.target.className;
+    
+    const isNotRow = clickedClass.split('').includes('x');
+    if (!isNotRow) {
+      return
+    }
   
-  const isNotRow = clickedClass.split('').includes('x');
-  if (!isNotRow) {
-    return
-  }
-
-  const clickedElement = document.querySelector(`.${clickedClass}`)
-  const buttonBackColor = clickedElement.style.backgroundColor;
-
-  if (buttonBackColor && buttonBackColor === 'white') {
-    clickedElement.style.backgroundColor = 'black';
-  } else {
-    clickedElement.style.backgroundColor = 'white';
-  }
-});
+    const clickedElement = document.querySelector(`.${clickedClass}`)
+    const buttonBackColor = clickedElement.style.backgroundColor;
+  
+    if (buttonBackColor && buttonBackColor === 'white') {
+      clickedElement.style.backgroundColor = 'black';
+    } else {
+      clickedElement.style.backgroundColor = 'white';
+    }
+  });
+}
