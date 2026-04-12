@@ -1,82 +1,110 @@
-/* Color scheme used is #e3e7af (Pale Spring Bud), #eff1c5 (lighter Pale Spring Bud) #a2a77f (Artichoke),
- #dfe38c (Green Yellow Crayola), #035e7b (Blue Sapphire), and #002e2c (Rich Black) */ 
+/* Color scheme: #e3e7af, #eff1c5, #a2a77f, #dfe38c, #035e7b, #002e2c, #51553a */ 
 
-.navigation {
-	width: 80%;
+/* --- Layout & Responsiveness --- */
+.navigation, .wrapper {
+    width: 90%; 
+    max-width: 800px;
+    margin: auto;
     flex: 1;
-	margin: auto;
-}
-
-.wrapper {
-	width: 80%;
-    flex: 1;
-	margin: auto;
 }
 
 .imageWrap {
-	width: 100%;
-}
-/* The wrappers above were separated so as to properly align the text and image */
-
-form button {
-	width: auto;
+    max-width: 100%;
+    height: auto;
 }
 
 body {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	text-align: center;
-	background: #51553a;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    background: #51553a;
+    margin: 0;
 }
 
+/* --- Typography & Elements --- */
 header {
-	font-family: monospace, serif;
-	color: #eff1c5;
-	padding: 23px;
-}
-
-ul {
-	list-style-type: none;
+    font-family: monospace, serif;
+    color: #eff1c5;
+    padding: 23px;
 }
 
 main {
-	color: #e3e7af;
+    color: #e3e7af;
 }
 
 h1 {
-	color:  #e3e7af;
-	padding: 23px;
-	font-size: 30px;
+    color: #e3e7af;
+    padding: 23px;
+    font-size: 30px;
 }
+
 h2 {
-	font-size: 23px;
+    font-size: 23px;
 }
 
-button {
-	height: 30px;
-	width: 30px;
+/* --- Links --- */
+a:link    {color: #eff1c5;}
+a:visited {color: #dfe38c;}
+a:hover   {color: #035e7b;}
+a:active  {color: #002e2c;}
+
+/* --- The Grid Toy (Simplified) --- */
+.butMania {
+    margin-top: 20px;
+    margin-bottom: 40px;
+    width: 100%;
+    overflow-x: auto; /* Keeps the page from breaking if the grid is wide */
 }
-/*body, header, main, h1, and h2 were separated out for my prefered visual effect */
 
-.footer {
-	font-family: monospace, serif;
-	color: #eff1c5;
+/* Combining your 30px logic with the project color palette */
+.butMania button {
+    width: 30px;
+    height: 30px;
+    margin: 1px;
+    cursor: pointer;
+    background-color: #a2a77f; /* Artichoke */
+    border: 1px solid #dfe38c; /* Green Yellow Crayola */
 }
 
-a:link     {color: #eff1c5;}
-a:visited  {color: #dfe38c;}
-a:hover    {color: #035e7b;}
-a:active   {color: #002e2c;}
+.butMania button:hover {
+    background-color: #dfe38c;
+}
 
-/* Psuedo-code for links was chosen from the same color schem the page at large was */
+/* --- The Snake Arena (Active State) --- */
+/* These rules ONLY apply when the container also has the 'is-snake' class */
+.butMania.is-snake {
+    display: inline-grid;
+    grid-template-columns: repeat(20, 20px);
+    grid-gap: 1px;
+    justify-content: center;
+    background-color: #002e2c;
+    padding: 2px;
+    border: 2px solid #eff1c5;
+}
 
+.butMania.is-snake button {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+/* Since the Toy uses dynamic columns, we need a 'reset' for when you use the Toy */
+/* This rule ensures that if you go back to the toy, it doesn't try to force 20 columns */
+#arrayForm:focus-within ~ .butMania {
+    display: block; 
+}
+
+/* --- Media Queries --- */
 @media all and (min-width: 720px) {
-	.imageWrap {
-		width: auto;
-		flex: 1;
-	}
-	.wrapper {
-		width: 400px;
-	}
+    .imageWrap {
+        width: auto;
+        flex: 1;
+    }
+    .wrapper {
+        width: 600px; 
+    }
 }

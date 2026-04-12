@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Entertainment - Kaleb's Portfolio</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css" rel="stylesheet" />
+</head>
+<body>
+    <header id="global-nav"></header>
+
+    <main id="main" class="wrapper">
+        <div id="game-controls">
+            <h2>Snake System</h2>
+            <p>Score: <span id="score">0</span></p>
+            <button id="startBtn">Initialize Core</button>
+        </div>
+
+        <div>
+            <h2>Array Grid Toy</h2>
+            <p>Enter dimensions to generate a grid. Keep it under 100 for best performance.</p>
+            
+            <form id="arrayForm">
+                <div>
+                    <label for="xVal">Columns:</label>
+                    <input type="number" id="xVal" min="1" max="200">
+                </div>
+                <div>
+                    <label for="yVal">Rows:</label>
+                    <input type="number" id="yVal" min="1" max="200">
+                </div>
+                <button type="submit">Generate Grid</button>
+            </form>
+    
+            <div class="butMania" id="gridContainer">
+                </div>
+        </div>
+    </main>
+
+    <script src="/PortfolioWebPage/scripts/nav.js"></script>
+    <script src="./entertainment.js"></script>
+</body>
+</html>

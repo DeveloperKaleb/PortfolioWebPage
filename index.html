@@ -14,28 +14,9 @@
     <!-- The two links above this comment are meant to set browser setting to a consistent standard and link to the style.css file -->
   </head>
   <body>
-    <header class="navigation">Games</header>
+    <header id="global-nav"></header>
     <main id="main">
       <img class="imageWrap" src="photos/family-photo.png" alt="family-photo" />
-      <!-- I have two wrapper classes. The one is meant to guide all my text while the other is meant to guide my image. I didn't like the look of the page when the text wrapper was wide enough to center the image. -->
-      <h1 class="wrapper">Kaleb Holten</h1>
-      <p>On mobile the render may not look right for large submissions.</p>
-      <p>It is recommended that columns and rows are kept under 100</p>
-      <p>(going higher might render, but will experience increasing issues as the number climbs)</p>
-      <form id="arrayForm" onsubmit="displayArray(event)">
-        <div>
-          <label for="xVal">Columns:</label>
-          <input type="number" id="xVal">
-        </div>
-        <div>
-          <label for="yVal">Rows:</label>
-          <input type="number" id="yVal">
-        </div>
-        <button type="submit">Submit</button>
-      </form>
-      <div class="butMania">
-      </div>
-      <script src="./index.js"></script>
       <article class="wrapper">
         <h2>Intro</h2>
         <p>
@@ -98,5 +79,7 @@
         </ul>
       </article>
     </footer>
+    <script src="/PortfolioWebPage/scripts/nav.js"></script>
+    <script src="./index.js"></script>
   </body>
 </html>
