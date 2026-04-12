@@ -1,37 +1,26 @@
-console.log("Script Load Check: entertainment.js is active.");
-console.log("Start Button Check:", document.getElementById('startBtn'));
+// Import the core logic engine
+import { 
+    generateGridHtml, 
+    isWallCollision, 
+    isSelfCollision, 
+    getNextHead, 
+    getCoordsFromIndex,
+    isEatingFood,
+    isValidDirection
+} from '../js/logic.js';
 
 /* --- SHARED SELECTORS --- */
 const buttonSpace = document.querySelector(".butMania");
 const main = document.getElementById('main');
 
-/* --- PART 1: THE SILLY TOY (Your Original Logic) --- */
+/* --- PART 1: THE SILLY TOY --- */
 let previousPickedColors = {};
-let renderHtml = '';
-let colorPickerRendered = false;
-
-function renderButtons(width, height, html, row = 1, column = 1) {
-    if (row > height) {
-        buttonSpace.innerHTML = html;
-        return;
-    }
-    renderHtml = renderHtml.concat(`<div class="y${row}">`);
-    let currentColumn = column;
-    while (currentColumn <= width) {
-        renderHtml += `<button class="x${currentColumn}y${row}" style="background-color: white"></button>`;
-        currentColumn += 1;
-    }
-    renderHtml = renderHtml.concat('</div>');
-    row += 1;
-    renderButtons(width, height, renderHtml, row);
-}
 
 function addColorPicker() {
-    // Double check we don't already have one (extra safety)
     if (document.getElementById('toyColorPicker')) return;
 
     const colorPickerForm = document.createElement('form');
-    colorPickerForm.id = "toyColorPicker"; // Critical for the check above
+    colorPickerForm.id = "toyColorPicker";
     colorPickerForm.innerHTML = `
         <select id="colorPicker" style="margin: 1rem">
             <option value="black">Black</option>
@@ -43,23 +32,21 @@ function addColorPicker() {
             <option value="yellow">Yellow</option>
         </select>`;
 
-    // Instead of insertBefore, just put it at the top of the container
-    // This avoids the "Not a child of this node" error entirely
-    buttonSpace.parentElement.prepend(colorPickerForm);
+    const arrayForm = document.getElementById('arrayForm');
+    arrayForm.insertAdjacentElement('afterend', colorPickerForm);
 }
 
 function displayArray(event) {
     event.preventDefault();
     buttonSpace.style.display = "block"; 
-    buttonSpace.classList.remove('is-snake'); // Ensure snake styles are gone
+    buttonSpace.classList.remove('is-snake'); 
 
     const columns = document.getElementById('xVal').value;
     const rows = document.getElementById('yVal').value;
     
-    renderHtml = '';
-    renderButtons(columns, rows, renderHtml);
+    // SYSTEM UPGRADE: Using the pure logic function to generate the HTML string
+    buttonSpace.innerHTML = generateGridHtml(columns, rows);
 
-    // SYSTEM CHECK: Look for the specific ID instead of a boolean flag
     const existingPicker = document.getElementById('toyColorPicker');
     if (!existingPicker) {
         addColorPicker();
@@ -74,31 +61,29 @@ document.getElementById('arrayForm').addEventListener('submit', displayArray);
 
 
 /* --- PART 2: THE SNAKE SYSTEM --- */
-let snake = [[10, 10], [10, 11], [10, 12]]; // Initial coordinates
-let direction = { x: 0, y: -1 }; // Starting "Up"
+let snake = [[10, 10], [10, 11], [10, 12]];
+let direction = { x: 0, y: -1 };
 let food = [5, 5];
 let score = 0;
 let gameInterval = null;
 
 function initSnakeGame() {
-    renderHtml = ''; // CLEAR THIS FIRST
-    buttonSpace.innerHTML = ''; // Wipe the current grid
+    buttonSpace.innerHTML = ''; 
 
     const oldPicker = document.getElementById('toyColorPicker');
     if (oldPicker) oldPicker.remove();
 
-    buttonSpace.style.display = "grid"; // Switch to grid mode
+    buttonSpace.style.display = "grid"; 
     buttonSpace.classList.add('is-snake');
     
-    // Flat render: 20x20 = 400 buttons without <div> wrappers
+    // SYSTEM UPGRADE: Using the pure math to generate coords for the 400-button grid
+    let snakeHtml = '';
     for (let i = 1; i <= 400; i++) {
-        let r = Math.ceil(i / 20);
-        let c = i % 20 || 20;
-        renderHtml += `<button class="x${c}y${r}" style="background-color: white"></button>`;
+        const { x, y } = getCoordsFromIndex(i, 20);
+        snakeHtml += `<button class="x${x}y${y}" style="background-color: white"></button>`;
     }
-    buttonSpace.innerHTML = renderHtml;
+    buttonSpace.innerHTML = snakeHtml;
     
-    // Stop any existing game loop
     if (gameInterval) clearInterval(gameInterval);
     
     score = 0;
@@ -113,46 +98,34 @@ function initSnakeGame() {
 function spawnFood() {
     let newFood;
     let isOccupied = true;
-
     while (isOccupied) {
-        // Generate potential coordinates
         newFood = [
             Math.floor(Math.random() * 20) + 1,
             Math.floor(Math.random() * 20) + 1
         ];
-
-        // Check if these coordinates are under the snake's body
-        isOccupied = snake.some(segment => segment[0] === newFood[0] && segment[1] === newFood[1]);
+        // Reuse logic: If food lands on snake, it's a "self collision" scenario
+        isOccupied = isSelfCollision(newFood, snake);
     }
-
     food = newFood;
 }
 
 function gameStep() {
-    const head = [snake[0][0] + direction.x, snake[0][1] + direction.y];
+    const head = getNextHead(snake[0], direction);
 
-    // 1. Wall Collision check (Existing)
-    if (head[0] < 1 || head[0] > 20 || head[1] < 1 || head[1] > 20) {
+    // Check for game over conditions.
+    if (isWallCollision(head) || isSelfCollision(head, snake)) {
         return gameOver();
     }
 
-    // 2. Self-Collision check (New)
-    // We check if the head's X and Y match any segment currently in the snake
-    const bitItself = snake.some(segment => segment[0] === head[0] && segment[1] === head[1]);
-    if (bitItself) {
-        return gameOver('Don\'t eat yourself');
-    }
-
-    // Add new head
     snake.unshift(head);
 
-    // Check if food eaten
-    if (head[0] === food[0] && head[1] === food[1]) {
+    // SYSTEM UPGRADE: Use the logic engine to check for food
+    if (isEatingFood(head, food)) {
         score += 10;
         document.getElementById('score').innerText = score;
         spawnFood();
     } else {
-        snake.pop(); // Remove tail
+        snake.pop(); 
     }
 
     drawFrame();
@@ -187,12 +160,46 @@ function gameOver(message = '') {
 
 /* --- Input Listener --- */
 window.addEventListener('keydown', (e) => {
+    let newDirection;
+
     switch (e.key) {
-        case 'ArrowUp':    if (direction.y !== 1)  direction = { x: 0, y: -1 }; break;
-        case 'ArrowDown':  if (direction.y !== -1) direction = { x: 0, y: 1 };  break;
-        case 'ArrowLeft':  if (direction.x !== 1)  direction = { x: -1, y: 0 }; break;
-        case 'ArrowRight': if (direction.x !== -1) direction = { x: 1, y: 0 };  break;
+        case 'ArrowUp':    newDirection = { x: 0, y: -1 }; break;
+        case 'ArrowDown':  newDirection = { x: 0, y: 1 };  break;
+        case 'ArrowLeft':  newDirection = { x: -1, y: 0 }; break;
+        case 'ArrowRight': newDirection = { x: 1, y: 0 };  break;
+        default: return; // Ignore other keys
+    }
+
+    // SYSTEM UPGRADE: Only update if the turn is legal (no 180s)
+    if (isValidDirection(direction, newDirection)) {
+        direction = newDirection;
     }
 });
 
 document.getElementById('startBtn').addEventListener('click', initSnakeGame);
+
+// This listener lives forever and handles the "Painting" logic
+buttonSpace.addEventListener("click", (event) => {
+    // Only proceed if we are NOT in Snake mode (is-snake class check)
+    if (buttonSpace.classList.contains('is-snake')) return;
+
+    const clickedElement = event.target;
+    const clickedClass = clickedElement.className;
+
+    // Ensure we clicked a grid button and not the container
+    if (!clickedClass || !clickedClass.includes('x')) return;
+
+    const colorPicker = document.getElementById('colorPicker');
+    if (!colorPicker) return; // Can't paint without a brush
+
+    const buttonBackColor = clickedElement.style.backgroundColor;
+
+    // Toggle back to previous color logic
+    if (buttonBackColor === colorPicker.value && previousPickedColors[clickedClass]) {
+        clickedElement.style.backgroundColor = `${previousPickedColors[clickedClass]}`;
+        return;
+    }
+
+    previousPickedColors[clickedClass] = buttonBackColor;
+    clickedElement.style.backgroundColor = `${colorPicker.value}`;
+});

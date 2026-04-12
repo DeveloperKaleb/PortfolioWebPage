@@ -4,7 +4,7 @@ const basePath = '/PortfolioWebPage';
 const navTemplate = `
 <nav>
   <a href="${basePath}/" id="nav-home">Home</a>
-  <a href="${basePath}/entertainment/" id="nav-entertainment">Entertainment</a>
+  <a href="${basePath}/entertainment/entertainment.html" id="nav-entertainment">Entertainment</a>
 </nav>
 `;
 

@@ -1,0 +1,26 @@
+{
+  "name": "portfolio-webpage",
+  "version": "1.0.0",
+  "description": "This project was one of my first projects in my bootcamp journey.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DeveloperKaleb/PortfolioWebPage.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DeveloperKaleb/PortfolioWebPage/issues"
+  },
+  "homepage": "https://github.com/DeveloperKaleb/PortfolioWebPage#readme",
+  "devDependencies": {
+    "vitest": "^4.1.4"
+  }
+}
