@@ -20,6 +20,13 @@ export const isSelfCollision = (head, snakeBody) => {
     return snakeBody.some(segment => segment[0] === head[0] && segment[1] === head[1]);
 };
 
+export function isHoleCollision(head) {
+    const x = head[0];
+    const y = head[1];
+    // The 8x8 center of a 20x20 grid
+    return (x >= 7 && x <= 14 && y >= 7 && y <= 14);
+}
+
 export const getNextHead = (currentHead, direction) => {
     return [currentHead[0] + direction.x, currentHead[1] + direction.y];
 };

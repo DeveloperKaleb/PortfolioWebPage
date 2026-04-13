@@ -49,22 +49,26 @@ a:visited {color: #dfe38c;}
 a:hover   {color: #035e7b;}
 a:active  {color: #002e2c;}
 
-/* --- The Grid Toy (Simplified) --- */
+/* --- The Grid & Snake Containers --- */
 .butMania {
     margin-top: 20px;
     margin-bottom: 40px;
     width: 100%;
-    overflow-x: auto; /* Keeps the page from breaking if the grid is wide */
+    overflow-x: auto; /* Essential: creates the scrollbar for large grids */
+    display: grid;    /* Changed from inline-grid for better container behavior */
+    justify-content: center; /* Centers the grid when it's smaller than the screen */
+    padding-bottom: 10px;    /* Space for the scrollbar so it doesn't cover buttons */
 }
 
-/* Combining your 30px logic with the project color palette */
+/* --- The Grid Toy Buttons --- */
 .butMania button {
     width: 30px;
     height: 30px;
     margin: 1px;
     cursor: pointer;
-    background-color: #a2a77f; /* Artichoke */
-    border: 1px solid #dfe38c; /* Green Yellow Crayola */
+    background-color: #a2a77f; 
+    border: 1px solid #dfe38c;
+    flex-shrink: 0; /* Prevents the browser from squishing buttons to fit the width */
 }
 
 .butMania button:hover {
@@ -72,15 +76,16 @@ a:active  {color: #002e2c;}
 }
 
 /* --- The Snake Arena (Active State) --- */
-/* These rules ONLY apply when the container also has the 'is-snake' class */
 .butMania.is-snake {
-    display: inline-grid;
+    /* We keep the 20x20 hardcoded here as a fallback */
     grid-template-columns: repeat(20, 20px);
     grid-gap: 1px;
-    justify-content: center;
     background-color: #002e2c;
     padding: 2px;
     border: 2px solid #eff1c5;
+    width: fit-content; /* Keeps the dark background tight to the 20x20 grid */
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .butMania.is-snake button {
@@ -90,12 +95,7 @@ a:active  {color: #002e2c;}
     margin: 0;
     border: none;
     border-radius: 0;
-}
-
-/* Since the Toy uses dynamic columns, we need a 'reset' for when you use the Toy */
-/* This rule ensures that if you go back to the toy, it doesn't try to force 20 columns */
-#arrayForm:focus-within ~ .butMania {
-    display: block; 
+    flex-shrink: 0;
 }
 
 /* --- Media Queries --- */

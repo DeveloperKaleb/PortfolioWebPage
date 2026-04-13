@@ -12,12 +12,19 @@
 
     <!-- Current wrapper for games and toys content. -->
     <main id="main" class="wrapper">
-        <div id="game-controls">
-            <h2>Snake System</h2>
-            <p>Score: <span id="score">0</span></p>
-            <button id="startBtn">Initialize Core</button>
-        </div>
+    <div id="game-controls">
+        <h2>Snake System</h2>
+        <p>Score: <span id="score">0</span></p>
+        <select id="modeSelect">
+            <option value="classic">Classic</option>
+            <option value="donut">Donut</option>
+        </select>
+        <button id="startBtn">Start Game</button>
+    </div>
 
+    <div class="butMania is-snake" id="snakeDisplay" style="display: grid;">
+    </div>
+    <hr> 
         <div>
             <h2>Array Grid Toy</h2>
             <p>Enter dimensions to generate a grid. Keep it under 100 for best performance.</p>
@@ -34,8 +41,8 @@
                 <button type="submit">Generate Grid</button>
             </form>
     
-            <div class="butMania" id="gridContainer">
-                </div>
+            <div class="butMania" id="toyDisplay">
+            </div>
         </div>
     </main>
 
