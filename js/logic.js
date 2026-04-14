@@ -48,3 +48,37 @@ export const isValidDirection = (current, next) => {
     if (current.y + next.y === 0 && current.y !== 0) return false;
     return true;
 };
+
+/* --- TETROMINO DEFINITIONS --- */
+// Each shape is an array of [x, y] offsets from its center
+export const TETROMINOES = {
+    'I': [[-1, 0], [0, 0], [1, 0], [2, 0]],
+    'J': [[-1, -1], [-1, 0], [0, 0], [1, 0]],
+    'L': [[1, -1], [-1, 0], [0, 0], [1, 0]],
+    'O': [[0, -1], [1, -1], [0, 0], [1, 0]],
+    'S': [[0, -1], [1, -1], [-1, 0], [0, 0]],
+    'T': [[0, -1], [-1, 0], [0, 0], [1, 0]],
+    'Z': [[-1, -1], [0, -1], [0, 0], [1, 0]]
+};
+
+/**
+ * Rotation logic: (x, y) -> (-y, x) for 90-degree clockwise
+ */
+export function rotatePiece(shape) {
+    return shape.map(([x, y]) => [-y, x]);
+}
+
+/**
+ * Bounds checking specifically for the 10x20 Tetris Matrix
+ */
+export function isTetrisCollision(piece, matrix) {
+    for (let {x, y} of piece) {
+        // Wall collisions
+        if (x < 1 || x > 10 || y > 20) return true;
+        
+        // Matrix collision (check if the cell is already occupied)
+        // Note: y < 1 is allowed (spawning above the board)
+        if (y >= 1 && matrix[y-1][x-1] !== null) return true;
+    }
+    return false;
+}

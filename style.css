@@ -98,6 +98,29 @@ a:active  {color: #002e2c;}
     flex-shrink: 0;
 }
 
+/* --- The Tetris Matrix --- */
+#tetrisDisplay {
+    display: grid;
+    /* 10 columns, 20px each = 200px wide + gaps */
+    grid-template-columns: repeat(10, 20px); 
+    grid-gap: 1px;
+    background-color: #002e2c; /* Same dark "void" as Snake */
+    padding: 2px;
+    border: 2px solid #eff1c5;
+    width: fit-content;
+    margin: 20px auto;
+}
+
+#tetrisDisplay button {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background-color: #51553a; /* Empty space color */
+}
+
 /* --- Media Queries --- */
 @media all and (min-width: 720px) {
     .imageWrap {

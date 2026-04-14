@@ -7,12 +7,17 @@ import {
     getNextHead, 
     getCoordsFromIndex,
     isEatingFood,
-    isValidDirection
+    isValidDirection,
+    TETROMINOES,
+    isTetrisCollision,
+    rotatePiece
 } from '../js/logic.js';
 
 /* --- SELECTORS --- */
 const snakeBoard = document.getElementById('snakeDisplay');
 const toyBoard = document.getElementById('toyDisplay');
+const tetrisBoard = document.getElementById('tetrisDisplay');
+const tetrisScoreEl = document.getElementById('tetris-score');
 
 /* --- SHARED STATE --- */
 let previousPickedColors = {};
@@ -66,30 +71,6 @@ function displayArray(event) {
     document.getElementById('yVal').value = null;
     previousPickedColors = {};
 }
-
-// Toy Event Listener
-document.getElementById('arrayForm').addEventListener('submit', displayArray);
-
-// Painting Logic: Target toyBoard specifically
-toyBoard.addEventListener("click", (event) => {
-    const clickedElement = event.target;
-    const clickedClass = clickedElement.className;
-
-    if (!clickedClass || !clickedClass.includes('x')) return;
-
-    const colorPicker = document.getElementById('colorPicker');
-    if (!colorPicker) return;
-
-    const buttonBackColor = clickedElement.style.backgroundColor;
-
-    if (buttonBackColor === colorPicker.value && previousPickedColors[clickedClass]) {
-        clickedElement.style.backgroundColor = `${previousPickedColors[clickedClass]}`;
-        return;
-    }
-
-    previousPickedColors[clickedClass] = buttonBackColor;
-    clickedElement.style.backgroundColor = `${colorPicker.value}`;
-});
 
 
 /* --- PART 2: THE SNAKE SYSTEM --- */
@@ -250,37 +231,277 @@ function gameOver(reason = '') {
 }
 
 
-/* --- Input Listener --- */
-window.addEventListener('keydown', (e) => {
-    const keysToCapture = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
+/* --- PART 3: THE TETRIS SYSTEM --- */
 
-    if (gameInterval && keysToCapture.includes(e.key)) {
-        e.preventDefault();
+/* --- TETRIS STATE --- */
+let tetrisScore = 0;
+let tetrisLevel = 1;
+let tetrisInterval = null;
+
+let activePiece = null;   // { shape: [], x: 5, y: 1, type: 'I' }
+let tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
+
+function initTetrisGame() {
+    // 1. Clear any existing game loop
+    if (tetrisInterval) clearInterval(tetrisInterval);
+
+    // 2. Reset the System State
+    tetrisScore = 0;
+    tetrisLevel = 1;
+    document.getElementById('tetris-score').innerText = tetrisScore;
+    
+    // Reset the Matrix to all nulls
+    tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
+
+    // 3. Kick off the logic
+    spawnTetromino(); // This creates activePiece
+    drawTetrisFrame(); // This shows the board immediately
+
+    // 4. Start the "Gravity" loop
+    // Note: Tetris usually feels better a bit faster than Snake, 
+    // maybe 500ms to start.
+    tetrisInterval = setInterval(tetrisStep, 500);
+}
+
+/**
+ * Initialize the 10x20 Tetris Matrix
+ */
+function createTetrisBoard() {
+    let tetrisHtml = '';
+    // 10 columns * 20 rows = 200 buttons
+    for (let row = 1; row <= 20; row++) {
+        for (let col = 1; col <= 10; col++) {
+            // Using a unique class naming convention for Tetris to avoid Snake conflicts
+            // e.g., tx1ty1, tx2ty1...
+            tetrisHtml += `<button class="tx${col}ty${row}"></button>`;
+        }
+    }
+    tetrisBoard.innerHTML = tetrisHtml;
+}
+
+function tetrisStep() {
+    const nextPos = { ...activePiece, y: activePiece.y + 1 };
+    
+    if (!isTetrisCollision(getAbsoluteCoords(nextPos), tetrisMatrix)) {
+        activePiece = nextPos;
+    } else {
+        lockPiece();
+        clearLines(); // <--- The System check
+        spawnTetromino();
+    }
+    drawTetrisFrame();
+}
+
+function spawnTetromino() {
+    const types = Object.keys(TETROMINOES);
+    const type = types[Math.floor(Math.random() * types.length)];
+    
+    activePiece = {
+        shape: TETROMINOES[type],
+        type: type,
+        x: 5, 
+        y: 1  
+    };
+
+    // Check if the newly spawned piece is already colliding
+    // (This happens if the player has stacked blocks to the top)
+    if (isTetrisCollision(getAbsoluteCoords(activePiece), tetrisMatrix)) {
+        gameOverTetris();
+    }
+}
+
+/**
+ * Helper to convert piece offsets + position into actual grid coordinates
+ */
+function getAbsoluteCoords(piece) {
+    return piece.shape.map(([dx, dy]) => ({
+        x: piece.x + dx,
+        y: piece.y + dy
+    }));
+}
+
+function lockPiece() {
+    const coords = getAbsoluteCoords(activePiece);
+    coords.forEach(({x, y}) => {
+        if (y >= 1) {
+            tetrisMatrix[y-1][x-1] = activePiece.type;
+        }
+    });
+}
+
+function clearLines() {
+    let linesCleared = 0;
+
+    // We loop through the matrix from top to bottom
+    for (let y = 0; y < 20; y++) {
+        // If every cell in this row is NOT null, it's a full line!
+        if (tetrisMatrix[y].every(cell => cell !== null)) {
+            // 1. Remove the full row
+            tetrisMatrix.splice(y, 1);
+            
+            // 2. Add a fresh empty row to the top
+            tetrisMatrix.unshift(Array(10).fill(null));
+            
+            linesCleared++;
+            y--;
+            
+            // Note: Since we removed a row, the 'y' index now points to the 
+            // NEXT row, so we don't need to increment 'y' for the next iteration.
+        }
     }
 
-    // 1. IF THE LOCK IS ON, BAIL OUT IMMEDIATELY
-    if (!canChangeDirection) return;
-
-    let newDirection;
-    switch (e.key) {
-        case 'ArrowUp':    newDirection = { x: 0, y: -1 }; break;
-        case 'ArrowDown':  newDirection = { x: 0, y: 1 };  break;
-        case 'ArrowLeft':  newDirection = { x: -1, y: 0 }; break;
-        case 'ArrowRight': newDirection = { x: 1, y: 0 };  break;
-        default: return; 
+    if (linesCleared > 0) {
+        updateScore(linesCleared);
     }
+}
 
-    if (gameInterval && isValidDirection(direction, newDirection)) {
-        direction = newDirection;
-        // 2. TURN THE LOCK ON
-        canChangeDirection = false; 
+function updateScore(lines) {
+    // Classic Tetris scoring (scaled by level)
+    const linePoints = [0, 40, 100, 300, 1200];
+    tetrisScore += linePoints[lines] * tetrisLevel;
+    
+    // Update the UI
+    document.getElementById('tetris-score').innerText = tetrisScore;
+    
+    // Level up every 10 lines (optional logic)
+    // tetrisLevel = Math.floor(tetrisScore / 1000) + 1;
+    // document.getElementById('tetris-level').innerText = tetrisLevel;
+}
+
+function gameOverTetris() {
+    clearInterval(tetrisInterval);
+    tetrisInterval = null;
+    alert(`Matrix Critical Failure! Final Score: ${tetrisScore}`);
+    
+    // Optional: Visual feedback like "graying out" the board
+}
+
+// Map piece types to your portfolio colors
+const TETRIS_COLORS = {
+    'I': '#035e7b', // Dark Blue
+    'J': '#a2a77f', // Artichoke
+    'L': '#dfe38c', // Green Yellow
+    'O': '#eff1c5', // Cream
+    'S': '#002e2c', // Deep Teal
+    'T': '#e3e7af', // Pale Green
+    'Z': '#51553a'  // Olive
+};
+
+function drawTetrisFrame() {
+    // 1. Clear the board (reset to empty space color)
+    const buttons = tetrisBoard.querySelectorAll('button');
+    buttons.forEach(btn => btn.style.backgroundColor = '#51553a');
+
+    // 2. Draw the Locked Matrix
+    tetrisMatrix.forEach((row, y) => {
+        row.forEach((type, x) => {
+            if (type !== null) {
+                const cell = tetrisBoard.querySelector(`.tx${x + 1}ty${y + 1}`);
+                if (cell) cell.style.backgroundColor = TETRIS_COLORS[type];
+            }
+        });
+    });
+
+    // 3. Draw the Active Piece
+    if (activePiece) {
+        const coords = getAbsoluteCoords(activePiece);
+        coords.forEach(({x, y}) => {
+            if (y >= 1) { // Only draw if it's within the visible board
+                const cell = tetrisBoard.querySelector(`.tx${x}ty${y}`);
+                if (cell) cell.style.backgroundColor = TETRIS_COLORS[activePiece.type];
+            }
+        });
     }
-}, { passive: false });
+}
+
+
+/* --- Input Listeners --- */
+document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener
+
+document.getElementById('tetrisStartBtn').addEventListener('click', initTetrisGame);
 
 document.getElementById('startBtn').addEventListener('click', () => {
     gameMode = document.getElementById('modeSelect').value;
     initSnakeGame();
 });
 
-// RUN IMMEDIATELY: Initialize the snake board visually on load
+window.addEventListener('keydown', (e) => {
+    const keysToCapture = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
+
+    // Prevent scrolling if either game is running
+    if ((gameInterval || tetrisInterval) && keysToCapture.includes(e.key)) {
+        e.preventDefault();
+    }
+
+    // --- SNAKE INPUT LOGIC ---
+    if (gameInterval) {
+        if (!canChangeDirection) return;
+
+        let newDirection;
+        switch (e.key) {
+            case 'ArrowUp':    newDirection = { x: 0, y: -1 }; break;
+            case 'ArrowDown':  newDirection = { x: 0, y: 1 };  break;
+            case 'ArrowLeft':  newDirection = { x: -1, y: 0 }; break;
+            case 'ArrowRight': newDirection = { x: 1, y: 0 };  break;
+            default: return;
+        }
+
+        if (isValidDirection(direction, newDirection)) {
+            direction = newDirection;
+            canChangeDirection = false;
+        }
+    }
+
+    // --- TETRIS INPUT LOGIC ---
+    if (tetrisInterval && activePiece) {
+        let nextPos = { ...activePiece };
+
+        switch (e.key) {
+            case 'ArrowLeft':
+                nextPos.x -= 1;
+                break;
+            case 'ArrowRight':
+                nextPos.x += 1;
+                break;
+            case 'ArrowDown':
+                nextPos.y += 1;
+                break;
+            case 'ArrowUp':
+                // Rotation!
+                nextPos.shape = rotatePiece(activePiece.shape);
+                break;
+            default: return;
+        }
+
+        // Only apply the move if it doesn't cause a collision
+        if (!isTetrisCollision(getAbsoluteCoords(nextPos), tetrisMatrix)) {
+            activePiece = nextPos;
+            drawTetrisFrame();
+        }
+    }
+}, { passive: false });
+
+// Painting Logic: Target toyBoard specifically
+toyBoard.addEventListener("click", (event) => {
+    const clickedElement = event.target;
+    const clickedClass = clickedElement.className;
+
+    if (!clickedClass || !clickedClass.includes('x')) return;
+
+    const colorPicker = document.getElementById('colorPicker');
+    if (!colorPicker) return;
+
+    const buttonBackColor = clickedElement.style.backgroundColor;
+
+    if (buttonBackColor === colorPicker.value && previousPickedColors[clickedClass]) {
+        clickedElement.style.backgroundColor = `${previousPickedColors[clickedClass]}`;
+        return;
+    }
+
+    previousPickedColors[clickedClass] = buttonBackColor;
+    clickedElement.style.backgroundColor = `${colorPicker.value}`;
+});
+
+// RUN IMMEDIATELY: Initialize the game boards visually on load
 createStaticBoard();
+createTetrisBoard();

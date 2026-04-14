@@ -12,20 +12,36 @@
 
     <!-- Current wrapper for games and toys content. -->
     <main id="main" class="wrapper">
-    <div id="game-controls">
-        <h2>Snake System</h2>
-        <p>Score: <span id="score">0</span></p>
-        <select id="modeSelect">
-            <option value="classic">Classic</option>
-            <option value="donut">Donut</option>
-        </select>
-        <button id="startBtn">Start Game</button>
-    </div>
+        <div id="tetris-system">
+            <h2>Tetris System</h2>
+            <div id="tetris-controls">
+                <p>Score: <span id="tetris-score">0</span> | Level: <span id="tetris-level">1</span></p>
+                <button id="tetrisStartBtn">Initialize Matrix</button>
+            </div>
+            
+            <div class="butMania" id="tetrisDisplay">
+                </div>
+        </div>
 
-    <div class="butMania is-snake" id="snakeDisplay" style="display: grid;">
-    </div>
-    <hr> 
-        <div>
+        <hr>
+
+        <div id="snake-system">
+            <h2>Snake System</h2>
+            <div id="game-controls">
+                <p>Score: <span id="score">0</span></p>
+                <select id="modeSelect">
+                    <option value="classic">Classic</option>
+                    <option value="donut">Donut</option>
+                </select>
+                <button id="startBtn">Start Game</button>
+            </div>
+            <div class="butMania is-snake" id="snakeDisplay">
+                </div>
+        </div>
+
+        <hr> 
+
+        <div  id="toy-system">
             <h2>Array Grid Toy</h2>
             <p>Enter dimensions to generate a grid. Keep it under 100 for best performance.</p>
             
