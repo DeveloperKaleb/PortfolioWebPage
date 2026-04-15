@@ -392,7 +392,7 @@ function drawTetrisFrame() {
     const buttons = tetrisBoard.querySelectorAll('button');
     buttons.forEach(btn => btn.style.backgroundColor = '#51553a');
 
-    // 2. Draw the Locked Matrix
+    // 2. Draw the Locked Matrix (Data is 0-19, UI is 1-20)
     tetrisMatrix.forEach((row, y) => {
         row.forEach((type, x) => {
             if (type !== null) {
@@ -402,13 +402,15 @@ function drawTetrisFrame() {
         });
     });
 
-    // 3. Draw the Active Piece
+    // 3. Draw the Active Piece (Logic is 1-10/1-20, UI is 1-10/1-20)
     if (activePiece) {
         const coords = getAbsoluteCoords(activePiece);
         coords.forEach(({x, y}) => {
-            if (y >= 1) { // Only draw if it's within the visible board
-                const cell = tetrisBoard.querySelector(`.tx${x}ty${y}`);
-                if (cell) cell.style.backgroundColor = TETRIS_COLORS[activePiece.type];
+            // Check if the cell exists before trying to color it
+            // This prevents the "ty0" error when spawning
+            const cell = tetrisBoard.querySelector(`.tx${x}ty${y}`);
+            if (cell) {
+                cell.style.backgroundColor = TETRIS_COLORS[activePiece.type];
             }
         });
     }
