@@ -18,6 +18,7 @@ const snakeBoard = document.getElementById('snakeDisplay');
 const toyBoard = document.getElementById('toyDisplay');
 const tetrisBoard = document.getElementById('tetrisDisplay');
 const tetrisScoreEl = document.getElementById('tetris-score');
+const tetrisLevelEl = document.getElementById('tetris-level');
 
 /* --- SHARED STATE --- */
 let previousPickedColors = {};
@@ -250,8 +251,7 @@ function initTetrisGame() {
     tetrisLines = 0;
     
     document.getElementById('tetris-score').innerText = tetrisScore;
-    // If you add a level/lines element to your HTML UI layout later, reset them here too:
-    // document.getElementById('tetris-level').innerText = tetrisLevel;
+    if (tetrisLevelEl) tetrisLevelEl.innerText = tetrisLevel;
 
     tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
     spawnTetromino(); 
@@ -369,10 +369,9 @@ function updateScore(lines) {
     if (targetLevel > tetrisLevel) {
         tetrisLevel = targetLevel;
         
-        // OPTIONAL UI Update if you have a level element:
-        // if (document.getElementById('tetris-level')) {
-        //     document.getElementById('tetris-level').innerText = tetrisLevel;
-        // }
+        if (document.getElementById('tetris-level')) {
+            document.getElementById('tetris-level').innerText = tetrisLevel;
+        }
 
         // 5. Dynamic Gravity: Speed up the game loop interval as level increases
         clearInterval(tetrisInterval);
