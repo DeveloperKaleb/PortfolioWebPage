@@ -236,30 +236,26 @@ function gameOver(reason = '') {
 /* --- TETRIS STATE --- */
 let tetrisScore = 0;
 let tetrisLevel = 1;
+let tetrisLines = 0; 
 let tetrisInterval = null;
 
 let activePiece = null;   // { shape: [], x: 5, y: 1, type: 'I' }
 let tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
 
 function initTetrisGame() {
-    // 1. Clear any existing game loop
     if (tetrisInterval) clearInterval(tetrisInterval);
 
-    // 2. Reset the System State
     tetrisScore = 0;
     tetrisLevel = 1;
-    document.getElementById('tetris-score').innerText = tetrisScore;
+    tetrisLines = 0;
     
-    // Reset the Matrix to all nulls
+    document.getElementById('tetris-score').innerText = tetrisScore;
+    // If you add a level/lines element to your HTML UI layout later, reset them here too:
+    // document.getElementById('tetris-level').innerText = tetrisLevel;
+
     tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
-
-    // 3. Kick off the logic
-    spawnTetromino(); // This creates activePiece
-    drawTetrisFrame(); // This shows the board immediately
-
-    // 4. Start the "Gravity" loop
-    // Note: Tetris usually feels better a bit faster than Snake, 
-    // maybe 500ms to start.
+    spawnTetromino(); 
+    drawTetrisFrame(); 
     tetrisInterval = setInterval(tetrisStep, 500);
 }
 
@@ -356,16 +352,35 @@ function clearLines() {
 }
 
 function updateScore(lines) {
-    // Classic Tetris scoring (scaled by level)
+    // 1. Classic Nintendo Base Points Array
+    // Index matches number of lines cleared: [0 lines, 1 line, 2 lines, 3 lines, 4 lines]
     const linePoints = [0, 40, 100, 300, 1200];
-    tetrisScore += linePoints[lines] * tetrisLevel;
     
-    // Update the UI
+    // 2. Calculate and add score scaled by current level
+    tetrisScore += linePoints[lines] * tetrisLevel;
     document.getElementById('tetris-score').innerText = tetrisScore;
     
-    // Level up every 10 lines (optional logic)
-    // tetrisLevel = Math.floor(tetrisScore / 1000) + 1;
-    // document.getElementById('tetris-level').innerText = tetrisLevel;
+    // 3. Accumulate total lines cleared
+    tetrisLines += lines;
+    
+    // 4. Level up every 10 lines
+    const targetLevel = Math.floor(tetrisLines / 10) + 1;
+    
+    if (targetLevel > tetrisLevel) {
+        tetrisLevel = targetLevel;
+        
+        // OPTIONAL UI Update if you have a level element:
+        // if (document.getElementById('tetris-level')) {
+        //     document.getElementById('tetris-level').innerText = tetrisLevel;
+        // }
+
+        // 5. Dynamic Gravity: Speed up the game loop interval as level increases
+        clearInterval(tetrisInterval);
+        
+        // Calculates a faster speed. Level 1 = 500ms, Level 2 = 450ms, Level 3 = 400ms, etc.
+        const newSpeed = Math.max(100, 500 - (tetrisLevel - 1) * 50); 
+        tetrisInterval = setInterval(tetrisStep, newSpeed);
+    }
 }
 
 function gameOverTetris() {
