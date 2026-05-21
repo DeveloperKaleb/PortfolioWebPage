@@ -384,7 +384,7 @@ const TETRIS_COLORS = {
     'O': '#eff1c5', // Cream
     'S': '#002e2c', // Deep Teal
     'T': '#e3e7af', // Pale Green
-    'Z': '#51553a'  // Olive
+    'Z': '#b33939'  // Olive
 };
 
 function drawTetrisFrame() {
