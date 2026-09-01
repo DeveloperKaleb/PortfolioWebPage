@@ -1,5 +1,9 @@
 // Bump this manually with every push to origin/main. Include the time to the minute.
-const LAST_UPDATED = 'August 31, 2026, 11:03 PM';
+// Also bump the matching ?v=YYYYMMDD-HHmm query string on the style.css/nav.js/
+// footer.js/entertainment.js tags in index.html and entertainment.html - that's
+// what actually cache-busts those files; this constant can't do it by itself
+// since the browser has to fetch this very file before it can read this value.
+const LAST_UPDATED = 'August 31, 2026, 11:17 PM';
 
 document.addEventListener('DOMContentLoaded', () => {
     const lastUpdatedElement = document.getElementById('last-updated');
