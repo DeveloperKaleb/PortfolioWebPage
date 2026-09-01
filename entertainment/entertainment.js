@@ -20,6 +20,24 @@ const tetrisBoard = document.getElementById('tetrisDisplay');
 const tetrisScoreEl = document.getElementById('tetris-score');
 const tetrisLevelEl = document.getElementById('tetris-level');
 
+/* --- HUB / VIEW SWITCHING --- */
+const hub = document.getElementById('entertainment-hub');
+const views = {
+    tetris: document.getElementById('tetris-system'),
+    snake: document.getElementById('snake-system'),
+    toy: document.getElementById('toy-system'),
+};
+
+function showView(name) {
+    hub.hidden = Boolean(name);
+    Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
+}
+
+function applyHashRoute() {
+    const hash = window.location.hash.slice(1);
+    showView(views[hash] ? hash : null);
+}
+
 /* --- SHARED STATE --- */
 let previousPickedColors = {};
 
@@ -515,3 +533,15 @@ toyBoard.addEventListener("click", (event) => {
 // RUN IMMEDIATELY: Initialize the game boards visually on load
 createStaticBoard();
 createTetrisBoard();
+
+/* --- Hub Navigation Listeners --- */
+document.querySelectorAll('.entry-card').forEach((card) => {
+    card.addEventListener('click', () => { window.location.hash = card.dataset.view; });
+});
+
+document.querySelectorAll('[data-back]').forEach((btn) => {
+    btn.addEventListener('click', () => { window.location.hash = ''; });
+});
+
+window.addEventListener('hashchange', applyHashRoute);
+applyHashRoute();

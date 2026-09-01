@@ -12,20 +12,57 @@
 
     <!-- Current wrapper for games and toys content. -->
     <main id="main" class="wrapper">
-        <div id="tetris-system">
+        <section id="entertainment-hub">
+            <h2>Games</h2>
+            <div class="card-grid">
+                <button class="entry-card" data-view="tetris">
+                    <div class="thumb thumb-tetris" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Tetris System</span>
+                </button>
+                <button class="entry-card" data-view="snake">
+                    <div class="thumb thumb-snake" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Snake System</span>
+                </button>
+            </div>
+
+            <h2>Toys</h2>
+            <div class="card-grid">
+                <button class="entry-card" data-view="toy">
+                    <div class="thumb thumb-toy" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Array Grid Toy</span>
+                </button>
+            </div>
+        </section>
+
+        <div id="tetris-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
             <h2>Tetris System</h2>
             <div id="tetris-controls">
                 <p>Score: <span id="tetris-score">0</span> | Level: <span id="tetris-level">1</span></p>
                 <button id="tetrisStartBtn">Initialize Matrix</button>
             </div>
-            
+
             <div class="butMania" id="tetrisDisplay">
                 </div>
         </div>
 
-        <hr>
-
-        <div id="snake-system">
+        <div id="snake-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
             <h2>Snake System</h2>
             <div id="game-controls">
                 <p>Score: <span id="score">0</span></p>
@@ -39,12 +76,11 @@
                 </div>
         </div>
 
-        <hr> 
-
-        <div  id="toy-system">
+        <div id="toy-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
             <h2>Array Grid Toy</h2>
             <p>Enter dimensions to generate a grid. Keep it under 100 for best performance.</p>
-            
+
             <form id="arrayForm">
                 <div>
                     <label for="xVal">Columns:</label>
@@ -56,7 +92,7 @@
                 </div>
                 <button type="submit">Generate Grid</button>
             </form>
-    
+
             <div class="butMania" id="toyDisplay">
             </div>
         </div>

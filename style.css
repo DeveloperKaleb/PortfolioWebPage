@@ -51,6 +51,81 @@ h2 {
     margin-bottom: 20px;
 }
 
+/* --- Entertainment Hub --- */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin: 20px 0 40px;
+}
+
+.entry-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: #002e2c;
+    border: 2px solid #dfe38c;
+    border-radius: 6px;
+    padding: 14px;
+    color: #eff1c5;
+    font: inherit;
+    cursor: pointer;
+}
+
+.entry-card:hover {
+    border-color: #035e7b;
+    background: #003b38;
+}
+
+.card-title {
+    font-weight: bold;
+}
+
+.back-btn {
+    display: block;
+    margin: 0 0 10px;
+}
+
+/* Mini decorative previews for each hub card. Purely cosmetic - not tied
+   to the actual game/toy grids, just enough of a hint to recognize them. */
+.thumb {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 2px;
+    width: 72px;
+    height: 72px;
+    background: #51553a;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.thumb span {
+    background: transparent;
+}
+
+.thumb-tetris span:nth-child(9),
+.thumb-tetris span:nth-child(10) { background: #035e7b; }
+.thumb-tetris span:nth-child(12) { background: #dfe38c; }
+.thumb-tetris span:nth-child(13),
+.thumb-tetris span:nth-child(14) { background: #e3e7af; }
+.thumb-tetris span:nth-child(15),
+.thumb-tetris span:nth-child(16) { background: #b33939; }
+
+.thumb-snake span:nth-child(2),
+.thumb-snake span:nth-child(6),
+.thumb-snake span:nth-child(10) { background: #a2a77f; }
+.thumb-snake span:nth-child(16) { background: #035e7b; }
+
+.thumb-toy span:nth-child(1)  { background: #b33939; }
+.thumb-toy span:nth-child(4)  { background: #dfe38c; }
+.thumb-toy span:nth-child(6)  { background: #a2a77f; }
+.thumb-toy span:nth-child(9)  { background: #035e7b; }
+.thumb-toy span:nth-child(11) { background: #eff1c5; }
+.thumb-toy span:nth-child(14) { background: #e3e7af; }
+.thumb-toy span:nth-child(16) { background: #dfe38c; }
+
 /* --- Links --- */
 a:link    {color: #eff1c5;}
 a:visited {color: #dfe38c;}

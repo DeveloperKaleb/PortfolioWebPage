@@ -25,7 +25,7 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Two pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `entertainment/entertainment.html` — a page hosting three browser-based toy/game systems (Tetris, Snake, and an "Array Grid" color-painting toy), all rendered into `.butMania` grid containers of `<button>` cells.
+- `entertainment/entertainment.html` — a hub page for three browser-based toy/game systems (Tetris, Snake, and an "Array Grid" color-painting toy), all rendered into `.butMania` grid containers of `<button>` cells. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#toy`) implemented in `entertainment.js` — no routing library.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 

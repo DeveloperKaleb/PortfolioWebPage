@@ -1,5 +1,5 @@
 // Bump this manually with every push to origin/main. Include the time to the minute.
-const LAST_UPDATED = 'August 31, 2026, 10:50 PM';
+const LAST_UPDATED = 'August 31, 2026, 11:03 PM';
 
 document.addEventListener('DOMContentLoaded', () => {
     const lastUpdatedElement = document.getElementById('last-updated');
