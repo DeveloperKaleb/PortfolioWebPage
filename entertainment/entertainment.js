@@ -56,12 +56,6 @@ function displayArray(event) {
     
     // 1. Generate the HTML as usual
     toyBoard.innerHTML = generateGridHtml(columns, rows);
-    
-    // 2. FORCE the grid to have exactly the number of columns requested
-    // "repeat(X, 20px)" tells the browser: "Make exactly X columns, each 20px wide"
-    toyBoard.style.gridTemplateColumns = `repeat(${columns}, 20px)`;
-    
-    toyBoard.style.display = "grid"; // Ensure it's using grid layout
 
     if (!document.getElementById('toyColorPicker')) {
         addColorPicker();
