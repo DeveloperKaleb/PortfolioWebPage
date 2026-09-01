@@ -62,15 +62,30 @@ a:active  {color: #002e2c;}
 
 /* --- The Array Grid Toy: its rows are wrapper <div>s of buttons (see
    generateGridHtml), not flat grid cells, so it needs flex rows/columns
-   instead of the CSS Grid layout the rest of .butMania uses. */
+   instead of the CSS Grid layout the rest of .butMania uses. Rows are
+   pinned to the container's width and buttons are allowed to shrink,
+   so a high column count shrinks the buttons to fit instead of
+   overflowing into a scrollbar. */
 #toyDisplay {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 #toyDisplay > div {
     display: flex;
+    width: 100%;
+    justify-content: center;
+}
+
+#toyDisplay button {
+    flex: 0 1 30px;
+    min-width: 0;
+    width: auto;
+    height: auto;
+    aspect-ratio: 1 / 1;
 }
 
 /* --- The Grid Toy Buttons --- */
