@@ -43,6 +43,14 @@ h2 {
     font-size: 23px;
 }
 
+/* --- Footer --- */
+#last-updated {
+    color: #a2a77f;
+    font-size: 0.8rem;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
 /* --- Links --- */
 a:link    {color: #eff1c5;}
 a:visited {color: #dfe38c;}
