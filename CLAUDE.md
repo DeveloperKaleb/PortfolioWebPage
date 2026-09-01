@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+See `NOTES.md` for non-obvious decisions and gotchas from past work on this repo (why
+certain CSS/layout choices exist, the manual cache-busting workflow, etc.) — check it
+before re-deriving something that's already been debugged once.
+
 ## What this is
 
 A static, vanilla HTML/CSS/JS personal portfolio site with no build step. It is deployed as-is via GitHub Pages at `https://developerkaleb.github.io/PortfolioWebPage/` from this repo (`DeveloperKaleb/PortfolioWebPage`). There is no bundler, framework, or transpilation — files are served directly, so any path/script reference must work unmodified in the browser.
