@@ -94,6 +94,9 @@ a:active  {color: #002e2c;}
     width: auto;
     height: auto;
     aspect-ratio: 1 / 1;
+    margin: 0; /* Margin can't shrink like flex-basis can, so at high column
+                  counts it becomes the dominant fixed cost per button and
+                  buttons stop shrinking well before they should. */
 }
 
 /* --- The Grid Toy Buttons --- */
