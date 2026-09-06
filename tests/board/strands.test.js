@@ -9,6 +9,7 @@ import {
     isOverlapCell,
     overlapCells,
     isLayeredSelfCollision,
+    isUnderneath,
     topOccupant,
     circularDelta,
     circularMean,
@@ -207,5 +208,43 @@ describe('Circular mean', () => {
 
     test('behaves normally away from the wrap', () => {
         expect(circularMean([1.0, 1.2])).toBeCloseTo(1.1, 5);
+    });
+});
+
+describe('Being underneath', () => {
+    const graph = buildStrandGraph(crossMask);
+
+    test('the lower strand of a shared cell is underneath', () => {
+        const [under, over] = strandsAt(graph, 2, 2);
+        expect(isUnderneath(graph, under)).toBe(true);
+        expect(isUnderneath(graph, over)).toBe(false);
+    });
+
+    test('a cell with only one strand is never underneath', () => {
+        expect(isUnderneath(graph, { x: 2, y: 1, strand: 0 })).toBe(false);
+    });
+
+    test('an unknown position is not underneath', () => {
+        expect(isUnderneath(graph, { x: 99, y: 99, strand: 0 })).toBe(false);
+    });
+});
+
+describe('The mouths of the crossing', () => {
+    /* Where the two strands run alongside each other before their ribbons merge, the
+       player is already committed to a strand - so those cells belong to the crossing
+       and have to be drawn as part of it. They are found by crossingHalfWidth, which
+       reaches further than the ribbon's own halfWidth. */
+    test('cells flanking the crossing are part of it', () => {
+        const { graph: board } = getBoardShape('infinity');
+        [[12, 7], [13, 7], [22, 8], [23, 8]].forEach(([x, y]) => {
+            expect(isOverlapCell(board, x, y)).toBe(true);
+        });
+    });
+
+    test('the far ends of the lobes are not', () => {
+        const { graph: board } = getBoardShape('infinity');
+        [[2, 7], [33, 7]].forEach(([x, y]) => {
+            expect(isOverlapCell(board, x, y)).toBe(false);
+        });
     });
 });

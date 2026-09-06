@@ -18,9 +18,9 @@ import {
 import {
     stepFrom,
     nodeAt,
-    strandsAt,
     isOverlapCell,
     isLayeredSelfCollision,
+    isUnderneath,
     topOccupant
 } from '../js/strands.js';
 
@@ -267,19 +267,20 @@ function drawFrame() {
         // Underneath means: this cell has more than one strand and we are not on the
         // top one. Lighter reads as further away - see the contrast note in NOTES.md
         // for why the body was darkened to make room for it.
-        const strands = strandsAt(currentShape.graph, occupant.x, occupant.y);
-        const isUnderneath = strands.length > 1 && occupant.layer < strands[strands.length - 1].layer;
-
         segEl.style.backgroundColor = occupant.isHead
             ? SNAKE_COLORS.head
-            : (isUnderneath ? SNAKE_COLORS.bodyUnder : SNAKE_COLORS.body);
+            : (isUnderneath(currentShape.graph, occupant) ? SNAKE_COLORS.bodyUnder : SNAKE_COLORS.body);
     });
 }
 
 /* The graph refuses a move without saying why, so reconstruct it from the target
    cell: off the grid or into a wall/hole reads as it always did, while a target that
-   is perfectly good track means the snake tried to leave the strand it was on -
-   stepping off the edge of the crossing. */
+   is perfectly good track means the snake tried to leave the strand it was on.
+
+   Which strand decides how that reads. On the upper strand there is nothing above
+   you and leaving it is a fall - you stepped off the crossing. Underneath, the strand
+   above is a ceiling and the sides of the gap are walls, so the same move is running
+   into one. Same failure, opposite physical story. */
 function failureAt(from, heading) {
     const target = { x: from.x + heading.x, y: from.y + heading.y };
 
@@ -289,7 +290,8 @@ function failureAt(from, heading) {
     const kind = cellKindAt(currentShape.mask, target.x, target.y);
     if (kind === CELL.HOLE) return 'HOLE';
     if (kind === CELL.WALL) return 'WALL';
-    return 'EDGE';
+
+    return isUnderneath(currentShape.graph, from) ? 'UNDERPASS' : 'EDGE';
 }
 
 function gameOver(reason = '') {
@@ -311,6 +313,9 @@ function gameOver(reason = '') {
             break;
         case 'EDGE':
             displayMessage = "Lost Footing: Stepped off the crossing.";
+            break;
+        case 'UNDERPASS':
+            displayMessage = "Structural Impact: Hit the underpass wall.";
             break;
         default:
             displayMessage = "System Overload.";

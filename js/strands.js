@@ -135,6 +135,17 @@ export function strandsAt(graph, x, y) {
 
 export const isOverlapCell = (graph, x, y) => strandsAt(graph, x, y).length > 1;
 
+/* Is this position on a strand with another one above it? Worth naming, because it
+ * decides two separate things: how the segment is drawn, and how leaving the strand
+ * reads - a fall from the top, running into a wall from underneath. */
+export function isUnderneath(graph, position) {
+    const sharing = strandsAt(graph, position.x, position.y);
+    if (sharing.length < 2) return false;
+
+    const node = nodeAt(graph, position.x, position.y, position.strand);
+    return Boolean(node) && node.layer < sharing[sharing.length - 1].layer;
+}
+
 /** The cells where strands share space - what a map needs to outline visually. */
 export function overlapCells(graph) {
     const seen = new Set();

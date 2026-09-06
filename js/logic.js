@@ -162,6 +162,15 @@ const LEMNISCATE_DEFAULTS = {
        the previous 356, which keeps Infinity where it sits on the difficulty gradient. */
     scaleY: 9,
     halfWidth: 2.6, // half the ribbon's thickness, in cells
+
+    /* How near a second stretch of curve has to pass before a cell counts as shared
+       by two strands. Deliberately wider than the ribbon itself: at the mouths of the
+       crossing the strands run alongside each other a cell or two before their ribbons
+       actually merge, and those cells behave like part of the crossing - you are
+       already committed to a strand there - so they should be drawn and treated as
+       such. Tied to halfWidth and this would be one number doing two jobs. */
+    crossingHalfWidth: 3.3,
+
     samples: 720,   // how finely the curve is sampled before measuring distance
 };
 
@@ -181,7 +190,7 @@ export function buildSquareMask(size = 20, { hole = null } = {}) {
 }
 
 export function buildLemniscateMask(options = {}) {
-    const { width, height, scaleX, scaleY, halfWidth, samples } = { ...LEMNISCATE_DEFAULTS, ...options };
+    const { width, height, scaleX, scaleY, halfWidth, crossingHalfWidth, samples } = { ...LEMNISCATE_DEFAULTS, ...options };
     const cx = (width + 1) / 2;
     const cy = (height + 1) / 2;
     const step = (2 * Math.PI) / samples;
@@ -192,11 +201,18 @@ export function buildLemniscateMask(options = {}) {
         curve.push({ t, x: cx + scaleX * Math.cos(t), y: cy + scaleY * Math.sin(2 * t) / 2 });
     }
 
-    // The t values passing within half a ribbon-width of this cell, grouped into runs.
-    // Two runs means two separate stretches of curve, i.e. the self-crossing.
+    /* The stretches of curve passing near this cell. Gathered at the wider crossing
+       reach, then filtered: the cell is track if any stretch is within the ribbon, and
+       every stretch within the crossing reach counts as a strand present there. */
     const branchesAt = (gx, gy) => {
-        const hits = curve.filter((p) => Math.hypot(p.x - gx, p.y - gy) <= halfWidth).map((p) => p.t);
-        if (!hits.length) return [];
+        const near = curve.filter((p) => Math.hypot(p.x - gx, p.y - gy) <= crossingHalfWidth);
+        if (!near.length) return [];
+
+        // Nothing within the ribbon proper means this cell is not on the track at all.
+        const onTrack = near.some((p) => Math.hypot(p.x - gx, p.y - gy) <= halfWidth);
+        if (!onTrack) return [];
+
+        const hits = near.map((p) => p.t);
 
         const runs = [];
         let run = [hits[0]];

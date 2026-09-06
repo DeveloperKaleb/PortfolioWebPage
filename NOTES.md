@@ -300,3 +300,29 @@ angle, which widens the band where they overlap. Flattening alone shrinks the tr
 crossing in an 8×6 band with 352 playable cells, against 20 cells and 356 before — a
 much bigger crossing at effectively the same difficulty. The board is 34×14 rather than
 34×18, since the flatter curve no longer needs the height.
+
+## Ribbon width and crossing reach are two different numbers
+
+`halfWidth` is the ribbon's own thickness — it decides whether a cell is track at all.
+`crossingHalfWidth` (wider) decides how near a *second* stretch of curve has to pass
+before the cell counts as shared by two strands.
+
+They were one number, and the mouths of the crossing suffered for it: where the two
+strands run alongside each other before their ribbons actually merge, the second strand
+sits 2.7–3.2 cells away against a 2.6 ribbon. Those cells were plain track, yet the
+player is already committed to a strand there — turning across would kill you with no
+outline to warn that anything was going on. Widening `halfWidth` instead would have
+thickened the whole ribbon and changed the map's difficulty; this reaches further only
+for the question of who shares a cell. The crossing went from 32 cells to 48 with the
+play area unchanged at 352.
+
+## Leaving your strand reads differently depending on which strand it is
+
+Same move, opposite physical story. On the upper strand nothing is above you, so
+leaving it is a fall — `EDGE`, "Lost Footing: Stepped off the crossing." Underneath,
+the strand above is a ceiling and the sides of the gap are walls, so the same move is
+running into one — `UNDERPASS`, "Structural Impact: Hit the underpass wall."
+
+`isUnderneath(graph, position)` lives in `js/strands.js` rather than in the DOM layer,
+because it answers two questions that must not drift apart: how a segment is drawn, and
+how leaving the strand reads. It is pure, so it is unit tested.
