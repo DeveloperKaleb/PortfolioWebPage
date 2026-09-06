@@ -515,11 +515,18 @@ a:active  {color: #002e2c;}
 
    The tint is deliberately faint: it has to stay clearly lighter than every snake
    colour drawn on top of it, or it would eat into the contrast those rely on. */
-.butMania.is-snake button.cell-overlap {
-    /* Outline only, no fill. A fill would have to sit behind the snake colours and
-       would cost them contrast - a tint light enough to look right dropped the
-       underneath colour to 4.32:1, under the floor, in the one place it is used.
-       It would also never show: drawFrame writes background-color inline each frame,
-       which out-specifies any stylesheet rule. box-shadow has no such conflict. */
+/* Shown only while the snake's head is on the lower strand - entertainment.js puts
+   .is-underneath on the board for exactly as long as that holds. Marking the crossing
+   at all times said "something happens here"; marking it only while you are beneath
+   says "you are under this right now", which is the thing that needs to be
+   unmistakable. The cost is no advance warning of where the crossing is; the ribbon
+   visibly widens there, which has to carry that instead.
+
+   Outline, not fill. A fill would sit behind the snake colours and cost them contrast
+   - a tint light enough to look right dropped the underneath colour to 4.32:1, under
+   the floor, in the one place it is used. It would also never show: drawFrame writes
+   background-color inline each frame, which out-specifies any stylesheet rule.
+   box-shadow has no such conflict. */
+.butMania.is-snake.is-underneath button.cell-overlap {
     box-shadow: inset 0 0 0 1px #51553a;
 }

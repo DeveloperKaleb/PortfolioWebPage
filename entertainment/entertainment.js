@@ -150,6 +150,7 @@ function createStaticBoard(shape = currentShape) {
         }
     }
     snakeBoard.innerHTML = snakeHtml;
+    snakeBoard.classList.remove('is-underneath');
 
     // The stylesheet lays the grid out and sizes the cells from these.
     snakeBoard.style.setProperty('--snake-cols', shape.width);
@@ -245,6 +246,12 @@ function drawFrame() {
     // Draw Food on snakeBoard
     const foodEl = snakeBoard.querySelector(`.x${food.x}y${food.y}`);
     if (foodEl) foodEl.style.backgroundColor = SNAKE_COLORS.food;
+
+    /* The crossing is outlined only while the head is beneath the other strand, so the
+       marking answers "you are under something right now" rather than "something
+       happens here". The head is what counts - once it has come out the far side the
+       player is no longer underneath, whatever the tail is still doing. */
+    snakeBoard.classList.toggle('is-underneath', isUnderneath(currentShape.graph, snake[0]));
 
     /* Draw the snake. Where the snake crosses itself, one cell holds two segments -
        only the one on the upper strand is drawn, which is what makes the crossing

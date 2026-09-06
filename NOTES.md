@@ -324,5 +324,18 @@ the strand above is a ceiling and the sides of the gap are walls, so the same mo
 running into one — `UNDERPASS`, "Structural Impact: Hit the underpass wall."
 
 `isUnderneath(graph, position)` lives in `js/strands.js` rather than in the DOM layer,
-because it answers two questions that must not drift apart: how a segment is drawn, and
-how leaving the strand reads. It is pure, so it is unit tested.
+because it answers three questions that must not drift apart: how a segment is drawn,
+how leaving the strand reads, and whether the crossing is outlined. It is pure, so it
+is unit tested.
+
+## The crossing is outlined only while you are under it
+
+`.cell-overlap` is marked in the markup for every crossing cell, but the outline only
+paints under `.is-underneath`, which `drawFrame` toggles on the board from the **head**'s
+strand each tick. The head is what counts: once it is out the far side the player is no
+longer underneath, whatever the tail is still doing.
+
+Marking the crossing permanently said "something happens here". Marking it only while
+the snake is beneath says "you are under this right now", which is the state that has to
+be unmistakable. The cost is no advance warning of where the crossing is - the ribbon
+visibly widens there and has to carry that on its own. Reverting is one selector.
