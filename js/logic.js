@@ -102,3 +102,36 @@ const KEY_ACTIONS = {
 
 // Returns null for any key neither game cares about, so callers can bail early.
 export const keyToAction = (key) => KEY_ACTIONS[key] ?? null;
+
+/* --- GAME PALETTES --- */
+/* These live here rather than next to the rendering code so the contrast rules in
+   js/contrast.js can be asserted against them in tests. See NOTES.md for why the
+   old palette failed and how these values were chosen.
+   Every colour below clears 4.5:1 against the surface behind it for normal,
+   deuteranopic and protanopic vision, and no two are indistinguishable. */
+
+// The board surfaces the pieces are read against.
+export const BOARD_COLORS = {
+    emptyCell: '#3b3026', // dark warm brown - the page column colour
+    gridLines: '#51553a', // olive, showing through the 1px gaps
+};
+
+/* Pieces are spread along two axes that survive red/green colour blindness:
+   lightness, and the blue-to-yellow axis. Hue on its own is not a cue. */
+export const TETRIS_COLORS = {
+    'I': '#d4eefa', // Pale Sky   - lightest blue
+    'J': '#6aa9c8', // Steel Blue - darkest blue
+    'L': '#d2d673', // Chartreuse - mid yellow
+    'O': '#f7f2c2', // Cream      - lightest yellow
+    'S': '#7fd0d6', // Aqua       - mid blue
+    'T': '#a2a77f', // Artichoke  - darkest yellow
+    'Z': '#e08a4f', // Amber      - warm, high on the yellow axis
+};
+
+// Snake is drawn on white cells, so its colours are the dark end of the range.
+export const SNAKE_COLORS = {
+    head: '#002e2c', // Deep Teal
+    body: '#6e7349', // Dark Olive
+    food: '#035e7b', // Dark Blue
+    hole: '#51553a', // Olive - the donut-mode wall
+};

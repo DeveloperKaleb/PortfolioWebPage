@@ -107,3 +107,48 @@ Two things to keep in mind when extending this to a new game:
 
 The Array Grid toy is deliberately *not* reordered: its form generates the grid, so it
 has to stay above it. Ordering only applies to `#snake-system` and `#tetris-system`.
+
+## Colour contrast rules (hard rules, enforced by tests)
+
+The original Tetris palette was picked by eye and it did not survive contact with a
+red/green colourblind player. Measured against the empty cell it was:
+
+| piece | old colour | contrast | what that means |
+|---|---|---|---|
+| I | `#035e7b` | **1.07:1** | invisible - the worst of them |
+| Z | `#b33939` | **1.31:1** | red on olive, the classic red/green collision |
+| S | `#002e2c` | **1.00:1** vs the board background | identical to it |
+| J | `#a2a77f` | 3.09:1 | below any usable threshold |
+
+L, O and T were separately a problem: three pale yellows that simulate to within
+1.05-1.16 of each other, i.e. one colour as far as a deuteranope is concerned.
+
+**The rules, in `js/contrast.js` and asserted in `tests/contrast/`:**
+
+1. Any game tile clears **4.5:1** against the surface behind it - checked for normal,
+   deuteranopic *and* protanopic vision, so the worst of the three has to pass.
+2. Two colours a player must tell apart need either a **1.35:1 lightness gap** or a
+   **22-unit gap on the CIELAB b\* (blue-yellow) axis**.
+
+Rule 2 is the one that matters and the one that is easy to get wrong. Hue is not a
+cue. Red/green colour blindness leaves exactly two things intact: how light a colour
+is, and where it sits on the blue-to-yellow axis. So pieces are laid out on those two
+axes deliberately - three blues at three different lightnesses, three yellows at three
+different lightnesses, plus amber high on the yellow axis.
+
+**Why the empty cell had to change from `#51553a` to `#3b3026`.** Getting seven colours
+to 4.5:1 against a mid-olive forces all seven up into a narrow bright band, where they
+collapse into each other under simulation - the two rules fight. Darkening the empty
+cell creates the room for a lightness ladder. The board's grid lines went the other way
+(`#002e2c` to `#51553a`) so they stay visible against the now-dark cells.
+
+**Don't hand-edit a game colour.** `TETRIS_COLORS`, `SNAKE_COLORS` and `BOARD_COLORS`
+live in `js/logic.js` rather than beside the rendering code specifically so the tests
+can reach them. `npm test` fails on a colour that breaks either rule - verified by
+putting the old `#035e7b` back and watching it fail. The one value that is duplicated
+is the empty cell: `BOARD_COLORS.emptyCell` for a running game, and the
+`#tetrisDisplay button` rule in `style.css` for the board at rest. Change both.
+
+Still open: the pieces are distinguishable but seven colours is a lot to ask of two
+axes. If more pieces or toys ever need distinguishing, add a non-colour cue (a border
+or inset pattern per type) rather than trying to squeeze in an eighth colour.

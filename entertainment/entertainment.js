@@ -12,7 +12,10 @@ import {
     isTetrisCollision,
     rotatePiece,
     ACTION_VECTORS,
-    keyToAction
+    keyToAction,
+    TETRIS_COLORS,
+    BOARD_COLORS,
+    SNAKE_COLORS
 } from '../js/logic.js';
 
 /* --- SELECTORS --- */
@@ -206,20 +209,20 @@ function drawFrame() {
         for (let x = 7; x <= 14; x++) {
             for (let y = 7; y <= 14; y++) {
                 const holeEl = snakeBoard.querySelector(`.x${x}y${y}`);
-                if (holeEl) holeEl.style.backgroundColor = '#51553a'; // Matches your background
+                if (holeEl) holeEl.style.backgroundColor = SNAKE_COLORS.hole;
             }
         }
     }
 
     // Draw Food on snakeBoard
     const foodEl = snakeBoard.querySelector(`.x${food[0]}y${food[1]}`);
-    if (foodEl) foodEl.style.backgroundColor = '#035e7b';
+    if (foodEl) foodEl.style.backgroundColor = SNAKE_COLORS.food;
 
     // Draw Snake on snakeBoard
     snake.forEach((seg, index) => {
         const segEl = snakeBoard.querySelector(`.x${seg[0]}y${seg[1]}`);
         if (segEl) {
-            segEl.style.backgroundColor = index === 0 ? '#002e2c' : '#a2a77f';
+            segEl.style.backgroundColor = index === 0 ? SNAKE_COLORS.head : SNAKE_COLORS.body;
         }
     });
 }
@@ -408,20 +411,10 @@ function gameOverTetris() {
 }
 
 // Map piece types to your portfolio colors
-const TETRIS_COLORS = {
-    'I': '#035e7b', // Dark Blue
-    'J': '#a2a77f', // Artichoke
-    'L': '#dfe38c', // Green Yellow
-    'O': '#eff1c5', // Cream
-    'S': '#002e2c', // Deep Teal
-    'T': '#e3e7af', // Pale Green
-    'Z': '#b33939'  // Olive
-};
-
 function drawTetrisFrame() {
     // 1. Clear the board (reset to empty space color)
     const buttons = tetrisBoard.querySelectorAll('button');
-    buttons.forEach(btn => btn.style.backgroundColor = '#51553a');
+    buttons.forEach(btn => btn.style.backgroundColor = BOARD_COLORS.emptyCell);
 
     // 2. Draw the Locked Matrix (Data is 0-19, UI is 1-20)
     tetrisMatrix.forEach((row, y) => {

@@ -359,7 +359,10 @@ a:active  {color: #002e2c;}
     /* 10 columns, 20px each = 200px wide + gaps (the cap; narrower screens shrink) */
     grid-template-columns: repeat(10, var(--tetris-cell));
     grid-gap: 1px;
-    background-color: #002e2c; /* Same dark "void" as Snake */
+    /* The gaps between cells show this through as grid lines. It used to be the same
+       deep teal as Snake, but the empty cell is now dark brown, so the lines are the
+       lighter olive to stay visible against it. */
+    background-color: #51553a;
     padding: 2px;
     border: 2px solid #eff1c5;
     width: fit-content;
@@ -373,7 +376,10 @@ a:active  {color: #002e2c;}
     margin: 0;
     border: none;
     border-radius: 0;
-    background-color: #51553a; /* Empty space color */
+    /* Empty cell. Must stay in step with BOARD_COLORS.emptyCell in js/logic.js -
+       this is the board at rest, that one is the board once a game is running.
+       Every piece colour is checked against this value in tests/contrast. */
+    background-color: #3b3026;
 }
 
 /* --- Media Queries --- */
