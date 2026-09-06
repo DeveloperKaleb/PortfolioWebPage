@@ -439,3 +439,54 @@ a:active  {color: #002e2c;}
 .pad-left  { grid-column: 1; grid-row: 2; }
 .pad-right { grid-column: 3; grid-row: 2; }
 .pad-down  { grid-column: 2; grid-row: 3; }
+
+/* --- Mobile Control Clustering --- */
+/* Rule: on a touch device every control a player uses mid-game - Start, the score
+   readout and the direction pad - belongs together below the board, within thumb
+   reach. The source order puts Start above the board because that reads better on
+   a desktop with a keyboard; here it would strand Start at the top of the screen
+   while the thumbs are at the bottom. Reordering in CSS keeps one DOM for both.
+
+   Scoped to :not([hidden]) on purpose: the views are hidden with the hidden
+   attribute, which is only display:none from the UA stylesheet, so an unguarded
+   display:flex here would out-specify it and reveal all three views at once.
+
+   Only Snake and Tetris are reordered. The toy's form has to stay above its grid -
+   it's what generates the grid in the first place. */
+@media (pointer: coarse) {
+    #snake-system:not([hidden]),
+    #tetris-system:not([hidden]) {
+        display: flex;
+        flex-direction: column;
+        /* Without this, flex children stretch to full width and the buttons
+           lose their natural size. */
+        align-items: center;
+    }
+
+    #snake-system .back-btn,
+    #tetris-system .back-btn { order: 1; }
+
+    #snake-system h2,
+    #tetris-system h2 { order: 2; }
+
+    #snakeDisplay,
+    #tetrisDisplay { order: 3; }
+
+    #game-controls,
+    #tetris-controls { order: 4; }
+
+    #snake-system .touch-pad,
+    #tetris-system .touch-pad { order: 5; }
+
+    /* Tighten the vertical gaps so the board, Start and the pad read as one
+       cluster rather than three separate blocks. */
+    #snakeDisplay,
+    #tetrisDisplay {
+        margin-bottom: 16px;
+    }
+
+    #game-controls,
+    #tetris-controls {
+        margin-bottom: 16px;
+    }
+}

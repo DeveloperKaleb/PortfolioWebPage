@@ -83,3 +83,27 @@ you're checking. Refresh is enough; no hard reload.
 Flags: `--open` to launch a browser, `-- --port 8124` to move off the default 8123 (note
 the extra `--`, which is what makes npm pass the flag through). Port already in use
 usually means an older preview is still running.
+
+## Mobile control placement (the thumb-reach rule)
+
+**Rule: on a touch device, every control used mid-game sits below the board, grouped
+together within thumb reach.** That means the Start button, the score readout and the
+direction pad form one cluster — Start does not stay above the board on mobile.
+
+The source order deliberately puts Start *above* the board, because that's the better
+reading order on a desktop where the keyboard does the playing. On a phone that same
+order strands Start at the top of the screen while the thumbs are at the bottom, with
+the board in between. The fix is `order:` on the flex column under
+`@media (pointer: coarse)`, so both layouts come from one DOM.
+
+Two things to keep in mind when extending this to a new game:
+
+- **Scope the container rule with `:not([hidden])`.** The views are hidden with the
+  `hidden` attribute, which is nothing but `display: none` from the UA stylesheet. An
+  unguarded `display: flex` on `#whatever-system` out-specifies it and reveals every
+  view at once — the hub, and all three games stacked down the page.
+- **The container needs `align-items: center`.** Flex children stretch to full width
+  by default, so without it the buttons go full-bleed and stop looking like buttons.
+
+The Array Grid toy is deliberately *not* reordered: its form generates the grid, so it
+has to stay above it. Ordering only applies to `#snake-system` and `#tetris-system`.
