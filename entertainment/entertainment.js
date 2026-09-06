@@ -34,9 +34,11 @@ const views = {
 };
 
 function showView(name) {
-    // A pad button can be left held while the view changes out from under it, which
-    // would otherwise leave its repeat timer running against the next game.
-    stopRepeat();
+    // Leaving a view abandons whatever was running in it. Hiding a game does not
+    // stop its setInterval, so an abandoned game kept playing itself in the
+    // background and eventually hit its own game-over - firing a blocking alert()
+    // into the middle of whichever game you had moved on to.
+    stopAllGames();
     hub.hidden = Boolean(name);
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
 }
@@ -574,6 +576,40 @@ toyBoard.addEventListener("click", (event) => {
 // RUN IMMEDIATELY: Initialize the game boards visually on load
 createStaticBoard();
 createTetrisBoard();
+
+/* Tear down both games and put their boards back to a clean starting state. Called
+   whenever the view changes, so a game is never left running behind a hidden view.
+
+   This is deliberately broader than only resetting when another game starts: an
+   abandoned Tetris left on the hub screen would still tick, top out, and alert. */
+function stopAllGames() {
+    // A pad button can be left held while the view changes out from under it,
+    // which would otherwise leave its repeat timer running against the next game.
+    stopRepeat();
+
+    clearInterval(gameInterval);
+    gameInterval = null;
+    clearInterval(tetrisInterval);
+    tetrisInterval = null;
+
+    // Snake back to a blank board and a zeroed score.
+    canChangeDirection = true;
+    score = 0;
+    const scoreEl = document.getElementById('score');
+    if (scoreEl) scoreEl.innerText = score;
+    createStaticBoard();
+
+    // Tetris likewise - clearing the matrix and the active piece matters as much as
+    // clearing the interval, or returning to the game would resume the old stack.
+    tetrisScore = 0;
+    tetrisLevel = 1;
+    tetrisLines = 0;
+    activePiece = null;
+    tetrisMatrix = Array.from({ length: 20 }, () => Array(10).fill(null));
+    if (tetrisScoreEl) tetrisScoreEl.innerText = tetrisScore;
+    if (tetrisLevelEl) tetrisLevelEl.innerText = tetrisLevel;
+    drawTetrisFrame();
+}
 
 /* --- Hub Navigation Listeners --- */
 document.querySelectorAll('.entry-card').forEach((card) => {

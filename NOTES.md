@@ -152,3 +152,20 @@ is the empty cell: `BOARD_COLORS.emptyCell` for a running game, and the
 Still open: the pieces are distinguishable but seven colours is a lot to ask of two
 axes. If more pieces or toys ever need distinguishing, add a non-colour cue (a border
 or inset pattern per type) rather than trying to squeeze in an eighth colour.
+
+## Games must be torn down when their view is left
+
+Hiding a `.game-view` does not stop its `setInterval`. An abandoned game kept playing
+itself behind the hidden view, and both games end by calling a **blocking `alert()`**
+(`gameOver`, `gameOverTetris`) — so an abandoned Tetris would top out and throw a modal
+into the middle of whichever game you had moved on to.
+
+`stopAllGames()` in `entertainment.js` is called from `showView()`, so any view change
+clears both intervals and resets both boards. It is deliberately broader than resetting
+when the *next* game starts: an abandoned game left sitting on the hub screen would
+still tick and still alert.
+
+Clearing `tetrisMatrix` and `activePiece` matters as much as clearing the interval —
+without it, returning to Tetris resumes the old stack instead of starting clean.
+
+Anything added here that runs on a timer needs to be torn down in `stopAllGames()` too.
