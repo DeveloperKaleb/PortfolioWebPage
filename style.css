@@ -1,4 +1,4 @@
-/* Color scheme: #e3e7af, #eff1c5, #a2a77f, #dfe38c, #035e7b, #002e2c, #51553a */ 
+/* Color scheme: #e3e7af, #eff1c5, #a2a77f, #dfe38c, #035e7b, #002e2c, #51553a, #3b3026 */
 
 /* --- Layout & Responsiveness --- */
 .navigation, .wrapper, main hr {
@@ -16,13 +16,25 @@
     height: auto;
 }
 
+/* The page sits in a centered column of dark warm brown; <html> carries the
+   lighter #51553a olive, which shows through as a gutter down either side.
+   Because <html> has its own background it paints the whole canvas, so the
+   olive still fills the viewport below a short page. Below 1100px the column
+   just takes the full width and no gutter shows - narrow screens have no room
+   to spare for one. */
+html {
+    background: #51553a;
+}
+
 body {
     display: flex;
     flex-direction: column;
     justify-content: center;
     text-align: center;
-    background: #51553a;
-    margin: 0;
+    background: #3b3026;
+    max-width: 1100px;
+    min-height: 100vh;
+    margin: 0 auto;
 }
 
 /* --- Typography & Elements --- */
@@ -32,7 +44,20 @@ header {
     padding: 23px;
 }
 
+/* main absorbs the leftover height on a short page so the page column runs
+   to the bottom of the viewport. Without this the footer takes the slack -
+   it picks up flex: 1 from .wrapper - and its links float up away from the
+   bottom edge. */
 main {
+    color: #e3e7af;
+    flex: 1 0 auto;
+}
+
+/* The footer had no color of its own, so "Contact" and the blurb fell back to
+   the browser default black - near-invisible on the dark page column. Match
+   the light text main already uses. */
+footer.wrapper {
+    flex: 0 0 auto;
     color: #e3e7af;
 }
 
