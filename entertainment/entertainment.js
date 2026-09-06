@@ -5,7 +5,6 @@ import {
     isHoleCollision,
     isSelfCollision, 
     getNextHead, 
-    getCoordsFromIndex,
     isEatingFood,
     isValidDirection,
     TETROMINOES,
@@ -15,7 +14,10 @@ import {
     keyToAction,
     TETRIS_COLORS,
     BOARD_COLORS,
-    SNAKE_COLORS
+    SNAKE_COLORS,
+    getBoardShape,
+    cellKindAt,
+    CELL
 } from '../js/logic.js';
 
 /* --- SELECTORS --- */
@@ -103,17 +105,45 @@ let food = [5, 5];
 let score = 0;
 let gameInterval = null;
 
+/* The board a game is played on. Classic and Donut are the 20x20 square; Infinity
+   is a mask-driven ribbon whose grid is not square and not fully playable. */
+let currentShape = getBoardShape('classic');
+
+// Landscape gets the wide board, portrait the transposed one, so the board is
+// always oriented along the screen's long axis.
+const currentOrientation = () =>
+    (window.innerWidth >= window.innerHeight ? 'horizontal' : 'vertical');
+
+const selectedMode = () => {
+    const modeSelect = document.getElementById('modeSelect');
+    return modeSelect ? modeSelect.value : 'classic';
+};
+
+// A cell the snake cannot occupy: off the Infinity ribbon, or inside Donut's hole.
+function isBlockedCell(shape, x, y) {
+    if (shape.mask) return cellKindAt(shape.mask, x, y) !== CELL.TRACK;
+    return shape.mode === 'donut' && isHoleCollision([x, y]);
+}
+
 /**
- * Build the physical grid once when the script loads
+ * Build the physical grid. Called on load and whenever the shape changes.
  */
-function createStaticBoard() {
+function createStaticBoard(shape = currentShape) {
+    currentShape = shape;
+
     let snakeHtml = '';
-    for (let i = 1; i <= 400; i++) {
-        const { x, y } = getCoordsFromIndex(i, 20);
-        snakeHtml += `<button class="x${x}y${y}" style="background-color: white"></button>`;
+    for (let y = 1; y <= shape.height; y++) {
+        for (let x = 1; x <= shape.width; x++) {
+            const blocked = isBlockedCell(shape, x, y);
+            const color = blocked ? SNAKE_COLORS.hole : 'white';
+            snakeHtml += `<button class="x${x}y${y}" data-blocked="${blocked}" style="background-color: ${color}"></button>`;
+        }
     }
-    // Target snakeBoard specifically
     snakeBoard.innerHTML = snakeHtml;
+
+    // The stylesheet lays the grid out and sizes the cells from these.
+    snakeBoard.style.setProperty('--snake-cols', shape.width);
+    snakeBoard.style.setProperty('--snake-rows', shape.height);
 }
 
 function initSnakeGame() {
@@ -127,16 +157,12 @@ function initSnakeGame() {
     document.getElementById('score').innerText = score;
     canChangeDirection = true;
 
-    // 2. Set starting positions based on mode
-    if (gameMode === 'donut') {
-        // Safe start left of the center hole
-        snake = [[4, 10], [4, 11], [4, 12]];
-        direction = { x: 0, y: -1 }; 
-    } else {
-        // Classic middle start
-        snake = [[10, 10], [10, 11], [10, 12]];
-        direction = { x: 0, y: -1 };
-    }
+    // 2. Build the board for this mode and take its opening position. Orientation is
+    // read once, here - reflowing mid-game could drop the snake inside a wall.
+    const shape = getBoardShape(gameMode, currentOrientation());
+    createStaticBoard(shape);
+    snake = shape.start.snake.map((segment) => [...segment]);
+    direction = { ...shape.start.direction };
 
     spawnFood();
     drawFrame();
@@ -147,41 +173,42 @@ function initSnakeGame() {
  * Enhanced Spawn Logic: Food cannot land on the snake OR in the hole
  */
 function spawnFood() {
-    let newFood;
-    let isInvalid = true;
-    while (isInvalid) {
-        newFood = [
-            Math.floor(Math.random() * 20) + 1,
-            Math.floor(Math.random() * 20) + 1
-        ];
-        
-        // Ensure consistency: pass the array [x, y] to logic functions
-        const hitsSnake = isSelfCollision(newFood, snake);
-        const hitsHole = (gameMode === 'donut' && isHoleCollision(newFood));
-        
-        isInvalid = hitsSnake || hitsHole;
+    // Collect the free cells and pick one, rather than guessing at random until a
+    // guess lands. On the Infinity board only 356 of 612 cells are even playable,
+    // so rejection sampling would spin - and on a nearly full board, forever.
+    const free = [];
+    for (let y = 1; y <= currentShape.height; y++) {
+        for (let x = 1; x <= currentShape.width; x++) {
+            if (isBlockedCell(currentShape, x, y)) continue;
+            if (isSelfCollision([x, y], snake)) continue;
+            free.push([x, y]);
+        }
     }
-    food = newFood;
+
+    // Nowhere left to put it means the board is full - the snake has won.
+    if (!free.length) return;
+    food = free[Math.floor(Math.random() * free.length)];
 }
 
 function gameStep() {
     const head = getNextHead(snake[0], direction);
 
-    // UPDATED COLLISION CHECK
-    const hitWall = isWallCollision(head);
-    const hitSelf = isSelfCollision(head, snake);
-    const hitHole = (gameMode === 'donut' && isHoleCollision(head));
-
     // 1. Check each condition individually to identify the "Cause"
-    if (isWallCollision(head)) {
+    if (isWallCollision(head, currentShape.width, currentShape.height)) {
         return gameOver('WALL');
     }
-    
+
     if (isSelfCollision(head, snake)) {
         return gameOver('SELF');
     }
-    
-    if (gameMode === 'donut' && isHoleCollision(head)) {
+
+    if (currentShape.mask) {
+        // Inside a lobe is an inner wall, outside the ribbon an outer one - the same
+        // distinction Donut draws between HOLE and WALL.
+        const kind = cellKindAt(currentShape.mask, head[0], head[1]);
+        if (kind === CELL.HOLE) return gameOver('HOLE');
+        if (kind === CELL.WALL) return gameOver('WALL');
+    } else if (gameMode === 'donut' && isHoleCollision(head)) {
         return gameOver('HOLE');
     }
 
@@ -204,17 +231,11 @@ function gameStep() {
 function drawFrame() {
     // Reset buttons on snakeBoard only
     const buttons = snakeBoard.querySelectorAll('button');
-    buttons.forEach(btn => btn.style.backgroundColor = 'white');
-
-    // If Donut mode, color the hole differently (or hide it)
-    if (gameMode === 'donut') {
-        for (let x = 7; x <= 14; x++) {
-            for (let y = 7; y <= 14; y++) {
-                const holeEl = snakeBoard.querySelector(`.x${x}y${y}`);
-                if (holeEl) holeEl.style.backgroundColor = SNAKE_COLORS.hole;
-            }
-        }
-    }
+    buttons.forEach((btn) => {
+        // data-blocked is stamped on when the board is built, so the walls and holes
+        // do not have to be recomputed every frame.
+        btn.style.backgroundColor = btn.dataset.blocked === 'true' ? SNAKE_COLORS.hole : 'white';
+    });
 
     // Draw Food on snakeBoard
     const foodEl = snakeBoard.querySelector(`.x${food[0]}y${food[1]}`);
@@ -453,6 +474,13 @@ document.getElementById('startBtn').addEventListener('click', () => {
     initSnakeGame();
 });
 
+// Preview the board as soon as the mode changes, so the shape is visible before
+// pressing Start rather than appearing only once the game is underway.
+document.getElementById('modeSelect').addEventListener('change', () => {
+    if (gameInterval) return; // never reshape a board out from under a running game
+    createStaticBoard(getBoardShape(selectedMode(), currentOrientation()));
+});
+
 /* Snake and Tetris both take one of the four action strings from logic.js. Keeping
    the game response separate from how the input arrived is what lets the on-screen
    touch pads reuse the exact same code as the arrow keys. */
@@ -597,7 +625,9 @@ function stopAllGames() {
     score = 0;
     const scoreEl = document.getElementById('score');
     if (scoreEl) scoreEl.innerText = score;
-    createStaticBoard();
+    // Rebuild for the mode currently selected, so the board on screen always matches
+    // the dropdown rather than reverting to the square one.
+    createStaticBoard(getBoardShape(selectedMode(), currentOrientation()));
 
     // Tetris likewise - clearing the matrix and the active piece matters as much as
     // clearing the interval, or returning to the game would resume the old stack.

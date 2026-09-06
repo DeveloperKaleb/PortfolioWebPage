@@ -169,3 +169,45 @@ Clearing `tetrisMatrix` and `activePiece` matters as much as clearing the interv
 without it, returning to Tetris resumes the old stack instead of starting clean.
 
 Anything added here that runs on a timer needs to be torn down in `stopAllGames()` too.
+
+## The Infinity Snake board
+
+A ribbon traced around a **Gerono lemniscate** (`x = cos t`, `y = sin(2t)/2`) — a true
+figure-8 with exactly one self-crossing. It is deliberately *not* two lobes placed side
+by side: two tangent circles read as something other than an infinity sign, and the
+crossing is the thing that makes it one continuous ribbon.
+
+`34 × 18`, **356 playable cells** (Classic is 400, Donut 336), fully connected.
+
+**Inner vs outer wall** matches Donut. After the ribbon is drawn, a flood fill from the
+grid edge marks everything it reaches as outer `WALL`; the blank space left over is
+enclosed by a lobe and becomes `HOLE`. That is what keeps `gameOver('WALL')` and
+`gameOver('HOLE')` meaning the same thing they mean in Donut.
+
+**Orientation** is the horizontal mask transposed, so both orientations have identical
+area, rules and difficulty — one mask to tune, not two. It is chosen at game start from
+`window.innerWidth >= window.innerHeight` and deliberately does *not* reflow mid-game:
+re-laying the grid under a running snake can drop it inside a wall.
+
+**Cell sizing clamps on both axes** (`--snake-cell` in `style.css`). Width alone was
+enough while every board was square; the Infinity board is 34 cells on its long axis,
+which in portrait becomes 34 *rows* and would run off the bottom of a phone and put the
+board under the thumb pad. The `55vh` term prevents that. Measured: a 375×667 phone
+resolves to a 194×367px board, well inside the viewport.
+
+**`branches` on each cell is not dead data.** It records which stretches of the curve
+pass near that cell; two entries means the cell is part of the self-crossing. Nothing
+reads it yet — it is the foundation for the planned over/under layering, where the snake
+travels on one strand and passes above or beneath the other. Don't strip it.
+
+Food spawns by collecting the free cells and picking one, rather than guessing at random
+until a guess lands. Only 356 of 612 cells are playable here, so rejection sampling
+would spin badly, and on a nearly-full board it would never terminate.
+
+## Chrome throttles game timers in a background tab
+
+Script-driven testing of Snake/Tetris from a non-focused tab is unreliable: Chrome
+throttles `setInterval` in a hidden tab to roughly once per second, so a game configured
+at 150ms per tick runs ~7x slow. This is why an abandoned game appeared not to reach its
+own game-over during earlier automated checks — the harness, not the code. Game
+behaviour is verified by the project owner in a real, focused browser.

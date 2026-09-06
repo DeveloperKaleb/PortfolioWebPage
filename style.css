@@ -326,13 +326,23 @@ a:active  {color: #002e2c;}
 
 /* --- The Snake Arena (Active State) --- */
 .butMania.is-snake {
-    /* 20 columns at a fixed 20px came to ~440px - wider than a 375px phone, so the
-       board spilled into a sideways scroll. The cell now shrinks to whatever fits
-       (20 cells + 19 gaps + page padding) and still caps at the original 20px on
-       anything desktop-sized, so the 20x20 board stays fully on screen either way. */
-    --snake-cell: clamp(10px, calc((100vw - 60px) / 20), 20px);
-    /* We keep the 20x20 hardcoded here as a fallback */
-    grid-template-columns: repeat(20, var(--snake-cell));
+    /* Column and row counts come from entertainment.js, because the board is no
+       longer always 20x20 - the Infinity board is 34x18 (or 18x34 in portrait).
+       These are the fallback for the board as it sits before any game starts. */
+    --snake-cols: 20;
+    --snake-rows: 20;
+
+    /* The cell has to fit BOTH ways. Width alone was enough for a square board, but
+       the Infinity board is 34 cells along its long axis - and in portrait that
+       becomes 34 rows, which would run off the bottom of a phone and put the board
+       under the thumb pad. The height term keeps the whole board on screen; 55vh
+       leaves room for the score line and the D-pad below it. */
+    --snake-cell: max(6px, min(
+        calc((100vw - 40px) / var(--snake-cols)),
+        calc(55vh / var(--snake-rows)),
+        20px
+    ));
+    grid-template-columns: repeat(var(--snake-cols), var(--snake-cell));
     grid-gap: 1px;
     background-color: #002e2c;
     padding: 2px;
