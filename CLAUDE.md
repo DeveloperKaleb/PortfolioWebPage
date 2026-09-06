@@ -15,7 +15,11 @@ A static, vanilla HTML/CSS/JS personal portfolio site with no build step. It is 
 - Run all tests: `npm test` (runs `vitest`)
 - Run a single test file: `npx vitest run tests/snake/snake.test.js`
 - Run tests matching a name: `npx vitest run -t "isWallCollision"`
-- There is no build, lint, or dev-server script defined in `package.json`. To preview the site, open `index.html` directly or serve the directory with any static file server — just be aware of the absolute-path caveat below.
+- Preview the site locally: `npm run dev` (serves the working tree at
+  `http://localhost:8123/PortfolioWebPage/`, caching disabled). Add `--open` to launch a
+  browser, `-- --port 8124` to move it. This is the only preview that works — see the
+  path-conventions gotcha below for why opening `index.html` off the filesystem does not.
+- There is no build or lint script defined in `package.json`.
 
 ## Path conventions (important gotcha)
 
@@ -23,7 +27,7 @@ Because the site is hosted at the `/PortfolioWebPage/` subpath on GitHub Pages, 
 - `index.html` uses relative paths (`scripts/nav.js`, `./index.js`, `style.css`).
 - `entertainment/entertainment.html` and `scripts/nav.js` use paths hardcoded to `/PortfolioWebPage/...` (an absolute path baked into `nav.js` as `basePath`).
 
-This means the site only fully works when served from that exact subpath (as on GitHub Pages) — opening `entertainment.html` from a local file path or a differently-named deployment will break the nav bar and stylesheet links. When editing navigation or adding new top-level pages, keep this `basePath` convention in mind rather than mixing in root-relative paths.
+This means the site only fully works when served from that exact subpath (as on GitHub Pages) — opening `entertainment.html` from a local file path or a differently-named deployment will break the nav bar and stylesheet links. When editing navigation or adding new top-level pages, keep this `basePath` convention in mind rather than mixing in root-relative paths. `npm run dev` exists precisely to satisfy this constraint locally — see `tools/dev-server.js`.
 
 ## Architecture
 

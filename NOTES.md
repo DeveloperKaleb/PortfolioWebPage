@@ -60,3 +60,26 @@ static server.
   verifying directly (local static server + browser console) rather than guessing from
   reading code alone — a `?v=`/module-import change, for example, is easy to reason about
   wrong on paper but is a 30-second check in a real page load.
+
+## Previewing locally (`npm run dev`)
+
+Use `npm run dev`. Opening `index.html` off the filesystem does *not* work: `nav.js` is
+included from the absolute `/PortfolioWebPage/scripts/nav.js`, so under `file://` (or any
+static server rooted at the repo) the nav bar and stylesheet 404 and the page renders
+unstyled and un-navigable. The site needs to be served from that exact subpath.
+
+`tools/dev-server.js` handles that by mapping the URL prefix onto the repo root — a
+request for `/PortfolioWebPage/style.css` is served from `./style.css`. The obvious
+alternative is making the folder name on disk match the URL (a symlink, or `mklink /J` on
+Windows, since the repo directory is `portfolio-webpage`, not `PortfolioWebPage`). That
+works, but it needs setting up and tearing down every time and leaves a stray link behind
+if you forget; prefix-mapping needs nothing on disk. If `BASE_PATH` there ever disagrees
+with `basePath` in `scripts/nav.js`, the nav breaks — they're one setting in two files.
+
+Responses are sent `Cache-Control: no-store` deliberately. This repo cache-busts by hand
+(see above), so a cached preview would quietly show you a stale page and hide the change
+you're checking. Refresh is enough; no hard reload.
+
+Flags: `--open` to launch a browser, `-- --port 8124` to move off the default 8123 (note
+the extra `--`, which is what makes npm pass the flag through). Port already in use
+usually means an older preview is still running.
