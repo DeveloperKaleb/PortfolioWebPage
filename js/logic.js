@@ -131,15 +131,17 @@ export const TETRIS_COLORS = {
 
 // Snake is drawn on white cells, so its colours are the dark end of the range.
 export const SNAKE_COLORS = {
-    head: '#002e2c', // Deep Teal
-    body: '#6e7349', // Dark Olive
-    food: '#035e7b', // Dark Blue
-    hole: '#51553a', // Olive - the donut-mode wall
+    head: '#002e2c',      // Deep Teal
+    body: '#474c2c',      // Dark Olive - the snake on the upper strand
+    bodyUnder: '#6e7349', // Mid Olive - the snake passing underneath
+    food: '#035e7b',      // Dark Blue
+    hole: '#51553a',      // Olive - blocked cells
 };
 
 /* --- BOARD SHAPES --- */
 
-export const CELL = { TRACK: 'track', HOLE: 'hole', WALL: 'wall' };
+import { CELL, buildStrandGraph, stepFrom, nodeAt } from './strands.js';
+export { CELL };
 
 /* The Infinity board is a ribbon traced around a Gerono lemniscate
    (x = cos t, y = sin(2t)/2) - a true figure-8 with exactly one self-crossing,
@@ -157,6 +159,21 @@ const LEMNISCATE_DEFAULTS = {
     halfWidth: 2.2, // half the ribbon's thickness, in cells
     samples: 720,   // how finely the curve is sampled before measuring distance
 };
+
+/* Classic and Donut as masks too. Uniform representation means one code path for
+   movement and collision regardless of whether a board has crossings. */
+export function buildSquareMask(size = 20, { hole = null } = {}) {
+    const cells = [];
+    for (let y = 1; y <= size; y++) {
+        const row = [];
+        for (let x = 1; x <= size; x++) {
+            const inHole = hole && x >= hole.x1 && x <= hole.x2 && y >= hole.y1 && y <= hole.y2;
+            row.push({ kind: inHole ? CELL.HOLE : CELL.TRACK, branches: [] });
+        }
+        cells.push(row);
+    }
+    return { width: size, height: size, cells };
+}
 
 export function buildLemniscateMask(options = {}) {
     const { width, height, scaleX, scaleY, halfWidth, samples } = { ...LEMNISCATE_DEFAULTS, ...options };
@@ -249,27 +266,37 @@ export const cellKindAt = (mask, x, y) => {
     return mask.cells[y - 1][x - 1].kind;
 };
 
-/* Pick the opening move: the track cell and direction with the longest clear run
-   ahead, so a new game never starts pointed at a wall. Deterministic - the first
-   best-scoring option wins - so tests can assert on it. */
-export function findStartingPosition(mask) {
+/* Pick the opening move: the node and direction with the longest clear run ahead, so
+   a new game never starts pointed at a wall. Walks the graph rather than the mask, so
+   on a crossing map the runway follows the strand the snake is actually on.
+   Deterministic - the first best-scoring option wins - so tests can assert on it. */
+export function findStartingPosition(graph) {
     let best = null;
-    for (let y = 1; y <= mask.height; y++) {
-        for (let x = 1; x <= mask.width; x++) {
-            if (cellKindAt(mask, x, y) !== CELL.TRACK) continue;
-            for (const [name, d] of Object.entries(ACTION_VECTORS)) {
-                // The two body segments trail behind the head.
-                const tail = [1, 2].map((n) => [x - d.x * n, y - d.y * n]);
-                if (tail.some(([tx, ty]) => cellKindAt(mask, tx, ty) !== CELL.TRACK)) continue;
+    for (const node of graph.nodes.values()) {
+        for (const [name, d] of Object.entries(ACTION_VECTORS)) {
+            const back = { x: -d.x, y: -d.y };
 
-                let runway = 0;
-                let [rx, ry] = [x, y];
-                while (cellKindAt(mask, rx + d.x, ry + d.y) === CELL.TRACK) {
-                    runway++; rx += d.x; ry += d.y;
-                }
-                if (!best || runway > best.runway) {
-                    best = { runway, direction: { ...d }, action: name, snake: [[x, y], ...tail] };
-                }
+            // The two body segments trail behind the head, along the same strand.
+            const tail = [];
+            let previous = node;
+            for (let i = 0; i < 2; i++) {
+                previous = stepFrom(graph, previous, back);
+                if (!previous) break;
+                tail.push(previous);
+            }
+            if (tail.length < 2) continue;
+
+            let runway = 0;
+            let ahead = node;
+            while ((ahead = stepFrom(graph, ahead, d))) runway++;
+
+            if (!best || runway > best.runway) {
+                best = {
+                    runway,
+                    direction: { ...d },
+                    action: name,
+                    snake: [node, ...tail].map(({ x, y, strand }) => ({ x, y, strand })),
+                };
             }
         }
     }
@@ -278,22 +305,38 @@ export function findStartingPosition(mask) {
 
 export const INFINITY_MASK = buildLemniscateMask();
 export const INFINITY_MASK_VERTICAL = transposeMask(INFINITY_MASK);
+export const CLASSIC_MASK = buildSquareMask(20);
+export const DONUT_MASK = buildSquareMask(20, { hole: { x1: 7, x2: 14, y1: 7, y2: 14 } });
 
 /* Everything the DOM layer needs to lay out and police a board. Classic and Donut
    keep their 20x20 grid and their existing rules; only Infinity carries a mask. */
+const MASKS = {
+    classic: () => CLASSIC_MASK,
+    donut: () => DONUT_MASK,
+    infinity: (orientation) => (orientation === 'vertical' ? INFINITY_MASK_VERTICAL : INFINITY_MASK),
+};
+
+// Built once each - the graphs never change, and rebuilding per game would be waste.
+const graphCache = new Map();
+
 export function getBoardShape(mode, orientation = 'horizontal') {
-    if (mode === 'infinity') {
-        const mask = orientation === 'vertical' ? INFINITY_MASK_VERTICAL : INFINITY_MASK;
-        const start = findStartingPosition(mask);
-        return { mode, width: mask.width, height: mask.height, mask, start };
-    }
-    return {
-        mode,
-        width: 20,
-        height: 20,
-        mask: null,
-        start: mode === 'donut'
-            ? { snake: [[4, 10], [4, 11], [4, 12]], direction: { x: 0, y: -1 } }
-            : { snake: [[10, 10], [10, 11], [10, 12]], direction: { x: 0, y: -1 } },
-    };
+    const maskFor = MASKS[mode] || MASKS.classic;
+    const mask = maskFor(orientation);
+    const cacheKey = `${mode}:${orientation}`;
+
+    if (!graphCache.has(cacheKey)) graphCache.set(cacheKey, buildStrandGraph(mask));
+    const graph = graphCache.get(cacheKey);
+
+    // Classic and Donut keep the start they have always had; a crossing map has no
+    // obvious hand-picked spot, so it gets the longest clear run on the board.
+    const fixedStart = { classic: [10, 10], donut: [4, 10] }[mode];
+    const start = fixedStart
+        ? {
+            direction: { x: 0, y: -1 },
+            snake: [0, 1, 2].map((n) => ({ x: fixedStart[0], y: fixedStart[1] + n, strand: 0 })),
+            runway: null,
+        }
+        : findStartingPosition(graph);
+
+    return { mode, width: mask.width, height: mask.height, mask, graph, start };
 }

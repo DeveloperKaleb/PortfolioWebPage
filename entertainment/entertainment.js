@@ -2,10 +2,6 @@
 import { 
     generateGridHtml, 
     isWallCollision,
-    isHoleCollision,
-    isSelfCollision, 
-    getNextHead, 
-    isEatingFood,
     isValidDirection,
     TETROMINOES,
     isTetrisCollision,
@@ -19,6 +15,14 @@ import {
     cellKindAt,
     CELL
 } from '../js/logic.js';
+import {
+    stepFrom,
+    nodeAt,
+    strandsAt,
+    isOverlapCell,
+    isLayeredSelfCollision,
+    topOccupant
+} from '../js/strands.js';
 
 /* --- SELECTORS --- */
 const snakeBoard = document.getElementById('snakeDisplay');
@@ -99,9 +103,12 @@ function displayArray(event) {
 
 
 /* --- PART 2: THE SNAKE SYSTEM --- */
-let snake = [[10, 10], [10, 11], [10, 12]];
+/* A segment is a NODE - { x, y, strand } - because on a crossing map the same cell
+   can be two different places. On boards without crossings every strand is 0 and
+   this behaves exactly like the old coordinate pair. */
+let snake = [{ x: 10, y: 10, strand: 0 }, { x: 10, y: 11, strand: 0 }, { x: 10, y: 12, strand: 0 }];
 let direction = { x: 0, y: -1 };
-let food = [5, 5];
+let food = { x: 5, y: 5 };
 let score = 0;
 let gameInterval = null;
 
@@ -119,10 +126,10 @@ const selectedMode = () => {
     return modeSelect ? modeSelect.value : 'classic';
 };
 
-// A cell the snake cannot occupy: off the Infinity ribbon, or inside Donut's hole.
+// A cell the snake cannot occupy. Every board is mask-driven now, so this is the one
+// question to ask regardless of mode.
 function isBlockedCell(shape, x, y) {
-    if (shape.mask) return cellKindAt(shape.mask, x, y) !== CELL.TRACK;
-    return shape.mode === 'donut' && isHoleCollision([x, y]);
+    return cellKindAt(shape.mask, x, y) !== CELL.TRACK;
 }
 
 /**
@@ -136,7 +143,10 @@ function createStaticBoard(shape = currentShape) {
         for (let x = 1; x <= shape.width; x++) {
             const blocked = isBlockedCell(shape, x, y);
             const color = blocked ? SNAKE_COLORS.hole : 'white';
-            snakeHtml += `<button class="x${x}y${y}" data-blocked="${blocked}" style="background-color: ${color}"></button>`;
+            // The crossing needs to be visible before the snake reaches it, so the
+            // player can see there is something to be over or under.
+            const overlap = !blocked && isOverlapCell(shape.graph, x, y) ? ' cell-overlap' : '';
+            snakeHtml += `<button class="x${x}y${y}${overlap}" data-blocked="${blocked}" style="background-color: ${color}"></button>`;
         }
     }
     snakeBoard.innerHTML = snakeHtml;
@@ -161,7 +171,7 @@ function initSnakeGame() {
     // read once, here - reflowing mid-game could drop the snake inside a wall.
     const shape = getBoardShape(gameMode, currentOrientation());
     createStaticBoard(shape);
-    snake = shape.start.snake.map((segment) => [...segment]);
+    snake = shape.start.snake.map((segment) => ({ ...segment }));
     direction = { ...shape.start.direction };
 
     spawnFood();
@@ -180,8 +190,10 @@ function spawnFood() {
     for (let y = 1; y <= currentShape.height; y++) {
         for (let x = 1; x <= currentShape.width; x++) {
             if (isBlockedCell(currentShape, x, y)) continue;
-            if (isSelfCollision([x, y], snake)) continue;
-            free.push([x, y]);
+            // Never on a crossing: "which strand is the food on" has no good answer.
+            if (isOverlapCell(currentShape.graph, x, y)) continue;
+            if (snake.some((segment) => segment.x === x && segment.y === y)) continue;
+            free.push({ x, y });
         }
     }
 
@@ -191,35 +203,28 @@ function spawnFood() {
 }
 
 function gameStep() {
-    const head = getNextHead(snake[0], direction);
+    // The graph knows what continues the snake's current strand; anything else is a
+    // death, and where the move was headed says which kind.
+    const head = stepFrom(currentShape.graph, snake[0], direction);
 
-    // 1. Check each condition individually to identify the "Cause"
-    if (isWallCollision(head, currentShape.width, currentShape.height)) {
-        return gameOver('WALL');
+    if (!head) {
+        return gameOver(failureAt(snake[0], direction));
     }
 
-    if (isSelfCollision(head, snake)) {
+    // Layer-aware: sharing a cell with itself on the other strand is passing over,
+    // not a crash.
+    if (isLayeredSelfCollision(head, snake)) {
         return gameOver('SELF');
     }
 
-    if (currentShape.mask) {
-        // Inside a lobe is an inner wall, outside the ribbon an outer one - the same
-        // distinction Donut draws between HOLE and WALL.
-        const kind = cellKindAt(currentShape.mask, head[0], head[1]);
-        if (kind === CELL.HOLE) return gameOver('HOLE');
-        if (kind === CELL.WALL) return gameOver('WALL');
-    } else if (gameMode === 'donut' && isHoleCollision(head)) {
-        return gameOver('HOLE');
-    }
+    snake.unshift({ x: head.x, y: head.y, strand: head.strand });
 
-    snake.unshift(head);
-
-    if (isEatingFood(head, food)) {
+    if (head.x === food.x && head.y === food.y) {
         score += 10;
         document.getElementById('score').innerText = score;
         spawnFood();
     } else {
-        snake.pop(); 
+        snake.pop();
     }
 
     drawFrame();
@@ -238,16 +243,53 @@ function drawFrame() {
     });
 
     // Draw Food on snakeBoard
-    const foodEl = snakeBoard.querySelector(`.x${food[0]}y${food[1]}`);
+    const foodEl = snakeBoard.querySelector(`.x${food.x}y${food.y}`);
     if (foodEl) foodEl.style.backgroundColor = SNAKE_COLORS.food;
 
-    // Draw Snake on snakeBoard
-    snake.forEach((seg, index) => {
-        const segEl = snakeBoard.querySelector(`.x${seg[0]}y${seg[1]}`);
-        if (segEl) {
-            segEl.style.backgroundColor = index === 0 ? SNAKE_COLORS.head : SNAKE_COLORS.body;
-        }
+    /* Draw the snake. Where the snake crosses itself, one cell holds two segments -
+       only the one on the upper strand is drawn, which is what makes the crossing
+       read as over-and-under rather than as a collision. */
+    const perCell = new Map();
+    snake.forEach((segment, index) => {
+        const node = nodeAt(currentShape.graph, segment.x, segment.y, segment.strand);
+        if (!node) return;
+
+        const occupant = { ...segment, layer: node.layer, isHead: index === 0 };
+        const key = `${segment.x},${segment.y}`;
+        const standing = perCell.get(key);
+        perCell.set(key, standing ? topOccupant([standing, occupant]) : occupant);
     });
+
+    perCell.forEach((occupant) => {
+        const segEl = snakeBoard.querySelector(`.x${occupant.x}y${occupant.y}`);
+        if (!segEl) return;
+
+        // Underneath means: this cell has more than one strand and we are not on the
+        // top one. Lighter reads as further away - see the contrast note in NOTES.md
+        // for why the body was darkened to make room for it.
+        const strands = strandsAt(currentShape.graph, occupant.x, occupant.y);
+        const isUnderneath = strands.length > 1 && occupant.layer < strands[strands.length - 1].layer;
+
+        segEl.style.backgroundColor = occupant.isHead
+            ? SNAKE_COLORS.head
+            : (isUnderneath ? SNAKE_COLORS.bodyUnder : SNAKE_COLORS.body);
+    });
+}
+
+/* The graph refuses a move without saying why, so reconstruct it from the target
+   cell: off the grid or into a wall/hole reads as it always did, while a target that
+   is perfectly good track means the snake tried to leave the strand it was on -
+   stepping off the edge of the crossing. */
+function failureAt(from, heading) {
+    const target = { x: from.x + heading.x, y: from.y + heading.y };
+
+    if (isWallCollision([target.x, target.y], currentShape.width, currentShape.height)) {
+        return 'WALL';
+    }
+    const kind = cellKindAt(currentShape.mask, target.x, target.y);
+    if (kind === CELL.HOLE) return 'HOLE';
+    if (kind === CELL.WALL) return 'WALL';
+    return 'EDGE';
 }
 
 function gameOver(reason = '') {
@@ -266,6 +308,9 @@ function gameOver(reason = '') {
             break;
         case 'HOLE':
             displayMessage = "Vacuum Exposure: Fallen into the void.";
+            break;
+        case 'EDGE':
+            displayMessage = "Lost Footing: Stepped off the crossing.";
             break;
         default:
             displayMessage = "System Overload.";

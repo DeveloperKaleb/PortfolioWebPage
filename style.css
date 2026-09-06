@@ -506,3 +506,20 @@ a:active  {color: #002e2c;}
         margin-bottom: 16px;
     }
 }
+
+/* --- Snake: the crossing --- */
+/* Cells where two strands share space, marked by entertainment.js from the strand
+   graph. Without this the crossing is invisible until the snake is already in it,
+   and the over/under colouring has no context - you would just see the snake change
+   shade for no apparent reason.
+
+   The tint is deliberately faint: it has to stay clearly lighter than every snake
+   colour drawn on top of it, or it would eat into the contrast those rely on. */
+.butMania.is-snake button.cell-overlap {
+    /* Outline only, no fill. A fill would have to sit behind the snake colours and
+       would cost them contrast - a tint light enough to look right dropped the
+       underneath colour to 4.32:1, under the floor, in the one place it is used.
+       It would also never show: drawFrame writes background-color inline each frame,
+       which out-specifies any stylesheet rule. box-shadow has no such conflict. */
+    box-shadow: inset 0 0 0 1px #51553a;
+}

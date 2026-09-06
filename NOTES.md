@@ -211,3 +211,54 @@ throttles `setInterval` in a hidden tab to roughly once per second, so a game co
 at 150ms per tick runs ~7x slow. This is why an abandoned game appeared not to reach its
 own game-over during earlier automated checks — the harness, not the code. Game
 behaviour is verified by the project owner in a real, focused browser.
+
+## Strand graphs: boards whose cells overlap (`js/strands.js`)
+
+A normal board is one cell = one place to be. That breaks the moment a map crosses
+over itself: the middle of the Infinity board is a cell the snake can occupy on the
+upper strand or the lower one, and those are **different places that share
+coordinates**.
+
+So a position is a **node** — `(x, y, strand)` — and a board is a graph of nodes, not
+a grid. `js/strands.js` is map-agnostic: hand it a mask whose cells list their strands
+and it produces the graph. Nothing in it knows what a lemniscate is.
+
+**Every board goes through it**, including Classic and Donut, which are masks whose
+cells each carry a single plain strand. One movement path, one collision path, no
+"is this a crossing map" branching anywhere.
+
+Three seams for a future map:
+
+- **`link(from, to, direction)`** decides whether neighbouring nodes are the same
+  continuous track. The default suits any curve-derived map: points along one strand
+  have nearly the same parameter, while strands meeting at a crossing are far apart on
+  it. A map built some other way passes its own predicate — that is what keeps this
+  general rather than lemniscate-specific.
+- **`order(cellNodes)`** decides which strand lies on top. The default sorts by curve
+  parameter, so the ordering holds across a whole crossing instead of being decided
+  cell by cell — otherwise the snake would surface halfway through going underneath.
+- **`branches`** on a mask cell lists one parameter per strand. Empty means a single
+  plain strand.
+
+**The rule that makes crossings work:** `stepFrom` returns `null` when nothing
+continues the current strand. Turning off the upper strand mid-crossing is therefore
+not a blocked move, it is a death — `gameOver('EDGE')`. The graph will not say *why*
+it refused, so `failureAt()` reconstructs it from the target cell: off-grid or a
+wall/hole reads as it always did, and a target that is *perfectly good track* means
+the snake tried to leave its strand.
+
+Self-collision compares the strand too (`isLayeredSelfCollision`), which is what lets
+the snake pass over itself instead of crashing into itself.
+
+**Rendering.** Where two segments share a cell only the upper one is drawn — that
+occlusion is what reads as over-and-under. The underneath segment uses
+`SNAKE_COLORS.bodyUnder`; see the contrast section for why the body was *darkened* to
+make room for a lighter under-colour rather than the other way round.
+
+The crossing is outlined (`.cell-overlap`) so it is visible before the snake gets
+there. Outline, not fill: a fill light enough to look right pushed the underneath
+colour to 4.32:1, below the floor, in the exact place that colour is used. A fill also
+would not have shown at all — `drawFrame` writes `background-color` inline every
+frame, which out-specifies any stylesheet rule. `box-shadow` has no such conflict.
+
+Food never spawns on a crossing cell: "which strand is it on" has no good answer.

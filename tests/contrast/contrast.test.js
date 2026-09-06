@@ -74,3 +74,22 @@ describe('Snake palette', () => {
         expect(areDistinguishable(SNAKE_COLORS.food, SNAKE_COLORS.head)).toBe(true);
     });
 });
+
+describe('Layered snake colours', () => {
+    // "Underneath" reads as lighter, but lighter on a white board means less contrast.
+    // The body was darkened so there is room for a lighter under-colour that still
+    // clears the floor - going the other way would have broken the rule.
+    test('the underneath colour is genuinely lighter than the one on top', () => {
+        expect(contrastRatio(SNAKE_COLORS.bodyUnder, '#ffffff'))
+            .toBeLessThan(contrastRatio(SNAKE_COLORS.body, '#ffffff'));
+    });
+
+    test('over and under are still telling apart', () => {
+        expect(areDistinguishable(SNAKE_COLORS.body, SNAKE_COLORS.bodyUnder)).toBe(true);
+    });
+
+    test('the underneath colour still clears the contrast floor', () => {
+        expect(worstCaseContrast(SNAKE_COLORS.bodyUnder, '#ffffff'))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+});

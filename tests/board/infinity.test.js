@@ -10,6 +10,7 @@ import {
     getBoardShape,
     isWallCollision,
 } from '../../js/logic.js';
+import { stepFrom } from '../../js/strands.js';
 
 const countKinds = (mask) => {
     const counts = { track: 0, hole: 0, wall: 0 };
@@ -94,12 +95,13 @@ describe('Board orientation', () => {
 });
 
 describe('Starting position', () => {
-    test.each([['horizontal', INFINITY_MASK], ['vertical', INFINITY_MASK_VERTICAL]])(
+    test.each([['horizontal'], ['vertical']])(
         'the %s board starts the snake on track with room to move',
-        (_orientation, mask) => {
-            const start = findStartingPosition(mask);
-            start.snake.forEach(([x, y]) => {
-                expect(cellKindAt(mask, x, y)).toBe(CELL.TRACK);
+        (orientation) => {
+            const shape = getBoardShape('infinity', orientation);
+            const start = findStartingPosition(shape.graph);
+            start.snake.forEach(({ x, y }) => {
+                expect(cellKindAt(shape.mask, x, y)).toBe(CELL.TRACK);
             });
             // Enough clear cells ahead that the player has time to react.
             expect(start.runway).toBeGreaterThanOrEqual(5);
@@ -107,24 +109,28 @@ describe('Starting position', () => {
     );
 
     test('the opening moves stay on the track', () => {
-        const { start } = getBoardShape('infinity');
-        let [x, y] = start.snake[0];
+        const { start, graph } = getBoardShape('infinity');
+        let position = start.snake[0];
         for (let i = 0; i < 5; i++) {
-            x += start.direction.x;
-            y += start.direction.y;
-            expect(cellKindAt(INFINITY_MASK, x, y)).toBe(CELL.TRACK);
+            position = stepFrom(graph, position, start.direction);
+            expect(position).not.toBeNull();
         }
     });
 });
 
 describe('Board shapes', () => {
-    test('classic and donut keep their 20x20 grid and need no mask', () => {
+    test('classic and donut keep their 20x20 grid', () => {
         ['classic', 'donut'].forEach((mode) => {
             const shape = getBoardShape(mode);
             expect(shape.width).toBe(20);
             expect(shape.height).toBe(20);
-            expect(shape.mask).toBeNull();
         });
+    });
+
+    // Donut's hole is 8x8, so it has 64 fewer places to be than Classic.
+    test('every board exposes a graph, sized to its playable space', () => {
+        expect(getBoardShape('classic').graph.nodes.size).toBe(400);
+        expect(getBoardShape('donut').graph.nodes.size).toBe(336);
     });
 
     test('infinity reports a non-square board', () => {
