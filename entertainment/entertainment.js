@@ -10,7 +10,9 @@ import {
     isValidDirection,
     TETROMINOES,
     isTetrisCollision,
-    rotatePiece
+    rotatePiece,
+    ACTION_VECTORS,
+    keyToAction
 } from '../js/logic.js';
 
 /* --- SELECTORS --- */
@@ -29,6 +31,9 @@ const views = {
 };
 
 function showView(name) {
+    // A pad button can be left held while the view changes out from under it, which
+    // would otherwise leave its repeat timer running against the next game.
+    stopRepeat();
     hub.hidden = Boolean(name);
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
 }
@@ -453,6 +458,57 @@ document.getElementById('startBtn').addEventListener('click', () => {
     initSnakeGame();
 });
 
+/* Snake and Tetris both take one of the four action strings from logic.js. Keeping
+   the game response separate from how the input arrived is what lets the on-screen
+   touch pads reuse the exact same code as the arrow keys. */
+function handleSnakeAction(action) {
+    if (!gameInterval) return;
+    if (!canChangeDirection) return;
+
+    const newDirection = ACTION_VECTORS[action];
+    if (!newDirection) return;
+
+    if (isValidDirection(direction, newDirection)) {
+        direction = newDirection;
+        canChangeDirection = false;
+    }
+}
+
+function handleTetrisAction(action) {
+    if (!tetrisInterval || !activePiece) return;
+
+    let nextPos = { ...activePiece };
+
+    switch (action) {
+        case 'left':
+            nextPos.x -= 1;
+            break;
+        case 'right':
+            nextPos.x += 1;
+            break;
+        case 'down':
+            nextPos.y += 1;
+            break;
+        case 'up':
+            // Rotation!
+            nextPos.shape = rotatePiece(activePiece.shape);
+            break;
+        default: return;
+    }
+
+    // Only apply the move if it doesn't cause a collision
+    if (!isTetrisCollision(getAbsoluteCoords(nextPos), tetrisMatrix)) {
+        activePiece = nextPos;
+        drawTetrisFrame();
+    }
+}
+
+function dispatchAction(action) {
+    if (!action) return;
+    handleSnakeAction(action);
+    handleTetrisAction(action);
+}
+
 window.addEventListener('keydown', (e) => {
     const keysToCapture = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
 
@@ -461,53 +517,45 @@ window.addEventListener('keydown', (e) => {
         e.preventDefault();
     }
 
-    // --- SNAKE INPUT LOGIC ---
-    if (gameInterval) {
-        if (!canChangeDirection) return;
-
-        let newDirection;
-        switch (e.key) {
-            case 'ArrowUp':    newDirection = { x: 0, y: -1 }; break;
-            case 'ArrowDown':  newDirection = { x: 0, y: 1 };  break;
-            case 'ArrowLeft':  newDirection = { x: -1, y: 0 }; break;
-            case 'ArrowRight': newDirection = { x: 1, y: 0 };  break;
-            default: return;
-        }
-
-        if (isValidDirection(direction, newDirection)) {
-            direction = newDirection;
-            canChangeDirection = false;
-        }
-    }
-
-    // --- TETRIS INPUT LOGIC ---
-    if (tetrisInterval && activePiece) {
-        let nextPos = { ...activePiece };
-
-        switch (e.key) {
-            case 'ArrowLeft':
-                nextPos.x -= 1;
-                break;
-            case 'ArrowRight':
-                nextPos.x += 1;
-                break;
-            case 'ArrowDown':
-                nextPos.y += 1;
-                break;
-            case 'ArrowUp':
-                // Rotation!
-                nextPos.shape = rotatePiece(activePiece.shape);
-                break;
-            default: return;
-        }
-
-        // Only apply the move if it doesn't cause a collision
-        if (!isTetrisCollision(getAbsoluteCoords(nextPos), tetrisMatrix)) {
-            activePiece = nextPos;
-            drawTetrisFrame();
-        }
-    }
+    dispatchAction(keyToAction(e.key));
 }, { passive: false });
+
+/* --- TOUCH PADS --- */
+/* A held button repeats, matching how holding an arrow key behaves. Snake ignores
+   the extra presses within a tick anyway; for Tetris this is the soft drop. */
+let repeatTimer = null;
+let repeatInterval = null;
+
+function stopRepeat() {
+    clearTimeout(repeatTimer);
+    clearInterval(repeatInterval);
+    repeatTimer = null;
+    repeatInterval = null;
+}
+
+/* pointerdown rather than click: it fires on finger-down instead of finger-up, which
+   is the difference between the controls feeling immediate and feeling laggy. The
+   preventDefault stops the browser following up with synthetic mouse events and
+   stops a fast repeated tap being taken for a double-tap zoom. */
+document.querySelectorAll('[data-action]').forEach((btn) => {
+    btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        dispatchAction(btn.dataset.action);
+
+        stopRepeat();
+        // Wait out an initial delay so a normal single tap never repeats.
+        repeatTimer = setTimeout(() => {
+            repeatInterval = setInterval(() => dispatchAction(btn.dataset.action), 80);
+        }, 250);
+    });
+
+    // pointerleave and pointercancel matter as much as pointerup here: a finger that
+    // slides off the button or gets taken over by a browser gesture never sends
+    // pointerup, and the repeat would otherwise run on forever.
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((evt) => {
+        btn.addEventListener(evt, stopRepeat);
+    });
+});
 
 // Painting Logic: Target toyBoard specifically
 toyBoard.addEventListener("click", (event) => {

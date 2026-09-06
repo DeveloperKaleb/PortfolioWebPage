@@ -33,7 +33,11 @@ body {
     text-align: center;
     background: #3b3026;
     max-width: 1100px;
+    /* 100vh on mobile means "viewport with the URL bar hidden", so a short page
+       overflows by the height of the bar and scrolls for no reason. 100dvh is the
+       live value; the 100vh line stays first as the fallback for older browsers. */
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0 auto;
 }
 
@@ -41,7 +45,29 @@ body {
 header {
     font-family: monospace, serif;
     color: #eff1c5;
-    padding: 23px;
+    padding: clamp(12px, 4vw, 23px);
+}
+
+/* nav.js injects a bare <nav> with no class, so the .navigation width rule at the
+   top of this file never matched it. Style the element directly: a centered row
+   that wraps, with links padded out to a finger-sized tap target. */
+header nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+header nav a {
+    display: inline-block;
+    padding: 12px 16px;
+    min-height: 44px;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+header nav a.active {
+    text-decoration: underline;
 }
 
 /* main absorbs the leftover height on a short page so the page column runs
@@ -73,12 +99,18 @@ hr {
 
 h1 {
     color: #e3e7af;
-    padding: 23px;
-    font-size: 30px;
+    padding: clamp(12px, 4vw, 23px);
+    font-size: clamp(24px, 6vw, 30px);
 }
 
 h2 {
-    font-size: 23px;
+    font-size: clamp(19px, 4.5vw, 23px);
+}
+
+/* Long URLs and unbroken strings are the usual cause of a stray horizontal
+   scrollbar on a phone - let them wrap rather than widen the page. */
+p, li, h1, h2, h3 {
+    overflow-wrap: break-word;
 }
 
 /* --- Footer --- */
@@ -123,9 +155,13 @@ footer li + li {
     cursor: pointer;
 }
 
-.entry-card:hover {
-    border-color: #035e7b;
-    background: #003b38;
+/* Guarded on (hover: hover): a tap on a touchscreen leaves :hover latched on the
+   last element touched, so unguarded hover styles read as a stuck selection. */
+@media (hover: hover) {
+    .entry-card:hover {
+        border-color: #035e7b;
+        background: #003b38;
+    }
 }
 
 .card-title {
@@ -135,6 +171,51 @@ footer li + li {
 .back-btn {
     display: block;
     margin: 0 0 10px;
+}
+
+/* Shared sizing for every interactive control on the entertainment page. 44px is
+   the usual minimum comfortable tap target; 16px text is the threshold below
+   which iOS Safari zooms the page in when an input takes focus. */
+.entry-card,
+.back-btn,
+#tetrisStartBtn,
+#startBtn,
+#modeSelect,
+#arrayForm input,
+#arrayForm button {
+    min-height: 44px;
+    font-size: 16px;
+}
+
+#arrayForm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+#arrayForm div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#arrayForm input {
+    width: 6em;
+    box-sizing: border-box;
+    padding: 8px;
+}
+
+/* The score line and start/mode controls sit in a row that wraps on a phone
+   rather than running off the edge. */
+#game-controls,
+#tetris-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
 }
 
 /* Mini decorative previews for each hub card. Purely cosmetic - not tied
@@ -179,7 +260,9 @@ footer li + li {
 /* --- Links --- */
 a:link    {color: #eff1c5;}
 a:visited {color: #dfe38c;}
-a:hover   {color: #035e7b;}
+@media (hover: hover) {
+    a:hover {color: #035e7b;}
+}
 a:active  {color: #002e2c;}
 
 /* --- The Grid & Snake Containers --- */
@@ -235,14 +318,21 @@ a:active  {color: #002e2c;}
     flex-shrink: 0; /* Prevents the browser from squishing buttons to fit the width */
 }
 
-.butMania button:hover {
-    background-color: #dfe38c;
+@media (hover: hover) {
+    .butMania button:hover {
+        background-color: #dfe38c;
+    }
 }
 
 /* --- The Snake Arena (Active State) --- */
 .butMania.is-snake {
+    /* 20 columns at a fixed 20px came to ~440px - wider than a 375px phone, so the
+       board spilled into a sideways scroll. The cell now shrinks to whatever fits
+       (20 cells + 19 gaps + page padding) and still caps at the original 20px on
+       anything desktop-sized, so the 20x20 board stays fully on screen either way. */
+    --snake-cell: clamp(10px, calc((100vw - 60px) / 20), 20px);
     /* We keep the 20x20 hardcoded here as a fallback */
-    grid-template-columns: repeat(20, 20px);
+    grid-template-columns: repeat(20, var(--snake-cell));
     grid-gap: 1px;
     background-color: #002e2c;
     padding: 2px;
@@ -253,8 +343,8 @@ a:active  {color: #002e2c;}
 }
 
 .butMania.is-snake button {
-    width: 20px;
-    height: 20px;
+    width: var(--snake-cell);
+    height: var(--snake-cell);
     padding: 0;
     margin: 0;
     border: none;
@@ -265,8 +355,9 @@ a:active  {color: #002e2c;}
 /* --- The Tetris Matrix --- */
 #tetrisDisplay {
     display: grid;
-    /* 10 columns, 20px each = 200px wide + gaps */
-    grid-template-columns: repeat(10, 20px); 
+    --tetris-cell: clamp(12px, calc((100vw - 60px) / 10), 20px);
+    /* 10 columns, 20px each = 200px wide + gaps (the cap; narrower screens shrink) */
+    grid-template-columns: repeat(10, var(--tetris-cell));
     grid-gap: 1px;
     background-color: #002e2c; /* Same dark "void" as Snake */
     padding: 2px;
@@ -276,8 +367,8 @@ a:active  {color: #002e2c;}
 }
 
 #tetrisDisplay button {
-    width: 20px;
-    height: 20px;
+    width: var(--tetris-cell);
+    height: var(--tetris-cell);
     padding: 0;
     margin: 0;
     border: none;
@@ -295,3 +386,56 @@ a:active  {color: #002e2c;}
         width: 600px;
     }
 }
+/* --- Touch Pads --- */
+/* Hidden by default and revealed only on a coarse pointer: on a machine with a
+   keyboard the arrow keys are the better control and the pad is just clutter.
+   Chrome's device toolbar reports a coarse pointer, so device emulation shows
+   these the same way a real phone does. */
+.touch-pad {
+    display: none;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 auto 30px;
+    /* The pad is the one place on the page a stray drag shouldn't scroll or
+       zoom - every gesture here is meant for the game. */
+    touch-action: none;
+}
+
+@media (pointer: coarse) {
+    .touch-pad-row {
+        display: flex;
+    }
+
+    .touch-pad-dpad {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        justify-content: center;
+    }
+}
+
+.pad-btn {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+    background: #002e2c;
+    color: #eff1c5;
+    border: 2px solid #dfe38c;
+    border-radius: 8px;
+    cursor: pointer;
+    /* Stops the long-press text-selection callout and the grey tap flash that
+       otherwise make a repeatedly-tapped button look like selected text. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pad-btn:active {
+    background: #035e7b;
+}
+
+/* The d-pad's cross shape: up on the top row's middle cell, left/right either
+   side of an empty centre, down below. */
+.pad-up    { grid-column: 2; grid-row: 1; }
+.pad-left  { grid-column: 1; grid-row: 2; }
+.pad-right { grid-column: 3; grid-row: 2; }
+.pad-down  { grid-column: 2; grid-row: 3; }

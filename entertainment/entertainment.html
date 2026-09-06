@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260906-0008" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260906-1521" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -59,6 +59,15 @@
 
             <div class="butMania" id="tetrisDisplay">
                 </div>
+
+            <!-- Touch controls. Hidden on pointer-precise devices by style.css,
+                 since a keyboard is the better input where there is one. -->
+            <div class="touch-pad touch-pad-row" aria-label="Tetris controls">
+                <button type="button" class="pad-btn" data-action="left" aria-label="Move left">&larr;</button>
+                <button type="button" class="pad-btn" data-action="up" aria-label="Rotate">&#8635;</button>
+                <button type="button" class="pad-btn" data-action="down" aria-label="Soft drop">&darr;</button>
+                <button type="button" class="pad-btn" data-action="right" aria-label="Move right">&rarr;</button>
+            </div>
         </div>
 
         <div id="snake-system" class="game-view" hidden>
@@ -74,6 +83,15 @@
             </div>
             <div class="butMania is-snake" id="snakeDisplay">
                 </div>
+
+            <!-- Touch controls. Hidden on pointer-precise devices by style.css,
+                 since a keyboard is the better input where there is one. -->
+            <div class="touch-pad touch-pad-dpad" aria-label="Snake controls">
+                <button type="button" class="pad-btn pad-up" data-action="up" aria-label="Up">&uarr;</button>
+                <button type="button" class="pad-btn pad-left" data-action="left" aria-label="Left">&larr;</button>
+                <button type="button" class="pad-btn pad-right" data-action="right" aria-label="Right">&rarr;</button>
+                <button type="button" class="pad-btn pad-down" data-action="down" aria-label="Down">&darr;</button>
+            </div>
         </div>
 
         <div id="toy-system" class="game-view" hidden>
@@ -102,8 +120,8 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260906-0008"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260906-0008"></script>
-    <script type="module" src="./entertainment.js?v=20260906-0008"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260906-1521"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260906-1521"></script>
+    <script type="module" src="./entertainment.js?v=20260906-1521"></script>
 </body>
 </html>

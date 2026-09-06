@@ -82,3 +82,23 @@ export function isTetrisCollision(piece, matrix) {
     }
     return false;
 }
+/* --- INPUT ACTIONS --- */
+/* Both games are driven by four abstract actions rather than by key names, so a
+   keyboard arrow and an on-screen touch button can feed the same code path.
+   The DOM layer maps whatever the user did onto one of these strings. */
+export const ACTION_VECTORS = {
+    up:    { x: 0, y: -1 },
+    down:  { x: 0, y: 1 },
+    left:  { x: -1, y: 0 },
+    right: { x: 1, y: 0 },
+};
+
+const KEY_ACTIONS = {
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+};
+
+// Returns null for any key neither game cares about, so callers can bail early.
+export const keyToAction = (key) => KEY_ACTIONS[key] ?? null;
