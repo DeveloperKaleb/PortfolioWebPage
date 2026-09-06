@@ -23,6 +23,16 @@ export const circularDelta = (a, b) => {
     return Math.min(d, TAU - d);
 };
 
+/* Mean of a set of angles. Averaging them arithmetically is wrong wherever the set
+ * straddles the 2pi -> 0 wrap: the mean of 6.2 and 0.1 comes out near pi, pointing at
+ * the opposite side of the curve. Summing unit vectors has no such seam. */
+export const circularMean = (angles) => {
+    const x = angles.reduce((sum, t) => sum + Math.cos(t), 0);
+    const y = angles.reduce((sum, t) => sum + Math.sin(t), 0);
+    const mean = Math.atan2(y, x);
+    return mean < 0 ? mean + TAU : mean;
+};
+
 export const nodeKey = (x, y, strand) => `${x},${y},${strand}`;
 const dirKey = (direction) => `${direction.x},${direction.y}`;
 

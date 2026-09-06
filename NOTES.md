@@ -262,3 +262,41 @@ would not have shown at all — `drawFrame` writes `background-color` inline eve
 frame, which out-specifies any stylesheet rule. `box-shadow` has no such conflict.
 
 Food never spawns on a crossing cell: "which strand is it on" has no good answer.
+
+## Curve parameters must be averaged circularly (a bug that shipped)
+
+`buildLemniscateMask` collapses the run of `t` values passing near a cell into one
+parameter. That was an arithmetic mean, which is wrong for any cell straddling the
+`2π → 0` wrap at the tip of a lobe: the mean of 6.2 and 0.1 is about π, a parameter
+pointing at the **opposite end of the curve**.
+
+Consequence: those cells failed the continuity check against their real neighbours, so
+the ribbon was **severed at the right-hand tip** — 376 nodes with only 368 reachable.
+Driving into it produced `gameOver('EDGE')`, "stepped off the crossing", on track that
+was perfectly good. The message was right; the geometry was wrong.
+
+Fixed with `circularMean` in `js/strands.js` (sum unit vectors, take the atan2), and
+guarded by three tests in `tests/board/strands.test.js`:
+
+- every node on every board is reachable from every other,
+- linked neighbours are within the continuity tolerance on the curve,
+- `circularMean` averages across the wrap rather than through the middle.
+
+**The reachability test is the one that matters.** An earlier "walk a lap of the board"
+test did not catch this: it steered by a naive turn-whichever-way-continues rule, so it
+wandered back to its start without ever crossing the severed tip and passed. It has been
+removed — reachability states the property directly instead of hoping a walker stumbles
+into the fault.
+
+## Sizing the crossing band
+
+The crossing was 20 cells (6×4) and too cramped to play with. Widening it is *not* a
+matter of thickening the ribbon — that inflates the whole play area and makes the map
+easier, moving it on the difficulty gradient.
+
+The lever is **`scaleY`**: a flatter figure-8 makes the two strands meet at a shallower
+angle, which widens the band where they overlap. Flattening alone shrinks the track, so
+`halfWidth` goes up slightly to compensate. `scaleY: 9, halfWidth: 2.6` gives a 32-cell
+crossing in an 8×6 band with 352 playable cells, against 20 cells and 356 before — a
+much bigger crossing at effectively the same difficulty. The board is 34×14 rather than
+34×18, since the flatter curve no longer needs the height.

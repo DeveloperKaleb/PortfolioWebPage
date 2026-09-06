@@ -11,6 +11,7 @@ import {
     isLayeredSelfCollision,
     topOccupant,
     circularDelta,
+    circularMean,
 } from '../../js/strands.js';
 import { getBoardShape, INFINITY_MASK } from '../../js/logic.js';
 
@@ -135,29 +136,76 @@ describe('The Infinity board as a consumer of the tooling', () => {
         expect(new Set(tops).size).toBe(1);
     });
 
-    test('a lap of the board returns to where it started', () => {
-        // Follow the track and confirm it is one continuous closed ribbon.
-        const { start } = getBoardShape('infinity');
-        let position = start.snake[0];
-        let direction = start.direction;
-        const first = position;
-        let steps = 0;
+    /* A lap-of-the-board walk used to live here. It was a weaker duplicate of the
+       reachability check in "Board integrity" below - and it steered by a naive
+       "turn whichever way continues" rule, so a wider crossing defeated the walker
+       rather than revealing anything about the board. Reachability is the real
+       property: every node connected to every other. */
+});
 
-        while (steps < 5000) {
-            let next = stepFrom(graph, position, direction);
-            if (!next) {
-                // At the end of a straight, turn to whichever side continues.
-                const turns = [{ x: -direction.y, y: direction.x }, { x: direction.y, y: -direction.x }];
-                const options = turns.map((t) => ({ t, n: stepFrom(graph, position, t) })).filter((o) => o.n);
-                if (!options.length) break;
-                direction = options[0].t;
-                next = options[0].n;
-            }
-            position = next;
-            steps++;
-            if (position.x === first.x && position.y === first.y && position.strand === first.strand) break;
+/* Regression guards for a bug that shipped: the curve parameter for a cell was the
+   arithmetic mean of the t values passing near it, which is wrong wherever a cell
+   straddles the 2pi -> 0 wrap at the tip of a lobe. Those cells got a parameter near
+   pi - pointing at the far side of the curve - so continuity rejected their genuine
+   neighbours and the ribbon was severed at the tip. Driving into it read as stepping
+   off the crossing on track that was perfectly good. */
+describe('Board integrity', () => {
+    const reachableFrom = (graph, node) => {
+        const key = (n) => `${n.x},${n.y},${n.strand}`;
+        const seen = new Set([key(node)]);
+        const queue = [node];
+        while (queue.length) {
+            const current = queue.pop();
+            Object.values(current.neighbours).forEach((next) => {
+                if (!next || seen.has(key(next))) return;
+                seen.add(key(next));
+                queue.push(graph.nodes.get(key(next)));
+            });
         }
-        expect(steps).toBeGreaterThan(10);
-        expect(position).toMatchObject({ x: first.x, y: first.y, strand: first.strand });
+        return seen.size;
+    };
+
+    test.each(['classic', 'donut', 'infinity'])('every node on the %s board is reachable', (mode) => {
+        const { graph } = getBoardShape(mode);
+        const start = graph.nodes.values().next().value;
+        expect(reachableFrom(graph, start)).toBe(graph.nodes.size);
+    });
+
+    test('the vertical Infinity board is whole too', () => {
+        const { graph } = getBoardShape('infinity', 'vertical');
+        const start = graph.nodes.values().next().value;
+        expect(reachableFrom(graph, start)).toBe(graph.nodes.size);
+    });
+
+    // The direct form of the same fault: linked neighbours must be close on the curve.
+    test('linked neighbours are continuous along the curve', () => {
+        const { graph } = getBoardShape('infinity');
+        graph.nodes.forEach((node) => {
+            Object.values(node.neighbours).forEach((next) => {
+                if (!next) return;
+                const neighbour = nodeAt(graph, next.x, next.y, next.strand);
+                expect(circularDelta(node.param, neighbour.param)).toBeLessThanOrEqual(1);
+            });
+        });
+    });
+
+    test('the crossing is a usable band, not a pinhole', () => {
+        const cells = overlapCells(getBoardShape('infinity').graph);
+        const xs = cells.map((c) => c.x);
+        const ys = cells.map((c) => c.y);
+        expect(Math.max(...xs) - Math.min(...xs) + 1).toBeGreaterThanOrEqual(7);
+        expect(Math.max(...ys) - Math.min(...ys) + 1).toBeGreaterThanOrEqual(5);
+    });
+});
+
+describe('Circular mean', () => {
+    test('averages across the wrap instead of through the middle', () => {
+        // The arithmetic mean of these is ~pi, the opposite side of the curve.
+        const mean = circularMean([2 * Math.PI - 0.1, 0.1]);
+        expect(Math.min(mean, 2 * Math.PI - mean)).toBeCloseTo(0, 5);
+    });
+
+    test('behaves normally away from the wrap', () => {
+        expect(circularMean([1.0, 1.2])).toBeCloseTo(1.1, 5);
     });
 });

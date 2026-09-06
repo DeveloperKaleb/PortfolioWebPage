@@ -140,7 +140,7 @@ export const SNAKE_COLORS = {
 
 /* --- BOARD SHAPES --- */
 
-import { CELL, buildStrandGraph, stepFrom, nodeAt } from './strands.js';
+import { CELL, buildStrandGraph, stepFrom, nodeAt, circularMean } from './strands.js';
 export { CELL };
 
 /* The Infinity board is a ribbon traced around a Gerono lemniscate
@@ -153,10 +153,15 @@ export { CELL };
    even though nothing reads them yet. See NOTES.md. */
 const LEMNISCATE_DEFAULTS = {
     width: 34,
-    height: 18,
+    height: 14,
     scaleX: 15,
-    scaleY: 13,
-    halfWidth: 2.2, // half the ribbon's thickness, in cells
+    /* A flatter figure-8 makes the two strands meet at a shallower angle, which widens
+       the band where they overlap - the crossing is the interesting part of the map and
+       was too cramped to use at 6x4. Flattening alone would have shrunk the track, so
+       the ribbon is slightly thicker to compensate: the play area is 352 cells against
+       the previous 356, which keeps Infinity where it sits on the difficulty gradient. */
+    scaleY: 9,
+    halfWidth: 2.6, // half the ribbon's thickness, in cells
     samples: 720,   // how finely the curve is sampled before measuring distance
 };
 
@@ -208,7 +213,10 @@ export function buildLemniscateMask(options = {}) {
                 runs[0] = runs.pop().concat(runs[0]);
             }
         }
-        return runs.map((r) => r.reduce((a, b) => a + b, 0) / r.length);
+        // Circular, not arithmetic: a run straddling the 2pi -> 0 wrap at the tip of a
+        // lobe would otherwise average to roughly pi - a parameter pointing at the far
+        // side of the curve, which severs the ribbon there.
+        return runs.map(circularMean);
     };
 
     const cells = [];
