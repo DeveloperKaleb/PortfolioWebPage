@@ -10,6 +10,8 @@ import {
     overlapCells,
     isLayeredSelfCollision,
     isUnderneath,
+    strandEdges,
+    topStrandAt,
     topOccupant,
     circularDelta,
     circularMean,
@@ -246,5 +248,35 @@ describe('The mouths of the crossing', () => {
         [[2, 7], [33, 7]].forEach(([x, y]) => {
             expect(isOverlapCell(board, x, y)).toBe(false);
         });
+    });
+});
+
+describe('Strand edges', () => {
+    const graph = buildStrandGraph(crossMask);
+
+    test('the top strand of a crossing reports the sides its band ends on', () => {
+        // The horizontal strand runs left-right, so its band ends above and below.
+        const top = topStrandAt(graph, 2, 2);
+        const edges = strandEdges(graph, top).map((d) => `${d.x},${d.y}`).sort();
+        expect(edges).toEqual(['0,-1', '0,1']);
+    });
+
+    test('a cell with a single strand has no top strand to outline', () => {
+        expect(topStrandAt(graph, 2, 1)).toBeNull();
+    });
+
+    test('a dead-end reports every direction as an edge', () => {
+        const lone = buildStrandGraph({
+            width: 1, height: 1, cells: [[{ kind: CELL.TRACK, branches: [] }]],
+        });
+        expect(strandEdges(lone, { x: 1, y: 1, strand: 0 })).toHaveLength(4);
+    });
+
+    // Always drawn, so the crossing is visible before the snake reaches it.
+    test('the Infinity crossing carries outlined edges', () => {
+        const { graph: board } = getBoardShape('infinity');
+        const outlined = overlapCells(board)
+            .filter((c) => strandEdges(board, topStrandAt(board, c.x, c.y)).length > 0);
+        expect(outlined.length).toBeGreaterThan(8);
     });
 });

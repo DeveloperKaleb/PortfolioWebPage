@@ -18,6 +18,8 @@ import {
 import {
     stepFrom,
     nodeAt,
+    strandEdges,
+    topStrandAt,
     isOverlapCell,
     isLayeredSelfCollision,
     isUnderneath,
@@ -126,6 +128,31 @@ const selectedMode = () => {
     return modeSelect ? modeSelect.value : 'classic';
 };
 
+/* The bold outline of the upper strand, drawn on the sides where its band ends. This
+   is the knot-diagram convention: the strand passing over keeps a continuous edge, so
+   you can see which one is on top - and, because it is always drawn, where the
+   crossing is before you reach it.
+
+   An edge is simply a direction the top strand does not continue in, which is the same
+   question movement already asks, so stepFrom answers it. Written inline because it is
+   fixed for a given board and drawFrame only ever touches background-color; a
+   stylesheet rule would need one class per combination of sides. */
+const EDGE_SHADOWS = {
+    '0,-1': 'inset 0 2px 0 0 #3b3026',
+    '0,1': 'inset 0 -2px 0 0 #3b3026',
+    '-1,0': 'inset 2px 0 0 0 #3b3026',
+    '1,0': 'inset -2px 0 0 0 #3b3026',
+};
+
+function topStrandEdges(shape, x, y) {
+    const top = topStrandAt(shape.graph, x, y);
+    if (!top) return '';
+
+    return strandEdges(shape.graph, top)
+        .map((step) => EDGE_SHADOWS[`${step.x},${step.y}`])
+        .join(', ');
+}
+
 // A cell the snake cannot occupy. Every board is mask-driven now, so this is the one
 // question to ask regardless of mode.
 function isBlockedCell(shape, x, y) {
@@ -146,7 +173,9 @@ function createStaticBoard(shape = currentShape) {
             // The crossing needs to be visible before the snake reaches it, so the
             // player can see there is something to be over or under.
             const overlap = !blocked && isOverlapCell(shape.graph, x, y) ? ' cell-overlap' : '';
-            snakeHtml += `<button class="x${x}y${y}${overlap}" data-blocked="${blocked}" style="background-color: ${color}"></button>`;
+            const edges = blocked ? '' : topStrandEdges(shape, x, y);
+            const shadow = edges ? `; box-shadow: ${edges}` : '';
+            snakeHtml += `<button class="x${x}y${y}${overlap}" data-blocked="${blocked}" style="background-color: ${color}${shadow}"></button>`;
         }
     }
     snakeBoard.innerHTML = snakeHtml;
@@ -241,6 +270,9 @@ function drawFrame() {
         // data-blocked is stamped on when the board is built, so the walls and holes
         // do not have to be recomputed every frame.
         btn.style.backgroundColor = btn.dataset.blocked === 'true' ? SNAKE_COLORS.hole : 'white';
+        // Cleared here, re-applied below for whatever the snake covers this frame, so
+        // the hatch never runs across the snake and eats into its contrast.
+        btn.classList.remove('snake-on');
     });
 
     // Draw Food on snakeBoard
@@ -274,6 +306,7 @@ function drawFrame() {
         // Underneath means: this cell has more than one strand and we are not on the
         // top one. Lighter reads as further away - see the contrast note in NOTES.md
         // for why the body was darkened to make room for it.
+        segEl.classList.add('snake-on');
         segEl.style.backgroundColor = occupant.isHead
             ? SNAKE_COLORS.head
             : (isUnderneath(currentShape.graph, occupant) ? SNAKE_COLORS.bodyUnder : SNAKE_COLORS.body);

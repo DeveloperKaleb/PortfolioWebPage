@@ -328,14 +328,29 @@ because it answers three questions that must not drift apart: how a segment is d
 how leaving the strand reads, and whether the crossing is outlined. It is pure, so it
 is unit tested.
 
-## The crossing is outlined only while you are under it
+## Two markings, doing different jobs
 
-`.cell-overlap` is marked in the markup for every crossing cell, but the outline only
-paints under `.is-underneath`, which `drawFrame` toggles on the board from the **head**'s
-strand each tick. The head is what counts: once it is out the far side the player is no
-longer underneath, whatever the tail is still doing.
+The crossing carries two separate visual cues, and they answer different questions.
 
-Marking the crossing permanently said "something happens here". Marking it only while
-the snake is beneath says "you are under this right now", which is the state that has to
-be unmistakable. The cost is no advance warning of where the crossing is - the ribbon
-visibly widens there and has to carry that on its own. Reverting is one selector.
+**The bold edge is permanent.** `strandEdges` gives the directions in which the upper
+strand's band ends, and those sides get a heavy inset border — the knot-diagram
+convention, where the strand passing over keeps a continuous outline and the one beneath
+is broken by it. It says *where the crossing is, and which strand is on top*, and it is
+always drawn, so a route can be planned before arriving.
+
+Written as an inline `box-shadow` when the board is built: it is fixed for a given
+board, `drawFrame` only ever touches `background-color`, and a stylesheet rule would
+need one class per combination of sides.
+
+**The hatch is conditional.** It paints only under `.is-underneath`, which `drawFrame`
+toggles from the **head's** strand each tick — the head is what counts, since once it is
+out the far side the player is no longer underneath, whatever the tail is still doing.
+It says *you are under something right now*.
+
+The hatch is a `background-image` rather than a `box-shadow`, so it does not fight the
+inline edge borders, and it skips cells carrying `.snake-on`, so it never runs across
+the snake and eats into the contrast those colours depend on.
+
+Splitting the two was the point: one permanent cue for *where*, one live cue for
+*what is happening to you*. An earlier version gated the only marking there was, which
+would have left the crossing unannounced until the player was already inside it.

@@ -166,6 +166,22 @@ export const isSameNode = (a, b) => a.x === b.x && a.y === b.y && a.strand === b
 
 export const isLayeredSelfCollision = (head, body) => body.some((segment) => isSameNode(head, segment));
 
+/* The directions in which a strand's band ends - its edges. A map draws these to show
+ * which strand passes over, the way a knot diagram keeps the over-strand's outline
+ * continuous and breaks the one beneath. "Where does the band end" is the same question
+ * movement asks, so it is answered the same way.
+ *
+ * Pass the top strand of a shared cell to outline the strand on top; any node works. */
+export function strandEdges(graph, position) {
+    return STEPS.filter((step) => !stepFrom(graph, position, step));
+}
+
+/* The strand lying on top of a shared cell, or null where nothing is shared. */
+export function topStrandAt(graph, x, y) {
+    const sharing = strandsAt(graph, x, y);
+    return sharing.length > 1 ? sharing[sharing.length - 1] : null;
+}
+
 /* Which strand should be drawn in a shared cell - the highest layer present wins, so
  * the strand on top hides the one beneath it. */
 export function topOccupant(occupants) {

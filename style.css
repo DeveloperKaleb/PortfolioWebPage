@@ -527,6 +527,10 @@ a:active  {color: #002e2c;}
    the floor, in the one place it is used. It would also never show: drawFrame writes
    background-color inline each frame, which out-specifies any stylesheet rule.
    box-shadow has no such conflict. */
-.butMania.is-snake.is-underneath button.cell-overlap {
-    box-shadow: inset 0 0 0 1px #51553a;
+.butMania.is-snake.is-underneath button.cell-overlap:not(.snake-on) {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent 0 3px,
+        rgba(59, 48, 38, 0.38) 3px 5px
+    );
 }
