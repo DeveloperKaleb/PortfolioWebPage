@@ -1,10 +1,11 @@
 /* Color scheme: #e3e7af, #eff1c5, #a2a77f, #dfe38c, #035e7b, #002e2c, #51553a */ 
 
 /* --- Layout & Responsiveness --- */
-.navigation, .wrapper {
+.navigation, .wrapper, main hr {
     width: 90%; 
     max-width: 800px;
-    margin: auto;
+    margin-left: auto;
+    margin-right: auto;
     flex: 1;
 }
 
@@ -35,6 +36,16 @@ main {
     color: #e3e7af;
 }
 
+/* Width comes from the shared .navigation/.wrapper rule above, so the rules
+   line up with the text columns instead of spanning the whole viewport.
+   That rule centers with margin-left/right only, leaving these free. */
+hr {
+    border: none;
+    border-top: 1px solid #a2a77f;
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
 h1 {
     color: #e3e7af;
     padding: 23px;
@@ -46,6 +57,18 @@ h2 {
 }
 
 /* --- Footer --- */
+/* The contact links are a plain <ul>, whose default bullets and 40px of
+   padding-left pushed them off-center inside the centered footer. */
+footer ul {
+    list-style: none;
+    padding: 0;
+    margin: 20px 0 0;
+}
+
+footer li + li {
+    margin-top: 10px;
+}
+
 #last-updated {
     color: #a2a77f;
     font-size: 0.8rem;
@@ -243,7 +266,7 @@ a:active  {color: #002e2c;}
         width: auto;
         flex: 1;
     }
-    .wrapper {
-        width: 600px; 
+    .wrapper, main hr {
+        width: 600px;
     }
 }
