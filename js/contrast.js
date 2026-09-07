@@ -84,6 +84,19 @@ export const worstCaseContrast = (color, background) => Math.min(
     contrastRatio(simulateCVD(color, 'prot'), simulateCVD(background, 'prot')),
 );
 
+/* Gradients are exempt where they are purely decorative. A gradient's job is the
+ * progression across it, not any one step being tellable from its neighbour - two
+ * adjacent bands being indistinguishable is the point, not a defect. Judging one band
+ * against the next by these rules would forbid the effect entirely.
+ *
+ * The exemption covers the gradient's own steps. It does NOT cover anything read on
+ * top of one: text, a glyph, a game piece. Those still have to clear the floor, and
+ * against a gradient they have to clear it at every stop, since the background under
+ * them changes. worstCaseOverGradient is that check.
+ */
+export const worstCaseOverGradient = (color, stops) =>
+    Math.min(...stops.map((stop) => worstCaseContrast(color, stop)));
+
 // Can these two be told apart by someone with red/green color blindness?
 export function areDistinguishable(a, b) {
     const lightness = Math.min(

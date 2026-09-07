@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260907-1411" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260907-1425" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -32,6 +32,15 @@
                         <span></span><span></span><span></span><span></span>
                     </div>
                     <span class="card-title">Snake System</span>
+                </button>
+                <button class="entry-card" data-view="minesweeper">
+                    <div class="thumb thumb-mines" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Minesweeper</span>
                 </button>
             </div>
 
@@ -95,6 +104,25 @@
             </div>
         </div>
 
+        <div id="minesweeper-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
+            <h2>Minesweeper</h2>
+            <div id="mine-controls">
+                <p>Mines left: <span id="mine-count">12</span></p>
+                <!-- Flagging needs a second gesture. Right-click covers a mouse, but a
+                     touchscreen has no equivalent, so this toggle is the way in on a
+                     phone - a mode you can see, rather than a long-press you have to
+                     know about. -->
+                <button type="button" id="flagToggle" aria-pressed="false">
+                    <span class="flag-glyph" aria-hidden="true">&#9873;</span> Flag mode
+                </button>
+                <button type="button" id="mineStartBtn">New Game</button>
+            </div>
+            <p id="mine-status" role="status">Tap any square to begin.</p>
+
+            <div class="butMania" id="mineDisplay"></div>
+        </div>
+
         <div id="toy-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
             <h2>Array Grid Toy</h2>
@@ -134,8 +162,8 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-1411"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-1411"></script>
-    <script type="module" src="./entertainment.js?v=20260907-1411"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-1425"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-1425"></script>
+    <script type="module" src="./entertainment.js?v=20260907-1425"></script>
 </body>
 </html>

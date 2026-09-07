@@ -598,3 +598,57 @@ survives both conditions — the shipped brown `#6f4e37` clears the bar that way
 b\* gap of 30.8 despite a lightness separation of only 1.24. The rule has genuinely
 pinched exactly once, on `foodUnder`, where two blues had to be separated by lightness
 alone because hue could not help, leaving a window of 4.50–5.16.
+
+## Gradients are exempt from the distinguishability rule
+
+**Decorative gradients may use colours that are indistinguishable from each other.** The
+job of a gradient is the progression across it, not any one band being tellable from its
+neighbour — two adjacent stops looking alike is the effect working, not a defect.
+Applying the pairwise rule to a gradient's own steps would forbid the technique outright.
+
+The exemption covers the gradient's own colours. It does **not** cover anything drawn on
+top of one — text, a glyph, a game piece. Those still have to clear 4.5:1, and against a
+gradient they have to clear it at **every stop**, because the background beneath them
+changes across the element. `worstCaseOverGradient(color, stops)` in `js/contrast.js` is
+that check, and the Minesweeper palette is asserted through it.
+
+In practice that splits surfaces two ways:
+
+- **Nothing read against it** — the Minesweeper board frame, page backgrounds. Free to
+  be as decorative as it likes.
+- **Something read against it** — the Minesweeper cells. The gradient is fine, but the
+  flag glyph and the number tiers are checked against both ends. The tightest is the low
+  tier at 4.56:1 against the dark end of the cleared-cell gradient, and the flag at
+  4.73:1 against the light end of the canopy.
+
+Keep gradient stops in the palette modules (`MINE_GRADIENTS`) rather than only in CSS,
+or there is nothing for the tests to check them against.
+
+## Minesweeper
+
+10×10 with 12 mines (12%, close to the classic beginner density). Rules in
+`js/minesweeper.js`, pure and immutable — every function returns a new game rather than
+editing one, because a cascade that half-applied itself would be miserable to debug.
+
+**Mines are placed on the first click, not before**, and never on it or beside it. An
+opening move that lands on a number, or on a mine, is luck rather than play; a clear
+neighbourhood guarantees the first cascade has something to open.
+
+**Numbers use three tiers, not the traditional eight colours.** Eight shades that all
+clear 4.5:1 against one light background *and* stay apart from each other under both
+colour-blindness simulations do not exist — the same wall the Tetris palette hit at
+seven pieces. The digit is the information; the tier conveys rising danger. Lake for 1–2,
+cedar for 3–4, basalt for 5+.
+
+**Flagging needs two gestures.** Right-click covers a mouse. A touchscreen has no
+equivalent, so there is a Flag mode toggle — a mode you can see, rather than a long-press
+you have to be told about. It has to *look* switched on, since there is no other way to
+know what the next tap will do.
+
+The board is built once and repainted rather than rebuilt each move: replacing
+`innerHTML` would drop the element the player just pressed, which on touch cancels the
+gesture mid-tap.
+
+Chording (tapping a satisfied number to open its neighbours) acts on the flags the
+player placed, not on where the mines actually are — so a wrong flag loses. That is the
+point of it.

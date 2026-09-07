@@ -408,3 +408,44 @@ export const CSS_COLOR_HEX = {
 };
 
 export const toHex = (value) => CSS_COLOR_HEX[value] || value;
+
+/* --- MINESWEEPER PALETTE --- */
+/* Pacific Northwest evergreen: dark canopy for the unopened board, pale lichen for
+   cleared ground, cedar and lake for the numbers.
+
+   Numbers run in three tiers rather than the traditional eight colours. Eight shades
+   that all clear 4.5:1 against one light background AND stay apart from each other
+   under both colour blindness simulations do not exist - the same wall the Tetris
+   palette hit with seven. The digit is the information anyway; colour is there to
+   convey rising danger at a glance, which three tiers do honestly. */
+export const MINE_COLORS = {
+    frame: '#141f18',        // Deep Canopy - the grid behind the cells
+    hidden: '#2f4a38',       // Evergreen - unopened ground
+    hiddenLit: '#3d5c48',    // Sunlit Needle - hover
+    revealed: '#dfe3d4',     // Lichen - cleared ground
+    flag: '#f0c07a',         // Lantern - a marked cell
+    mine: '#241a12',         // Bark - a mine, once the board is shown
+    detonated: '#8c3a2a',    // Madrone - the one that was stepped on
+    detonatedMine: '#f4d9a8',// its glyph, light enough to read on that red
+};
+
+/* The cells are gradients, not flat fills - evergreen has depth and a flat green reads
+   as plastic. Decorative gradients are exempt from the distinguishability rule (see
+   js/contrast.js), but anything drawn ON one still has to clear the floor at every
+   stop, because the background beneath it changes. These stops are what the flag and
+   the numbers are checked against. */
+export const MINE_GRADIENTS = {
+    hidden: ['#35543f', '#2a4232'],   // canopy, lit above and shaded below
+    revealed: ['#e6e9dc', '#d3d8c6'], // lichen, brighter where the light falls
+};
+
+/* Which tier a number falls in. Below the first threshold is "quiet", above the last
+   is "get out". */
+export const MINE_NUMBER_TIERS = [
+    { upTo: 2, color: '#2a5f80' }, // Lake
+    { upTo: 4, color: '#6b3316' }, // Cedar
+    { upTo: 8, color: '#241f18' }, // Basalt
+];
+
+export const numberColor = (count) =>
+    (MINE_NUMBER_TIERS.find((tier) => count <= tier.upTo) || MINE_NUMBER_TIERS[MINE_NUMBER_TIERS.length - 1]).color;

@@ -33,13 +33,31 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Two pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `entertainment/entertainment.html` — a hub page for three browser-based toy/game systems (Tetris, Snake, and an "Array Grid" color-painting toy), all rendered into `.butMania` grid containers of `<button>` cells. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#toy`) implemented in `entertainment.js` — no routing library.
+- `entertainment/entertainment.html` — a hub page for four browser-based toy/game systems (Tetris, Snake, Minesweeper, and an "Array Grid" color-painting toy), all rendered into `.butMania` grid containers of `<button>` cells. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#minesweeper`, `#toy`) implemented in `entertainment.js` — no routing library.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
-**Game/toy logic split (production code lives in `js/logic.js`):**
-- `js/logic.js` is the single source of truth for all pure, framework-free logic used by the entertainment page: grid HTML generation, Snake collision/movement math, and Tetris piece definitions/rotation/collision. It has no DOM dependency and is unit-tested directly.
-- `entertainment/entertainment.js` is the DOM/state layer: it imports from `js/logic.js` as an ES module (loaded via `<script type="module">`) and handles rendering, game loops (`setInterval`), input handling, and score/level UI updates for all three toys/games on that page.
-- Tests in `tests/` import directly from `js/logic.js` — that's the file to edit when changing game rules, and the file to keep pure (no `document`/DOM calls) so it stays testable under Vitest without a browser environment.
+**Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-When making changes to game logic or the toy page, edit `js/logic.js` (pure logic) and `entertainment/entertainment.js` (DOM/state layer) together.
+The pure layer is four modules, all free of `document`/DOM calls so they stay testable
+under Vitest without a browser:
+
+- `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
+  definitions and rotation, board masks and shapes, and every game palette. Colours live
+  here rather than beside the markup so the contrast rules can be asserted against them.
+- `js/contrast.js` — the colour rules: WCAG contrast, colour-blindness simulation, and
+  the thresholds everything else is measured against. See NOTES.md before changing a
+  colour anywhere.
+- `js/strands.js` — boards whose cells can hold more than one piece of track, for maps
+  that cross over themselves. Map-agnostic; the Infinity Snake board is its first user.
+- `js/minesweeper.js` — Minesweeper rules: mine placement, cascades, flags, chording,
+  win/lose. Immutable, so every function returns a new game.
+
+`entertainment/entertainment.js` is the DOM/state layer for all four games and the toy:
+rendering, game loops (`setInterval`), input handling and score/status UI. It imports
+the modules above as ES modules (loaded via `<script type="module">`).
+
+Tests in `tests/` import the pure modules directly. Those are the files to edit when
+changing game rules; keep them pure.
+
+When making changes, edit the pure module and `entertainment/entertainment.js` together.

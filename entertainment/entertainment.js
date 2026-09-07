@@ -15,8 +15,23 @@ import {
     cellKindAt,
     CELL,
     TOY_COLORS,
-    toHex
+    toHex,
+    MINE_COLORS,
+    numberColor
 } from '../js/logic.js';
+import {
+    createGame as createMinesweeper,
+    reveal as revealCell,
+    toggleFlag as toggleMineFlag,
+    chord as chordCell,
+    countAt,
+    isMine,
+    isRevealed,
+    isFlagged,
+    minesRemaining,
+    isOver,
+    STATUS as MINE_STATUS
+} from '../js/minesweeper.js';
 import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
@@ -43,6 +58,7 @@ const hub = document.getElementById('entertainment-hub');
 const views = {
     tetris: document.getElementById('tetris-system'),
     snake: document.getElementById('snake-system'),
+    minesweeper: document.getElementById('minesweeper-system'),
     toy: document.getElementById('toy-system'),
 };
 
@@ -627,6 +643,135 @@ function drawTetrisFrame() {
 }
 
 
+/* --- PART 4: MINESWEEPER --- */
+
+const mineBoard = document.getElementById('mineDisplay');
+const mineCountEl = document.getElementById('mine-count');
+const mineStatusEl = document.getElementById('mine-status');
+const flagToggleEl = document.getElementById('flagToggle');
+
+let mineGame = createMinesweeper();
+let flagMode = false;
+
+/* The board is built once and then repainted, rather than rebuilt on every move. A
+   fresh innerHTML would drop the element the player just pressed, which on touch
+   cancels the gesture mid-tap. */
+function createMineBoard() {
+    let html = '';
+    for (let y = 1; y <= mineGame.height; y++) {
+        for (let x = 1; x <= mineGame.width; x++) {
+            html += `<button class="mine-cell" data-x="${x}" data-y="${y}"></button>`;
+        }
+    }
+    mineBoard.innerHTML = html;
+    mineBoard.style.setProperty('--mine-cols', mineGame.width);
+    mineBoard.style.setProperty('--mine-rows', mineGame.height);
+}
+
+function paintMineCell(cell) {
+    const x = Number(cell.dataset.x);
+    const y = Number(cell.dataset.y);
+    const revealed = isRevealed(mineGame, x, y);
+    const flagged = isFlagged(mineGame, x, y);
+    const mined = isMine(mineGame, x, y);
+    const lost = mineGame.status === MINE_STATUS.LOST;
+
+    cell.classList.toggle('is-revealed', revealed);
+    cell.classList.toggle('is-flagged', flagged && !revealed);
+    cell.textContent = '';
+    cell.style.color = '';
+    cell.style.backgroundColor = '';
+
+    if (flagged && !revealed) {
+        cell.textContent = '⚑';
+        return;
+    }
+
+    // On a loss the whole board is shown: where the mines were, and which one went off.
+    if (lost && mined) {
+        cell.classList.add('is-mine');
+        cell.textContent = '●';
+        if (revealed) cell.classList.add('is-detonated');
+        return;
+    }
+
+    if (!revealed) return;
+
+    const count = countAt(mineGame, x, y);
+    if (count > 0) {
+        cell.textContent = String(count);
+        cell.style.color = numberColor(count);
+    }
+}
+
+function drawMineBoard() {
+    mineBoard.querySelectorAll('.mine-cell').forEach(paintMineCell);
+    mineCountEl.textContent = minesRemaining(mineGame);
+
+    const messages = {
+        [MINE_STATUS.READY]: 'Tap any square to begin.',
+        [MINE_STATUS.PLAYING]: flagMode ? 'Flag mode: tap to mark a suspected mine.' : 'Clear every square that is not a mine.',
+        [MINE_STATUS.WON]: 'Swept. Every square accounted for.',
+        [MINE_STATUS.LOST]: 'Detonated. The board is shown below.',
+    };
+    mineStatusEl.textContent = messages[mineGame.status];
+    mineBoard.classList.toggle('is-over', isOver(mineGame));
+}
+
+function setFlagMode(on) {
+    flagMode = on;
+    flagToggleEl.setAttribute('aria-pressed', String(on));
+    flagToggleEl.classList.toggle('is-active', on);
+    drawMineBoard();
+}
+
+function initMinesweeper() {
+    mineGame = createMinesweeper();
+    setFlagMode(false);
+    createMineBoard();
+    drawMineBoard();
+}
+
+function playMineCell(x, y, { flag = false } = {}) {
+    if (isOver(mineGame)) return;
+
+    if (flag) {
+        mineGame = toggleMineFlag(mineGame, x, y);
+    } else if (isRevealed(mineGame, x, y)) {
+        // A tap on an open number tries to chord; on anything else it does nothing.
+        mineGame = chordCell(mineGame, x, y);
+    } else {
+        mineGame = revealCell(mineGame, x, y);
+    }
+
+    drawMineBoard();
+
+    if (isOver(mineGame)) {
+        showGameOver(
+            mineGame.status === MINE_STATUS.WON ? 'Swept!' : 'Detonated.',
+            `${mineGame.revealed.size} of ${mineGame.width * mineGame.height - mineGame.mineCount} squares cleared`,
+            initMinesweeper
+        );
+    }
+}
+
+mineBoard.addEventListener('click', (event) => {
+    const cell = event.target.closest('.mine-cell');
+    if (!cell) return;
+    playMineCell(Number(cell.dataset.x), Number(cell.dataset.y), { flag: flagMode });
+});
+
+// Right-click flags on a mouse; the toggle is what a touchscreen uses instead.
+mineBoard.addEventListener('contextmenu', (event) => {
+    const cell = event.target.closest('.mine-cell');
+    if (!cell) return;
+    event.preventDefault();
+    playMineCell(Number(cell.dataset.x), Number(cell.dataset.y), { flag: true });
+});
+
+flagToggleEl.addEventListener('click', () => setFlagMode(!flagMode));
+document.getElementById('mineStartBtn').addEventListener('click', initMinesweeper);
+
 /* --- Input Listeners --- */
 document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener
 
@@ -817,6 +962,7 @@ window.addEventListener('pointercancel', endStroke);
 // RUN IMMEDIATELY: Initialize the game boards visually on load
 createStaticBoard();
 createTetrisBoard();
+initMinesweeper();
 
 /* Tear down both games and put their boards back to a clean starting state. Called
    whenever the view changes, so a game is never left running behind a hidden view.
@@ -854,6 +1000,10 @@ function stopAllGames() {
     if (tetrisScoreEl) tetrisScoreEl.innerText = tetrisScore;
     if (tetrisLevelEl) tetrisLevelEl.innerText = tetrisLevel;
     drawTetrisFrame();
+
+    // Minesweeper has no loop to stop, but leaving a half-played board behind and
+    // coming back to it mid-game is the same surprise the others were fixed for.
+    initMinesweeper();
 }
 
 /* --- Hub Navigation Listeners --- */

@@ -789,3 +789,133 @@ a:active  {color: #002e2c;}
     user-select: none;
     -webkit-user-select: none;
 }
+
+/* --- Minesweeper: Pacific Northwest evergreen --- */
+/* Dark canopy for unopened ground, pale lichen for cleared. Colours are mirrored from
+   MINE_COLORS in js/logic.js, where they are contrast-checked - change both. */
+#mineDisplay {
+    --mine-cols: 10;
+    --mine-rows: 10;
+    /* Same both-axes clamp as the Snake board: 10 columns is wide enough to overflow a
+       phone at a fixed size, and tall enough to push the board off screen in portrait. */
+    --mine-cell: max(22px, min(
+        calc((100vw - 40px) / var(--mine-cols)),
+        calc(52vh / var(--mine-rows)),
+        40px
+    ));
+
+    display: grid;
+    grid-template-columns: repeat(var(--mine-cols), var(--mine-cell));
+    gap: 2px;
+    width: fit-content;
+    margin: 20px auto 30px;
+    padding: 6px;
+    /* Nothing is read against the frame - the cells sit on top with their own
+       backgrounds - so this one is free to be as decorative as it likes. */
+    background: linear-gradient(#1b2a20, #101913);
+    border: 2px solid #2f4a38;
+    border-radius: 6px;
+    /* The board is tapped, never dragged - no reason to let a stray drag pan it. */
+    touch-action: manipulation;
+}
+
+.mine-cell {
+    width: var(--mine-cell);
+    height: var(--mine-cell);
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 2px;
+    /* Mirrors MINE_GRADIENTS.hidden. The flag glyph is read against this, so both
+       stops are contrast-checked - 4.73:1 at the light end. */
+    background: linear-gradient(#35543f, #2a4232);
+    color: #dfe3d4;
+    font: inherit;
+    font-size: calc(var(--mine-cell) * 0.55);
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    /* A grid of small squares is the easiest thing on the page to select by accident
+       while tapping quickly. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+    .mine-cell:not(.is-revealed):hover {
+        background: linear-gradient(#456449, #35543f);
+    }
+}
+
+.mine-cell.is-revealed {
+    /* Mirrors MINE_GRADIENTS.revealed. The numbers are read against this, so both
+       stops are checked - the lowest tier still manages 4.56:1 at the dark end. */
+    background: linear-gradient(#e6e9dc, #d3d8c6);
+    /* Cleared ground sits back; unopened ground keeps its raised edge. */
+    box-shadow: none;
+}
+
+.mine-cell:not(.is-revealed) {
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.08);
+}
+
+.mine-cell.is-flagged {
+    color: #f0c07a;
+}
+
+.mine-cell.is-mine {
+    background: linear-gradient(#e6e9dc, #d3d8c6);
+    color: #241a12;
+}
+
+/* The one that was stepped on, marked out from the mines merely revealed with it. */
+.mine-cell.is-detonated {
+    background: linear-gradient(#a04434, #7a3122);
+    color: #f4d9a8;
+}
+
+#mineDisplay.is-over .mine-cell {
+    cursor: default;
+}
+
+#mine-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+#flagToggle,
+#mineStartBtn {
+    min-height: 44px;
+    font-size: 16px;
+}
+
+/* Flag mode is a mode, so it has to look switched on rather than just recently
+   pressed - there is no other way to tell what the next tap will do. */
+#flagToggle.is-active {
+    background: #f0c07a;
+    color: #241f18;
+    -webkit-text-fill-color: #241f18;
+    font-weight: bold;
+}
+
+#mine-status {
+    color: #e3e7af;
+    min-height: 1.4em;
+    margin: 8px 0 0;
+}
+
+/* Hub thumbnail: a few cleared squares in the canopy. */
+.thumb-mines {
+    background: #141f18;
+}
+
+.thumb-mines span { background: #2f4a38; }
+.thumb-mines span:nth-child(2),
+.thumb-mines span:nth-child(5),
+.thumb-mines span:nth-child(6) { background: #dfe3d4; }
+.thumb-mines span:nth-child(11) { background: #f0c07a; }
+.thumb-mines span:nth-child(16) { background: #8c3a2a; }
