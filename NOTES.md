@@ -731,3 +731,42 @@ it takes to switch. Two lists would eventually disagree; there is only one.
 The row uses `display` on `:not([hidden])` for the same reason the game views and the
 dialog itself do — a bare `display` rule out-specifies the `hidden` attribute and the row
 would never hide.
+
+## Duplicate ids, and the patch-script hazard that caused one
+
+Two board-size dropdowns shipped side by side on the Minesweeper page. A script that
+inserted markup ran twice: the first run wrote the file and then failed later on, and
+the "skip the part already applied" fix-up silently did not match, so the insertion went
+in again.
+
+**A duplicate id is silent.** The page renders, `getElementById` returns the first match,
+and the second copy sits there looking like a real control while doing nothing. Nothing
+in the build complains, because there is no build.
+
+`tests/markup/ids.test.js` now fails on duplicate ids across both pages, on a `<label
+for>` pointing at nothing, and on a page whose `?v=` stamps disagree with each other or
+with the other page. Verified by reintroducing a duplicate and watching it fail.
+
+The wider lesson for anyone editing these files by script: **an insertion is not
+idempotent**. Check the target is absent before writing, or make the search string
+include enough context that a second application cannot match.
+
+## "Last updated" can disagree between the two pages for ten minutes
+
+Not a bug, and nothing to fix. GitHub Pages serves HTML with `Cache-Control: max-age=600`
+and that is not configurable.
+
+The `?v=` stamps bust `style.css`, `nav.js`, `footer.js` and `entertainment.js`. Nothing
+busts the **HTML itself**. So for up to ten minutes after a push, a browser may still
+hold the old copy of one page, which references the old `?v=`, which loads the old
+`footer.js` out of its own cache — and shows the previous timestamp. The other page, if
+fetched after its own ten minutes expired, shows the new one. Hence one page right and
+the other wrong, on the same device, at the same moment.
+
+To confirm it is only this, check what the server is actually serving:
+
+    curl -s .../entertainment/entertainment.html | grep -o "footer.js?v=[0-9-]*"
+    curl -s .../scripts/footer.js | grep "LAST_UPDATED"
+
+If those agree, the deployment is correct and the phone is holding a stale document.
+Waiting it out or a hard refresh clears it.
