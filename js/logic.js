@@ -598,6 +598,15 @@ export function buildBridgeMask(options = {}) {
 
 export const BRIDGE_MASK = buildBridgeMask();
 
+/* A ramp square. Worth being able to identify, because walking into one is the only
+   move on this map that can fail without the square itself being unusable: every other
+   way of meeting a ramp is a legal approach, so a failure here is the abutment. */
+export const isBridgeRamp = (mask, x, y) => {
+    if (x < 1 || y < 1 || x > mask.width || y > mask.height) return false;
+    const { branches } = mask.cells[y - 1][x - 1];
+    return branches.length === 1 && branches[0] === BRIDGE_LEVELS.ramp;
+};
+
 export const isDeckGap = (mask, x, y) => {
     if (x < 1 || y < 1 || x > mask.width || y > mask.height) return false;
     return Boolean(mask.cells[y - 1][x - 1].gap);

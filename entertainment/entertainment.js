@@ -14,6 +14,7 @@ import {
     getBoardShape,
     cellKindAt,
     isDeckGap,
+    isBridgeRamp,
     CELL,
     TOY_COLORS,
     toHex,
@@ -450,6 +451,11 @@ function failureAt(from, heading) {
        have been up on the deck. */
     if (isDeckGap(currentShape.mask, target.x, target.y)) return 'FALL';
 
+    /* The abutment at the end of the Bridge. A ramp can be walked onto from the side or
+       from past the end of the bridge, so the only way a move into one fails is coming
+       at it from underneath. */
+    if (isBridgeRamp(currentShape.mask, target.x, target.y)) return 'ABUTMENT';
+
     return isUnderneath(currentShape.graph, from) ? 'UNDERPASS' : 'EDGE';
 }
 
@@ -479,6 +485,9 @@ function gameOver(reason = '') {
             break;
         case 'FALL':
             displayMessage = "Fall damage is real.";
+            break;
+        case 'ABUTMENT':
+            displayMessage = "Endings are hard.";
             break;
         default:
             displayMessage = "System Overload.";

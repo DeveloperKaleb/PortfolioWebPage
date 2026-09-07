@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     getBoardShape, BRIDGE_MASK, BRIDGE_LEVELS, BRIDGE_LINK_TOLERANCE,
-    buildBridgeMask, isDeckGap, cellKindAt, CELL, makeBridgeLink, BRIDGE_MASK as MASK,
+    buildBridgeMask, isDeckGap, isBridgeRamp, cellKindAt, CELL, makeBridgeLink, BRIDGE_MASK as MASK,
 } from '../../js/logic.js';
 import {
     stepFrom, strandsAt, isUnderneath, isOverlapCell, overlapCells,
@@ -309,5 +309,41 @@ describe('The abutments at the ends of the bridge', () => {
         expect(link(under, ramp, { x: 1, y: 0 })).toBe(true);     // and from the side
         // Ramp to deck runs along the bridge, so it stays vertical.
         expect(link(ramp, { param: BRIDGE_LEVELS.deck, y: MASK.deckTop }, { x: 0, y: 1 })).toBe(true);
+    });
+});
+
+describe('Telling the abutment apart', () => {
+    /* Walking into a ramp is the only move on this map that can fail without the square
+       itself being unusable - from the side or from past the end it is a legal approach,
+       so a refusal means the snake came at it from underneath. That is what lets the
+       Bridge report its own message rather than borrowing the generic one. */
+    test('ramps are identifiable, and nothing else is mistaken for one', () => {
+        const rampRow = mask.deckTop - 1;
+        const middle = Math.round((mask.width + 1) / 2);
+
+        expect(isBridgeRamp(mask, middle, rampRow)).toBe(true);
+        expect(isBridgeRamp(mask, middle, mask.deckTop + 1)).toBe(false); // deck
+        expect(isBridgeRamp(mask, middle, Math.round((mask.height + 1) / 2))).toBe(false); // the hole
+        expect(isBridgeRamp(mask, 1, 1)).toBe(false); // outside the arena
+    });
+
+    test('the square a blocked snake is refused is a ramp', () => {
+        const middle = Math.round((mask.width + 1) / 2);
+        const under = nodeAt(graph, middle, mask.deckTop, 0);
+
+        expect(stepFrom(graph, under, UP)).toBeNull();
+        expect(isBridgeRamp(mask, under.x, under.y - 1)).toBe(true);
+    });
+
+    // The other maps must not start reporting abutments.
+    test.each(['classic', 'donut', 'infinity'])('%s has no ramps to confuse it', (mode) => {
+        const other = getBoardShape(mode);
+        let found = false;
+        for (let y = 1; y <= other.mask.height; y++) {
+            for (let x = 1; x <= other.mask.width; x++) {
+                if (isBridgeRamp(other.mask, x, y)) found = true;
+            }
+        }
+        expect(found).toBe(false);
     });
 });

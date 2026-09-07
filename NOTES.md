@@ -990,3 +990,25 @@ It reports as `UNDERPASS` — "Structural Impact: Hit the underpass wall" — wh
 an abutment is. **The reachability test is what caught the over-blocking**, and is worth
 running against any change to a link rule: a rule that is too permissive makes a boring
 map, but one that is too strict silently strands part of the board.
+
+### Death messages on the Bridge, and the mode order
+
+Three ways to die that are the Bridge's own, told apart by the square being moved into
+rather than by the map being asked which one it is:
+
+| square | reported | message |
+|---|---|---|
+| a gap in the deck | `FALL` | "Fall damage is real." |
+| a ramp, approached from underneath | `ABUTMENT` | "Endings are hard." |
+| outside the arena | `WALL` | the usual perimeter message |
+
+Both of the first two work because **the square identifies the death**. A gap is good
+ground, so the only way to fail entering one is to have been on the deck. A ramp can be
+walked onto from the side or from past the end of the bridge, so the only way to be
+refused one is to have come at it from underneath. Neither needs the game to track how
+the snake got there.
+
+The mode dropdown is ordered **Classic, Donut, Bridge, Infinity** — by how hard they
+play, not by when they were built. Bridge sits third: harder than Donut because the
+crossing and the hole ask something of you, much easier than Infinity because the arena
+is open and the bridge is optional. See the difficulty-gradient note above.
