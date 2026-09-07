@@ -3,7 +3,7 @@
 // footer.js/entertainment.js tags in index.html and entertainment.html - that's
 // what actually cache-busts those files; this constant can't do it by itself
 // since the browser has to fetch this very file before it can read this value.
-const LAST_UPDATED = 'September 7, 2026, 2:34 PM';
+const LAST_UPDATED = 'September 7, 2026, 2:38 PM';
 
 document.addEventListener('DOMContentLoaded', () => {
     const lastUpdatedElement = document.getElementById('last-updated');

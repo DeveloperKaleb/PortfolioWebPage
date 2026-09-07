@@ -708,17 +708,21 @@ function drawMineBoard() {
     mineBoard.querySelectorAll('.mine-cell').forEach(paintMineCell);
     mineCountEl.textContent = flagsRemaining(mineGame);
 
-    /* Once the ground is clear the only thing left is flagging, so say that rather
-       than repeating the general instruction - otherwise a player who has opened
-       everything is told to keep clearing squares that are already open. */
-    const allClear = mineGame.revealed.size === mineGame.width * mineGame.height - mineGame.mineCount;
-    const playing = allClear
-        ? 'Ground cleared. Flag the last mines to finish.'
-        : (flagMode ? 'Flag mode: tap to mark a suspected mine.' : 'Clear every square that is not a mine.');
+    /* The status line says what the controls do and nothing else. It must never
+       describe the state of the board.
 
+       An earlier version noticed when every safe square was open and said so, meaning
+       to be helpful. It was telling the player that every hidden square left is a mine
+       - the last deduction on the board, handed over. Working that out is the game.
+
+       So the only thing the playing message depends on is flag mode, which is about
+       the player's own controls, not about what is under the squares. Keep it that
+       way: any message conditioned on revealed, flagged or mines is a hint. */
     const messages = {
         [MINE_STATUS.READY]: 'Tap any square to begin.',
-        [MINE_STATUS.PLAYING]: playing,
+        [MINE_STATUS.PLAYING]: flagMode
+            ? 'Flag mode: tap to mark a suspected mine.'
+            : 'Clear every square that is not a mine.',
         [MINE_STATUS.WON]: 'Swept. Every mine found and flagged.',
         [MINE_STATUS.LOST]: 'Detonated. The board is shown below.',
     };

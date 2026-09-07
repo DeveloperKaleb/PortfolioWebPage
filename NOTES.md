@@ -667,3 +667,35 @@ gesture mid-tap.
 Chording (tapping a satisfied number to open its neighbours) acts on the flags the
 player placed, not on where the mines actually are — so a wrong flag loses. That is the
 point of it.
+
+## The game must not do the player's thinking
+
+**Nothing in the Minesweeper UI may describe the state of the board.** The status line
+says what the controls do; it never says what is under the squares, and never reacts to
+what has been revealed, flagged or found.
+
+This got broken almost immediately after it was written. A status message noticed when
+every safe square was open and said "Ground cleared. Flag the last mines to finish."
+It was meant as a convenience — a player standing on a cleared board should not be told
+to keep clearing. But it announced that every remaining hidden square is a mine, which
+is the last deduction on the board, handed over for free. Working that out *is* the
+game.
+
+The rule it broke is worth stating plainly, because it is not obvious while writing what
+feels like a helpful message: **letting the player fail is part of the design.** Room to
+be wrong is where the reasoning gets built. A hint that saves someone thirty seconds
+also removes the thing they were about to learn.
+
+Concretely, for anything added here later:
+
+- The playing message may depend on **flag mode** — that is the player's own control,
+  not information about the board.
+- It may not depend on `revealed`, `flagged`, `mines`, or any count derived from them.
+- Terminal states (won, lost) may say anything: the game is over, there is nothing left
+  to deduce.
+- The flag counter is fine as it stands. It shows mines minus flags placed, both of
+  which the player already knows, and it deliberately does not know whether a flag is
+  correct.
+
+If a message needs a condition on board state to make sense, that is the signal it
+should not exist.
