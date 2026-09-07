@@ -501,10 +501,49 @@ a:active  {color: #002e2c;}
         left: 0;
     }
 
-    .touch-pad [data-action="up"]::after    { top: -20px; }
-    .touch-pad [data-action="down"]::after  { bottom: -20px; }
-    .touch-pad [data-action="left"]::after  { left: -20px; }
-    .touch-pad [data-action="right"]::after { right: -20px; }
+    /* Reach along the button's own axis, and a smaller one across it. The
+       perpendicular reach catches a thumb that lands beside the button rather than
+       short of it, which is the other half of the same miss - but it is the direction
+       where neighbours are, so it stays small.
+
+       How small depends on the pad. On the d-pad each button has empty grid cells
+       either side of it, and the geometry tolerates 10px before opposite arms start
+       overlapping; 8px keeps a margin. On the Tetris row, rotate and soft-drop are
+       horizontal neighbours splitting a single 10px gap, so 4px each is all that fits
+       without them contesting the same pixels. Getting this wrong does not miss a tap,
+       it resolves one to the wrong button. */
+    .touch-pad {
+        --pad-reach: 20px;
+        --pad-perp: 8px;
+    }
+
+    .touch-pad-row {
+        --pad-perp: 4px;
+    }
+
+    .touch-pad [data-action="up"]::after {
+        top: calc(-1 * var(--pad-reach));
+        left: calc(-1 * var(--pad-perp));
+        right: calc(-1 * var(--pad-perp));
+    }
+
+    .touch-pad [data-action="down"]::after {
+        bottom: calc(-1 * var(--pad-reach));
+        left: calc(-1 * var(--pad-perp));
+        right: calc(-1 * var(--pad-perp));
+    }
+
+    .touch-pad [data-action="left"]::after {
+        left: calc(-1 * var(--pad-reach));
+        top: calc(-1 * var(--pad-perp));
+        bottom: calc(-1 * var(--pad-perp));
+    }
+
+    .touch-pad [data-action="right"]::after {
+        right: calc(-1 * var(--pad-reach));
+        top: calc(-1 * var(--pad-perp));
+        bottom: calc(-1 * var(--pad-perp));
+    }
 }
 
 /* The d-pad's cross shape: up on the top row's middle cell, left/right either
