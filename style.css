@@ -438,8 +438,12 @@ a:active  {color: #002e2c;}
     --pad-gap: 10px;
     --pad-reach: 20px;  /* along a button's own axis */
     --pad-perp: 8px;    /* across it */
-    /* Far enough to swallow the neighbouring column and still reach past the pad. */
-    --pad-span: calc(var(--pad-size) + var(--pad-gap) + var(--pad-reach));
+    /* One button plus a gap: how far up and down spread across their row. */
+    --pad-band: calc(var(--pad-size) + var(--pad-gap));
+    /* How far left and right reach outward, away from the pad. */
+    --pad-out: 40px;
+    /* And how tall they get out there, where nothing is in the way. */
+    --pad-tall: calc(var(--pad-size) + var(--pad-gap) + var(--pad-reach));
 
     display: none;
     justify-content: center;
@@ -548,26 +552,46 @@ a:active  {color: #002e2c;}
     }
 
     /* The d-pad is a cross inside a 3x3 grid, so the four corner cells belong to no
-       button. That left a 64px dead square diagonally out from the centre - the place
-       a thumb lands reaching down and slightly across, and unreachable by any amount
-       of perpendicular expansion, because it is diagonal from both neighbours.
+       button. That left a 64px dead square diagonally out from the centre - where a
+       thumb lands reaching down and slightly across, and unreachable by any amount of
+       perpendicular expansion, because it is diagonal from both neighbours.
 
-       Up and down therefore take the full width of their row rather than a margin
-       either side. Anything in the top band means up, anything in the bottom band
-       means down, and left and right keep the middle band. Nothing overlaps: the three
-       bands are separated by the 10px gaps.
+       The board is carved up instead. Up and down take their whole row, exactly the
+       width of the pad. Left and right keep a narrow strip beside the buttons, and
+       then widen out past the edge of the pad into full-height panels - out there
+       nothing competes for the space, so there is no reason to be stingy with it.
 
-       It has to be up and down that spread, not left and right - both cannot, or they
-       would contest the corners. Vertical wins because the horizontal buttons already
-       reach outward toward the edges of the screen, where there is nothing to collide
-       with, so they are the pair already well served.
+       Reaching down-and-across now lands on down; reaching out-and-up past the pad
+       lands on left or right. Nothing overlaps: the bands meet at the grid gaps and
+       the outer panels start exactly where the up/down band ends.
 
        The centre of the cross stays dead on purpose: a tap there is genuinely
-       ambiguous, and guessing is worse than ignoring it. */
+       ambiguous, and guessing is worse than ignoring - it turns you the wrong way. */
     .touch-pad-dpad [data-action="up"]::after,
     .touch-pad-dpad [data-action="down"]::after {
-        left: calc(-1 * var(--pad-span));
-        right: calc(-1 * var(--pad-span));
+        left: calc(-1 * var(--pad-band));
+        right: calc(-1 * var(--pad-band));
+    }
+
+    /* The outer panel, past the end of the pad. right: 100% pins its far edge to the
+       button's near edge, so the two pieces meet exactly and neither strays into the
+       up/down band. */
+    .touch-pad-dpad [data-action="left"]::before,
+    .touch-pad-dpad [data-action="right"]::before {
+        content: '';
+        position: absolute;
+        top: calc(-1 * var(--pad-tall));
+        bottom: calc(-1 * var(--pad-tall));
+    }
+
+    .touch-pad-dpad [data-action="left"]::before {
+        right: 100%;
+        left: calc(-1 * var(--pad-out));
+    }
+
+    .touch-pad-dpad [data-action="right"]::before {
+        left: 100%;
+        right: calc(-1 * var(--pad-out));
     }
 }
 

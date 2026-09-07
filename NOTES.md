@@ -504,31 +504,37 @@ Two consequences of that situation, both currently by design rather than by deci
   `headUnder`, so a head that is below (and not occluded) looks the same as one on top.
   Being underneath is signalled by the body and the hatch, not the head.
 
-### The d-pad's dead corners
+### How the d-pad divides up its space
 
 A cross in a 3×3 grid leaves the four corner cells belonging to no button. With each
 button reaching only along its own axis plus a little across, that left a **64px dead
 square diagonally out from the centre** — `down` stopped at x=146, `right` stopped at
-y=146, and the cell between them (148–212, 148–212) was nobody's. It is where a thumb
-lands reaching down and slightly across, and **no amount of perpendicular expansion
-reaches it**, because it is diagonal from both neighbours. Symmetric fuzziness cannot
-fix a diagonal gap; this was reported as "missing right of the down button" after two
-rounds of widening had failed to help.
+y=146, and the cell between was nobody's. It is where a thumb lands reaching down and
+slightly across, and **no amount of perpendicular expansion reaches it**, because it is
+diagonal from both neighbours. Symmetric fuzziness cannot fix a diagonal gap; it took
+two rounds of widening before the report "missing *right of* the down button" made the
+shape of the hole obvious.
 
-Up and down now take the **full width of their row** (`--pad-span`) instead of a margin
-either side. Anything in the top band is up, anything in the bottom band is down, and
-left and right keep the middle band. The three bands are separated by the grid gaps, so
-nothing overlaps.
+The space is carved up instead, in two pieces per horizontal button:
 
-It has to be the vertical pair that spreads, not the horizontal one — both cannot, or
-they would contest the corners. Vertical wins because left and right already reach
-outward toward the edges of the screen, where there is nothing to collide with, so they
-are the pair already well served.
+- **Up and down take their whole row**, exactly the width of the pad (`--pad-band`).
+  Anything in the top band is up, anything in the bottom band is down — including the
+  corners that used to be dead.
+- **Left and right keep a narrow strip** beside the button (`--pad-perp`), then widen
+  past the end of the pad into **full-height outer panels** (`--pad-out` wide,
+  `--pad-tall` above and below). Out there nothing competes for the space, so there is
+  no reason to be stingy with it.
+
+The two pieces of a horizontal button are `::after` (the strip) and `::before` (the
+panel), with `right: 100%` pinning the panel's far edge to the button's near edge so
+they meet exactly and neither strays into the up/down band.
+
+Reaching down-and-across lands on down; reaching out-and-up past the pad lands on left
+or right. Nothing overlaps — verified by computing the rectangles, not by eye.
 
 **The centre of the cross stays dead deliberately.** A tap there is genuinely ambiguous,
 and on a d-pad guessing is worse than ignoring: a wrong guess turns you the wrong way.
 
-Geometry now comes from `--pad-size`, `--pad-gap`, `--pad-reach` and `--pad-perp`, with
-`--pad-span` derived from them, so changing the button size or gap no longer silently
-invalidates the reaches. The Tetris row is unaffected — its buttons are all in one row
-with no corner cells, and `--pad-perp: 4px` still applies there.
+All of it derives from `--pad-size` and `--pad-gap`, so changing a button size or gap no
+longer silently invalidates the reaches — which is how the dead corners hid in the first
+place. The Tetris row is untouched: one row, no corner cells.
