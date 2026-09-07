@@ -6,6 +6,14 @@ See `NOTES.md` for non-obvious decisions and gotchas from past work on this repo
 certain CSS/layout choices exist, the manual cache-busting workflow, etc.) — check it
 before re-deriving something that's already been debugged once.
 
+`NOTES.md` also carries standing design rules, not only gotchas — constraints on new
+work rather than descriptions of old work. Two to know before designing anything they
+touch:
+
+- **Colour choices are held to the contrast rules** in `js/contrast.js`, checked against
+  both colour-blindness simulations and asserted in `tests/contrast/`.
+- **Any multiplayer must reward couch play over remote play.**
+
 ## What this is
 
 A static, vanilla HTML/CSS/JS personal portfolio site with no build step. It is deployed as-is via GitHub Pages at `https://developerkaleb.github.io/PortfolioWebPage/` from this repo (`DeveloperKaleb/PortfolioWebPage`). There is no bundler, framework, or transpilation — files are served directly, so any path/script reference must work unmodified in the browser.

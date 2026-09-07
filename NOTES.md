@@ -840,3 +840,48 @@ work in this file. `touch-action: none` on a draggable area is required for drag
 also stops the page scrolling, and a tall card layout on a phone needs to scroll. A
 tap-to-select-then-tap-to-place scheme avoids that entirely and is usually kinder on
 touch than dragging — worth considering before reaching for drag.
+
+## Rule: multiplayer rewards couch play over remote play
+
+**Any multiplayer built here has to be better in the same room than it is apart.** Stated
+by the project owner 2026-09-07, as a standard to hold the site to going forward, on the
+view that the industry's drift toward remote-by-default play has been a loss.
+
+Note the shape of it: **reward** co-presence, not **prevent** remote. Anything on the web
+can be played over a video call if people are determined, and effort spent trying to stop
+that is effort wasted on the wrong problem. The test to apply is: *would two people in the
+same room have a better time than two people on a call?* If the answer is "about the
+same", the design has not honoured the rule yet.
+
+What that means in practice, for whoever builds the first one:
+
+- **One shared screen, phones as controllers.** The game state lives on a screen everyone
+  can see. A phone is a controller and a place for private information - not a second
+  copy of the game. Give every player their own full view and you have built remote play
+  that happens to be in a room.
+- **Joining should require being there.** A short code or QR shown *only* on the shared
+  screen gates entry to people who can see it. That is a natural consequence of the
+  design rather than a restriction bolted on, which is what makes it the right mechanism.
+- **Lean on what only co-presence gives you.** Reading a face, talking over each other,
+  reacting out loud, passing a phone around. Mechanics built on those are better in person
+  because of what they are, not because the remote version was hobbled.
+- **Local network only.** No relay server, no accounts, no matchmaking with strangers.
+  That keeps latency honest and keeps the scope of the thing small.
+- **No spectator-proofing, no anti-cheat.** Both assume adversaries. This is a game for a
+  living room.
+
+The rule is a constraint on design, not a feature to implement. It applies to anything
+multiplayer added later, including ideas already recorded below.
+
+### Suggested 2026-09-07, by the project owner
+
+**Multiplayer using phones as controllers.** The shared screen would be a laptop or TV
+showing the game; each player's phone is their controller. Explicitly subject to the rule
+above.
+
+Notes for whoever picks it up: the D-pad work already in this file is most of a phone
+controller, so the input side largely exists. The hard part is the connection - peer to
+peer on a local network from a static GitHub Pages site is the real constraint, since
+there is no server to run and WebRTC still needs signalling from somewhere. That
+question is worth settling before any of the game design, because the answer may change
+what is possible.
