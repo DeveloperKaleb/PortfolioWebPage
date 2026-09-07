@@ -752,3 +752,40 @@ a:active  {color: #002e2c;}
 #play-again {
     margin-bottom: 10px;
 }
+
+/* --- Array Grid Toy: colour picker --- */
+#toyColorPicker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 1rem 0;
+}
+
+/* Shows the selected colour whatever the browser does with <option> styling - Safari
+   ignores it entirely, so the tinted dropdown cannot be the only cue. */
+#colorSwatch {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #dfe38c;
+    border-radius: 4px;
+    background: #a2a77f;
+}
+
+#colorPicker {
+    min-height: 44px;
+    font-size: 16px;
+}
+
+/* Dragging across the grid has to paint, not scroll the page or select text. This is
+   the trade the toy makes for swipe painting: a drag started on the grid belongs to
+   the grid. touch-action: manipulation on .butMania button is not enough - that still
+   lets a drag pan the page. */
+#toyDisplay,
+#toyDisplay button {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}

@@ -538,3 +538,36 @@ and on a d-pad guessing is worse than ignoring: a wrong guess turns you the wron
 All of it derives from `--pad-size` and `--pad-gap`, so changing a button size or gap no
 longer silently invalidates the reaches — which is how the dead corners hid in the first
 place. The Tetris row is untouched: one row, no corner cells.
+
+## Array Grid toy: colours and swipe painting
+
+**The palette lives in `js/logic.js`** (`TOY_COLORS`) rather than beside the markup, so
+it can be contrast-checked. That is not academic: the CSS keyword `brown` (`#a52a2a`)
+simulates to `#69681e` for a deuteranope, which is indistinguishable from `green` at
+`#6a6a12`. Shipping it would have added a colour the project owner cannot tell from one
+already there. The coffee brown `#6f4e37` is clear of everything.
+
+`Red`/`Green` do collide, and always have. They predate the contrast rules and are left
+alone pending a decision, since changing them changes pictures people already made. The
+test pins the collision list to exactly that pair, so a *new* collision fails the suite
+rather than shipping quietly.
+
+**Swatches appear twice on purpose.** Each `<option>` is tinted with its own colour and
+its label flipped to black or white for legibility — but Safari ignores `<option>`
+styling entirely, so the tint cannot be the only cue. The `#colorSwatch` beside the
+select is an ordinary element and shows the current colour everywhere.
+
+**Swipe painting** uses `pointerdown`/`pointermove` with a per-stroke set of cells, so
+crossing a cell twice in one sweep does not undo it — only a fresh tap toggles. Two
+things it needs:
+
+- `document.elementFromPoint`, because a touch pointer keeps reporting the element the
+  stroke *started* on. `event.target` cannot say what is under the finger now.
+- `touch-action: none` on `#toyDisplay`. `manipulation` on `.butMania button` kills
+  double-tap zoom but still lets a drag pan the page, which would fight the stroke. The
+  trade is that a drag starting on the grid belongs to the grid and will not scroll.
+
+**The applied colour is kept in `dataset.color`, not read back from the inline style.**
+Browsers re-serialise `style.backgroundColor`, so a hex comes back as
+`rgb(111, 78, 55)`. Comparing that against the picker's value only worked while every
+colour was a CSS keyword; the hex brown would have broken tap-to-undo silently.

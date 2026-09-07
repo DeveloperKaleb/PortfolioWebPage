@@ -13,8 +13,11 @@ import {
     SNAKE_COLORS,
     getBoardShape,
     cellKindAt,
-    CELL
+    CELL,
+    TOY_COLORS,
+    toHex
 } from '../js/logic.js';
+import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
     nodeAt,
@@ -72,21 +75,32 @@ let canChangeDirection = true; // NEW: The Input Lock
 function addColorPicker() {
     if (document.getElementById('toyColorPicker')) return;
 
+    /* Each option is tinted with the colour it selects, with its label flipped to
+       black or white for whichever reads better on it. Option styling is honoured by
+       Chrome, Firefox and Edge but ignored by Safari - which is why the swatch beside
+       the select exists as well. That one is an ordinary element, so it shows the
+       current colour everywhere. */
+    const options = TOY_COLORS.map(({ label, value }) => {
+        const hex = toHex(value);
+        const text = contrastRatio('#000000', hex) >= contrastRatio('#ffffff', hex) ? '#000000' : '#ffffff';
+        return `<option value="${value}" style="background-color: ${value}; color: ${text}">${label}</option>`;
+    }).join('');
+
     const colorPickerForm = document.createElement('form');
-    colorPickerForm.id = "toyColorPicker";
+    colorPickerForm.id = 'toyColorPicker';
     colorPickerForm.innerHTML = `
-        <select id="colorPicker" style="margin: 1rem">
-            <option value="black">Black</option>
-            <option value="white">White</option>
-            <option value="red">Red</option>
-            <option value="green">Green</option>
-            <option value="purple">Purple</option>
-            <option value="pink">Pink</option>
-            <option value="yellow">Yellow</option>
-        </select>`;
+        <label for="colorPicker">Paint colour:</label>
+        <span id="colorSwatch" aria-hidden="true"></span>
+        <select id="colorPicker">${options}</select>`;
 
     const arrayForm = document.getElementById('arrayForm');
     arrayForm.insertAdjacentElement('afterend', colorPickerForm);
+
+    const picker = document.getElementById('colorPicker');
+    const swatch = document.getElementById('colorSwatch');
+    const showSwatch = () => { swatch.style.backgroundColor = picker.value; };
+    picker.addEventListener('change', showSwatch);
+    showSwatch();
 }
 
 function displayArray(event) {
@@ -729,26 +743,76 @@ document.querySelectorAll('[data-action]').forEach((btn) => {
     });
 });
 
-// Painting Logic: Target toyBoard specifically
-toyBoard.addEventListener("click", (event) => {
-    const clickedElement = event.target;
-    const clickedClass = clickedElement.className;
+/* --- Painting the Array Grid --- */
 
-    if (!clickedClass || !clickedClass.includes('x')) return;
+/* The colour actually applied is kept in a data attribute rather than read back off
+   the inline style. Browsers re-serialise style.backgroundColor - a hex comes back as
+   "rgb(111, 78, 55)" - so comparing it against the picker's value only ever worked
+   while every colour was a CSS keyword. The brown is a hex, which would have broken
+   tap-to-undo silently. */
+function paintCell(cell, { toggle = false } = {}) {
+    const id = cell.className;
+    if (!id || !id.includes('x')) return;
 
-    const colorPicker = document.getElementById('colorPicker');
-    if (!colorPicker) return;
+    const picker = document.getElementById('colorPicker');
+    if (!picker) return;
 
-    const buttonBackColor = clickedElement.style.backgroundColor;
+    const applied = cell.dataset.color || '';
 
-    if (buttonBackColor === colorPicker.value && previousPickedColors[clickedClass]) {
-        clickedElement.style.backgroundColor = `${previousPickedColors[clickedClass]}`;
+    // A second tap on a cell you just painted puts back what was underneath.
+    if (toggle && applied === picker.value && previousPickedColors[id] !== undefined) {
+        const restored = previousPickedColors[id];
+        cell.style.backgroundColor = restored;
+        cell.dataset.color = restored;
         return;
     }
 
-    previousPickedColors[clickedClass] = buttonBackColor;
-    clickedElement.style.backgroundColor = `${colorPicker.value}`;
+    previousPickedColors[id] = applied;
+    cell.style.backgroundColor = picker.value;
+    cell.dataset.color = picker.value;
+}
+
+/* Hold and drag to paint. The set is per stroke, so crossing a cell twice in one
+   sweep does not undo it - only a fresh tap toggles. */
+let painting = false;
+let strokeCells = new Set();
+
+const cellUnder = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    return el && el.tagName === 'BUTTON' && toyBoard.contains(el) ? el : null;
+};
+
+toyBoard.addEventListener('pointerdown', (event) => {
+    const cell = event.target;
+    if (cell.tagName !== 'BUTTON') return;
+
+    event.preventDefault();
+    painting = true;
+    strokeCells = new Set([cell.className]);
+    paintCell(cell, { toggle: true });
 });
+
+toyBoard.addEventListener('pointermove', (event) => {
+    if (!painting) return;
+    event.preventDefault();
+
+    /* Touch pointers keep reporting the element the stroke started on, so the target
+       cannot say what is under the finger now - the board has to be asked directly. */
+    const cell = cellUnder(event.clientX, event.clientY);
+    if (!cell || strokeCells.has(cell.className)) return;
+
+    strokeCells.add(cell.className);
+    paintCell(cell);
+});
+
+/* Ended on the window, not the board: a stroke that wanders off the grid and back
+   should carry on, but one that ends anywhere at all has to stop. */
+const endStroke = () => {
+    painting = false;
+    strokeCells.clear();
+};
+window.addEventListener('pointerup', endStroke);
+window.addEventListener('pointercancel', endStroke);
 
 // RUN IMMEDIATELY: Initialize the game boards visually on load
 createStaticBoard();

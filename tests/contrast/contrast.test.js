@@ -7,7 +7,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, UI_COLORS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, UI_COLORS, TOY_COLORS, toHex } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -125,6 +125,45 @@ describe('Food on either layer', () => {
             .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
         ['head', 'body', 'bodyUnder', 'hole'].forEach((part) => {
             expect(areDistinguishable(SNAKE_COLORS.foodUnder, SNAKE_COLORS[part])).toBe(true);
+        });
+    });
+});
+
+describe('Array Grid toy palette', () => {
+    const swatches = TOY_COLORS.map(({ label, value }) => [label, toHex(value)]);
+
+    const collisions = () => {
+        const found = [];
+        for (let i = 0; i < swatches.length; i++) {
+            for (let j = i + 1; j < swatches.length; j++) {
+                if (!areDistinguishable(swatches[i][1], swatches[j][1])) {
+                    found.push(`${swatches[i][0]}/${swatches[j][0]}`);
+                }
+            }
+        }
+        return found;
+    };
+
+    /* Red and Green are indistinguishable with red/green colour blindness and always
+       have been - they predate the contrast rules and are left alone pending a call
+       from the project owner, since changing them changes existing pictures.
+       Pinning the list here means any NEW collision fails the suite instead of
+       shipping quietly, which is how `brown` (#a52a2a) was caught: it simulates to
+       #69681e against Green's #6a6a12. */
+    test('no colour collides beyond the one known pair', () => {
+        expect(collisions()).toEqual(['Red/Green']);
+    });
+
+    test('the brown that shipped is distinguishable from green', () => {
+        const brown = TOY_COLORS.find((c) => c.label === 'Brown').value;
+        const green = toHex(TOY_COLORS.find((c) => c.label === 'Green').value);
+        expect(areDistinguishable(toHex(brown), green)).toBe(true);
+    });
+
+    test('blue is distinguishable from everything', () => {
+        const blue = toHex('blue');
+        swatches.filter(([label]) => label !== 'Blue').forEach(([, hex]) => {
+            expect(areDistinguishable(blue, hex)).toBe(true);
         });
     });
 });

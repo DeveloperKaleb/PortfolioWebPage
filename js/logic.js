@@ -376,3 +376,35 @@ export function getBoardShape(mode, orientation = 'horizontal') {
 
     return { mode, width: mask.width, height: mask.height, mask, graph, start };
 }
+
+/* --- ARRAY GRID TOY PALETTE --- */
+/* The toy's paint colours. Here rather than beside the markup so the contrast rules
+   can be asserted against them - CSS keywords are convenient but not automatically
+   safe. The CSS keyword `brown` (#a52a2a) is the reason this matters: it simulates to
+   #69681e for a deuteranope, which is indistinguishable from `green` at #6a6a12. The
+   coffee brown below is far enough away to survive. */
+export const TOY_COLORS = [
+    { label: 'Black', value: 'black' },
+    { label: 'White', value: 'white' },
+    { label: 'Red', value: 'red' },
+    { label: 'Green', value: 'green' },
+    { label: 'Blue', value: 'blue' },
+    { label: 'Brown', value: '#6f4e37' },
+    { label: 'Purple', value: 'purple' },
+    { label: 'Pink', value: 'pink' },
+    { label: 'Yellow', value: 'yellow' },
+];
+
+// Keyword colours need resolving before any contrast maths can be done on them.
+export const CSS_COLOR_HEX = {
+    black: '#000000',
+    white: '#ffffff',
+    red: '#ff0000',
+    green: '#008000',
+    blue: '#0000ff',
+    purple: '#800080',
+    pink: '#ffc0cb',
+    yellow: '#ffff00',
+};
+
+export const toHex = (value) => CSS_COLOR_HEX[value] || value;
