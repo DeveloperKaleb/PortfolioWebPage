@@ -24,6 +24,9 @@
    to spare for one. */
 html {
     background: #51553a;
+    /* Stops the rubber-band bounce at the ends of the page. Mid-game that bounce
+       reads as the board lurching, since the pad is being tapped, not dragged. */
+    overscroll-behavior: none;
 }
 
 body {
@@ -187,6 +190,15 @@ footer li + li {
     font-size: 16px;
 }
 
+/* Disabled mid-game (see setSnakeControlsEnabled): dimmed enough to read as
+   unavailable, not so dim it looks like a rendering fault. */
+#modeSelect:disabled,
+#startBtn:disabled,
+#tetrisStartBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 #arrayForm {
     display: flex;
     flex-wrap: wrap;
@@ -313,6 +325,11 @@ a:active  {color: #002e2c;}
     height: 30px;
     margin: 1px;
     cursor: pointer;
+    /* Kills the double-tap-to-zoom gesture, and with it the ~300ms wait browsers
+       spend deciding whether a tap was the first of two - painting the Array Grid
+       feels immediate rather than laggy. Unlike touch-action: none on the pad, this
+       keeps panning and pinch-zoom, which the page still needs. */
+    touch-action: manipulation;
     background-color: #a2a77f; 
     border: 1px solid #dfe38c;
     flex-shrink: 0; /* Prevents the browser from squishing buttons to fit the width */
@@ -449,6 +466,38 @@ a:active  {color: #002e2c;}
     background: #035e7b;
 }
 
+/* A thumb aiming at a 64px button regularly lands just outside it. Each button gets
+   an invisible ::after reaching further out, so the target is bigger than it looks
+   without the pad itself growing - the visible size is what keeps the cross readable.
+
+   Each expands only in its own direction, away from its neighbours. Expanding all
+   round would make adjacent buttons fight over the space between them, and on a
+   d-pad a mis-resolved tap is worse than a missed one: it turns you the wrong way
+   rather than not at all.
+
+   Keyed on data-action so both pads are covered - the d-pad's cross and the Tetris
+   row - without either needing its own rules. */
+@media (pointer: coarse) {
+    .pad-btn {
+        position: relative;
+    }
+
+    .pad-btn::after {
+        content: '';
+        position: absolute;
+        /* Sits over the button, then reaches out on one side below. */
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+    }
+
+    .touch-pad [data-action="up"]::after    { top: -20px; }
+    .touch-pad [data-action="down"]::after  { bottom: -20px; }
+    .touch-pad [data-action="left"]::after  { left: -20px; }
+    .touch-pad [data-action="right"]::after { right: -20px; }
+}
+
 /* The d-pad's cross shape: up on the top row's middle cell, left/right either
    side of an empty centre, down below. */
 .pad-up    { grid-column: 2; grid-row: 1; }
@@ -501,9 +550,11 @@ a:active  {color: #002e2c;}
         margin-bottom: 16px;
     }
 
+    /* 16px here would put the Start button inside the UP button's 20px reach, so a
+       thumb aiming high on the pad could press Start. Wide enough to clear it. */
     #game-controls,
     #tetris-controls {
-        margin-bottom: 16px;
+        margin-bottom: 28px;
     }
 }
 

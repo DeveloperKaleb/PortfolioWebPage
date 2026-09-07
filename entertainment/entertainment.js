@@ -123,6 +123,19 @@ let currentShape = getBoardShape('classic');
 const currentOrientation = () =>
     (window.innerWidth >= window.innerHeight ? 'horizontal' : 'vertical');
 
+/* Locked while a game runs. On a phone the pad sits directly under these, so a thumb
+   reaching high hits Start and silently restarts a good run - and changing the mode
+   mid-game would leave the snake on a board that no longer exists.
+
+   Disabled rather than hidden: hiding them would reflow the whole column mid-game and
+   shift the board and pad under the player's thumb. */
+function setGameControlsEnabled(enabled) {
+    ['modeSelect', 'startBtn', 'tetrisStartBtn'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+    });
+}
+
 const selectedMode = () => {
     const modeSelect = document.getElementById('modeSelect');
     return modeSelect ? modeSelect.value : 'classic';
@@ -207,6 +220,7 @@ function initSnakeGame() {
     spawnFood();
     drawFrame();
     gameInterval = setInterval(gameStep, 150);
+    setGameControlsEnabled(false);
 }
 
 /**
@@ -338,6 +352,7 @@ function gameOver(reason = '') {
     clearInterval(gameInterval);
     gameInterval = null;
     canChangeDirection = true; // Unlock keys for the next game
+    setGameControlsEnabled(true);
 
     let displayMessage;
 
@@ -390,6 +405,7 @@ function initTetrisGame() {
     spawnTetromino(); 
     drawTetrisFrame(); 
     tetrisInterval = setInterval(tetrisStep, 500);
+    setGameControlsEnabled(false);
 }
 
 /**
@@ -518,6 +534,7 @@ function updateScore(lines) {
 function gameOverTetris() {
     clearInterval(tetrisInterval);
     tetrisInterval = null;
+    setGameControlsEnabled(true);
     alert(`Matrix Critical Failure! Final Score: ${tetrisScore}`);
     
     // Optional: Visual feedback like "graying out" the board
@@ -704,6 +721,7 @@ function stopAllGames() {
     // A pad button can be left held while the view changes out from under it,
     // which would otherwise leave its repeat timer running against the next game.
     stopRepeat();
+    setGameControlsEnabled(true);
 
     clearInterval(gameInterval);
     gameInterval = null;

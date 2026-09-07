@@ -354,3 +354,47 @@ the snake and eats into the contrast those colours depend on.
 Splitting the two was the point: one permanent cue for *where*, one live cue for
 *what is happening to you*. An earlier version gated the only marking there was, which
 would have left the crossing unannounced until the player was already inside it.
+
+## Touch targets reach past the buttons, and that has a blast radius
+
+Each pad button carries an invisible `::after` reaching 20px further out, so the target
+is larger than it looks without the pad growing — the visible size is what keeps the
+cross readable. Keyed on `data-action`, so the d-pad and the Tetris row are both covered
+without either needing its own rules.
+
+**Each button expands only in its own direction.** Expanding all round would make
+neighbours fight over the space between them, and on a d-pad a mis-resolved tap is worse
+than a missed one: it turns you the wrong way rather than not at all.
+
+**The reach is not free space.** The mobile layout stacks the Start row directly above
+the pad, and at the 16px gap that row previously used, the UP button's 20px reach landed
+on the Start button — the exact accidental tap the disabling below exists to prevent. The
+gap is 28px for that reason. Anything that changes the vertical rhythm of the mobile
+cluster has to keep the gap above the pad wider than the reach.
+
+## Game config controls lock while a game runs
+
+`setGameControlsEnabled()` disables the mode dropdown and both Start buttons while a game
+is running, and releases them on every path out: either game-over, and leaving the view.
+
+Disabled, not hidden. Hiding them would reflow the column mid-game and shift the board
+and the pad under the player's thumb — trading an accidental tap for a worse problem.
+
+Two things this prevents: Start silently restarting a good run when a thumb reaches high
+on the pad, and a mode change mid-game leaving the snake on a board that no longer exists.
+
+## Touch handling already in place
+
+Worth knowing before adding more: the pads already use `pointerdown` with
+`preventDefault()`, `touch-action: none`, `user-select: none` and a transparent
+`-webkit-tap-highlight-color`. Between them these cover instant response, no scrolling or
+zooming from pad gestures, no text-selection callout and no grey tap flash.
+
+Added later for what those do not reach: `overscroll-behavior: none` on `html` for the
+rubber-band bounce at the ends of the page (mid-game it reads as the board lurching,
+since the pad is tapped rather than dragged), and `touch-action: manipulation` on
+`.butMania button` for the double-tap zoom on board cells — which also drops the ~300ms
+a browser spends deciding whether a tap was the first of two, so painting the Array Grid
+feels immediate. `manipulation` rather than `none` there, because the page still needs
+panning and pinch-zoom; never set `user-scalable=no` on the viewport, which would take
+pinch-zoom away from anyone who needs it.
