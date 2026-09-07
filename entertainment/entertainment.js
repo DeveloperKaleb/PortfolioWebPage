@@ -28,7 +28,7 @@ import {
     isMine,
     isRevealed,
     isFlagged,
-    minesRemaining,
+    flagsRemaining,
     isOver,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
@@ -706,12 +706,20 @@ function paintMineCell(cell) {
 
 function drawMineBoard() {
     mineBoard.querySelectorAll('.mine-cell').forEach(paintMineCell);
-    mineCountEl.textContent = minesRemaining(mineGame);
+    mineCountEl.textContent = flagsRemaining(mineGame);
+
+    /* Once the ground is clear the only thing left is flagging, so say that rather
+       than repeating the general instruction - otherwise a player who has opened
+       everything is told to keep clearing squares that are already open. */
+    const allClear = mineGame.revealed.size === mineGame.width * mineGame.height - mineGame.mineCount;
+    const playing = allClear
+        ? 'Ground cleared. Flag the last mines to finish.'
+        : (flagMode ? 'Flag mode: tap to mark a suspected mine.' : 'Clear every square that is not a mine.');
 
     const messages = {
         [MINE_STATUS.READY]: 'Tap any square to begin.',
-        [MINE_STATUS.PLAYING]: flagMode ? 'Flag mode: tap to mark a suspected mine.' : 'Clear every square that is not a mine.',
-        [MINE_STATUS.WON]: 'Swept. Every square accounted for.',
+        [MINE_STATUS.PLAYING]: playing,
+        [MINE_STATUS.WON]: 'Swept. Every mine found and flagged.',
         [MINE_STATUS.LOST]: 'Detonated. The board is shown below.',
     };
     mineStatusEl.textContent = messages[mineGame.status];
@@ -749,7 +757,9 @@ function playMineCell(x, y, { flag = false } = {}) {
     if (isOver(mineGame)) {
         showGameOver(
             mineGame.status === MINE_STATUS.WON ? 'Swept!' : 'Detonated.',
-            `${mineGame.revealed.size} of ${mineGame.width * mineGame.height - mineGame.mineCount} squares cleared`,
+            mineGame.status === MINE_STATUS.WON
+                ? `All ${mineGame.mineCount} mines flagged`
+                : `${mineGame.revealed.size} of ${mineGame.width * mineGame.height - mineGame.mineCount} squares cleared`,
             initMinesweeper
         );
     }

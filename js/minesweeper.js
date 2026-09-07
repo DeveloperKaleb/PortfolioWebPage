@@ -117,6 +117,19 @@ function cascade(game, x, y) {
 
 export const safeCellCount = (game) => game.width * game.height - game.mineCount;
 
+/* Winning means the board is finished, not merely survived: every safe square opened
+   AND every mine flagged. Ending on the last safe square instead would call it a win
+   while the player still had flags in hand, which reads as the game stopping early.
+
+   The flags do not need checking for correctness. A flag can only sit on a hidden
+   square, and once every safe square is open the only hidden squares left are mines -
+   so the right count of flags can only mean the right flags. */
+export const isWon = (game) =>
+    game.revealed.size === safeCellCount(game) && game.flagged.size === game.mineCount;
+
+// Work out where a move leaves the game. A loss is already decided by the time this runs.
+const settle = (game) => (isWon(game) ? { ...game, status: STATUS.WON } : game);
+
 export function reveal(game, x, y, random = Math.random) {
     if (game.status === STATUS.WON || game.status === STATUS.LOST) return game;
     if (!inBounds(game, x, y)) return game;
@@ -131,8 +144,7 @@ export function reveal(game, x, y, random = Math.random) {
     }
 
     const revealed = cascade(started, x, y);
-    const status = revealed.size === safeCellCount(started) ? STATUS.WON : STATUS.PLAYING;
-    return copy(started, { revealed, status });
+    return settle(copy(started, { revealed, status: STATUS.PLAYING }));
 }
 
 export function toggleFlag(game, x, y) {
@@ -142,7 +154,9 @@ export function toggleFlag(game, x, y) {
     const flagged = new Set(game.flagged);
     const id = key(x, y);
     if (flagged.has(id)) flagged.delete(id); else flagged.add(id);
-    return copy(game, { flagged });
+
+    // Placing the last flag is a winning move, so flagging has to settle too.
+    return settle(copy(game, { flagged }));
 }
 
 /* Clicking a satisfied number opens its remaining neighbours in one go. Standard
@@ -164,6 +178,8 @@ export function chord(game, x, y, random = Math.random) {
     );
 }
 
-export const minesRemaining = (game) => game.mineCount - game.flagged.size;
+/* Flags still to place. Named for what it actually counts: it goes down on any flag,
+   right or wrong, because the game cannot tell the player which they have made. */
+export const flagsRemaining = (game) => game.mineCount - game.flagged.size;
 
 export const isOver = (game) => game.status === STATUS.WON || game.status === STATUS.LOST;

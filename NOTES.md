@@ -630,6 +630,21 @@ or there is nothing for the tests to check them against.
 `js/minesweeper.js`, pure and immutable — every function returns a new game rather than
 editing one, because a cascade that half-applied itself would be miserable to debug.
 
+**Winning means the board is finished, not merely survived**: every safe square open
+AND every mine flagged. Clearing the last safe square used to end it, which stopped the
+game while the player still had flags in hand. Both  and  can now be
+the winning move, so both settle the status.
+
+The flags are not checked for correctness, and do not need to be: a flag can only sit on
+a hidden square, so once every safe square is open the only squares left to flag are
+mines. The right *count* of flags can only mean the right flags.
+
+One consequence: a player who clears the board but has not flagged everything is still
+in play, and can still lose by opening a mine. Before, they would already have won.
+
+The counter is , named for what it counts. It goes down on any flag,
+right or wrong - the game must not leak which mistakes the player has made.
+
 **Mines are placed on the first click, not before**, and never on it or beside it. An
 opening move that lands on a number, or on a mine, is luck rather than play; a clear
 neighbourhood guarantees the first cascade has something to open.

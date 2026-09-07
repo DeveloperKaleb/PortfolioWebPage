@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import {
     createGame, reveal, toggleFlag, chord, placeMines, neighbours,
-    countAt, isMine, isRevealed, isFlagged, minesRemaining,
-    safeCellCount, isOver, STATUS,
+    countAt, isMine, isRevealed, isFlagged, flagsRemaining,
+    safeCellCount, isOver, isWon, STATUS,
 } from '../../js/minesweeper.js';
 
 // Reveal everything that is not a mine, which is what winning requires.
@@ -11,6 +11,17 @@ const clearBoard = (game) => {
     for (let y = 1; y <= current.height; y++) {
         for (let x = 1; x <= current.width; x++) {
             if (!isMine(current, x, y)) current = reveal(current, x, y, Math.random);
+        }
+    }
+    return current;
+};
+
+// Flag every mine, which winning now requires.
+const flagAllMines = (game) => {
+    let current = game;
+    for (let y = 1; y <= current.height; y++) {
+        for (let x = 1; x <= current.width; x++) {
+            if (isMine(current, x, y) && !isFlagged(current, x, y)) current = toggleFlag(current, x, y);
         }
     }
     return current;
@@ -150,11 +161,23 @@ describe('Flagging', () => {
         expect(isFlagged(game, 2, 3)).toBe(false);
     });
 
+    /* The counter is flags still to place. It cannot be anything else: the game must
+       not tell the player whether a flag is right, so it counts them all alike. */
     test('the counter tracks flags placed, not flags that are right', () => {
+        let game = reveal(createGame(), 5, 5, Math.random);
+        expect(flagsRemaining(game)).toBe(game.mineCount);
+
+        // Deliberately a wrong flag - on a square known to be safe.
+        const safe = hiddenCells(game).find((c) => !isMine(game, c.x, c.y));
+        game = toggleFlag(game, safe.x, safe.y);
+        expect(flagsRemaining(game)).toBe(game.mineCount - 1);
+    });
+
+    test('taking a flag back puts the count up again', () => {
         let game = createGame();
-        expect(minesRemaining(game)).toBe(game.mineCount);
         game = toggleFlag(game, 1, 1);
-        expect(minesRemaining(game)).toBe(game.mineCount - 1);
+        game = toggleFlag(game, 1, 1);
+        expect(flagsRemaining(game)).toBe(game.mineCount);
     });
 
     test('a revealed cell cannot be flagged', () => {
@@ -222,22 +245,65 @@ describe('Chording', () => {
 });
 
 describe('Winning', () => {
-    test('clearing every safe cell wins', () => {
+    /* The board has to be finished, not merely survived: every safe square open AND
+       every mine flagged. Ending on the last safe square would call it a win while the
+       player still had flags in hand. */
+    test('clearing every safe cell is not enough on its own', () => {
         const game = clearBoard(reveal(createGame(), 5, 5, Math.random));
-        expect(game.status).toBe(STATUS.WON);
         expect(game.revealed.size).toBe(safeCellCount(game));
+        expect(game.flagged.size).toBe(0);
+        expect(game.status).toBe(STATUS.PLAYING);
     });
 
-    test('winning does not require the mines to be flagged', () => {
-        const game = clearBoard(reveal(createGame(), 5, 5, Math.random));
-        expect(game.flagged.size).toBe(0);
+    test('flagging every mine is not enough on its own', () => {
+        const game = flagAllMines(reveal(createGame(), 5, 5, Math.random));
+        expect(game.flagged.size).toBe(game.mineCount);
+        expect(game.status).toBe(STATUS.PLAYING);
+    });
+
+    test('clearing the board and flagging every mine wins', () => {
+        const game = flagAllMines(clearBoard(reveal(createGame(), 5, 5, Math.random)));
         expect(game.status).toBe(STATUS.WON);
+        expect(flagsRemaining(game)).toBe(0);
+    });
+
+    test('the final flag is the winning move', () => {
+        let game = clearBoard(reveal(createGame(), 5, 5, Math.random));
+        const mines = [...game.mines].map((k) => k.split(',').map(Number));
+
+        mines.slice(0, -1).forEach(([x, y]) => { game = toggleFlag(game, x, y); });
+        expect(game.status).toBe(STATUS.PLAYING);
+        expect(flagsRemaining(game)).toBe(1);
+
+        const [lastX, lastY] = mines[mines.length - 1];
+        game = toggleFlag(game, lastX, lastY);
+        expect(game.status).toBe(STATUS.WON);
+    });
+
+    /* Flags are not checked for correctness, and do not need to be: a flag can only sit
+       on a hidden square, so once every safe square is open the only squares left to
+       flag are mines. The right count can only mean the right flags. */
+    test('a misplaced flag blocks the win by blocking the square under it', () => {
+        let game = reveal(createGame(), 5, 5, Math.random);
+        const safe = hiddenCells(game).find((c) => !isMine(game, c.x, c.y));
+        game = toggleFlag(game, safe.x, safe.y);
+
+        game = flagAllMines(clearBoard(game));
+        expect(isRevealed(game, safe.x, safe.y)).toBe(false);
+        expect(game.status).not.toBe(STATUS.WON);
+    });
+
+    test('isWon agrees with the status it produced', () => {
+        const won = flagAllMines(clearBoard(reveal(createGame(), 5, 5, Math.random)));
+        expect(isWon(won)).toBe(true);
+        expect(isWon(createGame())).toBe(false);
     });
 
     test('a won game ignores further moves', () => {
-        const game = clearBoard(reveal(createGame(), 5, 5, Math.random));
+        const game = flagAllMines(clearBoard(reveal(createGame(), 5, 5, Math.random)));
         const [mx, my] = [...game.mines][0].split(',').map(Number);
         expect(reveal(game, mx, my, Math.random).status).toBe(STATUS.WON);
+        expect(toggleFlag(game, mx, my).flagged.size).toBe(game.flagged.size);
     });
 });
 
