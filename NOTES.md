@@ -362,9 +362,21 @@ is larger than it looks without the pad growing — the visible size is what kee
 cross readable. Keyed on `data-action`, so the d-pad and the Tetris row are both covered
 without either needing its own rules.
 
-**Each button expands only in its own direction.** Expanding all round would make
-neighbours fight over the space between them, and on a d-pad a mis-resolved tap is worse
-than a missed one: it turns you the wrong way rather than not at all.
+**The reach is bigger along a button's own axis than across it** (`--pad-reach` 20px,
+`--pad-perp` 4–8px). A thumb landing beside a button is as common a miss as one landing
+short, so both are caught — but across is the direction the neighbours are in, and a
+mis-resolved tap is worse than a missed one: it turns you the wrong way rather than not
+at all.
+
+How much perpendicular reach fits differs by pad:
+
+- **d-pad** — each button has empty grid cells either side, and opposite arms only begin
+  to overlap at 12px. 8px keeps a margin.
+- **Tetris row** — rotate and soft-drop are horizontal neighbours splitting a single
+  10px gap, so they start contesting the same pixels at 6px. 4px each is the limit.
+
+Those figures are computed from the 64px buttons and 10px gaps, so changing either size
+invalidates them.
 
 **The reach is not free space.** The mobile layout stacks the Start row directly above
 the pad, and at the 16px gap that row previously used, the UP button's 20px reach landed
