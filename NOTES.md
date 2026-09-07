@@ -571,3 +571,30 @@ things it needs:
 Browsers re-serialise `style.backgroundColor`, so a hex comes back as
 `rgb(111, 78, 55)`. Comparing that against the picker's value only worked while every
 colour was a CSS keyword; the hex brown would have broken tap-to-undo silently.
+
+## Why the contrast check simulates both deuteranopia and protanopia
+
+`worstCaseContrast` and `areDistinguishable` take the **worse** of the two simulations.
+That is a deliberate decision, confirmed 2026-09-07, not an accident of implementation.
+
+The reason is that the two conditions fail on *different* pairs, and a check against
+only one would wave the other's failures through. Measured on the toy palette:
+
+| pair | deuteranopia | protanopia |
+|---|---|---|
+| Red / Green | 1.95 — fine | **1.03 — identical** |
+| CSS `brown` / Green | **1.02 — identical** | 1.66 — fine |
+
+Exact opposites. Testing deuteranopia alone would have passed red/green; testing
+protanopia alone would have passed CSS brown. Only checking both catches each.
+
+Relaxing to deuteranopia alone was considered, since it is roughly three times more
+common (~6% of men against ~2%, with US-wide rates lower than the Northern-European
+figures those come from) and would give more palette room. Rejected: protan-type
+deficiency is still millions of people in the US, and the site is public.
+
+The cost is usually low. **The way out of a tight spot is the blue-yellow axis**, which
+survives both conditions — the shipped brown `#6f4e37` clears the bar that way, with a
+b\* gap of 30.8 despite a lightness separation of only 1.24. The rule has genuinely
+pinched exactly once, on `foodUnder`, where two blues had to be separated by lightness
+alone because hue could not help, leaving a window of 4.50–5.16.
