@@ -463,3 +463,24 @@ floor: `#2f86a8` is only 3.96.
 `.peek` shares its hatch with `.is-underneath` — one is a window around underneath food,
 the other the whole crossing while the snake's head is below. Both skip `.snake-on`, so
 neither ever runs across the snake.
+
+## Passing over your own tail
+
+Handled: `gameStep` uses `isLayeredSelfCollision`, which compares `(x, y, strand)`, so a
+head on the upper strand and a tail on the lower one sharing a cell is not a crash. Same
+cell *and* same strand still is.
+
+It takes a while to reach. The shortest loop from one strand of a crossing cell back to
+the same cell on the other is **24 moves**, so the snake has to be longer than 24
+segments for its tail still to be there when the head comes round — roughly score 240.
+Longest such loop is 34. Tested on the real board, not just in the abstract, because it
+is the kind of thing nobody reaches by hand for a long time.
+
+Two consequences of that situation, both currently by design rather than by decision:
+
+- **The head is hidden if a body segment is above it.** `topOccupant` picks purely by
+  layer, so a head on the lower strand under its own body is not drawn. Physically
+  right, but the player loses sight of where they are for a move or two.
+- **The head has no underneath colour.** `SNAKE_COLORS` has `bodyUnder` but no
+  `headUnder`, so a head that is below (and not occluded) looks the same as one on top.
+  Being underneath is signalled by the body and the hatch, not the head.

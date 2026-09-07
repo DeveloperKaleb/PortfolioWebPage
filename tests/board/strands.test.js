@@ -328,3 +328,59 @@ describe('Food under the crossing', () => {
         expect(graph.nodes.size).toBeGreaterThan(352);
     });
 });
+
+describe('The snake passing over itself', () => {
+    const { graph } = getBoardShape('infinity');
+
+    /* Reachable at roughly 24 segments: that is the shortest loop from one strand of a
+       crossing cell back to the same cell on the other, so the tail is still lying
+       there when the head comes round. Around score 240 - hence untested by hand for
+       a while. */
+    test('head on one strand and tail on the other is not a collision', () => {
+        const cell = overlapCells(graph)[0];
+        const [under, over] = strandsAt(graph, cell.x, cell.y);
+
+        const head = { x: over.x, y: over.y, strand: over.strand };
+        const body = [{ x: under.x, y: under.y, strand: under.strand }];
+
+        expect(isLayeredSelfCollision(head, body)).toBe(false);
+    });
+
+    test('the same strand of the same cell still is a collision', () => {
+        const cell = overlapCells(graph)[0];
+        const [under] = strandsAt(graph, cell.x, cell.y);
+        const head = { x: under.x, y: under.y, strand: under.strand };
+
+        expect(isLayeredSelfCollision(head, [{ ...head }])).toBe(true);
+    });
+
+    // If no route existed from one strand back round to the other, the situation above
+    // could never arise and the layering would be decoration.
+    test('a lap from one strand round to the other exists', () => {
+        const cell = overlapCells(graph)[0];
+        const [under, over] = strandsAt(graph, cell.x, cell.y);
+        const goal = `${over.x},${over.y},${over.strand}`;
+        const steps = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+
+        const seen = new Set([`${under.x},${under.y},${under.strand}`]);
+        let frontier = [under];
+        let found = false;
+
+        for (let depth = 0; depth < 200 && frontier.length && !found; depth++) {
+            const next = [];
+            frontier.forEach((node) => {
+                steps.forEach((step) => {
+                    const moved = stepFrom(graph, node, step);
+                    if (!moved) return;
+                    const id = `${moved.x},${moved.y},${moved.strand}`;
+                    if (id === goal) found = true;
+                    if (seen.has(id)) return;
+                    seen.add(id);
+                    next.push(moved);
+                });
+            });
+            frontier = next;
+        }
+        expect(found).toBe(true);
+    });
+});
