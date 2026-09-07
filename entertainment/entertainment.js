@@ -13,6 +13,7 @@ import {
     SNAKE_COLORS,
     getBoardShape,
     cellKindAt,
+    isDeckGap,
     CELL,
     TOY_COLORS,
     toHex,
@@ -444,6 +445,11 @@ function failureAt(from, heading) {
     if (kind === CELL.HOLE) return 'HOLE';
     if (kind === CELL.WALL) return 'WALL';
 
+    /* A hole in the Bridge's deck. The square is perfectly good ground - a snake down
+       there walks straight through it - so the only way to fail moving into one is to
+       have been up on the deck. */
+    if (isDeckGap(currentShape.mask, target.x, target.y)) return 'FALL';
+
     return isUnderneath(currentShape.graph, from) ? 'UNDERPASS' : 'EDGE';
 }
 
@@ -470,6 +476,9 @@ function gameOver(reason = '') {
             break;
         case 'UNDERPASS':
             displayMessage = "Structural Impact: Hit the underpass wall.";
+            break;
+        case 'FALL':
+            displayMessage = "Fall damage is real.";
             break;
         default:
             displayMessage = "System Overload.";

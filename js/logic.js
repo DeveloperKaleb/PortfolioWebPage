@@ -152,7 +152,7 @@ export const SNAKE_COLORS = {
 
 /* --- BOARD SHAPES --- */
 
-import { CELL, buildStrandGraph, stepFrom, nodeAt, circularMean } from './strands.js';
+import { CELL, buildStrandGraph, stepFrom, nodeAt, circularMean, linkByLevel } from './strands.js';
 export { CELL };
 
 /* The Infinity board is a ribbon traced around a Gerono lemniscate
@@ -350,7 +350,19 @@ const MASKS = {
     classic: () => CLASSIC_MASK,
     donut: () => DONUT_MASK,
     infinity: (orientation) => (orientation === 'vertical' ? INFINITY_MASK_VERTICAL : INFINITY_MASK),
+    // Square and with a bridge that runs top to bottom, so turning it on its side
+    // would turn the bridge sideways too. Same board in both orientations.
+    bridge: () => BRIDGE_MASK,
 };
+
+/* Most maps derive their strands from a curve, and the default continuity rule suits
+   them. The Bridge does not: its strands are levels, so it brings its own. This is the
+   seam the tooling was built with - see NOTES.md.
+
+   A function rather than an object because the Bridge constants are declared further
+   down the file: an object literal here would read them before they exist. */
+const graphOptionsFor = (mode) =>
+    (mode === 'bridge' ? { link: linkByLevel(BRIDGE_LINK_TOLERANCE) } : undefined);
 
 // Built once each - the graphs never change, and rebuilding per game would be waste.
 const graphCache = new Map();
@@ -360,7 +372,7 @@ export function getBoardShape(mode, orientation = 'horizontal') {
     const mask = maskFor(orientation);
     const cacheKey = `${mode}:${orientation}`;
 
-    if (!graphCache.has(cacheKey)) graphCache.set(cacheKey, buildStrandGraph(mask));
+    if (!graphCache.has(cacheKey)) graphCache.set(cacheKey, buildStrandGraph(mask, graphOptionsFor(mode)));
     const graph = graphCache.get(cacheKey);
 
     // Classic and Donut keep the start they have always had; a crossing map has no
@@ -449,3 +461,87 @@ export const MINE_NUMBER_TIERS = [
 
 export const numberColor = (count) =>
     (MINE_NUMBER_TIERS.find((tier) => count <= tier.upTo) || MINE_NUMBER_TIERS[MINE_NUMBER_TIERS.length - 1]).color;
+
+/* --- THE BRIDGE BOARD --- */
+/* An open arena with a bridge running top to bottom and a path beneath it running
+   left to right. Unlike the ribbon maps, the ground here is a plain open area - the
+   strand tooling does not require a curve, only that each cell says which levels
+   exist there.
+
+   Three levels. Ground is everywhere inside the arena. The deck sits above the ground
+   down the middle band. Ramps are where the deck meets the ground at either end, and
+   are the only way on or off it: linkByLevel keeps ground and deck from connecting
+   directly, so you cannot climb up from underneath.
+
+   The gap in the middle of the deck is the interesting part. It is simply a deck cell
+   with no deck strand - so a snake on the deck finds nothing continuing its level and
+   falls, while a snake on the ground passes underneath unobstructed. */
+const BRIDGE_DEFAULTS = {
+    width: 22,
+    height: 22,
+    radius: 10.4,
+    wobble: 0.1,     // how far the arena's sides bow inward
+    bandHalf: 3,     // half-width of the bridge
+    holeHalfW: 1,
+    holeHalfH: 1.5,
+};
+
+export const BRIDGE_LEVELS = { ground: 0, ramp: 0.6, deck: 1 };
+export const BRIDGE_LINK_TOLERANCE = 0.6;
+
+export function buildBridgeMask(options = {}) {
+    const { width, height, radius, wobble, bandHalf, holeHalfW, holeHalfH } =
+        { ...BRIDGE_DEFAULTS, ...options };
+    const cx = (width + 1) / 2;
+    const cy = (height + 1) / 2;
+
+    // A wavy square: sides bow inward, corners bulge out.
+    const inArena = (x, y) => {
+        const dx = x - cx;
+        const dy = y - cy;
+        const distance = Math.hypot(dx, dy);
+        if (distance === 0) return true;
+        return distance <= radius * (1 - wobble * Math.cos(4 * Math.atan2(dy, dx)));
+    };
+
+    const inBand = (x) => Math.abs(x - cx) <= bandHalf;
+    const inHole = (x, y) => Math.abs(x - cx) <= holeHalfW && Math.abs(y - cy) <= holeHalfH;
+
+    // The deck runs the full height of the band; its end rows are the ramps.
+    const bandRows = [];
+    for (let y = 1; y <= height; y++) if (inArena(Math.round(cx), y)) bandRows.push(y);
+    const rampTop = bandRows[0];
+    const rampBottom = bandRows[bandRows.length - 1];
+    const elevated = (x, y) => inBand(x) && y > rampTop && y < rampBottom;
+
+    const cells = [];
+    for (let y = 1; y <= height; y++) {
+        const row = [];
+        for (let x = 1; x <= width; x++) {
+            if (!inArena(x, y)) { row.push({ kind: CELL.WALL, branches: [] }); continue; }
+
+            if (inBand(x) && (y === rampTop || y === rampBottom)) {
+                row.push({ kind: CELL.TRACK, branches: [BRIDGE_LEVELS.ramp] });
+                continue;
+            }
+
+            const branches = [BRIDGE_LEVELS.ground];
+            const gap = elevated(x, y) && inHole(x, y);
+            if (elevated(x, y) && !gap) branches.push(BRIDGE_LEVELS.deck);
+
+            // gap marks a hole in the deck, so falling through it can be reported as
+            // its own kind of death rather than as stepping off an edge.
+            row.push({ kind: CELL.TRACK, branches, gap });
+        }
+        cells.push(row);
+    }
+
+    return { width, height, cells };
+}
+
+export const BRIDGE_MASK = buildBridgeMask();
+
+export const isDeckGap = (mask, x, y) => {
+    if (x < 1 || y < 1 || x > mask.width || y > mask.height) return false;
+    return Boolean(mask.cells[y - 1][x - 1].gap);
+};

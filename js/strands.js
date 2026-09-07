@@ -51,6 +51,20 @@ export const linkByContinuity = (tolerance = 1) => (from, to) => {
     return circularDelta(from.param, to.param) <= tolerance;
 };
 
+/* Continuity for a map whose strands are levels rather than points along a curve.
+ * Each level gets a number, and two nodes connect when their numbers are close enough:
+ * a level joins its neighbours and the ramps between levels, but never the level above
+ * or below it directly.
+ *
+ * The spacing carries meaning. Put a ramp nearer the deck than the ground and stepping
+ * off the ramp resolves to the deck, which is what walking down a ramp should do -
+ * equidistant, and the tie would be broken by strand order, which is arbitrary.
+ */
+export const linkByLevel = (tolerance) => (from, to) => {
+    if (from.param === null || to.param === null) return true;
+    return Math.abs(from.param - to.param) <= tolerance;
+};
+
 /* Which strand lies on top where several share a cell. The default orders by curve
  * parameter, so the ordering is stable along the whole crossing rather than being
  * decided cell by cell. Returns strand indices, lowest layer first. */

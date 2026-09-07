@@ -885,3 +885,67 @@ peer on a local network from a static GitHub Pages site is the real constraint, 
 there is no server to run and WebRTC still needs signalling from somewhere. That
 question is worth settling before any of the game design, because the answer may change
 what is possible.
+
+## The Bridge board
+
+From a sketch by the project owner, 2026-09-07. A wavy-edged arena — sides bowed inward,
+corners bulging — with a bridge running top to bottom, the ground passing left to right
+beneath it, and a hole through the middle of the deck.
+
+```
+      ...    ...
+   .....======.....
+  ......######......
+  .......######.......
+   ......##oo##......
+  .......######.......
+  ......######......
+   .....======.....
+      ...    ...
+```
+
+`#` deck over ground · `=` ramp · `o` hole through the deck · `.` open ground
+
+432 nodes: 332 ground, 88 deck, 12 ramp. It is the first **open arena** — every other map
+is a track you follow. Off the deck you can wander anywhere, and only the outer wall and
+the hole will kill you.
+
+### Three levels, not a curve
+
+Every other map derives its strands from a curve, and the default continuity rule handles
+them. **This one has no curve.** Its strands are levels: ground `0`, ramp `0.6`, deck `1`,
+joined by `linkByLevel(0.6)` — the `link` seam the tooling was built with, used in anger
+for the first time.
+
+Ground and deck are 1.0 apart, so they never connect: **you cannot climb onto the bridge
+from underneath.** Ramps sit between and reach both.
+
+**The ramp's 0.6 is not arbitrary.** Put it halfway at 0.5 and stepping off it is a tie —
+0.5 to the deck, 0.5 to the ground — resolved by whichever strand happens to be listed
+first, which is meaningless. At 0.6 the deck is nearer, so walking down a ramp puts you on
+the bridge, as walking down a ramp should. The spacing carries the meaning.
+
+### The hole is an absence, not a feature
+
+The gap in the deck is a deck cell **with no deck strand**. Everything follows from that,
+with no special cases anywhere:
+
+- A snake on the deck finds nothing continuing its level and falls. `failureAt` reports
+  `FALL` — "Fall damage is real." — because a gap square is perfectly good ground, so the
+  only way to fail entering one is to have been up on the deck.
+- A snake on the ground walks straight through, because its own level is untouched.
+- **It is lit as it passes.** Under the deck a cell has two strands and `isUnderneath` is
+  true, so the snake draws in the underneath colour. In the gap the cell has one strand,
+  `isUnderneath` is false, and it draws normal — then shaded again beyond. Daylight
+  through the hole, and not a line of rendering code: it falls out of the model.
+
+The deck's bold outline and the crossing hatch come free from the same machinery the
+Infinity board uses, which is why the rendered board matches the sketch's heavy edges
+around the deck and around the hole.
+
+### Where it sits on the difficulty gradient
+
+Probably the gentlest of the four, or near Classic. The arena is open and forgiving, and
+the bridge is optional — you can play the whole board without ever going up. That is a
+different axis from Infinity's constrained ribbon rather than a step below it, and worth
+a verdict from play rather than from the node count.
