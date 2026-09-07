@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     createGame, reveal, toggleFlag, chord, placeMines, neighbours,
     countAt, isMine, isRevealed, isFlagged, flagsRemaining,
-    safeCellCount, isOver, isWon, STATUS,
+    safeCellCount, isOver, isWon, STATUS, PRESETS, mineDensity,
 } from '../../js/minesweeper.js';
 
 // Reveal everything that is not a mine, which is what winning requires.
@@ -321,5 +321,48 @@ describe('State is never shared between moves', () => {
         const game = createGame();
         toggleFlag(game, 4, 4);
         expect(game.flagged.size).toBe(0);
+    });
+});
+
+describe('Board presets', () => {
+    const presets = Object.entries(PRESETS);
+
+    test('there is a standard and a larger board', () => {
+        expect(PRESETS.standard.width).toBe(10);
+        expect(PRESETS.large.width).toBe(20);
+        expect(PRESETS.large.width * PRESETS.large.height)
+            .toBeGreaterThan(PRESETS.standard.width * PRESETS.standard.height);
+    });
+
+    /* Density climbs with size on purpose. A bigger board at the same density is only
+       longer, not harder - the interesting part of a large board is that the deductions
+       get denser too. 12% is near the classic beginner ratio, 15% near intermediate. */
+    test('the larger board is denser, not just longer', () => {
+        expect(mineDensity(PRESETS.large)).toBeGreaterThan(mineDensity(PRESETS.standard));
+    });
+
+    test.each(presets)('%s stays inside a sane density', (_name, preset) => {
+        expect(mineDensity(preset)).toBeGreaterThan(0.05);
+        expect(mineDensity(preset)).toBeLessThan(0.25);
+    });
+
+    /* The first click clears a 3x3 pocket, so a preset whose mines cannot fit around
+       that would silently place fewer than it asked for. */
+    test.each(presets)('%s leaves room for its mines beside the opening', (_name, preset) => {
+        const placeable = preset.width * preset.height - 9;
+        expect(preset.mineCount).toBeLessThan(placeable);
+    });
+
+    test.each(presets)('%s plays: the first click opens a pocket', (_name, preset) => {
+        const game = reveal(createGame(preset), 5, 5, Math.random);
+        expect(game.status).toBe(STATUS.PLAYING);
+        expect(game.mines.size).toBe(preset.mineCount);
+        expect(game.revealed.size).toBeGreaterThan(1);
+    });
+
+    test('a large board can be played to a win', () => {
+        const game = flagAllMines(clearBoard(reveal(createGame(PRESETS.large), 10, 10, Math.random)));
+        expect(game.status).toBe(STATUS.WON);
+        expect(flagsRemaining(game)).toBe(0);
     });
 });

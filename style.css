@@ -741,6 +741,26 @@ a:active  {color: #002e2c;}
     color: #dfe38c;
 }
 
+/* display goes on :not([hidden]) so the attribute still hides it - the same trap the
+   game views and the dialog itself hit. */
+#game-over-mode:not([hidden]) {
+    display: flex;
+}
+
+#game-over-mode {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+
+#game-over-mode-select {
+    min-height: 44px;
+    font-size: 16px;
+    flex: 1;
+    max-width: 60%;
+}
+
 #play-again,
 #game-over-back {
     display: block;
@@ -796,11 +816,16 @@ a:active  {color: #002e2c;}
 #mineDisplay {
     --mine-cols: 10;
     --mine-rows: 10;
-    /* Same both-axes clamp as the Snake board: 10 columns is wide enough to overflow a
-       phone at a fixed size, and tall enough to push the board off screen in portrait. */
-    --mine-cell: max(22px, min(
-        calc((100vw - 40px) / var(--mine-cols)),
-        calc(52vh / var(--mine-rows)),
+    /* Same both-axes clamp as the Snake board, with two corrections the 20x20 board
+       forced. The gaps are subtracted before dividing - at 10 columns the 18px they take
+       is lost in the rounding, at 20 columns it is 38px and pushes the board off a
+       phone. And the floor is 12px rather than 22px: a floor above what fits does not
+       keep cells tappable, it just guarantees the board overflows. A 20-wide board on a
+       375px screen lands at about 15px a cell, which is small but reachable, and the
+       whole board stays on screen where a scrolling one would be far worse. */
+    --mine-cell: max(12px, min(
+        calc((100vw - 40px - (var(--mine-cols) - 1) * 2px) / var(--mine-cols)),
+        calc((52vh - (var(--mine-rows) - 1) * 2px) / var(--mine-rows)),
         40px
     ));
 
@@ -888,7 +913,8 @@ a:active  {color: #002e2c;}
 }
 
 #flagToggle,
-#mineStartBtn {
+#mineStartBtn,
+#mineModeSelect {
     min-height: 44px;
     font-size: 16px;
 }

@@ -30,6 +30,7 @@ import {
     isFlagged,
     flagsRemaining,
     isOver,
+    PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
 import { contrastRatio } from '../js/contrast.js';
@@ -164,7 +165,7 @@ const currentOrientation = () =>
    Disabled rather than hidden: hiding them would reflow the whole column mid-game and
    shift the board and pad under the player's thumb. */
 function setGameControlsEnabled(enabled) {
-    ['modeSelect', 'startBtn', 'tetrisStartBtn'].forEach((id) => {
+    ['modeSelect', 'startBtn', 'tetrisStartBtn', 'mineModeSelect'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.disabled = !enabled;
     });
@@ -174,10 +175,31 @@ function setGameControlsEnabled(enabled) {
    toolbar back on screen and reset the scroll position - the nav bar reappearing and
    the pad scrolling out of reach. Being fixed to the viewport, this moves nothing. */
 const gameOverEl = document.getElementById('game-over');
+const gameOverModeEl = document.getElementById('game-over-mode');
+const gameOverModeSelect = document.getElementById('game-over-mode-select');
 let restartCurrentGame = null;
+let restartModeSource = null;
 
-function showGameOver(message, score, restart) {
+/* Offer the same modes the game's own select offers, by copying its options rather than
+   keeping a second list - two lists eventually disagree. The choice is written back to
+   that select on Play Again, so there is still one source of truth and the control
+   behind the dialog stays in step with what was chosen. */
+function showModeChoice(source) {
+    restartModeSource = source;
+    gameOverModeEl.hidden = !source;
+    if (!source) return;
+
+    gameOverModeSelect.innerHTML = [...source.options]
+        .map((option) => `<option value="${option.value}">${option.textContent}</option>`)
+        .join('');
+    gameOverModeSelect.value = source.value;
+    document.getElementById('game-over-mode-label').textContent =
+        source.getAttribute('aria-label') || 'Mode';
+}
+
+function showGameOver(message, score, restart, modeSource = null) {
     restartCurrentGame = restart;
+    showModeChoice(modeSource);
     document.getElementById('game-over-message').textContent = message;
     document.getElementById('game-over-score').textContent = 'Final Score: ' + score;
     gameOverEl.hidden = false;
@@ -189,10 +211,16 @@ function showGameOver(message, score, restart) {
 function hideGameOver() {
     gameOverEl.hidden = true;
     restartCurrentGame = null;
+    restartModeSource = null;
 }
 
 document.getElementById('play-again').addEventListener('click', () => {
     const restart = restartCurrentGame;
+
+    // Hand the choice back to the game's own select before restarting: every init
+    // function reads its mode from there, so this is all it takes to switch.
+    if (restartModeSource) restartModeSource.value = gameOverModeSelect.value;
+
     hideGameOver();
     if (restart) restart();
 });
@@ -447,7 +475,7 @@ function gameOver(reason = '') {
             displayMessage = "System Overload.";
     }
 
-    showGameOver(displayMessage, score, initSnakeGame);
+    showGameOver(displayMessage, score, initSnakeGame, document.getElementById('modeSelect'));
 }
 
 
@@ -649,6 +677,7 @@ const mineBoard = document.getElementById('mineDisplay');
 const mineCountEl = document.getElementById('mine-count');
 const mineStatusEl = document.getElementById('mine-status');
 const flagToggleEl = document.getElementById('flagToggle');
+const mineModeSelect = document.getElementById('mineModeSelect');
 
 let mineGame = createMinesweeper();
 let flagMode = false;
@@ -738,7 +767,8 @@ function setFlagMode(on) {
 }
 
 function initMinesweeper() {
-    mineGame = createMinesweeper();
+    const preset = MINE_PRESETS[mineModeSelect ? mineModeSelect.value : 'standard'] || MINE_PRESETS.standard;
+    mineGame = createMinesweeper(preset);
     setFlagMode(false);
     createMineBoard();
     drawMineBoard();
@@ -764,7 +794,8 @@ function playMineCell(x, y, { flag = false } = {}) {
             mineGame.status === MINE_STATUS.WON
                 ? `All ${mineGame.mineCount} mines flagged`
                 : `${mineGame.revealed.size} of ${mineGame.width * mineGame.height - mineGame.mineCount} squares cleared`,
-            initMinesweeper
+            initMinesweeper,
+            mineModeSelect
         );
     }
 }
@@ -784,6 +815,9 @@ mineBoard.addEventListener('contextmenu', (event) => {
 });
 
 flagToggleEl.addEventListener('click', () => setFlagMode(!flagMode));
+
+// Changing the size starts a fresh board of that size; there is nothing to preserve.
+mineModeSelect.addEventListener('change', initMinesweeper);
 document.getElementById('mineStartBtn').addEventListener('click', initMinesweeper);
 
 /* --- Input Listeners --- */

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260907-1438" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260907-1447" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -109,6 +109,14 @@
             <h2>Minesweeper</h2>
             <div id="mine-controls">
                 <p>Flags left: <span id="mine-count">12</span></p>
+                <select id="mineModeSelect" aria-label="Board size">
+                    <option value="standard">Standard (10x10)</option>
+                    <option value="large">Large (20x20)</option>
+                </select>
+                <select id="mineModeSelect" aria-label="Board size">
+                    <option value="standard">Standard (10x10)</option>
+                    <option value="large">Large (20x20)</option>
+                </select>
                 <!-- Flagging needs a second gesture. Right-click covers a mouse, but a
                      touchscreen has no equivalent, so this toggle is the way in on a
                      phone - a mode you can see, rather than a long-press you have to
@@ -152,6 +160,20 @@
             <div id="game-over-panel" role="alertdialog" aria-labelledby="game-over-message">
                 <p id="game-over-message"></p>
                 <p id="game-over-score"></p>
+                <!-- Mirrors whichever mode select belongs to the game that just ended,
+                     so a different mode can be chosen without leaving the dialog and
+                     hunting for the control behind it. Populated at show time. -->
+                <div id="game-over-mode" hidden>
+                    <label for="game-over-mode-select" id="game-over-mode-label">Mode</label>
+                    <select id="game-over-mode-select"></select>
+                </div>
+                <!-- Mirrors whichever mode select belongs to the game that just ended,
+                     so a different mode can be chosen without leaving the dialog and
+                     hunting for the control behind it. Populated at show time. -->
+                <div id="game-over-mode" hidden>
+                    <label for="game-over-mode-select" id="game-over-mode-label">Mode</label>
+                    <select id="game-over-mode-select"></select>
+                </div>
                 <button type="button" id="play-again">Play Again</button>
                 <button type="button" id="game-over-back" data-back>Back to Entertainment</button>
             </div>
@@ -162,8 +184,8 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-1438"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-1438"></script>
-    <script type="module" src="./entertainment.js?v=20260907-1438"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-1447"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-1447"></script>
+    <script type="module" src="./entertainment.js?v=20260907-1447"></script>
 </body>
 </html>

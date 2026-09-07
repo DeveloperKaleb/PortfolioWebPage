@@ -183,3 +183,14 @@ export function chord(game, x, y, random = Math.random) {
 export const flagsRemaining = (game) => game.mineCount - game.flagged.size;
 
 export const isOver = (game) => game.status === STATUS.WON || game.status === STATUS.LOST;
+
+/* Board sizes offered in the UI. Density climbs with size deliberately: a bigger board
+   at the same density is only longer, not harder, and the interesting part of a large
+   board is that the deductions get denser too. 12% is close to the classic beginner
+   ratio, 15% to intermediate. */
+export const PRESETS = {
+    standard: { label: 'Standard (10x10)', width: 10, height: 10, mineCount: 12 },
+    large: { label: 'Large (20x20)', width: 20, height: 20, mineCount: 60 },
+};
+
+export const mineDensity = (preset) => preset.mineCount / (preset.width * preset.height);

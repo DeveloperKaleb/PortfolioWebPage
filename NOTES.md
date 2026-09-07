@@ -699,3 +699,35 @@ Concretely, for anything added here later:
 
 If a message needs a condition on board state to make sense, that is the signal it
 should not exist.
+
+## Board sizes, and changing mode from the end-of-game dialog
+
+Minesweeper offers Standard (10×10, 12 mines, 12%) and Large (20×20, 60 mines, 15%).
+**Density climbs with size on purpose**: a bigger board at the same density is only
+longer, not harder, and what makes a large board interesting is that the deductions get
+denser too. 12% is near the classic beginner ratio, 15% near intermediate.
+
+The 20×20 board forced two corrections to the cell-size clamp, both of which were latent
+bugs at 10×10:
+
+- **The gaps are now subtracted before dividing.** At 10 columns the 18px they occupy
+  disappears into the rounding; at 20 columns it is 38px, enough to push the board off a
+  phone.
+- **The floor dropped from 22px to 12px.** A floor above what actually fits does not keep
+  cells tappable — it just guarantees the board overflows. A 20-wide board on a 375px
+  screen lands near 15px a cell: small, but the whole board stays on screen, which beats
+  a larger board you have to scroll.
+
+Measured after the fix: 10×10 and 20×20 both fit within 375, 412 and 320px viewports.
+
+**The end-of-game dialog offers a mode change** for any game that has modes — Snake's
+board shapes, Minesweeper's sizes. Tetris has none, so the row stays hidden.
+
+It **mirrors the game's own select rather than keeping its own list**: options are copied
+from the page's control at show time, and the choice is written back to that control on
+Play Again. Every `init` function already reads its mode from there, so that write is all
+it takes to switch. Two lists would eventually disagree; there is only one.
+
+The row uses `display` on `:not([hidden])` for the same reason the game views and the
+dialog itself do — a bare `display` rule out-specifies the `hidden` attribute and the row
+would never hide.
