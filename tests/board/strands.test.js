@@ -14,6 +14,7 @@ import {
     topStrandAt,
     freeNodes,
     cellsAround,
+    overlapCellsAround,
     topOccupant,
     circularDelta,
     circularMean,
@@ -382,5 +383,43 @@ describe('The snake passing over itself', () => {
             frontier = next;
         }
         expect(found).toBe(true);
+    });
+});
+
+describe('The window onto the level below', () => {
+    /* The hatch means "there is a level below here". Shading a single-strand cell
+       claims room to be underneath that does not exist - on a board where shading also
+       marks where you can travel, that misreads as space the player does not have.
+       Two thirds of the possible food positions were drawing an oversized window, up to
+       four cells too many. */
+    const { graph } = getBoardShape('infinity');
+
+    test('the window covers only cells that are themselves crossings', () => {
+        overlapCells(graph).forEach((cell) => {
+            overlapCellsAround(graph, cell.x, cell.y).forEach(({ x, y }) => {
+                expect(isOverlapCell(graph, x, y)).toBe(true);
+            });
+        });
+    });
+
+    test('it never reaches further than the plain neighbourhood', () => {
+        overlapCells(graph).forEach((cell) => {
+            expect(overlapCellsAround(graph, cell.x, cell.y).length)
+                .toBeLessThanOrEqual(cellsAround(graph, cell.x, cell.y).length);
+        });
+    });
+
+    test('at the edge of the crossing the window is genuinely smaller', () => {
+        // If every window were full size the clipping would not be doing anything.
+        const clipped = overlapCells(graph).filter((cell) =>
+            overlapCellsAround(graph, cell.x, cell.y).length
+                < cellsAround(graph, cell.x, cell.y).length);
+        expect(clipped.length).toBeGreaterThan(0);
+    });
+
+    test('a cell in the middle of the crossing keeps a full window', () => {
+        const middle = overlapCells(graph).find((cell) =>
+            overlapCellsAround(graph, cell.x, cell.y).length === 8);
+        expect(middle).toBeDefined();
     });
 });

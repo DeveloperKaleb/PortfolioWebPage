@@ -631,11 +631,16 @@ a:active  {color: #002e2c;}
    .peek is the ring of cells around food that is lying underneath - a small window
    showing where it is, drawn whatever the snake is doing.
 
+   Both require .cell-overlap: the hatch means "there is a level below here", so a cell
+   with a single strand must never carry it - it would show room to be underneath that
+   does not exist. drawFrame filters to the same set; the selector enforces it a second
+   time so a future caller cannot widen the window by mistake.
+
    Both skip .snake-on so the hatch never runs across the snake and eats into the
    contrast its colours depend on. The food's own cell is likewise left clear by
    drawFrame, for the same reason. */
 .butMania.is-snake.is-underneath button.cell-overlap:not(.snake-on),
-.butMania.is-snake button.peek:not(.snake-on) {
+.butMania.is-snake button.peek.cell-overlap:not(.snake-on) {
     background-image: repeating-linear-gradient(
         45deg,
         transparent 0 3px,

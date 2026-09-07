@@ -181,6 +181,14 @@ export function cellsAround(graph, x, y, radius = 1) {
     return found;
 }
 
+/* The surrounding cells that are themselves crossings. A window onto the level below
+ * can only be opened where there IS a level below: shading a cell with a single strand
+ * says the player could be under something there, and on a board where the shading also
+ * marks where you can travel, that misreads as room that does not exist. */
+export function overlapCellsAround(graph, x, y, radius = 1) {
+    return cellsAround(graph, x, y, radius).filter((c) => isOverlapCell(graph, c.x, c.y));
+}
+
 /* Collision that understands layers: two positions clash only if they are the same
  * node. Sharing a cell on different strands is the snake passing over itself, which
  * is the whole point of a crossing. */

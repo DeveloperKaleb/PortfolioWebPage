@@ -24,7 +24,7 @@ import {
     isLayeredSelfCollision,
     isUnderneath,
     freeNodes,
-    cellsAround,
+    overlapCellsAround,
     topOccupant
 } from '../js/strands.js';
 
@@ -328,7 +328,7 @@ function drawFrame() {
     if (foodEl) foodEl.style.backgroundColor = foodBelow ? SNAKE_COLORS.foodUnder : SNAKE_COLORS.food;
 
     if (foodBelow) {
-        cellsAround(currentShape.graph, food.x, food.y).forEach(({ x, y }) => {
+        overlapCellsAround(currentShape.graph, food.x, food.y).forEach(({ x, y }) => {
             const cell = snakeBoard.querySelector(`.x${x}y${y}`);
             if (cell) cell.classList.add('peek');
         });

@@ -465,6 +465,13 @@ hatch would sit over the one thing on the board the player is hunting for and cu
 contrast; the lighter colour already says it is below, and the ring around it draws the
 eye. Hatching the centre is a one-line change if it reads better.
 
+**The window is clipped to real crossing cells** (`overlapCellsAround`). The hatch
+means "there is a level below here", so a single-strand cell must never carry it -
+it would show room to be underneath that does not exist, and on this board the shading
+also reads as where you can travel. Before clipping, 32 of the 48 possible underneath
+positions drew an oversized window, up to four cells too many. The stylesheet requires
+`.cell-overlap` on `.peek` as well, so the invariant holds even if a caller widens it.
+
 **The lighter colour was tightly constrained.** It has to stay above the 4.5:1 floor and
 be at least 1.35× lighter than the normal food to read as a different colour — a window
 of 4.50 to 5.16 against white. Both are blue, so the blue-yellow axis cannot separate
