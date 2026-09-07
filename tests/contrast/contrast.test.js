@@ -107,3 +107,24 @@ describe('UI chrome colours', () => {
             .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 });
+
+describe('Food on either layer', () => {
+    test('food underneath is lighter than food on top', () => {
+        expect(contrastRatio(SNAKE_COLORS.foodUnder, '#ffffff'))
+            .toBeLessThan(contrastRatio(SNAKE_COLORS.food, '#ffffff'));
+    });
+
+    test('the two food colours are telling apart', () => {
+        expect(areDistinguishable(SNAKE_COLORS.food, SNAKE_COLORS.foodUnder)).toBe(true);
+    });
+
+    // Food is the one thing on the board the player is hunting for, so the lighter
+    // variant has to clear the floor and not collide with any snake colour.
+    test('food underneath stays legible and unlike the snake', () => {
+        expect(worstCaseContrast(SNAKE_COLORS.foodUnder, '#ffffff'))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+        ['head', 'body', 'bodyUnder', 'hole'].forEach((part) => {
+            expect(areDistinguishable(SNAKE_COLORS.foodUnder, SNAKE_COLORS[part])).toBe(true);
+        });
+    });
+});

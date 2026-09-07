@@ -12,6 +12,8 @@ import {
     isUnderneath,
     strandEdges,
     topStrandAt,
+    freeNodes,
+    cellsAround,
     topOccupant,
     circularDelta,
     circularMean,
@@ -278,5 +280,51 @@ describe('Strand edges', () => {
         const outlined = overlapCells(board)
             .filter((c) => strandEdges(board, topStrandAt(board, c.x, c.y)).length > 0);
         expect(outlined.length).toBeGreaterThan(8);
+    });
+});
+
+describe('Free nodes and neighbourhoods', () => {
+    const graph = buildStrandGraph(crossMask);
+
+    // Occupancy is per node, so a crossing cell can hold a snake segment on one strand
+    // and food on the other without them being in the same place.
+    test('occupying one strand leaves the other free', () => {
+        const free = freeNodes(graph, [{ x: 2, y: 2, strand: 0 }]);
+        expect(free.some((n) => n.x === 2 && n.y === 2 && n.strand === 1)).toBe(true);
+        expect(free.some((n) => n.x === 2 && n.y === 2 && n.strand === 0)).toBe(false);
+    });
+
+    test('with nothing placed, every node is free', () => {
+        expect(freeNodes(graph)).toHaveLength(graph.nodes.size);
+    });
+
+    test('the neighbourhood excludes the centre and anything unplayable', () => {
+        const around = cellsAround(graph, 2, 2);
+        expect(around).not.toContainEqual({ x: 2, y: 2 });
+        // The corners of this map are walls, so only the four arms come back.
+        expect(around).toHaveLength(4);
+    });
+
+    test('a neighbourhood at the board edge is simply smaller', () => {
+        expect(cellsAround(graph, 1, 1).length).toBeLessThan(8);
+    });
+});
+
+describe('Food under the crossing', () => {
+    const { graph } = getBoardShape('infinity');
+
+    test('food can be placed on either strand of a crossing cell', () => {
+        const crossing = overlapCells(graph)[0];
+        const both = strandsAt(graph, crossing.x, crossing.y);
+        expect(both).toHaveLength(2);
+        expect(isUnderneath(graph, both[0])).toBe(true);
+        expect(isUnderneath(graph, both[1])).toBe(false);
+    });
+
+    test('the whole board is available to food again', () => {
+        // Every node, crossings included - 352 cells plus the second strand of each
+        // of the 48 crossing cells.
+        expect(freeNodes(graph)).toHaveLength(graph.nodes.size);
+        expect(graph.nodes.size).toBeGreaterThan(352);
     });
 });

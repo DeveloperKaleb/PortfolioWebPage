@@ -23,6 +23,8 @@ import {
     isOverlapCell,
     isLayeredSelfCollision,
     isUnderneath,
+    freeNodes,
+    cellsAround,
     topOccupant
 } from '../js/strands.js';
 
@@ -112,7 +114,7 @@ function displayArray(event) {
    this behaves exactly like the old coordinate pair. */
 let snake = [{ x: 10, y: 10, strand: 0 }, { x: 10, y: 11, strand: 0 }, { x: 10, y: 12, strand: 0 }];
 let direction = { x: 0, y: -1 };
-let food = { x: 5, y: 5 };
+let food = { x: 5, y: 5, strand: 0 };
 let score = 0;
 let gameInterval = null;
 
@@ -257,23 +259,20 @@ function initSnakeGame() {
  * Enhanced Spawn Logic: Food cannot land on the snake OR in the hole
  */
 function spawnFood() {
-    // Collect the free cells and pick one, rather than guessing at random until a
-    // guess lands. On the Infinity board only 356 of 612 cells are even playable,
-    // so rejection sampling would spin - and on a nearly full board, forever.
-    const free = [];
-    for (let y = 1; y <= currentShape.height; y++) {
-        for (let x = 1; x <= currentShape.width; x++) {
-            if (isBlockedCell(currentShape, x, y)) continue;
-            // Never on a crossing: "which strand is the food on" has no good answer.
-            if (isOverlapCell(currentShape.graph, x, y)) continue;
-            if (snake.some((segment) => segment.x === x && segment.y === y)) continue;
-            free.push({ x, y });
-        }
-    }
+    /* Collect what is free and pick one, rather than guessing at random until a guess
+       lands. On the Infinity board only 352 of 476 places are playable, so rejection
+       sampling would spin - and on a nearly full board, forever.
+
+       Free by NODE, not by cell: the food gets a strand like the snake does, so it can
+       lie under the crossing while the snake passes over it, and eating it means
+       reaching it on its own strand. */
+    const free = freeNodes(currentShape.graph, snake);
 
     // Nowhere left to put it means the board is full - the snake has won.
     if (!free.length) return;
-    food = free[Math.floor(Math.random() * free.length)];
+
+    const chosen = free[Math.floor(Math.random() * free.length)];
+    food = { x: chosen.x, y: chosen.y, strand: chosen.strand };
 }
 
 function gameStep() {
@@ -293,7 +292,7 @@ function gameStep() {
 
     snake.unshift({ x: head.x, y: head.y, strand: head.strand });
 
-    if (head.x === food.x && head.y === food.y) {
+    if (head.x === food.x && head.y === food.y && head.strand === food.strand) {
         score += 10;
         document.getElementById('score').innerText = score;
         spawnFood();
@@ -316,12 +315,24 @@ function drawFrame() {
         btn.style.backgroundColor = btn.dataset.blocked === 'true' ? SNAKE_COLORS.hole : 'white';
         // Cleared here, re-applied below for whatever the snake covers this frame, so
         // the hatch never runs across the snake and eats into its contrast.
-        btn.classList.remove('snake-on');
+        btn.classList.remove('snake-on', 'peek');
     });
 
-    // Draw Food on snakeBoard
+    /* Draw the food. Under the crossing it takes the lighter colour and opens a hatched
+       window in the cells around it - you are looking down into the lower level. The
+       food's own cell is left unhatched on purpose: hatching over it would cut the
+       contrast of the one thing on the board the player is trying to find, and the
+       lighter colour already says it is below. */
+    const foodBelow = isUnderneath(currentShape.graph, food);
     const foodEl = snakeBoard.querySelector(`.x${food.x}y${food.y}`);
-    if (foodEl) foodEl.style.backgroundColor = SNAKE_COLORS.food;
+    if (foodEl) foodEl.style.backgroundColor = foodBelow ? SNAKE_COLORS.foodUnder : SNAKE_COLORS.food;
+
+    if (foodBelow) {
+        cellsAround(currentShape.graph, food.x, food.y).forEach(({ x, y }) => {
+            const cell = snakeBoard.querySelector(`.x${x}y${y}`);
+            if (cell) cell.classList.add('peek');
+        });
+    }
 
     /* The crossing is outlined only while the head is beneath the other strand, so the
        marking answers "you are under something right now" rather than "something

@@ -431,3 +431,35 @@ would never close.
 
 Side benefit: browser dialogs block everything, including the automation used to check
 game behaviour. Nothing in the entertainment page calls `alert()` any more.
+
+## Food has a strand, like the snake does
+
+Food was excluded from crossing cells because "which strand is it on" had no answer.
+Giving it a strand answers it, and the rest follows from rules that already existed:
+
+- **Placement** is by node, not by cell (`freeNodes`). A crossing cell can hold a snake
+  segment on one strand and food on the other — they are not in the same place.
+- **Eating** compares the strand as well as the coordinates. Passing over food on the
+  strand below does not pick it up; you have to come round and take the lower strand.
+- **Underneath** food is drawn in `SNAKE_COLORS.foodUnder`, and the playable cells
+  around it get `.peek`, opening a hatched window onto the level below.
+
+That took placements from 304 to **400** — every cell, plus the second strand of each of
+the 48 crossing cells. The middle of the board is somewhere to go again, not just
+somewhere to pass through.
+
+**The food's own cell is left unhatched**, though the request was for the full 3×3. The
+hatch would sit over the one thing on the board the player is hunting for and cut its
+contrast; the lighter colour already says it is below, and the ring around it draws the
+eye. Hatching the centre is a one-line change if it reads better.
+
+**The lighter colour was tightly constrained.** It has to stay above the 4.5:1 floor and
+be at least 1.35× lighter than the normal food to read as a different colour — a window
+of 4.50 to 5.16 against white. Both are blue, so the blue-yellow axis cannot separate
+them and lightness has to do all the work. `#0070b8` sits at 4.99 and collides with
+nothing else on the board. The obvious "just lighten it" candidates all fell through the
+floor: `#2f86a8` is only 3.96.
+
+`.peek` shares its hatch with `.is-underneath` — one is a window around underneath food,
+the other the whole crossing while the snake's head is below. Both skip `.snake-on`, so
+neither ever runs across the snake.

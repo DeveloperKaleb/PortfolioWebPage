@@ -159,6 +159,28 @@ export function overlapCells(graph) {
     return cells;
 }
 
+/* Every node nothing is standing on. Occupancy is by node, not by cell: something on
+ * the upper strand does not occupy the lower one, so a crossing cell can hold both a
+ * snake segment and a piece of food without them being in the same place. */
+export function freeNodes(graph, occupied = []) {
+    const taken = new Set(occupied.map((o) => nodeKey(o.x, o.y, o.strand)));
+    return [...graph.nodes.values()].filter((n) => !taken.has(nodeKey(n.x, n.y, n.strand)));
+}
+
+/* The playable cells surrounding one, the centre excluded. Used to open a window onto
+ * the layer below - anything off the board or walled off is skipped, so the window
+ * never paints over a wall. */
+export function cellsAround(graph, x, y, radius = 1) {
+    const found = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (nodeAt(graph, x + dx, y + dy, 0)) found.push({ x: x + dx, y: y + dy });
+        }
+    }
+    return found;
+}
+
 /* Collision that understands layers: two positions clash only if they are the same
  * node. Sharing a cell on different strands is the snake passing over itself, which
  * is the whole point of a crossing. */

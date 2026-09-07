@@ -145,7 +145,8 @@ export const SNAKE_COLORS = {
     head: '#002e2c',      // Deep Teal
     body: '#474c2c',      // Dark Olive - the snake on the upper strand
     bodyUnder: '#6e7349', // Mid Olive - the snake passing underneath
-    food: '#035e7b',      // Dark Blue
+    food: '#035e7b',      // Dark Blue - food on the upper strand, or anywhere flat
+    foodUnder: '#0070b8', // Brighter Blue - food lying under the crossing
     hole: '#51553a',      // Olive - blocked cells
 };
 
