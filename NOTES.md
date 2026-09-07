@@ -807,3 +807,36 @@ fallback does not work for a custom property: a browser without `round()` still 
 the declaration, because custom properties take almost any token stream, and only fails
 when the value is *used* — leaving `grid-template-columns` invalid and collapsing the
 grid entirely. A feature query is the only safe way to do it.
+
+## Ideas not yet built
+
+Kept with dates and attribution so they can be prioritised later rather than
+rediscovered. Nothing here is committed to; it is a record of what was suggested and
+when.
+
+### Suggested 2026-09-07, by the project owner's daughter
+
+Both came out of the same session that produced the Infinity Snake board and
+Minesweeper, several of her ideas from which *were* built.
+
+**Sequence memory game.** The Simon-style kind: a set of items, each with its own sound.
+The game plays a sequence, giving a **visual and an audio cue together** each time an
+item is used, and the player has to reproduce the order. The pairing of the two cues was
+specifically part of the idea, not an embellishment — worth preserving if it gets built.
+
+Notes for whoever picks it up: **this would be the first sound on the site.** Nothing
+here plays audio today, so it brings in autoplay policy (a user gesture is needed before
+any sound), volume and mute controls, and the question of what the game does for someone
+who cannot hear it — which the paired visual cue already answers, and is a good reason to
+keep the pairing. The pure logic (sequence generation, comparing the player's input,
+scoring the round) would sit in `js/` like the others and be straightforward to test.
+
+**Solitaire.** Klondike presumably, though the variant was not specified — worth asking
+before building.
+
+Notes for whoever picks it up: the rules are pure and very testable, but this is the
+first thing on the site needing **drag and drop**, which runs straight into the touch
+work in this file. `touch-action: none` on a draggable area is required for dragging and
+also stops the page scrolling, and a tall card layout on a phone needs to scroll. A
+tap-to-select-then-tap-to-place scheme avoids that entirely and is usually kinder on
+touch than dragging — worth considering before reaching for drag.
