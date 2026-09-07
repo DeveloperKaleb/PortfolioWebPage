@@ -949,3 +949,33 @@ Probably the gentlest of the four, or near Classic. The arena is open and forgiv
 the bridge is optional — you can play the whole board without ever going up. That is a
 different axis from Infinity's constrained ribbon rather than a step below it, and worth
 a verdict from play rather than from the node count.
+
+### The deck is tapered, and the ends are abutments
+
+Two corrections after the first play-test.
+
+**The deck swells through the middle and pinches at the ends** (`halfMid: 4`,
+`halfEnd: 1`, parabolic between), so its edges read as curves rather than rails. The
+pinch leaves exactly **two squares to enter by** at top and bottom — tight enough to
+need lining up for, wide enough to be fair — and the approach is `rampRows: 2` deep so
+it is somewhere you can steer rather than one square to hit exactly.
+
+**A ramp is reached from beside it, never from directly beneath.** That is the
+abutment, and without it the underside of the bridge had no wall at all: a snake could
+walk the length of the underpass, reach the far end and simply climb out. Nothing down
+there could kill it but the perimeter, which is what the first play-test found.
+
+The rule is directional, which is why the `link` seam takes the step as well as the two
+nodes:
+
+```js
+if (touchesRamp && touchesGround) return step.y === 0;
+```
+
+A sideways step onto a ramp is the approach; a step up into one from underneath is
+walking into the end of the bridge. Both are the same pair of levels, so nothing but the
+direction of travel separates them. It reports as `UNDERPASS` — "Structural Impact: Hit
+the underpass wall" — which is exactly what an abutment is.
+
+Note this does **not** disconnect anything: the ground under the deck is still reached
+from either side, and the reachability test covers it.

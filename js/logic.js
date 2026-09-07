@@ -362,7 +362,7 @@ const MASKS = {
    A function rather than an object because the Bridge constants are declared further
    down the file: an object literal here would read them before they exist. */
 const graphOptionsFor = (mode) =>
-    (mode === 'bridge' ? { link: linkByLevel(BRIDGE_LINK_TOLERANCE) } : undefined);
+    (mode === 'bridge' ? { link: bridgeLink } : undefined);
 
 // Built once each - the graphs never change, and rebuilding per game would be waste.
 const graphCache = new Map();
@@ -481,7 +481,15 @@ const BRIDGE_DEFAULTS = {
     height: 22,
     radius: 10.4,
     wobble: 0.1,     // how far the arena's sides bow inward
-    bandHalf: 3,     // half-width of the bridge
+
+    /* The deck is not a straight band - it swells through the middle and pinches at
+       either end, so its edges read as curves rather than rails. halfEnd of 1 leaves
+       exactly two squares to enter by, which is the width the bridge was asked to have
+       at top and bottom: tight enough to need lining up for, wide enough to be fair. */
+    halfMid: 4,
+    halfEnd: 1,
+    rampRows: 2,     // how deep the ground-level approach is at each end
+
     holeHalfW: 1,
     holeHalfH: 1.5,
 };
@@ -489,8 +497,32 @@ const BRIDGE_DEFAULTS = {
 export const BRIDGE_LEVELS = { ground: 0, ramp: 0.6, deck: 1 };
 export const BRIDGE_LINK_TOLERANCE = 0.6;
 
+/* Levels connect by nearness, with one extra rule: a ramp is reached from beside it,
+   never from directly beneath.
+ *
+ * Without that, a snake walking along under the deck could arrive at the far end and
+ * simply climb out - there would be nothing under a bridge to hit but the perimeter.
+ * The abutment is the wall at the end of the underpass, and it is the direction of
+ * travel that distinguishes walking up a ramp from walking into the end of one.
+ *
+ * A sideways step onto a ramp is the approach; both ramp rows accept one, which is the
+ * two rows of approach the bridge is built with. */
+const levelsLink = linkByLevel(BRIDGE_LINK_TOLERANCE);
+
+export function bridgeLink(from, to, step) {
+    if (!levelsLink(from, to)) return false;
+
+    const touchesRamp = from.param === BRIDGE_LEVELS.ramp || to.param === BRIDGE_LEVELS.ramp;
+    const touchesGround = from.param === BRIDGE_LEVELS.ground || to.param === BRIDGE_LEVELS.ground;
+
+    // Ramp to ground, or back: only from the side.
+    if (touchesRamp && touchesGround) return step.y === 0;
+
+    return true;
+}
+
 export function buildBridgeMask(options = {}) {
-    const { width, height, radius, wobble, bandHalf, holeHalfW, holeHalfH } =
+    const { width, height, radius, wobble, halfMid, halfEnd, rampRows, holeHalfW, holeHalfH } =
         { ...BRIDGE_DEFAULTS, ...options };
     const cx = (width + 1) / 2;
     const cy = (height + 1) / 2;
@@ -504,15 +536,23 @@ export function buildBridgeMask(options = {}) {
         return distance <= radius * (1 - wobble * Math.cos(4 * Math.atan2(dy, dx)));
     };
 
-    const inBand = (x) => Math.abs(x - cx) <= bandHalf;
     const inHole = (x, y) => Math.abs(x - cx) <= holeHalfW && Math.abs(y - cy) <= holeHalfH;
 
-    // The deck runs the full height of the band; its end rows are the ramps.
+    // The deck runs the full height of the band; the rows at either end are the ramps.
     const bandRows = [];
     for (let y = 1; y <= height; y++) if (inArena(Math.round(cx), y)) bandRows.push(y);
-    const rampTop = bandRows[0];
-    const rampBottom = bandRows[bandRows.length - 1];
-    const elevated = (x, y) => inBand(x) && y > rampTop && y < rampBottom;
+    const bandTop = bandRows[0];
+    const bandBottom = bandRows[bandRows.length - 1];
+    const span = (bandBottom - bandTop) / 2;
+
+    // Parabolic taper: widest at the middle, pinched to halfEnd at both ends.
+    const halfAt = (y) => {
+        const t = (y - (bandTop + bandBottom) / 2) / span;
+        return halfMid - (halfMid - halfEnd) * t * t;
+    };
+    const inBand = (x, y) => Math.abs(x - cx) <= halfAt(y);
+    const onRamp = (y) => y < bandTop + rampRows || y > bandBottom - rampRows;
+    const elevated = (x, y) => inBand(x, y) && !onRamp(y);
 
     const cells = [];
     for (let y = 1; y <= height; y++) {
@@ -520,7 +560,7 @@ export function buildBridgeMask(options = {}) {
         for (let x = 1; x <= width; x++) {
             if (!inArena(x, y)) { row.push({ kind: CELL.WALL, branches: [] }); continue; }
 
-            if (inBand(x) && (y === rampTop || y === rampBottom)) {
+            if (inBand(x, y) && onRamp(y)) {
                 row.push({ kind: CELL.TRACK, branches: [BRIDGE_LEVELS.ramp] });
                 continue;
             }

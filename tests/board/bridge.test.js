@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     getBoardShape, BRIDGE_MASK, BRIDGE_LEVELS, BRIDGE_LINK_TOLERANCE,
-    buildBridgeMask, isDeckGap, cellKindAt, CELL,
+    buildBridgeMask, isDeckGap, cellKindAt, CELL, bridgeLink,
 } from '../../js/logic.js';
 import {
     stepFrom, strandsAt, isUnderneath, isOverlapCell, overlapCells,
@@ -48,12 +48,27 @@ describe('The Bridge arena', () => {
         expect(seen.size).toBe(graph.nodes.size);
     });
 
-    test('the deck overlaps the ground down the middle', () => {
+    test('the deck overlaps the ground in one unbroken band down the middle', () => {
         const overlaps = overlapCells(graph);
         expect(overlaps.length).toBeGreaterThan(50);
-        // All in one vertical band.
-        const columns = new Set(overlaps.map((c) => c.x));
-        expect(columns.size).toBeLessThanOrEqual(7);
+
+        // One band, not scattered: the columns it occupies are consecutive.
+        const columns = [...new Set(overlaps.map((c) => c.x))].sort((a, b) => a - b);
+        expect(columns[columns.length - 1] - columns[0] + 1).toBe(columns.length);
+        // And centred on the board.
+        const middle = (mask.width + 1) / 2;
+        expect((columns[0] + columns[columns.length - 1]) / 2).toBeCloseTo(middle, 1);
+    });
+
+    /* The deck swells through the middle and pinches at the ends, so its edges read as
+       curves. The pinch is what makes getting on and off it require lining up. */
+    test('the deck is wider in the middle than at its ends', () => {
+        const widthAtRow = (y) => overlapCells(graph).filter((c) => c.y === y).length;
+        const rows = [...new Set(overlapCells(graph).map((c) => c.y))].sort((a, b) => a - b);
+
+        const middle = widthAtRow(rows[Math.floor(rows.length / 2)]);
+        expect(middle).toBeGreaterThan(widthAtRow(rows[0]));
+        expect(middle).toBeGreaterThan(widthAtRow(rows[rows.length - 1]));
     });
 
     test('the board is square, so it needs no transposed twin', () => {
@@ -80,16 +95,42 @@ describe('Getting on and off the deck', () => {
        off it would be a tie between climbing onto the deck and dropping underneath, and
        the winner would be whichever strand happened to be listed first. */
     test('stepping off a ramp puts you on the deck, not underneath it', () => {
+        // The ramp that actually adjoins the deck, wherever the approach begins.
         const rampCells = cellsWhere((x, y) => {
             const cell = mask.cells[y - 1][x - 1];
             return cell.branches.length === 1 && cell.branches[0] === BRIDGE_LEVELS.ramp;
         });
         expect(rampCells.length).toBeGreaterThan(0);
 
-        const topRamp = rampCells[0];
-        const stepped = stepFrom(graph, { x: topRamp.x, y: topRamp.y, strand: 0 }, DOWN);
+        const adjoining = rampCells.find(({ x, y }) => isOverlapCell(graph, x, y + 1));
+        expect(adjoining).toBeDefined();
+
+        const stepped = stepFrom(graph, { x: adjoining.x, y: adjoining.y, strand: 0 }, DOWN);
         expect(stepped).not.toBeNull();
         expect(stepped.param).toBe(BRIDGE_LEVELS.deck);
+    });
+
+    /* Two rows deep at each end, so the approach is somewhere you can steer rather than
+       a single square you have to hit exactly. */
+    test('the approach at each end is more than one row deep', () => {
+        const rampRows = new Set(cellsWhere((x, y) => {
+            const cell = mask.cells[y - 1][x - 1];
+            return cell.branches.length === 1 && cell.branches[0] === BRIDGE_LEVELS.ramp;
+        }).map((c) => c.y));
+        expect(rampRows.size).toBeGreaterThanOrEqual(4); // two at the top, two at the bottom
+    });
+
+    // The entrance is deliberately narrow, but never narrower than two squares.
+    test('there are at least two squares to enter the bridge by', () => {
+        const rampCells = cellsWhere((x, y) => {
+            const cell = mask.cells[y - 1][x - 1];
+            return cell.branches.length === 1 && cell.branches[0] === BRIDGE_LEVELS.ramp;
+        });
+        const rows = [...new Set(rampCells.map((c) => c.y))].sort((a, b) => a - b);
+        const widthOf = (y) => rampCells.filter((c) => c.y === y).length;
+
+        expect(widthOf(rows[0])).toBeGreaterThanOrEqual(2);
+        expect(widthOf(rows[rows.length - 1])).toBeGreaterThanOrEqual(2);
     });
 
     test('a ramp can also be crossed along the ground', () => {
@@ -160,8 +201,8 @@ describe('The hole in the deck', () => {
 
 describe('Mask construction', () => {
     test('a wider band makes a wider deck', () => {
-        const narrow = buildBridgeMask({ bandHalf: 2 });
-        const wide = buildBridgeMask({ bandHalf: 4 });
+        const narrow = buildBridgeMask({ halfMid: 2 });
+        const wide = buildBridgeMask({ halfMid: 5 });
         const decks = (m) => m.cells.flat().filter((c) => c.branches.length > 1).length;
         expect(decks(narrow)).toBeLessThan(decks(wide));
     });
@@ -182,5 +223,74 @@ describe('Mask construction', () => {
         let diagonal = 0;
         while (isGround(Math.round(mid) - diagonal - 1, Math.round(mid) - diagonal - 1)) diagonal++;
         expect(diagonal * Math.SQRT2).toBeGreaterThan(vertical);
+    });
+});
+
+describe('The abutments at the ends of the bridge', () => {
+    const rampCells = () => cellsWhere((x, y) => {
+        const cell = mask.cells[y - 1][x - 1];
+        return cell.branches.length === 1 && cell.branches[0] === BRIDGE_LEVELS.ramp;
+    });
+
+    // The first deck row below the top ramp: standing under it, the ramp is the abutment.
+    const underTheAbutment = () => {
+        const ramps = rampCells().map((c) => c.y);
+        const lastTop = Math.max(...ramps.filter((y) => y < mask.height / 2));
+        const x = Math.round((mask.width + 1) / 2);
+        return { x, y: lastTop + 1 };
+    };
+
+    /* Without this the underside of the bridge has no wall at all: a snake could walk
+       the length of the underpass, reach the end and simply climb out, and nothing down
+       there could kill it but the perimeter. */
+    test('walking under the deck into the end of the bridge is blocked', () => {
+        const spot = underTheAbutment();
+        const onGround = nodeAt(graph, spot.x, spot.y, 0);
+        expect(onGround).not.toBeNull();
+        expect(onGround.param).toBe(BRIDGE_LEVELS.ground);
+        expect(stepFrom(graph, onGround, UP)).toBeNull();
+    });
+
+    test('but the same move from up on the deck leaves the bridge normally', () => {
+        const spot = underTheAbutment();
+        const onDeck = nodeAt(graph, spot.x, spot.y, 1);
+        expect(onDeck.param).toBe(BRIDGE_LEVELS.deck);
+        expect(stepFrom(graph, onDeck, UP)).not.toBeNull();
+    });
+
+    // The approach is from the side, which is what makes it distinguishable.
+    test('a ramp is still reached by stepping onto it sideways', () => {
+        const ramps = rampCells();
+        const row = ramps[0].y;
+        const leftmost = Math.min(...ramps.filter((c) => c.y === row).map((c) => c.x));
+
+        const beside = nodeAt(graph, leftmost - 1, row, 0);
+        expect(beside).not.toBeNull();
+        expect(stepFrom(graph, beside, RIGHT)).not.toBeNull();
+    });
+
+    test('the whole board is still reachable with the abutments in place', () => {
+        const key = (n) => `${n.x},${n.y},${n.strand}`;
+        const start = graph.nodes.values().next().value;
+        const seen = new Set([key(start)]);
+        const queue = [start];
+        while (queue.length) {
+            const node = queue.pop();
+            Object.values(node.neighbours).forEach((next) => {
+                if (!next || seen.has(key(next))) return;
+                seen.add(key(next));
+                queue.push(graph.nodes.get(key(next)));
+            });
+        }
+        expect(seen.size).toBe(graph.nodes.size);
+    });
+
+    test('the link rule blocks a ramp approached vertically from the ground', () => {
+        const ground = { param: BRIDGE_LEVELS.ground };
+        const ramp = { param: BRIDGE_LEVELS.ramp };
+        expect(bridgeLink(ground, ramp, { x: 0, y: -1 })).toBe(false);
+        expect(bridgeLink(ground, ramp, { x: 1, y: 0 })).toBe(true);
+        // Ramp to deck is along the bridge, so it stays vertical.
+        expect(bridgeLink(ramp, { param: BRIDGE_LEVELS.deck }, { x: 0, y: 1 })).toBe(true);
     });
 });
