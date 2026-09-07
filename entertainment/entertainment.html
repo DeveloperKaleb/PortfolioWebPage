@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260907-0019" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260907-0030" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -115,14 +115,27 @@
             <div class="butMania" id="toyDisplay">
             </div>
         </div>
+
+        <!-- Shown instead of a native alert() when a game ends. A browser dialog forces
+             the mobile toolbar back on screen and resets the scroll position, which
+             drags the nav bar into view and leaves the pad out of reach on the way back
+             in. This is fixed to the viewport, so nothing moves underneath it. -->
+        <div id="game-over" hidden>
+            <div id="game-over-panel" role="alertdialog" aria-labelledby="game-over-message">
+                <p id="game-over-message"></p>
+                <p id="game-over-score"></p>
+                <button type="button" id="play-again">Play Again</button>
+                <button type="button" id="game-over-back" data-back>Back to Entertainment</button>
+            </div>
+        </div>
     </main>
 
     <footer id="global-footer" class="wrapper">
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-0019"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-0019"></script>
-    <script type="module" src="./entertainment.js?v=20260907-0019"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260907-0030"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260907-0030"></script>
+    <script type="module" src="./entertainment.js?v=20260907-0030"></script>
 </body>
 </html>

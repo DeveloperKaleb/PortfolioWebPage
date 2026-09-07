@@ -398,3 +398,36 @@ a browser spends deciding whether a tap was the first of two, so painting the Ar
 feels immediate. `manipulation` rather than `none` there, because the page still needs
 panning and pinch-zoom; never set `user-scalable=no` on the viewport, which would take
 pinch-zoom away from anyone who needs it.
+
+## Never dim a control with opacity
+
+`opacity: 0.5` on the disabled Start button and mode dropdown shipped, and the labels
+became unreadable — measured at roughly **1.6:1**. Opacity scales the text toward the
+background along with everything else, so it destroys exactly the contrast the rules
+elsewhere in this file exist to protect.
+
+Disabled state now comes from muted *colours* — `#b9bba4` behind `#2f2a1f`, 7.18:1 —
+with the values in `UI_COLORS` in `js/logic.js` and asserted in `tests/contrast/`. The
+signal is that the control looks drained, not that its label disappears.
+
+`-webkit-text-fill-color` has to be set alongside `color`: WebKit dims disabled text by
+its own rule, which out-ranks a plain `color` declaration.
+
+## The end-of-game dialog is in-page, not alert()
+
+A native `alert()` on a phone forces the browser toolbar back on screen and resets the
+scroll position. The visible effect is the nav bar reappearing and the pad scrolling out
+of reach, which makes retrying a game slow — you have to scroll back down before you can
+play again.
+
+`#game-over` is fixed to the viewport, so nothing behind it moves, and it puts Play Again
+under the thumb rather than at the top of the page. `focus({ preventScroll: true })` on
+that button matters: a plain `focus()` scrolls its target into view and would reintroduce
+the jump this exists to remove.
+
+It needs `:not([hidden])` on the `display: flex` rule for the same reason the game views
+do — `display` on a bare selector out-specifies the `hidden` attribute, and the dialog
+would never close.
+
+Side benefit: browser dialogs block everything, including the automation used to check
+game behaviour. Nothing in the entertainment page calls `alert()` any more.

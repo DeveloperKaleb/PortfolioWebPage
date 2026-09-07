@@ -190,12 +190,21 @@ footer li + li {
     font-size: 16px;
 }
 
-/* Disabled mid-game (see setSnakeControlsEnabled): dimmed enough to read as
-   unavailable, not so dim it looks like a rendering fault. */
+/* Disabled mid-game (see setGameControlsEnabled). Muted, not dimmed: opacity: 0.5
+   scales the text down with the background and took the label to about 1.6:1, which
+   is why these became unreadable. "Unavailable" now comes from the colour being
+   drained while the text stays at 7.18:1.
+
+   Keep in step with UI_COLORS in js/logic.js, which is where these are asserted.
+   -webkit-text-fill-color is needed as well: WebKit dims disabled text by its own
+   rule, which out-ranks a plain colour. */
 #modeSelect:disabled,
 #startBtn:disabled,
 #tetrisStartBtn:disabled {
-    opacity: 0.5;
+    background-color: #b9bba4;
+    color: #2f2a1f;
+    -webkit-text-fill-color: #2f2a1f;
+    opacity: 1;
     cursor: not-allowed;
 }
 
@@ -584,4 +593,60 @@ a:active  {color: #002e2c;}
         transparent 0 3px,
         rgba(59, 48, 38, 0.38) 3px 5px
     );
+}
+
+/* --- End of game dialog --- */
+/* Replaces alert(). A native dialog on a phone forces the browser toolbar back on
+   screen and resets the scroll position, so the nav bar reappears and the pad ends up
+   scrolled away - a slow way back into a game you want to retry immediately. Fixed to
+   the viewport, this moves nothing behind it and Play Again lands under the thumb.
+
+   :not([hidden]) for the same reason the game views need it - display: flex would
+   otherwise out-specify the hidden attribute and the dialog would never close. */
+#game-over:not([hidden]) {
+    display: flex;
+}
+
+#game-over {
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10;
+}
+
+/* Colours match UI_COLORS.dialog* in js/logic.js, where they are contrast-checked. */
+#game-over-panel {
+    background: #002e2c;
+    color: #eff1c5;
+    border: 2px solid #dfe38c;
+    border-radius: 8px;
+    padding: 24px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+}
+
+#game-over-message {
+    font-size: 18px;
+    margin: 0 0 8px;
+}
+
+#game-over-score {
+    margin: 0 0 20px;
+    color: #dfe38c;
+}
+
+#play-again,
+#game-over-back {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+}
+
+#play-again {
+    margin-bottom: 10px;
 }

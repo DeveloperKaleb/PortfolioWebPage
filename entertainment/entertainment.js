@@ -44,8 +44,10 @@ const views = {
 function showView(name) {
     // Leaving a view abandons whatever was running in it. Hiding a game does not
     // stop its setInterval, so an abandoned game kept playing itself in the
-    // background and eventually hit its own game-over - firing a blocking alert()
-    // into the middle of whichever game you had moved on to.
+    // background and eventually hit its own game-over - throwing its end-of-game
+    // dialog over whichever game you had moved on to. That was a blocking alert()
+    // when this was written; the dialog is in-page now, but an abandoned game
+    // interrupting a live one is no better for being prettier.
     stopAllGames();
     hub.hidden = Boolean(name);
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
@@ -136,6 +138,33 @@ function setGameControlsEnabled(enabled) {
     });
 }
 
+/* The end-of-game dialog. It replaces alert(), which on a phone forced the browser
+   toolbar back on screen and reset the scroll position - the nav bar reappearing and
+   the pad scrolling out of reach. Being fixed to the viewport, this moves nothing. */
+const gameOverEl = document.getElementById('game-over');
+let restartCurrentGame = null;
+
+function showGameOver(message, score, restart) {
+    restartCurrentGame = restart;
+    document.getElementById('game-over-message').textContent = message;
+    document.getElementById('game-over-score').textContent = 'Final Score: ' + score;
+    gameOverEl.hidden = false;
+    // preventScroll: focusing normally scrolls the target into view, which would undo
+    // the very thing this dialog exists to avoid.
+    document.getElementById('play-again').focus({ preventScroll: true });
+}
+
+function hideGameOver() {
+    gameOverEl.hidden = true;
+    restartCurrentGame = null;
+}
+
+document.getElementById('play-again').addEventListener('click', () => {
+    const restart = restartCurrentGame;
+    hideGameOver();
+    if (restart) restart();
+});
+
 const selectedMode = () => {
     const modeSelect = document.getElementById('modeSelect');
     return modeSelect ? modeSelect.value : 'classic';
@@ -221,6 +250,7 @@ function initSnakeGame() {
     drawFrame();
     gameInterval = setInterval(gameStep, 150);
     setGameControlsEnabled(false);
+    hideGameOver();
 }
 
 /**
@@ -376,7 +406,7 @@ function gameOver(reason = '') {
             displayMessage = "System Overload.";
     }
 
-    alert(`${displayMessage}\nFinal Score: ${score}`);
+    showGameOver(displayMessage, score, initSnakeGame);
 }
 
 
@@ -406,6 +436,7 @@ function initTetrisGame() {
     drawTetrisFrame(); 
     tetrisInterval = setInterval(tetrisStep, 500);
     setGameControlsEnabled(false);
+    hideGameOver();
 }
 
 /**
@@ -535,7 +566,7 @@ function gameOverTetris() {
     clearInterval(tetrisInterval);
     tetrisInterval = null;
     setGameControlsEnabled(true);
-    alert(`Matrix Critical Failure! Final Score: ${tetrisScore}`);
+    showGameOver('Matrix Critical Failure!', tetrisScore, initTetrisGame);
     
     // Optional: Visual feedback like "graying out" the board
 }
@@ -722,6 +753,7 @@ function stopAllGames() {
     // which would otherwise leave its repeat timer running against the next game.
     stopRepeat();
     setGameControlsEnabled(true);
+    hideGameOver();
 
     clearInterval(gameInterval);
     gameInterval = null;

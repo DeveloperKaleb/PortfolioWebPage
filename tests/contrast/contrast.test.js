@@ -7,7 +7,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, UI_COLORS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -90,6 +90,20 @@ describe('Layered snake colours', () => {
 
     test('the underneath colour still clears the contrast floor', () => {
         expect(worstCaseContrast(SNAKE_COLORS.bodyUnder, '#ffffff'))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+});
+
+describe('UI chrome colours', () => {
+    // A disabled control is still something a player has to read. This exists because
+    // opacity: 0.5 shipped and took the labels to roughly 1.6:1.
+    test('disabled control text is readable against its background', () => {
+        expect(worstCaseContrast(UI_COLORS.disabledText, UI_COLORS.disabledBackground))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test('dialog text is readable against the dialog', () => {
+        expect(worstCaseContrast(UI_COLORS.dialogText, UI_COLORS.dialogBackground))
             .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 });

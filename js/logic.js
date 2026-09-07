@@ -129,6 +129,17 @@ export const TETRIS_COLORS = {
     'Z': '#e08a4f', // Amber      - warm, high on the yellow axis
 };
 
+/* Chrome around the games. Held to the same rules as the boards: a disabled control
+   still has to be readable. Dimming one with opacity: 0.5 took its text to about
+   1.6:1 - "unavailable" has to come from the colour being muted, not from the label
+   becoming illegible. */
+export const UI_COLORS = {
+    disabledBackground: '#b9bba4', // Muted Olive Grey
+    disabledText: '#2f2a1f',       // Near Black
+    dialogBackground: '#002e2c',   // Deep Teal
+    dialogText: '#eff1c5',         // Cream
+};
+
 // Snake is drawn on white cells, so its colours are the dark end of the range.
 export const SNAKE_COLORS = {
     head: '#002e2c',      // Deep Teal
