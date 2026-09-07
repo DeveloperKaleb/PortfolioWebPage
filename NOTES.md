@@ -770,3 +770,40 @@ To confirm it is only this, check what the server is actually serving:
 
 If those agree, the deployment is correct and the phone is holding a stale document.
 Waiting it out or a hard refresh clears it.
+
+## The Minesweeper board is deliberately not `.butMania`
+
+Cells rendered at different widths, the right-hand column fattest, digits pushed to the
+right, and a horizontal scrollbar under the board. All one cause, and it was **not**
+subpixel rounding, which is where I looked first.
+
+`#mineDisplay` carried `class="butMania"` alongside its own id, so it inherited
+`.butMania button` — `width: 30px`, `height: 30px`, `margin: 1px`, a yellow border. That
+selector scores **(0,1,1)** against `.mine-cell` at **(0,1,0)**, so it won. 30px buttons
+were being packed into 14px grid tracks: they overflowed rightward and overlapped, and
+each digit *was* centred — in a 30px box of which only the left 14px was visible.
+
+It only showed on the 20×20 board because at 10×10 the track is about 31px and a 30px
+button very nearly fits. The bug was there the whole time; the small board hid it.
+
+The board now carries only its id. `.mine-cell` owns all of its own styling, including
+`touch-action: manipulation`, which has to be on the cell rather than the board because
+`touch-action` applies to the element a gesture *starts* on.
+
+**The general trap:** giving a new component a shared layout class "for consistency"
+imports every descendant rule that class carries, and a single-class selector loses to
+any of them that also names an element. If a component defines its own layout, give it
+its own class and let it own its rules.
+
+## Whole-pixel cell sizes
+
+Kept from the first attempt at the above, because it is right on its own terms even
+though it was not the bug. `--mine-cell` is rounded down to whole pixels and the
+container width is stated as tracks plus gaps rather than left to `fit-content`, so no
+column absorbs leftover slack.
+
+**The rounding sits in an `@supports` block, and has to.** The usual two-declaration
+fallback does not work for a custom property: a browser without `round()` still accepts
+the declaration, because custom properties take almost any token stream, and only fails
+when the value is *used* — leaving `grid-template-columns` invalid and collapsing the
+grid entirely. A feature query is the only safe way to do it.

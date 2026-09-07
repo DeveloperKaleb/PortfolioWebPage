@@ -823,16 +823,35 @@ a:active  {color: #002e2c;}
        keep cells tappable, it just guarantees the board overflows. A 20-wide board on a
        375px screen lands at about 15px a cell, which is small but reachable, and the
        whole board stays on screen where a scrolling one would be far worse. */
-    --mine-cell: max(12px, min(
+    /* What would fit, before rounding - usually a fraction of a pixel. */
+    --mine-fit: max(12px, min(
         calc((100vw - 40px - (var(--mine-cols) - 1) * 2px) / var(--mine-cols)),
         calc((52vh - (var(--mine-rows) - 1) * 2px) / var(--mine-rows)),
         40px
     ));
 
+    /* Whole pixels, because a fractional track size makes the columns visibly
+       different widths. At 20 columns the cell works out near 14.85px, and the browser
+       snaps each track to the device pixel grid on its own: some land a pixel wider
+       than others, and whatever slack is left over collects in the last column. The
+       right-hand column ends up noticeably fatter than the rest. At 10 columns the
+       error is small enough not to show, which is why this only appeared on the big
+       board.
+
+       The rounding is applied in an @supports block below rather than as a second
+       declaration here. The usual two-declaration fallback does not work for a custom
+       property: a browser without round() still accepts the declaration, because custom
+       properties take almost any tokens, and only fails when the value is used - which
+       would leave grid-template-columns invalid and destroy the layout rather than
+       falling back to it. A feature query is the only safe way round. */
+    --mine-cell: var(--mine-fit);
+
     display: grid;
     grid-template-columns: repeat(var(--mine-cols), var(--mine-cell));
     gap: 2px;
-    width: fit-content;
+    /* Stated rather than left to fit-content, so the container is exactly the tracks
+       plus the gaps and there is no spare width for a column to absorb. */
+    width: calc(var(--mine-cols) * var(--mine-cell) + (var(--mine-cols) - 1) * 2px);
     margin: 20px auto 30px;
     padding: 6px;
     /* Nothing is read against the frame - the cells sit on top with their own
@@ -844,9 +863,21 @@ a:active  {color: #002e2c;}
     touch-action: manipulation;
 }
 
+/* These rules are the whole story for a cell now. The board also carried the
+   .butMania class, and that stylesheet's rule for buttons inside one scores (0,1,1)
+   against this selector's (0,1,0) - so it quietly won width, height, margin and
+   border. 30px buttons were being packed into 14px grid tracks, overflowing
+   rightward and overlapping each other. The digits looked right-aligned because each
+   was centred in a 30px box of which only the left 14px was visible. It surfaced on
+   the 20x20 board first because at 10x10 the track is about 31px and a 30px button
+   very nearly fits. */
 .mine-cell {
     width: var(--mine-cell);
     height: var(--mine-cell);
+    text-align: center;
+    /* Kills double-tap zoom. touch-action applies to the element a gesture starts on,
+       so setting it on the board is not enough - the taps land on these. */
+    touch-action: manipulation;
     padding: 0;
     margin: 0;
     border: none;
@@ -877,7 +908,14 @@ a:active  {color: #002e2c;}
     /* Mirrors MINE_GRADIENTS.revealed. The numbers are read against this, so both
        stops are checked - the lowest tier still manages 4.56:1 at the dark end. */
     background: linear-gradient(#e6e9dc, #d3d8c6);
-    /* Cleared ground sits back; unopened ground keeps its raised edge. */
+    /* Whole-pixel cells, where the browser can do the arithmetic. */
+@supports (width: round(down, 1.5px, 1px)) {
+    #mineDisplay {
+        --mine-cell: round(down, var(--mine-fit), 1px);
+    }
+}
+
+/* Cleared ground sits back; unopened ground keeps its raised edge. */
     box-shadow: none;
 }
 
