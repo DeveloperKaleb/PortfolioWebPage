@@ -361,8 +361,8 @@ const MASKS = {
 
    A function rather than an object because the Bridge constants are declared further
    down the file: an object literal here would read them before they exist. */
-const graphOptionsFor = (mode) =>
-    (mode === 'bridge' ? { link: bridgeLink } : undefined);
+const graphOptionsFor = (mode, mask) =>
+    (mode === 'bridge' ? { link: makeBridgeLink(mask) } : undefined);
 
 // Built once each - the graphs never change, and rebuilding per game would be waste.
 const graphCache = new Map();
@@ -372,7 +372,7 @@ export function getBoardShape(mode, orientation = 'horizontal') {
     const mask = maskFor(orientation);
     const cacheKey = `${mode}:${orientation}`;
 
-    if (!graphCache.has(cacheKey)) graphCache.set(cacheKey, buildStrandGraph(mask, graphOptionsFor(mode)));
+    if (!graphCache.has(cacheKey)) graphCache.set(cacheKey, buildStrandGraph(mask, graphOptionsFor(mode, mask)));
     const graph = graphCache.get(cacheKey);
 
     // Classic and Donut keep the start they have always had; a crossing map has no
@@ -482,12 +482,12 @@ const BRIDGE_DEFAULTS = {
     radius: 10.4,
     wobble: 0.1,     // how far the arena's sides bow inward
 
-    /* The deck is not a straight band - it swells through the middle and pinches at
-       either end, so its edges read as curves rather than rails. halfEnd of 1 leaves
-       exactly two squares to enter by, which is the width the bridge was asked to have
-       at top and bottom: tight enough to need lining up for, wide enough to be fair. */
-    halfMid: 4,
-    halfEnd: 1,
+    /* The deck is not a straight band. It is broad where it meets the ground and drawn
+       in at the waist, so its edges read as curves - an hourglass rather than a barrel.
+       Wide ends make it easy to get onto and easy to leave; the pinch is the part that
+       asks something of you, and it sits where the hole is. */
+    halfMid: 2.5,
+    halfEnd: 4.5,
     rampRows: 2,     // how deep the ground-level approach is at each end
 
     holeHalfW: 1,
@@ -497,28 +497,36 @@ const BRIDGE_DEFAULTS = {
 export const BRIDGE_LEVELS = { ground: 0, ramp: 0.6, deck: 1 };
 export const BRIDGE_LINK_TOLERANCE = 0.6;
 
-/* Levels connect by nearness, with one extra rule: a ramp is reached from beside it,
-   never from directly beneath.
+/* Levels connect by nearness, with one extra rule about ramps.
  *
- * Without that, a snake walking along under the deck could arrive at the far end and
- * simply climb out - there would be nothing under a bridge to hit but the perimeter.
- * The abutment is the wall at the end of the underpass, and it is the direction of
- * travel that distinguishes walking up a ramp from walking into the end of one.
+ * A ramp meets the ground at its outer end, and that is where you walk onto it - from
+ * the side, or straight on from beyond the end of the bridge. What you cannot do is
+ * come at one from underneath: walking along the underpass and arriving at the far end
+ * puts you against the abutment, not on a slope up.
  *
- * A sideways step onto a ramp is the approach; both ramp rows accept one, which is the
- * two rows of approach the bridge is built with. */
+ * Without that the underside of the bridge has no wall at all, and a snake down there
+ * can only be killed by the perimeter.
+ *
+ * The two are the same pair of levels, so the geometry has to separate them: a ground
+ * square inside the deck's span is beneath the bridge, one outside it is past the end.
+ * Which is why this is built from the mask rather than being a constant. */
 const levelsLink = linkByLevel(BRIDGE_LINK_TOLERANCE);
 
-export function bridgeLink(from, to, step) {
-    if (!levelsLink(from, to)) return false;
+export function makeBridgeLink({ deckTop, deckBottom }) {
+    return function bridgeLink(from, to, step) {
+        if (!levelsLink(from, to)) return false;
 
-    const touchesRamp = from.param === BRIDGE_LEVELS.ramp || to.param === BRIDGE_LEVELS.ramp;
-    const touchesGround = from.param === BRIDGE_LEVELS.ground || to.param === BRIDGE_LEVELS.ground;
+        const touchesRamp = from.param === BRIDGE_LEVELS.ramp || to.param === BRIDGE_LEVELS.ramp;
+        const touchesGround = from.param === BRIDGE_LEVELS.ground || to.param === BRIDGE_LEVELS.ground;
+        if (!touchesRamp || !touchesGround) return true;
 
-    // Ramp to ground, or back: only from the side.
-    if (touchesRamp && touchesGround) return step.y === 0;
+        // Sideways onto a ramp is always the approach.
+        if (step.y === 0) return true;
 
-    return true;
+        // Head on, only from past the end of the bridge - never from under the deck.
+        const ground = from.param === BRIDGE_LEVELS.ground ? from : to;
+        return ground.y < deckTop || ground.y > deckBottom;
+    };
 }
 
 export function buildBridgeMask(options = {}) {
@@ -543,15 +551,24 @@ export function buildBridgeMask(options = {}) {
     for (let y = 1; y <= height; y++) if (inArena(Math.round(cx), y)) bandRows.push(y);
     const bandTop = bandRows[0];
     const bandBottom = bandRows[bandRows.length - 1];
-    const span = (bandBottom - bandTop) / 2;
 
-    // Parabolic taper: widest at the middle, pinched to halfEnd at both ends.
+    /* The taper is measured across the raised deck, not the whole band, so the widest
+       point falls where the deck begins and ends rather than out on the approach. */
+    const deckTop = bandTop + rampRows;
+    const deckBottom = bandBottom - rampRows;
+    const span = (deckBottom - deckTop) / 2;
+    const middle = (deckTop + deckBottom) / 2;
+
+    // Parabolic: pinched to halfMid at the waist, opening to halfEnd at either end.
     const halfAt = (y) => {
-        const t = (y - (bandTop + bandBottom) / 2) / span;
-        return halfMid - (halfMid - halfEnd) * t * t;
+        const t = Math.min(1, Math.abs(y - middle) / span);
+        return halfMid + (halfEnd - halfMid) * t * t;
     };
-    const inBand = (x, y) => Math.abs(x - cx) <= halfAt(y);
-    const onRamp = (y) => y < bandTop + rampRows || y > bandBottom - rampRows;
+
+    /* Clamped to the band's own rows. Without it the widening runs away past the ends
+       of the bridge and swallows the scraps of ground in the arena's corners. */
+    const inBand = (x, y) => y >= bandTop && y <= bandBottom && Math.abs(x - cx) <= halfAt(y);
+    const onRamp = (y) => y < deckTop || y > deckBottom;
     const elevated = (x, y) => inBand(x, y) && !onRamp(y);
 
     const cells = [];
@@ -576,7 +593,7 @@ export function buildBridgeMask(options = {}) {
         cells.push(row);
     }
 
-    return { width, height, cells };
+    return { width, height, cells, deckTop, deckBottom };
 }
 
 export const BRIDGE_MASK = buildBridgeMask();

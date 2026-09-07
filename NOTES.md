@@ -950,32 +950,43 @@ the bridge is optional — you can play the whole board without ever going up. T
 different axis from Infinity's constrained ribbon rather than a step below it, and worth
 a verdict from play rather than from the node count.
 
-### The deck is tapered, and the ends are abutments
+### The deck is an hourglass, and the ends are abutments
 
-Two corrections after the first play-test.
+Both from play-testing, and both corrections to my first reading of the sketch.
 
-**The deck swells through the middle and pinches at the ends** (`halfMid: 4`,
-`halfEnd: 1`, parabolic between), so its edges read as curves rather than rails. The
-pinch leaves exactly **two squares to enter by** at top and bottom — tight enough to
-need lining up for, wide enough to be fair — and the approach is `rampRows: 2` deep so
-it is somewhere you can steer rather than one square to hit exactly.
+**The deck is broad where it meets the ground and drawn in at the waist** — `halfEnd: 4.5`
+down to `halfMid: 2.5`, parabolic between, 10 squares wide at either end and 6 through
+the middle. I built it the other way round first, barrel rather than hourglass, from
+misreading which way the drawn curves bowed. Wide ends make it easy to get onto and
+easy to leave; the pinch is the part that asks something of you, and it sits where the
+hole is.
 
-**A ramp is reached from beside it, never from directly beneath.** That is the
-abutment, and without it the underside of the bridge had no wall at all: a snake could
-walk the length of the underpass, reach the far end and simply climb out. Nothing down
-there could kill it but the perimeter, which is what the first play-test found.
+The taper is measured across **the raised deck**, not the whole band, so the widest
+point lands where the deck begins rather than out on the approach. `inBand` is also
+clamped to the band's own rows: without that the widening runs away past the ends of the
+bridge and swallows the scraps of ground in the arena's corners.
 
-The rule is directional, which is why the `link` seam takes the step as well as the two
-nodes:
+**A ramp is reached from beside it, or head-on from past the end of the bridge — never
+from underneath.** That is the abutment. Without it the underside had no wall at all: a
+snake could walk the length of the underpass, reach the far end and climb straight out,
+and nothing down there could kill it but the perimeter. That is what the first
+play-test found.
+
+The first attempt at the rule was too blunt — it blocked *every* vertical step between
+ground and ramp, including the legitimate approach onto the ramp's outer end, which
+stranded the corner scraps of ground with no way onto the board. Both moves are the same
+pair of levels, so only the geometry separates them:
 
 ```js
-if (touchesRamp && touchesGround) return step.y === 0;
+if (step.y === 0) return true;                              // from the side
+const ground = from.param === GROUND ? from : to;
+return ground.y < deckTop || ground.y > deckBottom;         // past the end, not beneath
 ```
 
-A sideways step onto a ramp is the approach; a step up into one from underneath is
-walking into the end of the bridge. Both are the same pair of levels, so nothing but the
-direction of travel separates them. It reports as `UNDERPASS` — "Structural Impact: Hit
-the underpass wall" — which is exactly what an abutment is.
+Which is why the rule is built from the mask rather than being a constant, and why
+`buildBridgeMask` returns `deckTop` and `deckBottom` alongside the cells.
 
-Note this does **not** disconnect anything: the ground under the deck is still reached
-from either side, and the reachability test covers it.
+It reports as `UNDERPASS` — "Structural Impact: Hit the underpass wall" — which is what
+an abutment is. **The reachability test is what caught the over-blocking**, and is worth
+running against any change to a link rule: a rule that is too permissive makes a boring
+map, but one that is too strict silently strands part of the board.

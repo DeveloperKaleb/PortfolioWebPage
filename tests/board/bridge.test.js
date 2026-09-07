@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     getBoardShape, BRIDGE_MASK, BRIDGE_LEVELS, BRIDGE_LINK_TOLERANCE,
-    buildBridgeMask, isDeckGap, cellKindAt, CELL, bridgeLink,
+    buildBridgeMask, isDeckGap, cellKindAt, CELL, makeBridgeLink, BRIDGE_MASK as MASK,
 } from '../../js/logic.js';
 import {
     stepFrom, strandsAt, isUnderneath, isOverlapCell, overlapCells,
@@ -60,15 +60,26 @@ describe('The Bridge arena', () => {
         expect((columns[0] + columns[columns.length - 1]) / 2).toBeCloseTo(middle, 1);
     });
 
-    /* The deck swells through the middle and pinches at the ends, so its edges read as
-       curves. The pinch is what makes getting on and off it require lining up. */
-    test('the deck is wider in the middle than at its ends', () => {
+    /* An hourglass: broad where the deck meets the ground, drawn in at the waist, so its
+       edges read as curves. The pinch sits where the hole is, which is where the deck
+       asks something of you. */
+    test('the deck is pinched at the waist and broad at its ends', () => {
         const widthAtRow = (y) => overlapCells(graph).filter((c) => c.y === y).length;
         const rows = [...new Set(overlapCells(graph).map((c) => c.y))].sort((a, b) => a - b);
 
-        const middle = widthAtRow(rows[Math.floor(rows.length / 2)]);
-        expect(middle).toBeGreaterThan(widthAtRow(rows[0]));
-        expect(middle).toBeGreaterThan(widthAtRow(rows[rows.length - 1]));
+        const waist = widthAtRow(rows[Math.floor(rows.length / 2)]);
+        expect(waist).toBeLessThan(widthAtRow(rows[0]));
+        expect(waist).toBeLessThan(widthAtRow(rows[rows.length - 1]));
+    });
+
+    // Even pinched, there is deck to either side of the hole to get past it on.
+    test('the waist is wider than the hole', () => {
+        const waistRow = Math.round((mask.height + 1) / 2);
+        const deckWidth = overlapCells(graph).filter((c) => c.y === waistRow).length;
+        const holeWidth = gaps().filter((c) => c.y === waistRow).length;
+        // overlapCells already excludes the hole, so this is the deck either side of it.
+        expect(deckWidth).toBeGreaterThanOrEqual(4);
+        expect(holeWidth).toBeGreaterThan(0);
     });
 
     test('the board is square, so it needs no transposed twin', () => {
@@ -285,12 +296,18 @@ describe('The abutments at the ends of the bridge', () => {
         expect(seen.size).toBe(graph.nodes.size);
     });
 
-    test('the link rule blocks a ramp approached vertically from the ground', () => {
-        const ground = { param: BRIDGE_LEVELS.ground };
-        const ramp = { param: BRIDGE_LEVELS.ramp };
-        expect(bridgeLink(ground, ramp, { x: 0, y: -1 })).toBe(false);
-        expect(bridgeLink(ground, ramp, { x: 1, y: 0 })).toBe(true);
-        // Ramp to deck is along the bridge, so it stays vertical.
-        expect(bridgeLink(ramp, { param: BRIDGE_LEVELS.deck }, { x: 0, y: 1 })).toBe(true);
+    /* The same pair of levels either way, so only the geometry separates them: ground
+       inside the deck's span is beneath the bridge, ground outside it is past the end. */
+    test('the link rule tells the abutment from the approach', () => {
+        const link = makeBridgeLink(MASK);
+        const ramp = { param: BRIDGE_LEVELS.ramp, y: MASK.deckTop - 1 };
+        const under = { param: BRIDGE_LEVELS.ground, y: MASK.deckTop + 2 };
+        const beyond = { param: BRIDGE_LEVELS.ground, y: MASK.deckTop - 2 };
+
+        expect(link(under, ramp, { x: 0, y: -1 })).toBe(false);   // abutment
+        expect(link(beyond, ramp, { x: 0, y: 1 })).toBe(true);    // walking on from the end
+        expect(link(under, ramp, { x: 1, y: 0 })).toBe(true);     // and from the side
+        // Ramp to deck runs along the bridge, so it stays vertical.
+        expect(link(ramp, { param: BRIDGE_LEVELS.deck, y: MASK.deckTop }, { x: 0, y: 1 })).toBe(true);
     });
 });
