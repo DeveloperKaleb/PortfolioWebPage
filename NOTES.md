@@ -632,7 +632,7 @@ editing one, because a cascade that half-applied itself would be miserable to de
 
 **Winning means the board is finished, not merely survived**: every safe square open
 AND every mine flagged. Clearing the last safe square used to end it, which stopped the
-game while the player still had flags in hand. Both  and  can now be
+game while the player still had flags in hand. Both `reveal` and `toggleFlag` can now be
 the winning move, so both settle the status.
 
 The flags are not checked for correctness, and do not need to be: a flag can only sit on
@@ -642,7 +642,7 @@ mines. The right *count* of flags can only mean the right flags.
 One consequence: a player who clears the board but has not flagged everything is still
 in play, and can still lose by opening a mine. Before, they would already have won.
 
-The counter is , named for what it counts. It goes down on any flag,
+The counter is `flagsRemaining`, named for what it counts. It goes down on any flag,
 right or wrong - the game must not leak which mistakes the player has made.
 
 **Mines are placed on the first click, not before**, and never on it or beside it. An
