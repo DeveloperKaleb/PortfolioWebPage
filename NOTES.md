@@ -503,3 +503,32 @@ Two consequences of that situation, both currently by design rather than by deci
 - **The head has no underneath colour.** `SNAKE_COLORS` has `bodyUnder` but no
   `headUnder`, so a head that is below (and not occluded) looks the same as one on top.
   Being underneath is signalled by the body and the hatch, not the head.
+
+### The d-pad's dead corners
+
+A cross in a 3×3 grid leaves the four corner cells belonging to no button. With each
+button reaching only along its own axis plus a little across, that left a **64px dead
+square diagonally out from the centre** — `down` stopped at x=146, `right` stopped at
+y=146, and the cell between them (148–212, 148–212) was nobody's. It is where a thumb
+lands reaching down and slightly across, and **no amount of perpendicular expansion
+reaches it**, because it is diagonal from both neighbours. Symmetric fuzziness cannot
+fix a diagonal gap; this was reported as "missing right of the down button" after two
+rounds of widening had failed to help.
+
+Up and down now take the **full width of their row** (`--pad-span`) instead of a margin
+either side. Anything in the top band is up, anything in the bottom band is down, and
+left and right keep the middle band. The three bands are separated by the grid gaps, so
+nothing overlaps.
+
+It has to be the vertical pair that spreads, not the horizontal one — both cannot, or
+they would contest the corners. Vertical wins because left and right already reach
+outward toward the edges of the screen, where there is nothing to collide with, so they
+are the pair already well served.
+
+**The centre of the cross stays dead deliberately.** A tap there is genuinely ambiguous,
+and on a d-pad guessing is worse than ignoring: a wrong guess turns you the wrong way.
+
+Geometry now comes from `--pad-size`, `--pad-gap`, `--pad-reach` and `--pad-perp`, with
+`--pad-span` derived from them, so changing the button size or gap no longer silently
+invalidates the reaches. The Tetris row is unaffected — its buttons are all in one row
+with no corner cells, and `--pad-perp: 4px` still applies there.

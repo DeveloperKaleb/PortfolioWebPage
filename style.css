@@ -434,9 +434,16 @@ a:active  {color: #002e2c;}
    Chrome's device toolbar reports a coarse pointer, so device emulation shows
    these the same way a real phone does. */
 .touch-pad {
+    --pad-size: 64px;
+    --pad-gap: 10px;
+    --pad-reach: 20px;  /* along a button's own axis */
+    --pad-perp: 8px;    /* across it */
+    /* Far enough to swallow the neighbouring column and still reach past the pad. */
+    --pad-span: calc(var(--pad-size) + var(--pad-gap) + var(--pad-reach));
+
     display: none;
     justify-content: center;
-    gap: 10px;
+    gap: var(--pad-gap);
     margin: 0 auto 30px;
     /* The pad is the one place on the page a stray drag shouldn't scroll or
        zoom - every gesture here is meant for the game. */
@@ -456,8 +463,8 @@ a:active  {color: #002e2c;}
 }
 
 .pad-btn {
-    width: 64px;
-    height: 64px;
+    width: var(--pad-size);
+    height: var(--pad-size);
     font-size: 24px;
     background: #002e2c;
     color: #eff1c5;
@@ -512,11 +519,6 @@ a:active  {color: #002e2c;}
        horizontal neighbours splitting a single 10px gap, so 4px each is all that fits
        without them contesting the same pixels. Getting this wrong does not miss a tap,
        it resolves one to the wrong button. */
-    .touch-pad {
-        --pad-reach: 20px;
-        --pad-perp: 8px;
-    }
-
     .touch-pad-row {
         --pad-perp: 4px;
     }
@@ -543,6 +545,29 @@ a:active  {color: #002e2c;}
         right: calc(-1 * var(--pad-reach));
         top: calc(-1 * var(--pad-perp));
         bottom: calc(-1 * var(--pad-perp));
+    }
+
+    /* The d-pad is a cross inside a 3x3 grid, so the four corner cells belong to no
+       button. That left a 64px dead square diagonally out from the centre - the place
+       a thumb lands reaching down and slightly across, and unreachable by any amount
+       of perpendicular expansion, because it is diagonal from both neighbours.
+
+       Up and down therefore take the full width of their row rather than a margin
+       either side. Anything in the top band means up, anything in the bottom band
+       means down, and left and right keep the middle band. Nothing overlaps: the three
+       bands are separated by the 10px gaps.
+
+       It has to be up and down that spread, not left and right - both cannot, or they
+       would contest the corners. Vertical wins because the horizontal buttons already
+       reach outward toward the edges of the screen, where there is nothing to collide
+       with, so they are the pair already well served.
+
+       The centre of the cross stays dead on purpose: a tap there is genuinely
+       ambiguous, and guessing is worse than ignoring it. */
+    .touch-pad-dpad [data-action="up"]::after,
+    .touch-pad-dpad [data-action="down"]::after {
+        left: calc(-1 * var(--pad-span));
+        right: calc(-1 * var(--pad-span));
     }
 }
 
