@@ -1049,3 +1049,22 @@ because both directions are real.
 Worth stating why it mattered beyond looking wrong: it hid the one thing the player is
 steering toward, at exactly the moment they could not reach it anyway — so it read as
 the food having vanished rather than as the snake being beneath it.
+
+### Where the Bridge's difficulty ended up
+
+Confirmed by play 2026-09-08, after squaring off the corners: it sits between Donut and
+Infinity, and the hard part is **food tucked into the inside of the deck's curve at
+either end**. That is the right place for it — the pinch is a consequence of the shape
+rather than an obstacle added to make the map harder, and it is a demand for commitment
+rather than for precise routing down a dead end, which is what the corner pockets used
+to be.
+
+One structural difference from Infinity worth knowing. On Infinity the shortest loop from
+one strand back to the other is **24 moves**, so the snake cannot pass over itself until
+roughly score 240. On the Bridge it is **4 moves** — near the ends of the deck the ground
+beside the bridge is close enough to go up, along and back under almost immediately — so
+the over/under mechanic is reachable from about five segments.
+
+That is a large part of why the Bridge reads as the friendlier map despite sharing the
+machinery: its signature move is available from the first few seconds, where Infinity
+holds it back until the snake is long.
