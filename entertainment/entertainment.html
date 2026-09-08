@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260908-0811" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260908-0818" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -22,7 +22,7 @@
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <span class="card-title">Tetris System</span>
+                    <span class="card-title">Falling Polyominos</span>
                 </button>
                 <button class="entry-card" data-view="snake">
                     <div class="thumb thumb-snake" aria-hidden="true">
@@ -31,7 +31,7 @@
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <span class="card-title">Snake System</span>
+                    <span class="card-title">Snake</span>
                 </button>
                 <button class="entry-card" data-view="minesweeper">
                     <div class="thumb thumb-mines" aria-hidden="true">
@@ -40,7 +40,7 @@
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <span class="card-title">Minesweeper</span>
+                    <span class="card-title">Mine Sweeper</span>
                 </button>
             </div>
 
@@ -60,7 +60,7 @@
 
         <div id="tetris-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
-            <h2>Tetris System</h2>
+            <h2>Falling Polyominos</h2>
             <div id="tetris-controls">
                 <p>Score: <span id="tetris-score">0</span> | Level: <span id="tetris-level">1</span></p>
                 <button id="tetrisStartBtn">Initialize Matrix</button>
@@ -71,7 +71,7 @@
 
             <!-- Touch controls. Hidden on pointer-precise devices by style.css,
                  since a keyboard is the better input where there is one. -->
-            <div class="touch-pad touch-pad-row" aria-label="Tetris controls">
+            <div class="touch-pad touch-pad-row" aria-label="Falling Polyominos controls">
                 <button type="button" class="pad-btn" data-action="left" aria-label="Move left">&larr;</button>
                 <button type="button" class="pad-btn" data-action="up" aria-label="Rotate">&#8635;</button>
                 <button type="button" class="pad-btn" data-action="down" aria-label="Soft drop">&darr;</button>
@@ -81,7 +81,7 @@
 
         <div id="snake-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
-            <h2>Snake System</h2>
+            <h2>Snake</h2>
             <div id="game-controls">
                 <p>Score: <span id="score">0</span></p>
                 <select id="modeSelect">
@@ -107,7 +107,7 @@
 
         <div id="minesweeper-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
-            <h2>Minesweeper</h2>
+            <h2>Mine Sweeper</h2>
             <div id="mine-controls">
                 <p>Flags left: <span id="mine-count">12</span></p>
                 <select id="mineModeSelect" aria-label="Board size">
@@ -176,8 +176,8 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260908-0811"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260908-0811"></script>
-    <script type="module" src="./entertainment.js?v=20260908-0811"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260908-0818"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260908-0818"></script>
+    <script type="module" src="./entertainment.js?v=20260908-0818"></script>
 </body>
 </html>

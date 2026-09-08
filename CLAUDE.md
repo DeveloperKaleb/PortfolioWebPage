@@ -45,6 +45,13 @@ This means the site only fully works when served from that exact subpath (as on 
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
+**Display names differ from the names in the code.** The games are called Falling
+Polyominos, Snake, Mine Sweeper and the Array Grid Toy on screen, but everything in
+the source - ids, classes, hash routes, variables, palettes, test files - still says
+tetris, snake, minesweeper and toy. Renaming those would touch the routes, every
+selector and all the tests for no visible gain, so searching the code for a display
+name will find nothing. Search for the internal one.
+
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
 The pure layer is four modules, all free of `document`/DOM calls so they stay testable
