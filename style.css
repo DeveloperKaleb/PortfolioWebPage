@@ -370,12 +370,24 @@ a:active  {color: #002e2c;}
     ));
     grid-template-columns: repeat(var(--snake-cols), var(--snake-cell));
     grid-gap: 1px;
-    background-color: #002e2c;
+    /* Pacific Northwest, matching Minesweeper: deep canopy behind the board, showing
+       through the gaps as the grid. */
+    background: linear-gradient(#1b2a20, #101913);
     padding: 2px;
-    border: 2px solid #eff1c5;
+    border: 2px solid #2f4a38;
     width: fit-content; /* Keeps the dark background tight to the 20x20 grid */
     margin-left: auto;
     margin-right: auto;
+}
+
+/* Blocked ground: evergreen, and a gradient because nothing is ever drawn on top of it.
+   The snake and the food only ever occupy open ground, so this one is free to be
+   decorative. Mirrors SNAKE_GRADIENTS.blocked in js/logic.js.
+
+   Open ground stays a flat colour, set inline by drawFrame, because the crossing hatch
+   is a background-image and a gradient there would be competing for the same slot. */
+.butMania.is-snake button[data-blocked="true"] {
+    background: linear-gradient(#35543f, #2a4232);
 }
 
 .butMania.is-snake button {

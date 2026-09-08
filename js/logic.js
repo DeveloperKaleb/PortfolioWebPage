@@ -141,13 +141,30 @@ export const UI_COLORS = {
 };
 
 // Snake is drawn on white cells, so its colours are the dark end of the range.
+/* Pacific Northwest, matching Minesweeper: pale lichen for open ground, evergreen for
+   what you cannot cross, and the snake in the darks of a forest floor.
+
+   The whole ladder had to be darkened to move off white. The old colours sat right on
+   the 4.5:1 floor against white, so tinting the ground even slightly pushed both of the
+   "underneath" variants below it - lighter-means-underneath fights a background that is
+   already light. Darkening the on-top colours makes the room, exactly as it did when
+   the underneath body colour was first introduced. */
 export const SNAKE_COLORS = {
-    head: '#002e2c',      // Deep Teal
-    body: '#474c2c',      // Dark Olive - the snake on the upper strand
-    bodyUnder: '#6e7349', // Mid Olive - the snake passing underneath
-    food: '#035e7b',      // Dark Blue - food on the upper strand, or anywhere flat
-    foodUnder: '#0070b8', // Brighter Blue - food lying under the crossing
-    hole: '#51553a',      // Olive - blocked cells
+    ground: '#e6e9dc',    // Lichen - open ground
+    head: '#16241a',      // Deep Canopy
+    body: '#2c5418',      // Fern - the snake on the upper strand
+    bodyUnder: '#4c6b34', // Sunlit Fern - the snake passing underneath
+    food: '#204c7c',      // Lake
+    foodUnder: '#286890', // Shallows - food lying under a crossing
+    hole: '#2f4a38',      // Evergreen - blocked ground, flat fallback
+};
+
+/* Blocked ground carries a gradient, the way Minesweeper's cells do. Nothing is ever
+   drawn on top of it - the snake and the food only occupy open ground - so it is free
+   to be decorative. Open ground stays flat because the crossing hatch is a
+   background-image, and a gradient there would have to share that slot with it. */
+export const SNAKE_GRADIENTS = {
+    blocked: ['#35543f', '#2a4232'],
 };
 
 /* --- BOARD SHAPES --- */

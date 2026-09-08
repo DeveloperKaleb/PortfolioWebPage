@@ -273,7 +273,9 @@ function createStaticBoard(shape = currentShape) {
     for (let y = 1; y <= shape.height; y++) {
         for (let x = 1; x <= shape.width; x++) {
             const blocked = isBlockedCell(shape, x, y);
-            const color = blocked ? SNAKE_COLORS.hole : 'white';
+            // Blocked ground gets its gradient from the stylesheet; only open ground
+            // is painted from here, because only open ground changes.
+            const color = blocked ? '' : SNAKE_COLORS.ground;
             // The crossing needs to be visible before the snake reaches it, so the
             // player can see there is something to be over or under.
             const overlap = !blocked && isOverlapCell(shape.graph, x, y) ? ' cell-overlap' : '';
@@ -372,7 +374,8 @@ function drawFrame() {
     buttons.forEach((btn) => {
         // data-blocked is stamped on when the board is built, so the walls and holes
         // do not have to be recomputed every frame.
-        btn.style.backgroundColor = btn.dataset.blocked === 'true' ? SNAKE_COLORS.hole : 'white';
+        // Blocked ground never changes and is styled by CSS, so leave it be.
+        if (btn.dataset.blocked !== 'true') btn.style.backgroundColor = SNAKE_COLORS.ground;
         // Cleared here, re-applied below for whatever the snake covers this frame, so
         // the hatch never runs across the snake and eats into its contrast.
         btn.classList.remove('snake-on', 'peek');

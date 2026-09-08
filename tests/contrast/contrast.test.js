@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -62,36 +62,53 @@ describe('Tetris palette', () => {
 });
 
 describe('Snake palette', () => {
-    // Snake clears its board to white before drawing.
-    const BACKGROUND = '#ffffff';
+    /* Open ground is lichen, not white. The board's own surfaces - the ground itself and
+       the blocked cells drawn on top of it - are not measured against it: one IS the
+       background, and nothing is ever drawn on the other. */
+    const GROUND = SNAKE_COLORS.ground;
+    const drawnOnGround = Object.entries(SNAKE_COLORS)
+        .filter(([name]) => name !== 'ground' && name !== 'hole');
 
-    test.each(Object.entries(SNAKE_COLORS))('%s is legible on the board', (name, color) => {
-        expect(worstCaseContrast(color, BACKGROUND))
-            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    test.each(drawnOnGround)('%s is legible on the ground', (_name, color) => {
+        expect(worstCaseContrast(color, GROUND)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 
     test('the food never blends into the snake', () => {
         expect(areDistinguishable(SNAKE_COLORS.food, SNAKE_COLORS.body)).toBe(true);
         expect(areDistinguishable(SNAKE_COLORS.food, SNAKE_COLORS.head)).toBe(true);
     });
-});
 
-describe('Layered snake colours', () => {
-    // "Underneath" reads as lighter, but lighter on a white board means less contrast.
-    // The body was darkened so there is room for a lighter under-colour that still
-    // clears the floor - going the other way would have broken the rule.
-    test('the underneath colour is genuinely lighter than the one on top', () => {
-        expect(contrastRatio(SNAKE_COLORS.bodyUnder, '#ffffff'))
-            .toBeLessThan(contrastRatio(SNAKE_COLORS.body, '#ffffff'));
+    // Where you can go and where you cannot has to be obvious at a glance.
+    test('blocked ground is obviously not open ground, at both gradient stops', () => {
+        expect(worstCaseOverGradient(GROUND, SNAKE_GRADIENTS.blocked)).toBeGreaterThan(4);
     });
 
-    test('over and under are still telling apart', () => {
-        expect(areDistinguishable(SNAKE_COLORS.body, SNAKE_COLORS.bodyUnder)).toBe(true);
+    /* The whole ladder was darkened when the ground stopped being white. The old
+       colours sat on the 4.5:1 floor against white, so any tint at all pushed both
+       "underneath" variants under it - lighter-means-underneath fights a light
+       background, and the room has to come from darkening what sits on top. */
+    test('the underneath variants clear the floor on a tinted ground', () => {
+        expect(worstCaseContrast(SNAKE_COLORS.bodyUnder, GROUND)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+        expect(worstCaseContrast(SNAKE_COLORS.foodUnder, GROUND)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 
-    test('the underneath colour still clears the contrast floor', () => {
-        expect(worstCaseContrast(SNAKE_COLORS.bodyUnder, '#ffffff'))
-            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    test('and are still lighter than what sits on top', () => {
+        expect(contrastRatio(SNAKE_COLORS.bodyUnder, GROUND))
+            .toBeLessThan(contrastRatio(SNAKE_COLORS.body, GROUND));
+        expect(contrastRatio(SNAKE_COLORS.foodUnder, GROUND))
+            .toBeLessThan(contrastRatio(SNAKE_COLORS.food, GROUND));
+    });
+
+    test('no two things drawn on the ground collide', () => {
+        const collisions = [];
+        for (let i = 0; i < drawnOnGround.length; i++) {
+            for (let j = i + 1; j < drawnOnGround.length; j++) {
+                if (!areDistinguishable(drawnOnGround[i][1], drawnOnGround[j][1])) {
+                    collisions.push(`${drawnOnGround[i][0]}/${drawnOnGround[j][0]}`);
+                }
+            }
+        }
+        expect(collisions).toEqual([]);
     });
 });
 
@@ -109,27 +126,24 @@ describe('UI chrome colours', () => {
     });
 });
 
-describe('Food on either layer', () => {
-    test('food underneath is lighter than food on top', () => {
-        expect(contrastRatio(SNAKE_COLORS.foodUnder, '#ffffff'))
-            .toBeLessThan(contrastRatio(SNAKE_COLORS.food, '#ffffff'));
-    });
-
-    test('the two food colours are telling apart', () => {
-        expect(areDistinguishable(SNAKE_COLORS.food, SNAKE_COLORS.foodUnder)).toBe(true);
-    });
-
-    // Food is the one thing on the board the player is hunting for, so the lighter
-    // variant has to clear the floor and not collide with any snake colour.
-    test('food underneath stays legible and unlike the snake', () => {
-        expect(worstCaseContrast(SNAKE_COLORS.foodUnder, '#ffffff'))
-            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
-        ['head', 'body', 'bodyUnder', 'hole'].forEach((part) => {
-            expect(areDistinguishable(SNAKE_COLORS.foodUnder, SNAKE_COLORS[part])).toBe(true);
+describe('Food against the ground it lies on', () => {
+    // Food is the one thing on the board the player is hunting for, so it must not be
+    // mistakable for the snake or for ground it cannot enter.
+    /* The food is a blue and blocked ground is a green of almost the same lightness -
+       1.04:1 between them. They are told apart on the blue-yellow axis instead, which is
+       the axis that survives both kinds of colour blindness, so this asks for
+       distinguishability rather than for a lightness gap. What actually keeps the food
+       findable is its contrast against the pale ground it sits on, which is tested
+       above. */
+    test('neither food colour can be mistaken for blocked ground', () => {
+        [SNAKE_COLORS.food, SNAKE_COLORS.foodUnder].forEach((colour) => {
+            expect(areDistinguishable(colour, SNAKE_COLORS.hole)).toBe(true);
+            SNAKE_GRADIENTS.blocked.forEach((stop) => {
+                expect(areDistinguishable(colour, stop)).toBe(true);
+            });
         });
     });
 });
-
 describe('Array Grid toy palette', () => {
     const swatches = TOY_COLORS.map(({ label, value }) => [label, toHex(value)]);
 

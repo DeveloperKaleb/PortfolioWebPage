@@ -1068,3 +1068,37 @@ the over/under mechanic is reachable from about five segments.
 That is a large part of why the Bridge reads as the friendlier map despite sharing the
 machinery: its signature move is available from the first few seconds, where Infinity
 holds it back until the snake is long.
+
+## Snake wears the Pacific Northwest palette too
+
+Snake and Minesweeper now share a world: pale lichen for open ground, evergreen for
+what cannot be crossed, deep canopy behind the board.
+
+| | |
+|---|---|
+| open ground | `#e6e9dc` Lichen |
+| blocked ground | `#35543f` → `#2a4232` Evergreen, a gradient |
+| head | `#16241a` Deep Canopy |
+| body / underneath | `#2c5418` Fern / `#4c6b34` Sunlit Fern |
+| food / underneath | `#204c7c` Lake / `#286890` Shallows |
+
+**Moving off white forced the whole ladder darker.** The old colours sat right on the
+4.5:1 floor against white — `bodyUnder` at 4.98, `foodUnder` at 4.99 — so tinting the
+ground at all pushed both under it. Lighter-means-underneath fights a light background,
+and the room has to come from darkening what sits on top. That is the second time this
+has come up; it is a property of the metaphor, not a one-off.
+
+**Blocked ground gets the gradient, open ground does not.** Nothing is ever drawn on
+blocked ground — the snake and the food only occupy open ground — so it is free to be
+decorative. Open ground stays flat because the crossing hatch is a `background-image`
+and a gradient there would be competing for the same slot. Blocked cells are also no
+longer repainted every frame, since they never change.
+
+**Food and blocked ground are almost the same lightness** — 1.04:1 — and are told apart
+on the blue-yellow axis, which survives both kinds of colour blindness. What keeps the
+food findable is its 6.9:1 against the pale ground it actually sits on.
+
+Two older tests were removed as part of this: they measured the snake against `#ffffff`,
+which stopped being the board's colour. They still passed, because the colours clear the
+floor on white too — which is exactly what makes a stale test worth deleting rather than
+leaving. It was no longer checking the thing its name claimed.
