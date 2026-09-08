@@ -1105,9 +1105,9 @@ leaving. It was no longer checking the thing its name claimed.
 
 ## Display names are not the names in the code
 
-On screen the games are **Falling Polyominos**, **Snake**, **Mine Sweeper** and the
-**Array Grid Toy**. In the source they are still `tetris`, `snake`, `minesweeper` and
-`toy` — ids, classes, hash routes, variables, palettes, test files, all of it.
+On screen the games are **Falling Polyominos**, **Snake**, **Mine Sweeper** and **Finger
+Paint**. In the source they are still `tetris`, `snake`, `minesweeper` and `toy` — ids,
+classes, hash routes, variables, palettes, test files, all of it.
 
 Renaming the internals would touch every selector, the hash routes, the palettes and
 all nine test files, and change nothing a player sees. So the mapping stays, and it is

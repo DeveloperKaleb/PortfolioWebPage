@@ -971,7 +971,7 @@ document.querySelectorAll('[data-action]').forEach((btn) => {
     });
 });
 
-/* --- Painting the Array Grid --- */
+/* --- Finger Paint: the painting itself --- */
 
 /* The colour actually applied is kept in a data attribute rather than read back off
    the inline style. Browsers re-serialise style.backgroundColor - a hex comes back as

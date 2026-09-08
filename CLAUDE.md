@@ -46,7 +46,7 @@ This means the site only fully works when served from that exact subpath (as on 
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
 **Display names differ from the names in the code.** The games are called Falling
-Polyominos, Snake, Mine Sweeper and the Array Grid Toy on screen, but everything in
+Polyominos, Snake, Mine Sweeper and Finger Paint on screen, but everything in
 the source - ids, classes, hash routes, variables, palettes, test files - still says
 tetris, snake, minesweeper and toy. Renaming those would touch the routes, every
 selector and all the tests for no visible gain, so searching the code for a display
