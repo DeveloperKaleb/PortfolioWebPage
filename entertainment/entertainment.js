@@ -384,6 +384,8 @@ function drawFrame() {
        contrast of the one thing on the board the player is trying to find, and the
        lighter colour already says it is below. */
     const foodBelow = isUnderneath(currentShape.graph, food);
+    const foodNode = nodeAt(currentShape.graph, food.x, food.y, food.strand);
+    const foodLayer = foodNode ? foodNode.layer : 0;
     const foodEl = snakeBoard.querySelector(`.x${food.x}y${food.y}`);
     if (foodEl) foodEl.style.backgroundColor = foodBelow ? SNAKE_COLORS.foodUnder : SNAKE_COLORS.food;
 
@@ -415,6 +417,18 @@ function drawFrame() {
     });
 
     perCell.forEach((occupant) => {
+        /* The food occludes the same way a segment does. A snake passing underneath a
+           surface is behind whatever is lying on top of it, so drawing the snake over
+           the food there would hide the one thing the player is steering towards -
+           and hide it exactly when they cannot reach it anyway.
+
+           Segments already occlude each other by layer; this puts the food into the
+           same comparison instead of letting it be painted over by whatever is drawn
+           last. Where the snake is on top it still wins, which is why this compares
+           layers rather than always yielding to the food. */
+        const sharesFoodCell = occupant.x === food.x && occupant.y === food.y;
+        if (sharesFoodCell && occupant.layer < foodLayer) return;
+
         const segEl = snakeBoard.querySelector(`.x${occupant.x}y${occupant.y}`);
         if (!segEl) return;
 

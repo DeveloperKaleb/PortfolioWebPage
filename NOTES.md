@@ -1031,3 +1031,21 @@ The mode dropdown is ordered **Classic, Donut, Bridge, Infinity** — by how har
 play, not by when they were built. Bridge sits third: harder than Donut because the
 crossing and the hole ask something of you, much easier than Infinity because the arena
 is open and the bridge is optional. See the difficulty-gradient note above.
+
+## Food occludes by layer, like everything else
+
+A snake passing under a surface used to paint over food sitting on top of it. The snake
+was simply drawn after the food and overwrote the cell, so it won regardless of which of
+the two was actually on top.
+
+Segments already occlude each other by layer — that is what makes a crossing read as
+over-and-under. The food was just not part of that comparison. It is now: where a snake
+segment shares a cell with the food, the higher layer is drawn.
+
+So a snake underneath leaves food on the deck visible, and a snake on the deck still
+covers food underneath. It compares layers rather than always yielding to the food,
+because both directions are real.
+
+Worth stating why it mattered beyond looking wrong: it hid the one thing the player is
+steering toward, at exactly the moment they could not reach it anyway — so it read as
+the food having vanished rather than as the snake being beneath it.
