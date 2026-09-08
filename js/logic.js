@@ -479,8 +479,20 @@ export const numberColor = (count) =>
 const BRIDGE_DEFAULTS = {
     width: 22,
     height: 22,
-    radius: 10.4,
-    wobble: 0.1,     // how far the arena's sides bow inward
+
+    /* The arena is a square with its corners filled out and a bite taken from the
+       middle of each edge, rather than a circle with wavy sides.
+
+       The wavy version left a three-square protrusion in each corner, and food landing
+       in one had to be fetched down a narrow dead end and backed out of. That is a
+       kind of demand no other map makes - and it got worse when the pocket happened to
+       sit beside an entrance to the bridge, where a wrong line costs you the run.
+       Filling the corners means every part of the arena is approachable from two
+       directions. The notches stay: they shape the space without trapping anything. */
+    half: 10.3,      // half the arena's span
+    power: 10,       // superellipse exponent - higher is squarer at the corners
+    notchHalf: 2.5,  // half-width of the bite in each edge
+    notchDepth: 1.5,
 
     /* The deck is not a straight band. It is broad where it meets the ground and drawn
        in at the waist, so its edges read as curves - an hourglass rather than a barrel.
@@ -530,19 +542,23 @@ export function makeBridgeLink({ deckTop, deckBottom }) {
 }
 
 export function buildBridgeMask(options = {}) {
-    const { width, height, radius, wobble, halfMid, halfEnd, rampRows, holeHalfW, holeHalfH } =
-        { ...BRIDGE_DEFAULTS, ...options };
+    const { width, height, half, power, notchHalf, notchDepth,
+        halfMid, halfEnd, rampRows, holeHalfW, holeHalfH } = { ...BRIDGE_DEFAULTS, ...options };
     const cx = (width + 1) / 2;
     const cy = (height + 1) / 2;
 
-    // A wavy square: sides bow inward, corners bulge out.
-    const inArena = (x, y) => {
-        const dx = x - cx;
-        const dy = y - cy;
-        const distance = Math.hypot(dx, dy);
-        if (distance === 0) return true;
-        return distance <= radius * (1 - wobble * Math.cos(4 * Math.atan2(dy, dx)));
+    // A squared-off superellipse, with a notch bitten out of the middle of each edge.
+    const inSquare = (x, y) =>
+        Math.pow(Math.abs(x - cx) / half, power) + Math.pow(Math.abs(y - cy) / half, power) <= 1;
+
+    const inNotch = (x, y) => {
+        const dx = Math.abs(x - cx);
+        const dy = Math.abs(y - cy);
+        return (dx <= notchHalf && dy >= half - notchDepth)
+            || (dy <= notchHalf && dx >= half - notchDepth);
     };
+
+    const inArena = (x, y) => inSquare(x, y) && !inNotch(x, y);
 
     const inHole = (x, y) => Math.abs(x - cx) <= holeHalfW && Math.abs(y - cy) <= holeHalfH;
 

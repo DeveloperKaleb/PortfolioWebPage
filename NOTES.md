@@ -888,25 +888,44 @@ what is possible.
 
 ## The Bridge board
 
-From a sketch by the project owner, 2026-09-07. A wavy-edged arena — sides bowed inward,
-corners bulging — with a bridge running top to bottom, the ground passing left to right
+From a sketch by the project owner, 2026-09-07. A squared-off arena with a bite out of
+the middle of each edge, a bridge running top to bottom, the ground passing left to right
 beneath it, and a hole through the middle of the deck.
 
 ```
-      ...    ...
-   .....======.....
-  ......######......
-  .......######.......
-   ......##oo##......
-  .......######.......
-  ......######......
-   .....======.....
-      ...    ...
+ .......      .......
+ .....==========.....
+ .....##########.....
+ ......########......
+  ......##oo##......
+ ......########......
+ .....##########.....
+ .....==========.....
+ .......      .......
 ```
 
 `#` deck over ground · `=` ramp · `o` hole through the deck · `.` open ground
 
-432 nodes: 332 ground, 88 deck, 12 ramp. It is the first **open arena** — every other map
+### The corners are square on purpose
+
+The arena began as a circle with wavy sides, which left a **three-square protrusion in
+each corner**. Play-testing found the problem: food landing in one had to be fetched down
+a narrow dead end and backed out of, and it got worse when the pocket sat beside an
+entrance to the bridge, where a wrong line costs the run. That made the Bridge play
+*harder than Infinity* — and by a kind of demand no other map makes. Infinity is
+constrained everywhere and asks for commitment; a pocket asks for precise routing in one
+spot, which is a different and less interesting difficulty.
+
+So the corners are filled out to the edge and only the notches remain: every part of the
+arena is now approachable from two directions, and nothing traps. The notches shape the
+space without costing anything.
+
+The lesson generalises — **a narrow dead end is worth more difficulty than its size
+suggests**, especially next to something that already demands precision. Look for them
+when adding a map, and prefer shapes where every region can be entered and left by
+different routes.
+
+464 nodes. It is the first **open arena** — every other map
 is a track you follow. Off the deck you can wander anywhere, and only the outer wall and
 the hole will kill you.
 
@@ -945,7 +964,7 @@ around the deck and around the hole.
 
 ### Where it sits on the difficulty gradient
 
-Probably the gentlest of the four, or near Classic. The arena is open and forgiving, and
+Aimed between Donut and Infinity, and closer to the easy end. The arena is open and forgiving, and
 the bridge is optional — you can play the whole board without ever going up. That is a
 different axis from Infinity's constrained ribbon rather than a step below it, and worth
 a verdict from play rather than from the node count.
