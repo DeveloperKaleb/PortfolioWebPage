@@ -71,3 +71,54 @@ describe.each(pages)('%s loads only its own files', (page) => {
         expect(remote).toEqual([]);
     });
 });
+
+/* The service worker's VERSION has to move with the pages' ?v= stamps.
+ *
+ * This is the most consequential of the manual bumps. The others go stale for ten
+ * minutes; a service worker caches until it is told otherwise, so a VERSION left behind
+ * pins an old build on every device that has visited, with no obvious way for its owner
+ * to clear it. The worker names its cache after VERSION, and a new name is what retires
+ * the old files - so if this drifts, nothing is ever retired. */
+describe('Service worker versioning', () => {
+    const worker = readFileSync(resolve(root, 'sw.js'), 'utf8');
+    const stampOf = (page) => read(page).match(/\?v=(\d{8}-\d{4})/)[1];
+
+    test('declares a version', () => {
+        expect(worker).toMatch(/const VERSION = '\d{8}-\d{4}';/);
+    });
+
+    test('its version matches the stamp the pages ask for', () => {
+        const version = worker.match(/const VERSION = '(\d{8}-\d{4})';/)[1];
+        pages.forEach((page) => expect(version).toBe(stampOf(page)));
+    });
+
+    test('the cache is named after the version, so a bump retires the old one', () => {
+        expect(worker).toMatch(/const CACHE = `portfolio-\$\{VERSION\}`;/);
+    });
+
+    // Everything the pages load has to survive going offline.
+    test('precaches every file the pages reference', () => {
+        const referenced = pages.flatMap((page) => {
+            const html = read(page);
+            return [...html.matchAll(/(?:src|href)="\/PortfolioWebPage\/([^"?]+)/g)].map((m) => m[1]);
+        });
+
+        const missing = [...new Set(referenced)]
+            .filter((file) => file !== 'sw.js' && file !== 'scripts/offline.js')
+            .filter((file) => !worker.includes(file));
+
+        expect(missing).toEqual([]);
+    });
+
+    /* Documents come from the network first. Without that a stale worker could serve old
+       HTML forever; with it, anyone with a connection always lands on the newest build. */
+    test('fetches documents from the network before the cache', () => {
+        expect(worker).toContain("request.mode === 'navigate'");
+        expect(worker).toMatch(/fetch\(request\)[\s\S]*?\.catch\(\(\) => caches\.match/);
+    });
+
+    test('takes over immediately rather than waiting for tabs to close', () => {
+        expect(worker).toContain('skipWaiting');
+        expect(worker).toContain('clients.claim');
+    });
+});

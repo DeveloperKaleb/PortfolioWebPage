@@ -1146,3 +1146,46 @@ are somewhere the reader chooses to go, not something the page fetches for them.
 
 The practical upshot is that the site is now **entirely self-contained** — which is what
 makes offline play a matter of caching files rather than a matter of dependencies.
+
+## Offline play: the service worker
+
+`sw.js` precaches the whole site — 13 files, 448KB — so a device that has visited once
+works with no network. Registered by `scripts/offline.js`, included on both pages.
+
+**Documents are network-first, everything else cache-first.** That split is the whole
+safety design. Assets carry `?v=` stamps, so a cache hit is never a stale hit — the URL
+changes when the contents do. Documents are the exception because the HTML is what
+*names* the current stamps: fetching it from the network first means anyone with a
+connection always lands on the newest build, and the cache is only the fallback for
+being offline.
+
+**`VERSION` in `sw.js` must be bumped with every push**, alongside `LAST_UPDATED` and
+the `?v=` stamps. It is the most consequential of the manual bumps: the others go stale
+for ten minutes, while a service worker caches until told otherwise. A `VERSION` left
+behind pins an old build on every device that has visited, with no obvious way for its
+owner to clear it. The cache is named after `VERSION`, and a new name is what deletes
+the old files — so if it drifts, nothing is ever retired. `tests/markup/ids.test.js`
+fails if it disagrees with the pages.
+
+`skipWaiting()` and `clients.claim()` are there for the same reason: a worker that waits
+for every tab to close is a worker that keeps serving the old build.
+
+**It does not register on localhost.** `tools/dev-server.js` sends `Cache-Control:
+no-store` so an edit shows on the next refresh, and a worker serving assets from its own
+cache would quietly undo that — you would edit `style.css`, reload, and see the previous
+version with nothing to explain why.
+
+Verified by stopping the dev server and reloading: nav, stylesheet, both game boards,
+the modules and the footer all came back with nothing listening on the port.
+
+**If it ever needs killing**, push an `sw.js` whose `install` calls
+`self.registration.unregister()`. Deleting the file is not enough — browsers keep the
+worker they already have.
+
+### What stops caches like this filling up a phone
+
+Quotas and eviction, not restraint. Browsers cap what one origin may store and evict
+least-recently-used data when disk runs short; storage is best-effort unless a site
+asks for persistence, which this one does not. Measured on a desktop Chrome: this site
+uses **448KB against a 10GB quota**, about 0.004%. Safari is stricter still and clears
+script-writable storage, service worker included, after roughly a week without a visit.
