@@ -19,8 +19,23 @@ import {
     TOY_COLORS,
     toHex,
     MINE_COLORS,
-    numberColor
+    numberColor,
+    SEQUENCE_PADS
 } from '../js/logic.js';
+import {
+    createGame as createSequence,
+    extendSequence,
+    beginInput,
+    pressPad,
+    isRoundComplete,
+    isOver as isSequenceOver,
+    padIndexes,
+    stepDurationMs,
+    toneFor,
+    FAILURE_TONE,
+    PRESETS as SEQUENCE_PRESETS,
+    STATUS as SEQUENCE_STATUS
+} from '../js/sequence.js';
 import {
     createGame as createMinesweeper,
     reveal as revealCell,
@@ -62,6 +77,7 @@ const views = {
     tetris: document.getElementById('tetris-system'),
     snake: document.getElementById('snake-system'),
     minesweeper: document.getElementById('minesweeper-system'),
+    sequence: document.getElementById('sequence-system'),
     toy: document.getElementById('toy-system'),
 };
 
@@ -167,7 +183,7 @@ const currentOrientation = () =>
    Disabled rather than hidden: hiding them would reflow the whole column mid-game and
    shift the board and pad under the player's thumb. */
 function setGameControlsEnabled(enabled) {
-    ['modeSelect', 'startBtn', 'tetrisStartBtn', 'mineModeSelect'].forEach((id) => {
+    ['modeSelect', 'startBtn', 'tetrisStartBtn', 'mineModeSelect', 'sequenceModeSelect', 'sequenceStartBtn'].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.disabled = !enabled;
     });
@@ -855,6 +871,252 @@ flagToggleEl.addEventListener('click', () => setFlagMode(!flagMode));
 mineModeSelect.addEventListener('change', initMinesweeper);
 document.getElementById('mineStartBtn').addEventListener('click', initMinesweeper);
 
+/* --- PART 5: SEQUENCE --- */
+/* The Simon-style memory game. The machine plays a growing run of pads; the player
+   plays it back. Suggested by the project owner's daughter, whose idea included the
+   pairing of a light and a tone on every pad - see NOTES.md. That pairing is load
+   bearing, not decoration: it is what makes the game playable with the sound off and
+   playable without watching, so it is fired from one place below rather than from two
+   code paths that could drift apart.
+
+   The rules are in js/sequence.js and know nothing about time. Everything to do with
+   the clock - how long a pad stays lit, the gap between two, when the player's turn
+   starts - lives here. */
+
+const sequenceBoard = document.getElementById('sequenceDisplay');
+const sequenceRoundEl = document.getElementById('sequence-round');
+const sequenceBestEl = document.getElementById('sequence-best');
+const sequenceStatusEl = document.getElementById('sequence-status');
+const sequenceModeSelect = document.getElementById('sequenceModeSelect');
+const sequenceSoundToggle = document.getElementById('sequenceSoundToggle');
+
+let sequenceGame = createSequence(SEQUENCE_PRESETS.four);
+let sequenceBest = 0;
+let sequenceTimers = [];      // every pending step of the current playback
+let sequenceRunning = false;  // a game is under way, as opposed to sitting on the panel
+
+/* --- Sound --- */
+/* The first audio on this site, which brings the autoplay rule with it: a context
+   created before the player has interacted with the page is born suspended and stays
+   that way. So it is built on the first press of Start - a real gesture - and never at
+   load. One context is kept for the session; browsers cap how many a page may open. */
+let audioCtx = null;
+let soundOn = true;
+
+try {
+    // Remembered so the choice is made once, not on every visit. Storage can throw in
+    // a locked-down browser, and a silent default of "on" is the right fallback.
+    soundOn = window.localStorage.getItem('sequence-sound') !== 'off';
+} catch { /* no storage - stay with the default */ }
+
+function ensureAudio() {
+    if (!soundOn) return null;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return null; // no Web Audio: the game is still fully playable by light
+    if (!audioCtx) audioCtx = new Ctor();
+    // Returning to the tab can leave it suspended even after the first gesture.
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+}
+
+/* A pad's voice: a square wave rolled off by a low-pass, which is a relay or a bench
+   buzzer rather than a flute. The envelope matters more than the waveform - gating a
+   raw oscillator on and off puts a step in the signal, and a step is an audible click.
+   The attack is 8ms and the release is exponential to a floor rather than to zero,
+   because a ramp to a true zero is undefined for exponentialRampToValueAtTime. */
+function playTone(frequency, durationMs, { type = 'square', gain = 0.09 } = {}) {
+    const ctx = ensureAudio();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const seconds = durationMs / 1000;
+
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, now);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    // Tracks the pitch, so the low pads are not muddier than the high ones.
+    filter.frequency.setValueAtTime(Math.min(frequency * 6, 7000), now);
+
+    const envelope = ctx.createGain();
+    envelope.gain.setValueAtTime(0.0001, now);
+    envelope.gain.exponentialRampToValueAtTime(gain, now + 0.008);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
+
+    osc.connect(filter).connect(envelope).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + seconds + 0.02);
+}
+
+function setSoundOn(on) {
+    soundOn = on;
+    sequenceSoundToggle.setAttribute('aria-pressed', String(on));
+    sequenceSoundToggle.classList.toggle('is-active', on);
+    sequenceSoundToggle.classList.toggle('is-muted', !on);
+    try {
+        window.localStorage.setItem('sequence-sound', on ? 'on' : 'off');
+    } catch { /* nothing to do - the game just forgets between visits */ }
+}
+
+/* --- The panel --- */
+
+function currentSequencePreset() {
+    return SEQUENCE_PRESETS[sequenceModeSelect ? sequenceModeSelect.value : 'four'] || SEQUENCE_PRESETS.four;
+}
+
+function buildSequencePads() {
+    sequenceBoard.innerHTML = padIndexes(sequenceGame).map((pad) => {
+        const { name, face, lit } = SEQUENCE_PADS[pad];
+        /* The two colours are handed to CSS as custom properties rather than being
+           written to style.backgroundColor on every flash. Lighting a pad is then a
+           class, which means the transition and the press travel are described once in
+           the stylesheet instead of being animated from here. */
+        return `<button type="button" class="sequence-pad" data-pad="${pad}"
+                    style="--pad-face: ${face}; --pad-lit: ${lit}"
+                    aria-label="Pad ${pad + 1}, ${name}"></button>`;
+    }).join('');
+    sequenceBoard.style.setProperty('--pad-count', sequenceGame.padCount);
+}
+
+/* The one place a pad is lit, so the light and the tone can never come apart. Both
+   cues, or neither - a player relying on either channel alone gets the whole game. */
+function firePad(pad, durationMs) {
+    const el = sequenceBoard.querySelector(`.sequence-pad[data-pad="${pad}"]`);
+    if (el) {
+        el.classList.add('is-lit');
+        sequenceTimers.push(setTimeout(() => el.classList.remove('is-lit'), durationMs));
+    }
+    playTone(toneFor(pad), durationMs);
+}
+
+function clearSequenceTimers() {
+    sequenceTimers.forEach(clearTimeout);
+    sequenceTimers = [];
+    sequenceBoard.querySelectorAll('.is-lit').forEach((el) => el.classList.remove('is-lit'));
+}
+
+function drawSequenceStatus() {
+    sequenceRoundEl.textContent = sequenceGame.round;
+    sequenceBestEl.textContent = sequenceBest;
+
+    const messages = {
+        [SEQUENCE_STATUS.READY]: sequenceRunning
+            ? 'Correct. Watch for the next one.'
+            : 'Press Start, then repeat what the machine plays.',
+        [SEQUENCE_STATUS.SHOWING]: 'Watch and listen.',
+        [SEQUENCE_STATUS.AWAITING]: 'Your turn - play it back.',
+        [SEQUENCE_STATUS.LOST]: 'Wrong pad. The run ends there.',
+    };
+    sequenceStatusEl.textContent = messages[sequenceGame.status];
+    sequenceBoard.classList.toggle('is-showing', sequenceGame.status === SEQUENCE_STATUS.SHOWING);
+}
+
+/* Show the run, one pad at a time, then hand over. Chained timeouts rather than a
+   setInterval because the gap changes with the round - and because the last step has
+   to know it is last, which is where the player's turn begins. */
+function playSequenceBack() {
+    clearSequenceTimers();
+    drawSequenceStatus();
+
+    const step = stepDurationMs(sequenceGame.round);
+    const lit = Math.round(step * 0.6); // dark between flashes, so a repeat reads as two
+
+    sequenceGame.sequence.forEach((pad, i) => {
+        sequenceTimers.push(setTimeout(() => firePad(pad, lit), i * step));
+    });
+
+    // A beat after the last pad goes dark, so the run does not run into the answer.
+    sequenceTimers.push(setTimeout(() => {
+        sequenceGame = beginInput(sequenceGame);
+        drawSequenceStatus();
+    }, sequenceGame.sequence.length * step + 250));
+}
+
+function nextSequenceRound() {
+    sequenceGame = extendSequence(sequenceGame);
+    playSequenceBack();
+}
+
+function initSequence({ start = false } = {}) {
+    clearSequenceTimers();
+    sequenceRunning = start;
+    sequenceGame = createSequence(currentSequencePreset());
+    buildSequencePads();
+    drawSequenceStatus();
+    if (start) {
+        ensureAudio(); // built here: Start is the gesture the autoplay rule wants
+        nextSequenceRound();
+    }
+}
+
+function playSequencePad(pad) {
+    if (sequenceGame.status !== SEQUENCE_STATUS.AWAITING) return;
+
+    const before = sequenceGame;
+    sequenceGame = pressPad(sequenceGame, pad);
+
+    if (isSequenceOver(sequenceGame)) {
+        /* The pad that was actually pressed is lit and sounded first, then the buzz -
+           so a mistake shows what was played, not only that it was wrong. */
+        firePad(pad, 180);
+        sequenceTimers.push(setTimeout(() => playTone(FAILURE_TONE, 420, { gain: 0.12 }), 200));
+        drawSequenceStatus();
+        sequenceRunning = false;
+        sequenceTimers.push(setTimeout(() => showGameOver(
+            'Wrong pad.',
+            `${before.round} ${before.round === 1 ? 'round' : 'rounds'}`,
+            () => initSequence({ start: true }),
+            sequenceModeSelect
+        ), 500));
+        return;
+    }
+
+    firePad(pad, 180);
+
+    if (isRoundComplete(sequenceGame)) {
+        sequenceBest = Math.max(sequenceBest, sequenceGame.round);
+        drawSequenceStatus();
+        /* A pause before the next run starts, or the reward for finishing one is being
+           talked over immediately. */
+        sequenceTimers.push(setTimeout(nextSequenceRound, 800));
+        return;
+    }
+
+    drawSequenceStatus();
+}
+
+/* pointerdown, not click: on a touchscreen click waits for the finger to lift, and a
+   game about answering a rhythm should not lag behind the finger by that much.
+
+   A pad still has to work from the keyboard, and a keyboard activation arrives as a
+   click with no pointer behind it. detail === 0 is what distinguishes those from the
+   click that follows every tap - handling both events unguarded would fire each pad
+   twice. */
+const padFromEvent = (event) => event.target.closest('.sequence-pad');
+
+sequenceBoard.addEventListener('pointerdown', (event) => {
+    const pad = padFromEvent(event);
+    if (!pad) return;
+    event.preventDefault(); // no focus ring chasing the finger, no double-tap zoom
+    playSequencePad(Number(pad.dataset.pad));
+});
+
+sequenceBoard.addEventListener('click', (event) => {
+    const pad = padFromEvent(event);
+    if (!pad || event.detail !== 0) return; // a real click already went through pointerdown
+    playSequencePad(Number(pad.dataset.pad));
+});
+
+sequenceSoundToggle.addEventListener('click', () => setSoundOn(!soundOn));
+
+// Changing the pad count is a different game, so it starts a fresh panel.
+sequenceModeSelect.addEventListener('change', () => initSequence());
+document.getElementById('sequenceStartBtn').addEventListener('click', () => initSequence({ start: true }));
+
+setSoundOn(soundOn);
+
 /* --- Input Listeners --- */
 document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener
 
@@ -929,6 +1191,17 @@ window.addEventListener('keydown', (e) => {
     // Prevent scrolling if either game is running
     if ((gameInterval || tetrisInterval) && keysToCapture.includes(e.key)) {
         e.preventDefault();
+    }
+
+    /* The number row plays Sequence's pads, 1 to 6, left to right. Only while its view
+       is the one on screen: these are otherwise ordinary keys, and a game that is not
+       visible has no business claiming them. Repeats are dropped, since holding a key
+       down is one press of a pad, not a stream of them. */
+    if (!views.sequence.hidden && !e.repeat) {
+        const pad = Number(e.key) - 1;
+        if (Number.isInteger(pad) && pad >= 0 && pad < sequenceGame.padCount) {
+            playSequencePad(pad);
+        }
     }
 
     dispatchAction(keyToAction(e.key));
@@ -1087,6 +1360,12 @@ function stopAllGames() {
     // Minesweeper has no loop to stop, but leaving a half-played board behind and
     // coming back to it mid-game is the same surprise the others were fixed for.
     initMinesweeper();
+
+    /* Sequence keeps its pending steps in timeouts rather than an interval, so they
+       have to be cleared by name - an abandoned run would otherwise go on lighting
+       pads and playing tones behind whatever view came next. Being audible, it would
+       be the most intrusive of these to leave running. */
+    initSequence();
 }
 
 /* --- Hub Navigation Listeners --- */

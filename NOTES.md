@@ -808,6 +808,88 @@ the declaration, because custom properties take almost any token stream, and onl
 when the value is *used* — leaving `grid-template-columns` invalid and collapsing the
 grid entirely. A feature query is the only safe way to do it.
 
+## Sequence: the first sound on the site
+
+Built 2026-09-09, from the idea recorded under "Ideas not yet built" - suggested
+2026-09-07 by the project owner's daughter. Her idea specified a **visual and an audio
+cue together** on every pad, and that pairing turned out to settle most of the decisions
+below rather than being a detail of them.
+
+**The pairing is one code path, not two.** `firePad` in entertainment.js lights the pad
+and plays its tone; nothing else does either. Two call sites - one for the machine's
+playback, one for the player's own press - would eventually drift, and a drift here is
+not cosmetic: it is the game going silent for someone playing by ear, or going dark for
+someone playing with the sound off. Keep it single.
+
+**What the pairing buys.** Each channel carries the whole game on its own. Sound off, or
+a device with no Web Audio at all, and the lights still say everything; eyes elsewhere,
+and the tones do. That is what a player who cannot hear the game needs, and it came free
+with the idea instead of being retrofitted, which is the argument for having taken the
+idea literally.
+
+**Autoplay policy.** A browser will not let a page make noise before the player has
+interacted with it: an `AudioContext` built at load is born suspended and stays suspended
+even after a later gesture. So the context is created inside the Start handler - a real
+click - and reused for the session. It is also resumed on each use, because coming back
+to a backgrounded tab can suspend it again. Browsers cap how many contexts a page may
+open, so one is kept rather than one per tone.
+
+**Tones are enveloped, not gated.** Starting and stopping a bare oscillator puts a step
+in the waveform, and a step is an audible click on every single pad. Each tone ramps up
+over 8ms and decays exponentially to a floor. The floor matters:
+`exponentialRampToValueAtTime` is undefined for a target of zero, so the ramp goes to
+0.0001, not to 0.
+
+**Why the pitches ascend with pad order.** Pad 1 is the lowest and pad 6 the highest, on
+a minor pentatonic. Ascending order is what makes the run followable by ear alone;
+pentatonic is what keeps it bearable, since any two of those pitches sit together however
+the run orders them, and a run gets replayed from the start every single round.
+
+**The difficulty ramp flattens.** `stepDurationMs` eases from 620ms to 300ms over 14
+rounds and then stops. Two things are being asked of the player at once - a longer run
+each round, and less time per pad - and only one of them should keep growing. Left to
+climb, the tempo would eventually decide the game on reaction speed, which is a different
+game. Past the floor the run keeps getting longer and the pace does not, so what ends a
+game is recall. That is the intended failure.
+
+**Presses during playback are ignored, not punished.** Hitting a pad while the machine is
+still showing the run is being early, not being wrong. Ending a run for it would be
+scoring the interface rather than the memory. `pressPad` only acts in the AWAITING state,
+so this is a property of the rules, not of the UI, and it is tested.
+
+**The run may repeat a pad.** Deliberate, and tested. A run that never repeated would
+leak: after each pad the player could rule that one out for the next.
+
+**Pads take pointerdown, with a guard for keyboard clicks.** `click` waits for the finger
+to lift, which is a long time in a game about answering a rhythm. But a keyboard
+activation of a `<button>` arrives as a click too, and handling both events unguarded
+fires every pad twice. Keyboard clicks are the ones with `detail === 0`; that is the
+check. The number keys 1-6 also play the pads, and only while the Sequence view is
+visible - those are otherwise ordinary keys.
+
+**Six pads is the palette ceiling, not a design choice.** Same wall the Tetris palette hit
+at seven: a seventh colour could not be placed that cleared 4.5:1 on the panel and stayed
+distinguishable from the other six under both simulations. The pads are laid out
+alternately along lightness and the blue-yellow axis - neighbours in hue separated by
+brightness, everything else by the axis red/green colour blindness leaves intact.
+
+**The lit state is a lightness jump, never a hue shift.** This is the one that failed
+first. The obvious palette put the pad faces at their brightest, which left the lit state
+with nowhere to go: under simulation the flash disappeared, and the flash is the game's
+entire visual output. Faces are pitched down the range so lighting one is a real change.
+`tests/contrast` asserts it per pad.
+
+**The mechanical look is carried by the housing, not by the colours.** Bezel, moulded
+lip, travel on press, a lamp glow thrown onto the panel. Muting the pads to look more
+industrial is the move to avoid - desaturating is precisely what breaks the contrast
+rules, and the machine reads as a machine from the metal around the lamps instead.
+
+**Leaving the view has to cancel playback by name.** Sequence schedules its steps with
+`setTimeout`, not the `setInterval` the other games use, so `stopAllGames` cannot clear it
+the same way - it calls `initSequence()`, which clears the pending timer list. An
+abandoned run here would be the worst of the four to leave running, being the only one
+that makes noise.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than
@@ -827,17 +909,17 @@ rather than by caching policy.
 Both came out of the same session that produced the Infinity Snake board and
 Minesweeper, several of her ideas from which *were* built.
 
-**Sequence memory game.** The Simon-style kind: a set of items, each with its own sound.
-The game plays a sequence, giving a **visual and an audio cue together** each time an
-item is used, and the player has to reproduce the order. The pairing of the two cues was
-specifically part of the idea, not an embellishment — worth preserving if it gets built.
+**Sequence memory game — BUILT 2026-09-09, on screen as Sequence.** The Simon-style kind:
+a set of items, each with its own sound. The game plays a sequence, giving a **visual and
+an audio cue together** each time an item is used, and the player has to reproduce the
+order. The pairing of the two cues was specifically part of the idea, not an
+embellishment — it was preserved, and it is what most of the decisions in "Sequence: the
+first sound on the site" above turn on. Left here rather than deleted so the idea keeps
+its attribution.
 
-Notes for whoever picks it up: **this would be the first sound on the site.** Nothing
-here plays audio today, so it brings in autoplay policy (a user gesture is needed before
-any sound), volume and mute controls, and the question of what the game does for someone
-who cannot hear it — which the paired visual cue already answers, and is a good reason to
-keep the pairing. The pure logic (sequence generation, comparing the player's input,
-scoring the round) would sit in `js/` like the others and be straightforward to test.
+What that turned into: the pure rules are in `js/sequence.js`, the audio and the clock
+in `entertainment/entertainment.js`. Autoplay policy, the mute control and the
+deaf-accessible question were all real and are all answered in the section above.
 
 **Solitaire.** Klondike presumably, though the variant was not specified — worth asking
 before building.

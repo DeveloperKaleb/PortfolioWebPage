@@ -644,3 +644,39 @@ export const isDeckGap = (mask, x, y) => {
     if (x < 1 || y < 1 || x > mask.width || y > mask.height) return false;
     return Boolean(mask.cells[y - 1][x - 1].gap);
 };
+
+/* --- SEQUENCE PALETTE --- */
+/* A machine panel: gunmetal, steel, bone, and the warm metals. The aesthetic is
+   carried by the panel and the pad shape - bezels, travel, a lit lamp behind a face -
+   rather than by muting the colours, because muted industrial palettes are exactly
+   where the contrast rules fail. The pads stay legible; the machine is built around
+   them.
+
+   Two things every pad has to satisfy, both asserted in tests/contrast:
+   - its face clears 4.5:1 on the panel, so a dark pad is never a hole in the board;
+   - its lit state is a real lightness jump from its own face, not a hue shift. That
+     is what makes the flash readable to someone who cannot separate the hues, and it
+     is why the faces are not at the top of the range - a pad already near white has
+     nowhere brighter to go when it lights.
+
+   The pads are also spread alternately along the blue-yellow axis and lightness, so
+   neighbours in hue are separated by brightness and everything else by the one axis
+   red/green colour blindness leaves intact. Six was the ceiling: the seventh could not
+   be placed without colliding with something, the same wall the Tetris palette hit. */
+export const SEQUENCE_COLORS = {
+    panel: '#171c21',      // Gunmetal - the machine's face
+    bezel: '#2b3339',      // Brushed steel - the surround a pad sits in
+    housing: '#0e1216',    // Shadow inside the bezel
+    readout: '#cfe3ea',    // Pale steel - the round counter
+};
+
+/* Ordered, and the four-pad game takes the first four - so the easier game gets the
+   widest spread on the blue-yellow axis rather than an arbitrary subset. */
+export const SEQUENCE_PADS = [
+    { name: 'steel',  face: '#b6c4ea', lit: '#eef2ff' },
+    { name: 'bone',   face: '#e0dcd0', lit: '#ffffff' },
+    { name: 'copper', face: '#bc8c70', lit: '#e8c0a4' },
+    { name: 'amber',  face: '#c08628', lit: '#f0c07a' },
+    { name: 'slate',  face: '#7898a0', lit: '#bcd6dc' },
+    { name: 'brass',  face: '#cdba6e', lit: '#f7ecbc' },
+];

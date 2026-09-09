@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -221,6 +221,53 @@ describe('Minesweeper palette', () => {
         }
         expect(numberColor(1)).toBe(numberColor(2));
         expect(numberColor(1)).not.toBe(numberColor(8));
+    });
+});
+
+describe('Sequence palette', () => {
+    const { panel } = SEQUENCE_COLORS;
+
+    test.each(SEQUENCE_PADS)('the $name pad face is legible on the panel', ({ face }) => {
+        expect(worstCaseContrast(face, panel)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test.each(SEQUENCE_PADS)('the $name pad stays legible while lit', ({ lit }) => {
+        expect(worstCaseContrast(lit, panel)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* The flash is the game's whole output channel, so it has to be a lightness jump
+       rather than a hue shift. A pad whose face already sat near white had nowhere
+       brighter to go and its flash vanished under simulation - which is why the faces
+       are pitched down the range rather than at the top of it. */
+    test.each(SEQUENCE_PADS)('the $name pad lighting up is visible as a change', ({ face, lit }) => {
+        expect(areDistinguishable(face, lit)).toBe(true);
+    });
+
+    /* Pads are told apart by position first, but a run recalled by colour must not
+       turn on hue alone. Six was the ceiling here: a seventh could not be placed
+       without colliding, the same wall the Tetris palette hit at seven pieces. */
+    test('no two pads are indistinguishable with red/green colour blindness', () => {
+        const collisions = [];
+        for (let i = 0; i < SEQUENCE_PADS.length; i++) {
+            for (let j = i + 1; j < SEQUENCE_PADS.length; j++) {
+                if (!areDistinguishable(SEQUENCE_PADS[i].face, SEQUENCE_PADS[j].face)) {
+                    collisions.push(`${SEQUENCE_PADS[i].name}/${SEQUENCE_PADS[j].name}`);
+                }
+            }
+        }
+        expect(collisions).toEqual([]);
+    });
+
+    /* The four-pad game takes the first four of the list, so that subset has to hold
+       up on its own - it is the game most people will play. */
+    test('the four-pad subset is spread across the blue-yellow axis', () => {
+        const axes = SEQUENCE_PADS.slice(0, 4).map((pad) => blueYellowAxis(pad.face));
+        expect(Math.max(...axes) - Math.min(...axes)).toBeGreaterThan(40);
+    });
+
+    test('the readout is legible on the panel', () => {
+        expect(worstCaseContrast(SEQUENCE_COLORS.readout, panel))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 });
 

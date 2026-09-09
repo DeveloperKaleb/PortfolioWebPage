@@ -41,20 +41,21 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Two pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `entertainment/entertainment.html` — a hub page for four browser-based toy/game systems (Tetris, Snake, Minesweeper, and an "Array Grid" color-painting toy), all rendered into `.butMania` grid containers of `<button>` cells. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#minesweeper`, `#toy`) implemented in `entertainment.js` — no routing library.
+- `entertainment/entertainment.html` — a hub page for five browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, and an "Array Grid" color-painting toy). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper and Sequence have their own containers. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#minesweeper`, `#sequence`, `#toy`) implemented in `entertainment.js` — no routing library.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
 **Display names differ from the names in the code.** The games are called Falling
-Polyominos, Snake, Mine Sweeper and Finger Paint on screen, but everything in
+Polyominos, Snake, Mine Sweeper, Sequence and Finger Paint on screen, but everything in
 the source - ids, classes, hash routes, variables, palettes, test files - still says
-tetris, snake, minesweeper and toy. Renaming those would touch the routes, every
-selector and all the tests for no visible gain, so searching the code for a display
-name will find nothing. Search for the internal one.
+tetris, snake, minesweeper, sequence and toy. Renaming those would touch the routes,
+every selector and all the tests for no visible gain, so searching the code for a display
+name will find nothing. Search for the internal one. Sequence is the one exception: it is
+called the same thing in both places.
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is four modules, all free of `document`/DOM calls so they stay testable
+The pure layer is five modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -67,8 +68,12 @@ under Vitest without a browser:
   that cross over themselves. Map-agnostic; the Infinity Snake board is its first user.
 - `js/minesweeper.js` — Minesweeper rules: mine placement, cascades, flags, chording,
   win/lose. Immutable, so every function returns a new game.
+- `js/sequence.js` — Sequence rules: the run, the player's answer, the difficulty ramp,
+  and one tone per pad. Immutable like Minesweeper, and deliberately free of timers —
+  playback timing belongs to the DOM layer, which is what keeps this testable. Sequence
+  is the only game that makes sound; see NOTES.md before touching the audio.
 
-`entertainment/entertainment.js` is the DOM/state layer for all four games and the toy:
+`entertainment/entertainment.js` is the DOM/state layer for all five games and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports
 the modules above as ES modules (loaded via `<script type="module">`).
 

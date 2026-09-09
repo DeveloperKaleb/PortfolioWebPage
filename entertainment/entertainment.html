@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260908-2032" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260908-2032" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260909-0805" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260909-0805" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -42,6 +42,15 @@
                         <span></span><span></span><span></span><span></span>
                     </div>
                     <span class="card-title">Mine Sweeper</span>
+                </button>
+                <button class="entry-card" data-view="sequence">
+                    <div class="thumb thumb-sequence" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Sequence</span>
                 </button>
             </div>
 
@@ -131,6 +140,30 @@
             <div id="mineDisplay"></div>
         </div>
 
+        <div id="sequence-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
+            <h2>Sequence</h2>
+            <div id="sequence-controls">
+                <p>Round: <span id="sequence-round">0</span> &middot; Best: <span id="sequence-best">0</span></p>
+                <select id="sequenceModeSelect" aria-label="Pads">
+                    <option value="four">Four pads</option>
+                    <option value="six">Six pads</option>
+                </select>
+                <!-- Sound is on by default and this turns it off, rather than the other
+                     way round: the paired light and tone are the game, and a player who
+                     never finds the control should still get both. The choice is
+                     remembered so it need only be made once. -->
+                <button type="button" id="sequenceSoundToggle" aria-pressed="true">
+                    <span class="sound-glyph" aria-hidden="true">&#9834;</span> Sound
+                </button>
+                <button type="button" id="sequenceStartBtn">Start Game</button>
+            </div>
+            <p id="sequence-status" role="status">Press Start, then repeat what the machine plays.</p>
+
+            <!-- Pads are built by entertainment.js: how many depends on the mode. -->
+            <div id="sequenceDisplay" class="sequence-panel" aria-label="Sequence pads"></div>
+        </div>
+
         <div id="toy-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
             <h2>Finger Paint</h2>
@@ -177,9 +210,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260908-2032"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260908-2032"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260908-2032"></script>
-    <script type="module" src="./entertainment.js?v=20260908-2032"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260909-0805"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260909-0805"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260909-0805"></script>
+    <script type="module" src="./entertainment.js?v=20260909-0805"></script>
 </body>
 </html>

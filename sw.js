@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20260908-2032';
+const VERSION = '20260909-0805';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -37,6 +37,7 @@ const PRECACHE = [
     `${BASE}/js/contrast.js`,
     `${BASE}/js/strands.js`,
     `${BASE}/js/minesweeper.js`,
+    `${BASE}/js/sequence.js`,
 ];
 
 /* The family photo is deliberately NOT precached.
