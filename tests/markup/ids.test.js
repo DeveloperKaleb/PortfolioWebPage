@@ -122,3 +122,32 @@ describe('Service worker versioning', () => {
         expect(worker).toContain('clients.claim');
     });
 });
+
+/* The family photo is kept out of the service worker's cache deliberately. Caching it
+   exposes nothing a visit does not already - the browser stores it either way - but a
+   worker holds it far longer, on the device of everyone who has ever opened the page,
+   and it buys nothing: offline play means the games, and the entertainment page does
+   not reference the photo at all. This test exists so it is not added back without the
+   decision being made again. */
+describe('What the service worker keeps', () => {
+    const worker = readFileSync(resolve(root, 'sw.js'), 'utf8');
+
+    test('no photo is precached', () => {
+        const precache = worker.slice(worker.indexOf('const PRECACHE'), worker.indexOf('];'));
+        expect(precache).not.toMatch(/\.(jpg|jpeg|png|gif|webp|avif)/i);
+    });
+
+    test('the games are, which is the point of it', () => {
+        ['entertainment/entertainment.html', 'entertainment/entertainment.js',
+         'js/logic.js', 'js/minesweeper.js', 'js/strands.js', 'style.css']
+            .forEach((file) => expect(worker).toContain(file));
+    });
+
+    // Without a photo in the cache, the offline home page must not show a broken icon.
+    test('the photo hides itself if it cannot load', () => {
+        const home = read('index.html');
+        const img = home.match(/<img[^>]*family-photo[^>]*>/s);
+        expect(img).not.toBeNull();
+        expect(img[0]).toContain('onerror');
+    });
+});

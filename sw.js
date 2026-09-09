@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20260908-2022';
+const VERSION = '20260908-2032';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -37,9 +37,21 @@ const PRECACHE = [
     `${BASE}/js/contrast.js`,
     `${BASE}/js/strands.js`,
     `${BASE}/js/minesweeper.js`,
-
-    `${BASE}/photos/family-photo.jpg`,
 ];
+
+/* The family photo is deliberately NOT precached.
+ *
+ * Caching it would not expose anything a visit does not already - a browser stores it in
+ * the ordinary HTTP cache either way, sandboxed to this origin - but a service worker
+ * holds it far longer and more deliberately, on the device of everyone who has ever
+ * opened the page. It buys nothing for the reason this worker exists: offline play means
+ * the games, and the entertainment page does not reference the photo at all.
+ *
+ * Leaving it out takes the offline payload from 448KB to about 160KB and keeps a picture
+ * of the family out of long-lived storage on other people's devices, at no cost to
+ * anything anyone actually wanted offline. The home page still works without a network;
+ * the picture may or may not be there, and hides itself if it is not.
+ */
 
 self.addEventListener('install', (event) => {
     event.waitUntil(

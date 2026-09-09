@@ -814,6 +814,14 @@ Kept with dates and attribution so they can be prioritised later rather than
 rediscovered. Nothing here is committed to; it is a record of what was suggested and
 when.
 
+### Suggested 2026-09-08, by the project owner
+
+**Splitting the site in two** - a personal site for his own work, and a separate games
+site. Not decided, and explicitly a later question, but recorded because it changes what
+other decisions are worth making. The photo question above is one of them: a games site
+has no reason to carry a family photograph at all, which would settle it by structure
+rather than by caching policy.
+
 ### Suggested 2026-09-07, by the project owner's daughter
 
 Both came out of the same session that produced the Infinity Snake board and
@@ -1181,6 +1189,30 @@ the modules and the footer all came back with nothing listening on the port.
 **If it ever needs killing**, push an `sw.js` whose `install` calls
 `self.registration.unregister()`. Deleting the file is not enough — browsers keep the
 worker they already have.
+
+### The family photo is not precached
+
+Deliberate, and worth keeping deliberate.
+
+Caching it would expose nothing a visit does not already - a browser stores it in the
+ordinary HTTP cache either way, sandboxed to this origin. But a service worker holds it
+far longer and more purposefully, on the device of everyone who has ever opened the
+page. And it buys nothing for the reason the worker exists: offline play means the
+games, and the entertainment page never references the photo.
+
+Leaving it out takes the precache from 448KB to **168KB** at no cost to anything anyone
+wanted offline. The home page still loads without a network; the picture hides itself
+rather than showing a broken-image icon.
+
+Both photos in the repo were checked for embedded metadata and have none - no EXIF, no
+GPS, no camera model or timestamp. That is the failure mode that actually harms people
+and it is absent, but it is worth re-checking before adding any new photo.
+
+**The real exposure was never the cache.** The photo is on a public site and in a public
+repo, and the superseded one from before the swap is still retrievable from history in
+commit `0eabb87`. Deleting a file does not remove it from history; that needs a rewrite,
+which breaks every existing clone. Worth doing deliberately if ever wanted, not as a
+side effect of a caching decision.
 
 ### What stops caches like this filling up a phone
 
