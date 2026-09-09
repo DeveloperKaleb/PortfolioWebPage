@@ -890,6 +890,47 @@ the same way - it calls `initSequence()`, which clears the pending timer list. A
 abandoned run here would be the worst of the four to leave running, being the only one
 that makes noise.
 
+## The control bars are themed per game
+
+Until 2026-09-09 the row of selects and buttons above each board was browser default
+chrome: identical grey above five games that look nothing alike, and on a dark page the
+default select was the brightest thing on screen - louder than the board it belonged to.
+Each game's controls now take that game's own palette. Snake and Minesweeper share
+Pacific Northwest, Sequence takes the machine's steel, Falling Polyominos takes the deep
+teal with the piece colours as accents, Finger Paint takes the site's olive.
+
+**Set with custom properties per view, not five copies of the rules.** Each `.game-view`
+states only its colours; the structure is written once. Adding a sixth game means adding
+one block of variables. The values live in `CONTROL_THEMES` in js/logic.js and are
+asserted in tests/contrast, like every other colour on the site.
+
+**Scoped by control-bar id, not by `.game-view`.** A game view also contains the board,
+the touch pads and Sequence's own pads - all of them `<button>` elements with their own
+styling. A rule targeting `.game-view button` would have taken every one of them.
+
+**Borders are held to 3:1, not 4.5:1.** A border is an edge, not something read, so the
+text floor does not apply - but a control with no visible boundary has no visible shape.
+3:1 is the WCAG threshold for a graphic, and the Sequence border failed the first pass at
+2.54:1 before being lightened.
+
+**Toggles are checked in their on state.** Flag mode and the sound switch are modes
+rather than momentary presses, so "on" has to be legible - a control that lost its
+contrast when switched on would be least readable exactly when the state matters most.
+Both are asserted.
+
+**The select caret is drawn in CSS, not left to the system.** A native arrow is painted
+in the OS's own colour, which on these surfaces ranges from invisible to jarring. Two
+linear-gradients make a caret in the control's own text colour, so it follows the theme
+with no image file. Two consequences worth knowing: `appearance: none` is required for
+it, `background-color` has to be set separately or the `background` shorthand wipes the
+caret out, and the disabled rule has to clear `background-image` or the caret stays in
+the old text colour on the drained surface.
+
+**`<option>` colours are stated explicitly.** The dropdown list is drawn by the OS, and
+an option inheriting a dark surface with dark system text is unreadable. Finger Paint's
+colour picker is the exception - it sets per-option colours inline, for the reason
+recorded in its own note.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than

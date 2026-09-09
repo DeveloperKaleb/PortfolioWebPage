@@ -176,44 +176,13 @@ footer li + li {
     margin: 0 0 10px;
 }
 
-/* Shared sizing for every interactive control on the entertainment page. 44px is
-   the usual minimum comfortable tap target; 16px text is the threshold below
-   which iOS Safari zooms the page in when an input takes focus. */
-.entry-card,
-.back-btn,
-#tetrisStartBtn,
-#startBtn,
-#modeSelect,
-#arrayForm input,
-#arrayForm button {
+/* The hub cards. Every other control on this page is sized by the control-bar rules
+   at the foot of this file; these are the two values those share. 44px is the usual
+   minimum comfortable tap target, and 16px is the threshold below which iOS Safari
+   zooms the page in when a field takes focus. */
+.entry-card {
     min-height: 44px;
     font-size: 16px;
-}
-
-/* Disabled mid-game (see setGameControlsEnabled). Muted, not dimmed: opacity: 0.5
-   scales the text down with the background and took the label to about 1.6:1, which
-   is why these became unreadable. "Unavailable" now comes from the colour being
-   drained while the text stays at 7.18:1.
-
-   Keep in step with UI_COLORS in js/logic.js, which is where these are asserted.
-   -webkit-text-fill-color is needed as well: WebKit dims disabled text by its own
-   rule, which out-ranks a plain colour. */
-#modeSelect:disabled,
-#startBtn:disabled,
-#tetrisStartBtn:disabled {
-    background-color: #b9bba4;
-    color: #2f2a1f;
-    -webkit-text-fill-color: #2f2a1f;
-    opacity: 1;
-    cursor: not-allowed;
-}
-
-#arrayForm {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
 }
 
 #arrayForm div {
@@ -225,18 +194,6 @@ footer li + li {
 #arrayForm input {
     width: 6em;
     box-sizing: border-box;
-    padding: 8px;
-}
-
-/* The score line and start/mode controls sit in a row that wraps on a phone
-   rather than running off the edge. */
-#game-controls,
-#tetris-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
 }
 
 /* Mini decorative previews for each hub card. Purely cosmetic - not tied
@@ -954,32 +911,7 @@ a:active  {color: #002e2c;}
     cursor: default;
 }
 
-#mine-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-}
-
-#flagToggle,
-#mineStartBtn,
-#mineModeSelect {
-    min-height: 44px;
-    font-size: 16px;
-}
-
-/* Flag mode is a mode, so it has to look switched on rather than just recently
-   pressed - there is no other way to tell what the next tap will do. */
-#flagToggle.is-active {
-    background: #f0c07a;
-    color: #241f18;
-    -webkit-text-fill-color: #241f18;
-    font-weight: bold;
-}
-
 #mine-status {
-    color: #e3e7af;
     min-height: 1.4em;
     margin: 8px 0 0;
 }
@@ -1078,17 +1010,12 @@ a:active  {color: #002e2c;}
 }
 
 #sequence-controls {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
     margin-bottom: 10px;
 }
 
+/* The round counter must not jitter as it climbs. */
 #sequence-controls p {
-    margin: 0;
-    font-variant-numeric: tabular-nums; /* the round counter must not jitter as it climbs */
+    font-variant-numeric: tabular-nums;
 }
 
 #sequenceSoundToggle.is-muted .sound-glyph {
@@ -1117,3 +1044,226 @@ a:active  {color: #002e2c;}
 .thumb-sequence span:nth-child(7)  { background: #4a4433; }
 .thumb-sequence span:nth-child(10) { background: #5c4a30; }
 .thumb-sequence span:nth-child(11) { background: #f0c07a; }
+
+/* --- GAME CONTROL BARS --- */
+/* The row of selects, buttons and readouts above each board.
+ *
+ * These were browser defaults: the same grey chrome above five games that look
+ * nothing alike, and on a dark page a default select was the brightest thing on
+ * screen - louder than the board it belonged to. Each game's controls now take that
+ * game's own palette.
+ *
+ * Done with custom properties set per view rather than five copies of the same rules:
+ * the structure is written once below, and a view only states its colours. Keep these
+ * in step with CONTROL_THEMES in js/logic.js, which is where they are asserted.
+ */
+
+#snake-system,
+#minesweeper-system {
+    --control-surface: #2f4a38; /* Evergreen */
+    --control-text: #dfe3d4;    /* Lichen */
+    --control-border: #7d9a86;
+    --control-readout: #dfe3d4;
+    --control-on: #f0c07a;      /* Lantern */
+    --control-on-text: #241f18;
+}
+
+#sequence-system {
+    --control-surface: #2b3339; /* Brushed steel */
+    --control-text: #cfe3ea;    /* Pale steel */
+    --control-border: #7b909c;
+    --control-readout: #cfe3ea;
+    --control-on: #bcd6dc;      /* The steel pad, lit */
+    --control-on-text: #0e1216;
+}
+
+#tetris-system {
+    --control-surface: #002e2c; /* Deep Teal */
+    --control-text: #eff1c5;    /* Cream */
+    --control-border: #7fd0d6;  /* Aqua - the S piece */
+    --control-readout: #eff1c5;
+    --control-on: #d2d673;
+    --control-on-text: #2f2a1f;
+}
+
+#toy-system {
+    --control-surface: #51553a; /* Olive */
+    --control-text: #eff1c5;    /* Cream */
+    --control-border: #dfe38c;
+    --control-readout: #e3e7af;
+    --control-on: #dfe38c;
+    --control-on-text: #2f2a1f;
+}
+
+/* Every control bar is the same shape; only the colours differ. */
+#game-controls,
+#tetris-controls,
+#mine-controls,
+#sequence-controls,
+#arrayForm,
+#toyColorPicker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Scoped to the control bars by name rather than to the view: a game view also holds
+   the board, the touch pads and Sequence's own pads, none of which are chrome and all
+   of which have their own styling to keep. */
+#game-controls button,
+#game-controls select,
+#tetris-controls button,
+#tetris-controls select,
+#mine-controls button,
+#mine-controls select,
+#sequence-controls button,
+#sequence-controls select,
+#arrayForm button,
+#arrayForm input,
+#toyColorPicker select,
+.game-view .back-btn {
+    min-height: 44px;
+    /* 16px exactly: below it, iOS Safari zooms the page in when a field takes focus. */
+    font-size: 16px;
+    font-family: inherit;
+    padding: 8px 14px;
+    background-color: var(--control-surface);
+    color: var(--control-text);
+    border: 2px solid var(--control-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* A number field is typed into, not pressed. */
+#arrayForm input {
+    cursor: text;
+    text-align: center;
+}
+
+/* The native arrow is drawn in the system's own colour, which on these surfaces can
+   land anywhere from invisible to jarring. Two gradients make a caret in the control's
+   own text colour instead - no image file, and it follows the theme automatically.
+   background-color is set separately above, so the shorthand never wipes this out. */
+#game-controls select,
+#tetris-controls select,
+#mine-controls select,
+#sequence-controls select,
+#toyColorPicker select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 34px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--control-text) 50%),
+        linear-gradient(135deg, var(--control-text) 50%, transparent 50%);
+    background-position: calc(100% - 20px) center, calc(100% - 14px) center;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+/* The dropdown list itself is drawn by the OS, and an option inheriting a dark
+   surface with dark system text is unreadable. State both. The toy's colour picker
+   sets its own per-option colours inline and is left alone. */
+#game-controls select option,
+#tetris-controls select option,
+#mine-controls select option,
+#sequence-controls select option {
+    background-color: var(--control-surface);
+    color: var(--control-text);
+}
+
+/* The readouts - score, flags left, round and best - sit on the page rather than on a
+   control, so they are measured against the page column. The status lines below the
+   board are the same case, and take the same colour so a game's text reads as one
+   voice rather than two. */
+#game-controls p,
+#tetris-controls p,
+#mine-controls p,
+#sequence-controls p {
+    margin: 0;
+    color: var(--control-readout);
+}
+
+#mine-status,
+#sequence-status {
+    color: var(--control-readout);
+}
+
+#arrayForm label,
+#toyColorPicker label {
+    color: var(--control-readout);
+}
+
+@media (hover: hover) {
+    #game-controls button:hover:not(:disabled),
+    #tetris-controls button:hover:not(:disabled),
+    #mine-controls button:hover:not(:disabled),
+    #sequence-controls button:hover:not(:disabled),
+    #arrayForm button:hover:not(:disabled),
+    .game-view .back-btn:hover {
+        border-color: var(--control-text);
+    }
+}
+
+#game-controls button:focus-visible,
+#game-controls select:focus-visible,
+#tetris-controls button:focus-visible,
+#tetris-controls select:focus-visible,
+#mine-controls button:focus-visible,
+#mine-controls select:focus-visible,
+#sequence-controls button:focus-visible,
+#sequence-controls select:focus-visible,
+#arrayForm button:focus-visible,
+#arrayForm input:focus-visible,
+.game-view .back-btn:focus-visible {
+    outline: 3px solid var(--control-readout);
+    outline-offset: 2px;
+}
+
+/* A mode is a state, not a recent press: a toggle that is on has to look switched on,
+   or there is no way to tell what the next tap will do. Both of these are checked in
+   their on state by tests/contrast - a control is least useful when it is least
+   readable in the state that matters. */
+#flagToggle.is-active,
+#sequenceSoundToggle.is-active {
+    background-color: var(--control-on);
+    color: var(--control-on-text);
+    -webkit-text-fill-color: var(--control-on-text);
+    border-color: var(--control-on);
+    font-weight: bold;
+}
+
+/* Falling Polyominos gets the piece colours themselves along its controls - one each,
+   alternating across the blue-yellow axis so neighbours stay apart. They are the same
+   seven already proved distinguishable as pieces, so the party cannot introduce a
+   collision. Keep in step with TETRIS_CONTROL_ACCENTS in js/logic.js. */
+#tetris-controls p        { border-bottom: 2px solid #d4eefa; padding-bottom: 2px; } /* Pale Sky */
+#tetris-controls p + p    { border-bottom-color: #e08a4f; }                          /* Amber */
+#tetris-controls select   { border-color: #7fd0d6; }                                 /* Aqua */
+#tetris-controls button   { border-color: #d2d673; }                                 /* Chartreuse */
+
+/* Disabled mid-game (see setGameControlsEnabled). Muted, not dimmed: opacity: 0.5
+   scales the text down with the background and took the label to about 1.6:1, which is
+   why these were unreadable once. "Unavailable" comes from the colour being drained
+   while the text stays at 7.18:1.
+
+   Keep in step with UI_COLORS in js/logic.js, where these are asserted.
+   -webkit-text-fill-color is needed as well: WebKit dims disabled text by its own
+   rule, which out-ranks a plain colour. */
+#game-controls button:disabled,
+#game-controls select:disabled,
+#tetris-controls button:disabled,
+#tetris-controls select:disabled,
+#mine-controls button:disabled,
+#mine-controls select:disabled,
+#sequence-controls button:disabled,
+#sequence-controls select:disabled {
+    background-color: #b9bba4;
+    color: #2f2a1f;
+    -webkit-text-fill-color: #2f2a1f;
+    border-color: #b9bba4;
+    background-image: none; /* the caret would be drawn in the old text colour */
+    opacity: 1;
+    cursor: not-allowed;
+}

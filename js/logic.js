@@ -680,3 +680,78 @@ export const SEQUENCE_PADS = [
     { name: 'slate',  face: '#7898a0', lit: '#bcd6dc' },
     { name: 'brass',  face: '#cdba6e', lit: '#f7ecbc' },
 ];
+
+/* --- CONTROL BAR THEMES --- */
+/* The row of selects, buttons and readouts above each board. These were browser
+   defaults until now: identical grey chrome above five games that otherwise look
+   nothing alike, and on a dark page the default select was the brightest thing on
+   screen - louder than the board it belonged to.
+
+   Each game's controls take that game's own palette, so the chrome reads as part of
+   the machine rather than as the page's furniture. Same rules as everywhere else:
+   `text` clears 4.5:1 on `surface`, and `readout` clears it on the page column, which
+   is BOARD_COLORS.emptyCell. Asserted in tests/contrast.
+
+   `border` is not held to the text floor - it is an edge, not something read - but it
+   is kept clearly off its own surface so a control still has a visible boundary. */
+
+// Pacific Northwest, shared by Snake and Minesweeper, matching their boards.
+const PNW_CONTROLS = {
+    surface: '#2f4a38',      // Evergreen
+    text: '#dfe3d4',         // Lichen
+    border: '#7d9a86',       // Sunlit needle
+    readout: '#dfe3d4',      // Lichen, on the page column
+    activeSurface: '#f0c07a',// Lantern - a toggle that is switched on
+    activeText: '#241f18',   // Bark
+};
+
+export const CONTROL_THEMES = {
+    snake: PNW_CONTROLS,
+    minesweeper: PNW_CONTROLS,
+
+    /* Sequence: the panel and its fascia, the same metal as the pads sit in. The
+       switched-on toggle is a lit lamp, because on this machine that is what "on"
+       already looks like. */
+    sequence: {
+        surface: '#2b3339',      // Brushed steel - SEQUENCE_COLORS.bezel
+        text: '#cfe3ea',         // Pale steel - SEQUENCE_COLORS.readout
+        border: '#7b909c',       // Machined edge
+        readout: '#cfe3ea',
+        activeSurface: '#bcd6dc',// The steel pad, lit
+        activeText: '#0e1216',   // SEQUENCE_COLORS.housing
+    },
+
+    /* Falling Polyominos: the site's deep teal, with the piece colours themselves as
+       accents on the controls. Those seven are already proved pairwise distinguishable
+       under both simulations (see the Tetris palette above), so borrowing them for the
+       chrome costs nothing and cannot introduce a collision - which is the only way to
+       throw a colour party on a board that has to stay readable. */
+    tetris: {
+        surface: '#002e2c',      // Deep Teal
+        text: '#eff1c5',         // Cream
+        border: '#7fd0d6',       // Aqua - the S piece
+        readout: '#eff1c5',
+        activeSurface: '#d2d673',// Chartreuse - the L piece
+        activeText: '#2f2a1f',
+    },
+
+    // Finger Paint: the paint tray, in the site's own olive and cream.
+    toy: {
+        surface: '#51553a',      // Olive - the gutter colour
+        text: '#eff1c5',         // Cream
+        border: '#dfe38c',       // Straw
+        readout: '#e3e7af',
+        activeSurface: '#dfe38c',
+        activeText: '#2f2a1f',
+    },
+};
+
+/* The piece colours handed round the Tetris controls, one each, so the row is a
+   spread of the palette rather than one accent repeated. Ordered to alternate across
+   the blue-yellow axis, which is what keeps neighbouring controls apart. */
+export const TETRIS_CONTROL_ACCENTS = [
+    TETRIS_COLORS.I, // Pale Sky
+    TETRIS_COLORS.Z, // Amber
+    TETRIS_COLORS.S, // Aqua
+    TETRIS_COLORS.L, // Chartreuse
+];

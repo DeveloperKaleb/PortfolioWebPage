@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -268,6 +268,56 @@ describe('Sequence palette', () => {
     test('the readout is legible on the panel', () => {
         expect(worstCaseContrast(SEQUENCE_COLORS.readout, panel))
             .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+});
+
+describe('Control bar themes', () => {
+    const themes = Object.entries(CONTROL_THEMES);
+
+    /* The page column the controls sit on. Every game's readout is measured against
+       this one background, because the control bar is on the page, not on the board. */
+    const PAGE = BOARD_COLORS.emptyCell;
+
+    test.each(themes)('%s: the control label is legible on the control', (_name, theme) => {
+        expect(worstCaseContrast(theme.text, theme.surface))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test.each(themes)('%s: the readout is legible on the page', (_name, theme) => {
+        expect(worstCaseContrast(theme.readout, PAGE))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* A toggle that is on has to be readable in that state too. Flag mode and the
+       sound switch are both modes, not momentary presses - if the "on" look cost the
+       label its contrast, the control would be least readable exactly when it matters. */
+    test.each(themes)('%s: a switched-on toggle stays readable', (_name, theme) => {
+        expect(worstCaseContrast(theme.activeText, theme.activeSurface))
+            .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* The border is an edge rather than something read, so it is not held to the text
+       floor - but a control with no visible boundary on its own surface is a control
+       you cannot see the shape of. 3:1 is the WCAG threshold for a graphic. */
+    test.each(themes)('%s: the control has a visible edge', (_name, theme) => {
+        expect(worstCaseContrast(theme.border, theme.surface)).toBeGreaterThanOrEqual(3);
+    });
+
+    /* On is a different state, not a brighter version of off. Distinguishable rather
+       than merely different, so it survives both simulations. */
+    test.each(themes)('%s: on and off are tellable apart', (_name, theme) => {
+        expect(areDistinguishable(theme.activeSurface, theme.surface)).toBe(true);
+    });
+
+    /* The Tetris controls borrow the piece colours as accents. They are already proved
+       pairwise distinguishable as pieces; what has to hold here is that each one is
+       legible as an edge on the control surface it is drawn against. */
+    test.each(TETRIS_CONTROL_ACCENTS)('the %s accent is visible on the Tetris control', (accent) => {
+        expect(worstCaseContrast(accent, CONTROL_THEMES.tetris.surface)).toBeGreaterThanOrEqual(3);
+    });
+
+    test('Snake and Minesweeper share one theme rather than two copies of it', () => {
+        expect(CONTROL_THEMES.snake).toBe(CONTROL_THEMES.minesweeper);
     });
 });
 
