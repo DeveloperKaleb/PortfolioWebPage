@@ -931,6 +931,34 @@ an option inheriting a dark surface with dark system text is unreadable. Finger 
 colour picker is the exception - it sets per-option colours inline, for the reason
 recorded in its own note.
 
+## Hub thumbnails drift, and now there is a test for it
+
+The tiles on the hub are decorative - nothing is read against them, so they are exempt
+from the contrast rules. They are not exempt from being honest about what the game looks
+like, and by 2026-09-09 two of them were not: the Falling Polyominos and Snake tiles were
+written before either palette was rewritten for colour blindness and nobody had gone back
+to them. The hub was advertising Falling Polyominos in a red, `#b33939`, that by then
+existed nowhere else on the site, and Snake in the old olive. It was spotted by looking
+at the cards beside the boards, which is the only way it ever would have been.
+
+`tests/markup/thumbnails.test.js` now parses the `.thumb-*` rules out of style.css and
+checks every colour against that game's palette in js/logic.js. Rearranging the cells
+stays free; inventing a colour does not. The test was confirmed to fail by putting
+`#b33939` back before it was trusted - a drift test that has never been seen to fail is
+not yet a test.
+
+**The toy is the loose end.** Finger Paint's grid is styled in the stylesheet rather than
+from a palette module, being the one board whose cells never had colour rules to answer
+to. Its two surface colours are named in the test file so its paints can still be checked
+against TOY_COLORS, which is the half that matters.
+
+**Sequence's tile is reshaped, not just recoloured.** Its board is 2x2 where every other
+tile is 4x4, so the CSS restates the grid and drops the twelve spare cells from the
+shared markup. The pads run to the edge, leaving the panel showing only as the gaps and
+the frame - which is how the real board reads, where the dark is housing rather than
+empty cells. If that `nth-child(n+5)` rule is ever lost, twelve stray cells appear rather
+than anything failing loudly, so the test pins it.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than

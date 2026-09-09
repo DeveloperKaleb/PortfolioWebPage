@@ -214,26 +214,41 @@ footer li + li {
     background: transparent;
 }
 
+/* Every colour below is taken from the game's own palette in js/logic.js, and
+   tests/markup/thumbnails.test.js fails if one drifts out of it. These went stale
+   once already: both of these tiles kept their original colours through the palette
+   rewrites, so the hub advertised games in colours they no longer used - Falling
+   Polyominos in a red that exists nowhere on the site any more. */
+
+/* Falling Polyominos: a stack on the board, gaps showing the grid lines through. */
+.thumb-tetris span { background: #3b3026; }                                    /* Empty cell */
 .thumb-tetris span:nth-child(9),
-.thumb-tetris span:nth-child(10) { background: #035e7b; }
-.thumb-tetris span:nth-child(12) { background: #dfe38c; }
+.thumb-tetris span:nth-child(10) { background: #6aa9c8; }                      /* J - Steel Blue */
+.thumb-tetris span:nth-child(12) { background: #f7f2c2; }                      /* O - Cream */
 .thumb-tetris span:nth-child(13),
-.thumb-tetris span:nth-child(14) { background: #e3e7af; }
+.thumb-tetris span:nth-child(14) { background: #d4eefa; }                      /* I - Pale Sky */
 .thumb-tetris span:nth-child(15),
-.thumb-tetris span:nth-child(16) { background: #b33939; }
+.thumb-tetris span:nth-child(16) { background: #e08a4f; }                      /* Z - Amber */
 
+/* Snake: the Pacific Northwest board - lichen ground, the snake crossing it toward
+   the food. The ground is the tile's own background, so the gaps read as ground too
+   rather than as grid lines the real board does not have. */
+.thumb-snake { background: #e6e9dc; }                                          /* Lichen ground */
+.thumb-snake span { background: #e6e9dc; }
 .thumb-snake span:nth-child(2),
-.thumb-snake span:nth-child(6),
-.thumb-snake span:nth-child(10) { background: #a2a77f; }
-.thumb-snake span:nth-child(16) { background: #035e7b; }
+.thumb-snake span:nth-child(6)  { background: #2c5418; }                       /* Fern - body */
+.thumb-snake span:nth-child(10) { background: #16241a; }                       /* Deep Canopy - head */
+.thumb-snake span:nth-child(16) { background: #204c7c; }                       /* Lake - food */
 
-.thumb-toy span:nth-child(1)  { background: #b33939; }
-.thumb-toy span:nth-child(4)  { background: #dfe38c; }
-.thumb-toy span:nth-child(6)  { background: #a2a77f; }
-.thumb-toy span:nth-child(9)  { background: #035e7b; }
-.thumb-toy span:nth-child(11) { background: #eff1c5; }
-.thumb-toy span:nth-child(14) { background: #e3e7af; }
-.thumb-toy span:nth-child(16) { background: #dfe38c; }
+/* Finger Paint: the toy's own cells, part painted. The paints are TOY_COLORS. */
+.thumb-toy span { background: #a2a77f; }
+.thumb-toy span:nth-child(1)  { background: red; }
+.thumb-toy span:nth-child(4)  { background: yellow; }
+.thumb-toy span:nth-child(6)  { background: #6f4e37; }
+.thumb-toy span:nth-child(9)  { background: blue; }
+.thumb-toy span:nth-child(11) { background: white; }
+.thumb-toy span:nth-child(14) { background: pink; }
+.thumb-toy span:nth-child(16) { background: purple; }
 
 /* --- Links --- */
 a:link    {color: #eff1c5;}
@@ -1035,15 +1050,33 @@ a:active  {color: #002e2c;}
 }
 
 /* Hub thumbnail: four lamps in a dark fascia, one of them lit. */
+/* Hub thumbnail: the four-pad panel itself, rather than a hint of one.
+ *
+ * The tile is a 4x4 grid like the others, but Sequence's board is 2x2, so it is
+ * restated as two by two and the spare twelve spans are dropped. The markup is shared
+ * across every card and stays as it is - this is the one game whose board does not
+ * happen to be four by four, and reshaping it here costs one rule.
+ *
+ * The pads run to the edge, so the panel shows only as the gaps between them and the
+ * frame around them - the same way the real board reads, where the dark is housing
+ * rather than empty cells. */
 .thumb-sequence {
-    background: #2b3339;
+    background: #171c21;                   /* Panel - the frame and the gaps */
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
 }
 
-.thumb-sequence span { background: #171c21; }
-.thumb-sequence span:nth-child(6)  { background: #b6c4ea; }
-.thumb-sequence span:nth-child(7)  { background: #4a4433; }
-.thumb-sequence span:nth-child(10) { background: #5c4a30; }
-.thumb-sequence span:nth-child(11) { background: #f0c07a; }
+.thumb-sequence span {
+    border-radius: 2px;                    /* the moulded lamps, in miniature */
+}
+
+.thumb-sequence span:nth-child(1) { background: #b6c4ea; }  /* Steel */
+.thumb-sequence span:nth-child(2) { background: #e0dcd0; }  /* Bone */
+.thumb-sequence span:nth-child(3) { background: #bc8c70; }  /* Copper */
+.thumb-sequence span:nth-child(4) { background: #f0c07a; }  /* Amber, lit */
+
+/* The other twelve cells of the shared 4x4 markup. */
+.thumb-sequence span:nth-child(n+5) { display: none; }
 
 /* --- GAME CONTROL BARS --- */
 /* The row of selects, buttons and readouts above each board.
