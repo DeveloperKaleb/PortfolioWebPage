@@ -44,3 +44,30 @@ test('both pages are cache-busted to the same version', () => {
     const stampOf = (page) => read(page).match(/\?v=(\d{8}-\d{4})/)[1];
     expect(stampOf(pages[0])).toBe(stampOf(pages[1]));
 });
+
+/* The site loads nothing from anywhere else. It used to pull normalize.css from a CDN,
+   which meant every visitor's browser contacted a third party, the bytes could not be
+   integrity-checked without pinning a hash, and the page lost its reset with no network
+   - the one thing a page of offline games ought to survive. It is vendored now.
+
+   Links in the footer point at GitHub and LinkedIn, which is fine: those are somewhere
+   the reader chooses to go, not something the page fetches on their behalf. Only
+   subresources matter here. */
+describe.each(pages)('%s loads only its own files', (page) => {
+    const html = read(page);
+
+    test('no stylesheet comes from another origin', () => {
+        const remote = [...html.matchAll(/<link[^>]+href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]);
+        expect(remote).toEqual([]);
+    });
+
+    test('no script comes from another origin', () => {
+        const remote = [...html.matchAll(/<script[^>]+src="(https?:\/\/[^"]+)"/g)].map((m) => m[1]);
+        expect(remote).toEqual([]);
+    });
+
+    test('no image or media comes from another origin', () => {
+        const remote = [...html.matchAll(/<(?:img|video|audio|source)[^>]+src="(https?:\/\/[^"]+)"/g)].map((m) => m[1]);
+        expect(remote).toEqual([]);
+    });
+});

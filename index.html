@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- The tag above makes the page adjust to the device's screen width. -->
     <title>Kaleb's Website</title>
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css"
-      rel="stylesheet"
-      type="text/css"
-    />
-    <link href="style.css?v=20260908-0822" rel="stylesheet" type="text/css" />
+    <!-- Vendored rather than loaded from a CDN: it is the only third-party request
+         the site would otherwise make, it cannot be integrity-checked without pinning
+         a hash, and it would fail with no network - which is the one thing a page of
+         offline games should survive. MIT licensed; the header is kept in the file. -->
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260908-2015" rel="stylesheet" type="text/css" />
+    <link href="style.css?v=20260908-2015" rel="stylesheet" type="text/css" />
     <!-- The two links above this comment are meant to set browser setting to a consistent standard and link to the style.css file -->
   </head>
   <body>
@@ -73,7 +73,7 @@
       </article>
       <p id="last-updated"></p>
     </footer>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260908-0822"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260908-0822"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260908-2015"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260908-2015"></script>
   </body>
 </html>

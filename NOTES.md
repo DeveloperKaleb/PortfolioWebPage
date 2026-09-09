@@ -1117,3 +1117,32 @@ nothing.** Search for the internal one.
 Only the markup carries the display names — eight strings in
 `entertainment/entertainment.html`. No player-visible string in the JavaScript names a
 game, which is why the rename was contained to one file.
+
+## The site loads nothing from anywhere else
+
+`normalize.css` used to come from cdnjs. It is now `vendor/normalize.css`, served from
+this repo, and both pages point at it with the usual `?v=` stamp.
+
+It was the only third-party subresource on the site, and it carried three separate
+problems for 1.9KB of CSS:
+
+- **Every visitor's browser contacted Cloudflare**, which saw their IP and the referring
+  page — a third party on a personal site that gained nothing by being there.
+- **The bytes were not integrity-checked.** There was no `integrity` attribute, so the
+  pages applied whatever the CDN returned. CSS cannot run scripts, so the blast radius is
+  smaller than a compromised `<script>`, but it can still hide or overlay content.
+- **It failed with no network**, taking the reset with it — the one thing a page of
+  offline games ought to survive.
+
+Vendored rather than deleted, deliberately: removing it would change how the pages look
+in ways that need checking element by element, while vendoring is identical by
+construction — the same bytes, from your own origin. The MIT licence header is kept in
+the file, which is the condition for redistributing it.
+
+`tests/markup/ids.test.js` now fails on any stylesheet, script, image or media loaded
+from another origin, so a CDN link cannot quietly come back. Verified by putting the old
+one back and watching it fail. Footer links to GitHub and LinkedIn are untouched: those
+are somewhere the reader chooses to go, not something the page fetches for them.
+
+The practical upshot is that the site is now **entirely self-contained** — which is what
+makes offline play a matter of caching files rather than a matter of dependencies.
