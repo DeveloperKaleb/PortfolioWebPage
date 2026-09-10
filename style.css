@@ -830,24 +830,6 @@ a:active  {color: #002e2c;}
     font-size: 16px;
 }
 
-/* The review button is the only one of the three that comes and goes, so its display
-   goes on :not([hidden]) - an id selector is specific enough to beat the [hidden]
-   attribute outright, and the button would show for every game. Third time this trap
-   has been hit in this file: the game views, the dialog itself, and now this. */
-#game-over-review:not([hidden]) {
-    display: block;
-}
-
-#game-over-review {
-    width: 100%;
-    min-height: 44px;
-    font-size: 16px;
-    /* 16px, matching the gap below the mode block rather than the 10px between the two
-       nav buttons. The wider gap is what separates looking back at the game that just
-       ended from setting up the next one. */
-    margin-bottom: 16px;
-}
-
 #play-again {
     margin-bottom: 10px;
 }
@@ -1034,6 +1016,27 @@ a:active  {color: #002e2c;}
 #mine-status {
     min-height: 1.4em;
     margin: 8px 0 0;
+}
+
+/* The finished game's result, which for Minesweeper is stated here rather than in the
+   end-of-game dialog - the dialog would be covering the board the player wants to read.
+   It has to carry the weight the dialog would have, so it becomes a banner rather than
+   a hint line.
+
+   The colours are the control theme's, already contrast-checked in tests/contrast, and
+   the outcome is carried by the words alone. Nothing here is coloured win-green or
+   lose-red: that would put the result on the one channel this site never trusts. */
+#mine-status.is-result {
+    display: inline-block;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 12px auto 0;
+    padding: 10px 16px;
+    background-color: var(--control-surface);
+    color: var(--control-text);
+    border: 2px solid var(--control-border);
+    border-radius: 6px;
+    font-weight: bold;
 }
 
 /* Hub thumbnail: a few cleared squares in the canopy. */

@@ -117,8 +117,9 @@ describe('Overflow has somewhere to go', () => {
 /* Anything that shows and hides by the hidden attribute has to keep its display rule
    behind :not([hidden]). An id selector beats [hidden] on specificity, so a plain
    `#thing { display: block }` makes the attribute do nothing and the element never
-   hides. This has been hit three times in this stylesheet - the game views, the
-   end-of-game dialog, and the review button - which is enough to pin it. */
+   hides. This has been hit twice in this stylesheet - the game views and the
+   end-of-game dialog - and a third time by a review button that has since been
+   removed, which is enough to pin it. */
 describe('Things that hide stay hideable', () => {
     /* The views are the case that does not appear here, and deliberately: they set no
        display of their own, so the attribute already works and there is nothing to
@@ -127,7 +128,7 @@ describe('Things that hide stay hideable', () => {
         expect(declarations).not.toMatch(/(^|\})\s*\.game-view\s*\{[^}]*display:/m);
     });
 
-    test.each(['#game-over', '#game-over-mode', '#game-over-review'])(
+    test.each(['#game-over', '#game-over-mode'])(
         '%s gives itself display only when not hidden',
         (selector) => {
             const escaped = selector.replace(/[.#]/g, (char) => '\\' + char);
@@ -140,15 +141,17 @@ describe('Things that hide stay hideable', () => {
 });
 
 /* The end-of-game dialog reads top to bottom as the order of the decisions it offers:
-   what happened, then look at it, then what the next game should be, then start it,
-   then leave. Review belongs above the config because it is about the game that just
-   finished and everything below it is about the next one - an order the project owner
-   asked for after playing, so it is worth holding onto. */
+   what happened, then what the next game should be, then start it, then leave.
+
+   Reviewing the finished board is deliberately not among them. It was, briefly, and the
+   arrangement never sat right - because a button whose only job is to dismiss the thing
+   in the way is a sign the thing should not have been in the way. Minesweeper reports
+   its result above its own board instead and never opens this dialog at all. */
 describe('The end-of-game dialog offers its choices in order', () => {
     const panel = readFileSync(resolve(root, 'entertainment/entertainment.html'), 'utf8')
         .match(/<div id="game-over-panel"[\s\S]*?\n {12}<\/div>/)[0];
 
-    test('message, review, config, new game, back', () => {
+    test('message, config, new game, back', () => {
         // The panel's own id, and the two inside the mode block, are not the sequence.
         const inner = ['game-over-panel', 'game-over-mode-select', 'game-over-mode-label'];
         const order = [...panel.matchAll(/\sid="([^"]+)"/g)]
@@ -158,10 +161,39 @@ describe('The end-of-game dialog offers its choices in order', () => {
         expect(order).toEqual([
             'game-over-message',
             'game-over-score',
-            'game-over-review',
             'game-over-mode',
             'play-again',
             'game-over-back',
         ]);
+    });
+});
+
+/* Minesweeper ends in place: its result goes into its own status line and the dialog
+   never opens. The dialog covers the board, and for this one game the board is the
+   record of what went wrong - which is the whole reason a player wants to look at it.
+   Everything the dialog offers is already above the board in this game's controls. */
+describe('Minesweeper ends in place', () => {
+    const script = readFileSync(resolve(root, 'entertainment/entertainment.js'), 'utf8');
+    const withoutJsComments = script
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+
+    test('the minesweeper layer never opens the end-of-game dialog', () => {
+        const mineSection = withoutJsComments.slice(withoutJsComments.indexOf('PART 4'), withoutJsComments.indexOf('PART 5'));
+        expect(mineSection).not.toContain('showGameOver');
+    });
+
+    test('the other games still use it', () => {
+        expect(withoutJsComments.match(/showGameOver\(/g).length).toBeGreaterThan(3);
+    });
+
+    /* The result has to look like a result rather than the hint line it replaces, and
+       it takes the control theme's colours - which are contrast-checked - rather than
+       inventing a win-green and a lose-red. The outcome is in the words. */
+    test('the result is styled as a banner in the theme colours', () => {
+        const rule = ruleFor('#mine-status\.is-result');
+        expect(rule).toContain('var(--control-surface)');
+        expect(rule).toContain('var(--control-text)');
+        expect(rule).toMatch(/font-weight:\s*bold/);
     });
 });

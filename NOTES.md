@@ -1029,7 +1029,7 @@ once the board was measured against the column, 12px had itself become such a fl
 `tests/markup/layout.test.js` pins all of it. None of it can be seen without a browser,
 but each mistake has a shape in the stylesheet, and that is what the test reads.
 
-## Minesweeper reports the flags, and lets you look at the board afterwards
+## Minesweeper ends in place, and reports the flags
 
 Both changes asked for by the project owner on 2026-09-10, after being caught out twice
 by the same thing.
@@ -1045,51 +1045,57 @@ would hand the player the deduction they are there to make - the same reason
 `flagsRemaining` is deliberately unable to tell a right flag from a wrong one, recorded
 above. They are the finished game's account, and there is a test that says so.
 
-**The dialog was covering the evidence.** Losing means a deduction went wrong somewhere
-and the board holds the whole record of it, but the end-of-game dialog sat on top of
-exactly that, and the only ways out started a new game or left the page. Twice this cost
-the owner the chance to see what he had misread.
+**The dialog was covering the evidence, so Minesweeper no longer opens it.** Losing
+means a deduction went wrong somewhere and the board holds the whole record of it, but
+the end-of-game dialog sat on top of exactly that, and the only ways out started a new
+game or left the page. Twice this cost the owner the chance to see what he had misread.
 
-`showGameOver` takes an `onReview` callback now. Given one, it shows a Review the board
-button that dismisses the dialog without starting anything; given none, no button
-appears, so the other four games are untouched. The mechanism is general because it will
-be wanted again - any game that leaves a final position worth studying has this problem -
-but Minesweeper is the only one passing it today.
+The game ends in place instead. The result goes into the status line above the board,
+styled as a banner so it carries the weight the dialog would have, and nothing moves.
+Everything the dialog offered is already on screen there in this game's own controls:
+New Game, and the size to play next. There is nothing to dismiss and nothing to restore.
 
-**Nothing had to be done to make the board safe to review.** Every cell already ignores
-a tap once the game is over, and the game state is immutable, so a review is simply the
-dialog going away. Worth knowing before adding review to a game that is not over in the
-same way.
+**How that was arrived at matters more than the answer, because the first two attempts
+were both arrangements of the wrong thing.** A Review the board button was added to the
+dialog; it was in the wrong place, so it was moved above the mode select; it still read
+badly. The tell was there the whole time: a button whose only job is to dismiss the
+thing in the way means the thing should not have been in the way. Four options were put
+up before this one was picked - among them making the dialog dismissible by tapping
+outside, and collapsing it to one primary action with quiet links - and the one chosen
+removes the conflict rather than arranging it.
 
-**Wrong flags are marked, because otherwise there is nothing to review.** A lost board
-used to show every flag identically, so the player could see where the mines had been
-but not which of their own marks had been wrong - which is the half worth learning from.
-A flag that was not on a mine is now a cross in the detonated colours; a flag that was
-on one stays a plain flag on unopened ground, since it was right and needs no comment.
-The mine that went off and a mistaken flag share those colours deliberately, both being
-the board saying where it went against the player: the glyph separates them, a disc
-against a cross. Colour is never the difference.
+**The dialog is still right for the other four.** Snake, Falling Polyominos and Sequence
+end with a board not worth studying, and on a phone their controls have scrolled away
+under the pad, which is the problem the dialog was built for. It stays exactly as it
+was; only Minesweeper opts out. The `onReview` hook that existed briefly was removed
+with it - an unused hook is a guess about the next game, and the reasoning is better
+written down here than left as code nobody calls.
 
-**Focus goes to the status line, not to New Game.** Focus was on a button inside a
-dialog that has just been hidden, and focus left on a hidden element falls back to the
-body, which tells a screen reader nothing. The status line is the thing that has just
-changed, which is why it carries `tabindex="-1"` - reachable programmatically, never in
-the tab order. It is deliberately not the New Game button: that would leave a
-destructive control one stray Enter away from the board the player just asked to keep.
+**A game that ends in place has to be safe to leave sitting there.** Minesweeper already
+was: every cell ignores a tap once the game is over, and the state is immutable. Worth
+checking before letting another game end this way.
 
-**The dialog's order is the order of the decisions.** From the top: what happened, then
-look at it, then what the next game should be, then start it, then leave. Review sits
-above the mode select because it is about the game that just finished, and everything
-below it is about the next one. Asked for by the project owner on 2026-09-10 after
-playing with the first arrangement, which had put Review under the config. Pinned in
-tests/markup/layout.test.js, since it is the kind of thing a later edit rearranges
-without noticing there was a reason.
+**Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
+to show every flag identically, so the player could see where the mines had been but not
+which of their own marks had been wrong - which is the half worth learning from. A flag
+that was not on a mine is now a cross in the detonated colours; a flag that was on one
+stays a plain flag on unopened ground, since it was right and needs no comment. The mine
+that went off and a mistaken flag share those colours deliberately, both being the board
+saying where it went against the player: the glyph separates them, a disc against a
+cross. Colour is never the difference.
 
-**Third instance of the [hidden] specificity trap.** `#game-over-review` needs its
-`display` behind `:not([hidden])`, because an id selector beats the `[hidden]` attribute
-outright and the button would show for every game. The game views, the dialog itself and
-now this. `tests/markup/layout.test.js` pins it - including the fact that the views set
-no display at all, which is why they never needed the guard.
+The result line mentions the cross only when there is one on the board. A legend for a
+marker that is not there is noise, and on a clean loss there are no misplaced flags to
+explain.
+
+**The banner takes the control theme's colours, not a win-green and a lose-red.** Those
+are already contrast-checked, and the outcome is carried by the words - putting it on
+colour would be putting it on the one channel this site never trusts.
+
+**Nothing steals focus any more.** The status line carries `role="status"`, so the result
+is announced when it changes without moving the player anywhere. The `tabindex="-1"` it
+briefly needed is gone with the dialog: there is no hidden element left holding focus to
+rescue it from.
 
 ## Sequence: two corrections from play
 

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260910-1355" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260910-1355" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260910-1410" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260910-1410" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -133,7 +133,7 @@
                 </button>
                 <button type="button" id="mineStartBtn">New Game</button>
             </div>
-            <p id="mine-status" role="status" tabindex="-1">Tap any square to begin.</p>
+            <p id="mine-status" role="status">Tap any square to begin.</p>
 
             <!-- Deliberately not .butMania: that class brings a rule for 30px
                  cells which out-specifies this board's own sizing. -->
@@ -194,15 +194,8 @@
                 <p id="game-over-message"></p>
                 <p id="game-over-score"></p>
                 <!-- Order here is the order of the decisions being offered: what
-                     happened, then look at it, then what the next game should be, then
-                     start it, then leave. Review sits above the config because it is
-                     about the game just finished - everything below it is about the
-                     next one. Tested in tests/markup/layout.test.js. -->
-
-                <!-- Dismisses the dialog without starting anything, leaving the
-                     finished board on screen to be looked over. Shown only for games
-                     that have something worth reviewing - see showGameOver. -->
-                <button type="button" id="game-over-review" hidden>Review the board</button>
+                     happened, then what the next game should be, then start it, then
+                     leave. Tested in tests/markup/layout.test.js. -->
 
                 <!-- Mirrors whichever mode select belongs to the game that just ended,
                      so a different mode can be chosen without leaving the dialog and
@@ -221,9 +214,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260910-1355"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260910-1355"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260910-1355"></script>
-    <script type="module" src="./entertainment.js?v=20260910-1355"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260910-1410"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260910-1410"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260910-1410"></script>
+    <script type="module" src="./entertainment.js?v=20260910-1410"></script>
 </body>
 </html>
