@@ -113,3 +113,28 @@ describe('Overflow has somewhere to go', () => {
         expect(rule).not.toContain('92vw');
     });
 });
+
+/* Anything that shows and hides by the hidden attribute has to keep its display rule
+   behind :not([hidden]). An id selector beats [hidden] on specificity, so a plain
+   `#thing { display: block }` makes the attribute do nothing and the element never
+   hides. This has been hit three times in this stylesheet - the game views, the
+   end-of-game dialog, and the review button - which is enough to pin it. */
+describe('Things that hide stay hideable', () => {
+    /* The views are the case that does not appear here, and deliberately: they set no
+       display of their own, so the attribute already works and there is nothing to
+       guard. The rule is only needed once something wants a display value back. */
+    test('the game views set no display of their own', () => {
+        expect(declarations).not.toMatch(/(^|\})\s*\.game-view\s*\{[^}]*display:/m);
+    });
+
+    test.each(['#game-over', '#game-over-mode', '#game-over-review'])(
+        '%s gives itself display only when not hidden',
+        (selector) => {
+            const escaped = selector.replace(/[.#]/g, (char) => '\\' + char);
+            const guarded = new RegExp(escaped + ':not\\(\\[hidden\\]\\)\\s*\\{[^}]*display:');
+            const bare = new RegExp('(^|\\})\\s*' + escaped + '\\s*\\{[^}]*display:', 'm');
+            expect(declarations).toMatch(guarded);
+            expect(declarations).not.toMatch(bare);
+        },
+    );
+});

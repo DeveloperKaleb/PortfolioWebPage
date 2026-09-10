@@ -830,6 +830,21 @@ a:active  {color: #002e2c;}
     font-size: 16px;
 }
 
+/* The review button is the only one of the three that comes and goes, so its display
+   goes on :not([hidden]) - an id selector is specific enough to beat the [hidden]
+   attribute outright, and the button would show for every game. Third time this trap
+   has been hit in this file: the game views, the dialog itself, and now this. */
+#game-over-review:not([hidden]) {
+    display: block;
+}
+
+#game-over-review {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
 #play-again {
     margin-bottom: 10px;
 }
@@ -998,8 +1013,13 @@ a:active  {color: #002e2c;}
     color: #241a12;
 }
 
-/* The one that was stepped on, marked out from the mines merely revealed with it. */
-.mine-cell.is-detonated {
+/* The one that was stepped on, marked out from the mines merely revealed with it -
+   and, in the same colours, a flag that turned out to be wrong. Both are the board
+   telling the player where it went against them, so they read as one thing. The glyph
+   is what separates them: a mine is a disc, a mistaken flag is a cross. Colour is
+   never the difference. */
+.mine-cell.is-detonated,
+.mine-cell.is-wrong-flag {
     background: linear-gradient(#a04434, #7a3122);
     color: #f4d9a8;
 }

@@ -46,6 +46,7 @@ import {
     isRevealed,
     isFlagged,
     flagsRemaining,
+    correctFlagCount,
     isOver,
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
@@ -215,8 +216,19 @@ function showModeChoice(source) {
         source.getAttribute('aria-label') || 'Mode';
 }
 
-function showGameOver(message, score, restart, modeSource = null) {
+/* Some games leave something worth looking at when they end, and this dialog covers it
+   up. Minesweeper is the case that prompted it: losing means a deduction went wrong
+   somewhere, the board holds the whole record of it, and the dialog was sitting on top
+   of exactly what the player wanted to see. onReview dismisses the dialog without
+   starting anything and hands control back to the game, which decides where focus
+   should land. Games that pass nothing get no button. */
+let reviewCurrentGame = null;
+const reviewBtn = document.getElementById('game-over-review');
+
+function showGameOver(message, score, restart, modeSource = null, { onReview = null } = {}) {
     restartCurrentGame = restart;
+    reviewCurrentGame = onReview;
+    reviewBtn.hidden = !onReview;
     showModeChoice(modeSource);
     document.getElementById('game-over-message').textContent = message;
     document.getElementById('game-over-score').textContent = 'Final Score: ' + score;
@@ -230,7 +242,18 @@ function hideGameOver() {
     gameOverEl.hidden = true;
     restartCurrentGame = null;
     restartModeSource = null;
+    reviewCurrentGame = null;
+    reviewBtn.hidden = true;
 }
+
+/* Dismiss and leave everything as it was. The game's own controls are untouched - New
+   Game and the mode select sit above the board and are the way out of a review, so
+   there is no need for this dialog to offer one. */
+reviewBtn.addEventListener('click', () => {
+    const review = reviewCurrentGame;
+    hideGameOver();
+    if (review) review();
+});
 
 document.getElementById('play-again').addEventListener('click', () => {
     const restart = restartCurrentGame;
@@ -732,6 +755,7 @@ const mineModeSelect = document.getElementById('mineModeSelect');
 
 let mineGame = createMinesweeper();
 let flagMode = false;
+let mineReviewing = false; // the dialog has been dismissed to look the board over
 
 /* The board is built once and then repainted, rather than rebuilt on every move. A
    fresh innerHTML would drop the element the player just pressed, which on touch
@@ -763,6 +787,17 @@ function paintMineCell(cell) {
     cell.style.backgroundColor = '';
 
     if (flagged && !revealed) {
+        /* On a loss, a flag that was not on a mine is marked as the mistake it was.
+           Leaving every flag looking correct is what made a lost board unreadable:
+           the player could see where the mines had been but not which of their own
+           marks had been wrong, which is the half worth learning from. A flag that
+           WAS on a mine stays a plain flag on unopened ground - it was right, and it
+           needs no comment. */
+        if (lost && !mined) {
+            cell.classList.add('is-wrong-flag');
+            cell.textContent = '✗';
+            return;
+        }
         cell.textContent = '⚑';
         return;
     }
@@ -804,9 +839,13 @@ function drawMineBoard() {
             ? 'Flag mode: tap to mark a suspected mine.'
             : 'Clear every square that is not a mine.',
         [MINE_STATUS.WON]: 'Swept. Every mine found and flagged.',
-        [MINE_STATUS.LOST]: 'Detonated. The board is shown below.',
+        [MINE_STATUS.LOST]: 'Detonated. Every mine is shown, and ✗ marks a flag that was wrong.',
     };
-    mineStatusEl.textContent = messages[mineGame.status];
+    /* During a review the line says how to leave it, because the dialog that would
+       have offered Play Again is the thing that was just dismissed. */
+    mineStatusEl.textContent = mineReviewing
+        ? `${messages[mineGame.status]} Press New Game when you have finished looking.`
+        : messages[mineGame.status];
     mineBoard.classList.toggle('is-over', isOver(mineGame));
 }
 
@@ -820,9 +859,27 @@ function setFlagMode(on) {
 function initMinesweeper() {
     const preset = MINE_PRESETS[mineModeSelect ? mineModeSelect.value : 'standard'] || MINE_PRESETS.standard;
     mineGame = createMinesweeper(preset);
+    mineReviewing = false;
     setFlagMode(false);
     createMineBoard();
     drawMineBoard();
+}
+
+/* Dismissing the dialog to look the finished board over. Nothing about the game
+   changes - it is already over, and every cell ignores a tap once it is - so this only
+   repaints the status line and moves focus onto it.
+
+   Focus has to go somewhere: it was on a button inside a dialog that has just been
+   hidden, and focus left on a hidden element falls back to the body, which tells a
+   screen reader nothing about what just happened. The status line is the right target
+   because it is the thing that has just changed, which is why it carries tabindex="-1"
+   - reachable programmatically, never in the tab order. It is deliberately not the New
+   Game button: that would put a destructive control one stray Enter away from the board
+   the player asked to keep. */
+function reviewMineBoard() {
+    mineReviewing = true;
+    drawMineBoard();
+    mineStatusEl.focus({ preventScroll: true });
 }
 
 function playMineCell(x, y, { flag = false } = {}) {
@@ -840,13 +897,18 @@ function playMineCell(x, y, { flag = false } = {}) {
     drawMineBoard();
 
     if (isOver(mineGame)) {
+        /* The score is the flags, not the squares. Clearing squares is the means, and
+           a board with a big opening cascade hands most of them over on one lucky
+           tap - so "squares cleared" flattered a game that had found nothing. Mines
+           found is the game. See correctFlagCount in js/minesweeper.js. */
         showGameOver(
             mineGame.status === MINE_STATUS.WON ? 'Swept!' : 'Detonated.',
             mineGame.status === MINE_STATUS.WON
-                ? `All ${mineGame.mineCount} mines flagged`
-                : `${mineGame.revealed.size} of ${mineGame.width * mineGame.height - mineGame.mineCount} squares cleared`,
+                ? `All ${mineGame.mineCount} mines correctly flagged`
+                : `${correctFlagCount(mineGame)} of ${mineGame.mineCount} mines correctly flagged`,
             initMinesweeper,
-            mineModeSelect
+            mineModeSelect,
+            { onReview: reviewMineBoard }
         );
     }
 }

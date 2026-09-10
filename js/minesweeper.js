@@ -184,6 +184,26 @@ export const flagsRemaining = (game) => game.mineCount - game.flagged.size;
 
 export const isOver = (game) => game.status === STATUS.WON || game.status === STATUS.LOST;
 
+/* Flags that turned out to be right, and flags that turned out to be wrong.
+ *
+ * These are the honest account of a finished game, and they are what the end-of-game
+ * dialog reports. It used to say how many squares had been cleared, which measures the
+ * wrong thing: clearing squares is the means, and on a board with a big opening cascade
+ * most of them are cleared by one lucky first tap. Finding the mines is the game, so
+ * that is the number.
+ *
+ * They cannot be shown while a game is running - a live count of correct flags would
+ * hand over the deduction the player is there to make. flagsRemaining is what the board
+ * shows in play, and it deliberately cannot tell right flags from wrong ones. */
+export const correctFlags = (game) => [...game.flagged].filter((key) => game.mines.has(key));
+
+export const correctFlagCount = (game) => correctFlags(game).length;
+
+export const misplacedFlagCount = (game) => game.flagged.size - correctFlagCount(game);
+
+export const isCorrectlyFlagged = (game, x, y) =>
+    isFlagged(game, x, y) && isMine(game, x, y);
+
 /* Board sizes offered in the UI. Density climbs with size deliberately: a bigger board
    at the same density is only longer, not harder, and the interesting part of a large
    board is that the deductions get denser too. 12% is close to the classic beginner

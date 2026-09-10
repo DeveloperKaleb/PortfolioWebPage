@@ -1029,6 +1029,60 @@ once the board was measured against the column, 12px had itself become such a fl
 `tests/markup/layout.test.js` pins all of it. None of it can be seen without a browser,
 but each mistake has a shape in the stylesheet, and that is what the test reads.
 
+## Minesweeper reports the flags, and lets you look at the board afterwards
+
+Both changes asked for by the project owner on 2026-09-10, after being caught out twice
+by the same thing.
+
+**The end-of-game score counted the wrong thing.** It said how many squares had been
+cleared. Clearing squares is the means, not the game: on a board with a big opening
+cascade most of them are handed over by one lucky first tap, so the number flattered a
+game that had deduced nothing. It reports correctly flagged mines now -
+`correctFlagCount` in js/minesweeper.js, beside `misplacedFlagCount`.
+
+Note what those two must never become: a live readout. A running count of correct flags
+would hand the player the deduction they are there to make - the same reason
+`flagsRemaining` is deliberately unable to tell a right flag from a wrong one, recorded
+above. They are the finished game's account, and there is a test that says so.
+
+**The dialog was covering the evidence.** Losing means a deduction went wrong somewhere
+and the board holds the whole record of it, but the end-of-game dialog sat on top of
+exactly that, and the only ways out started a new game or left the page. Twice this cost
+the owner the chance to see what he had misread.
+
+`showGameOver` takes an `onReview` callback now. Given one, it shows a Review the board
+button that dismisses the dialog without starting anything; given none, no button
+appears, so the other four games are untouched. The mechanism is general because it will
+be wanted again - any game that leaves a final position worth studying has this problem -
+but Minesweeper is the only one passing it today.
+
+**Nothing had to be done to make the board safe to review.** Every cell already ignores
+a tap once the game is over, and the game state is immutable, so a review is simply the
+dialog going away. Worth knowing before adding review to a game that is not over in the
+same way.
+
+**Wrong flags are marked, because otherwise there is nothing to review.** A lost board
+used to show every flag identically, so the player could see where the mines had been
+but not which of their own marks had been wrong - which is the half worth learning from.
+A flag that was not on a mine is now a cross in the detonated colours; a flag that was
+on one stays a plain flag on unopened ground, since it was right and needs no comment.
+The mine that went off and a mistaken flag share those colours deliberately, both being
+the board saying where it went against the player: the glyph separates them, a disc
+against a cross. Colour is never the difference.
+
+**Focus goes to the status line, not to New Game.** Focus was on a button inside a
+dialog that has just been hidden, and focus left on a hidden element falls back to the
+body, which tells a screen reader nothing. The status line is the thing that has just
+changed, which is why it carries `tabindex="-1"` - reachable programmatically, never in
+the tab order. It is deliberately not the New Game button: that would leave a
+destructive control one stray Enter away from the board the player just asked to keep.
+
+**Third instance of the [hidden] specificity trap.** `#game-over-review` needs its
+`display` behind `:not([hidden])`, because an id selector beats the `[hidden]` attribute
+outright and the button would show for every game. The game views, the dialog itself and
+now this. `tests/markup/layout.test.js` pins it - including the fact that the views set
+no display at all, which is why they never needed the guard.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than

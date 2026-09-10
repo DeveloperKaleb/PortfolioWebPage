@@ -3,6 +3,7 @@ import {
     createGame, reveal, toggleFlag, chord, placeMines, neighbours,
     countAt, isMine, isRevealed, isFlagged, flagsRemaining,
     safeCellCount, isOver, isWon, STATUS, PRESETS, mineDensity,
+    correctFlagCount, misplacedFlagCount, isCorrectlyFlagged,
 } from '../../js/minesweeper.js';
 
 // Reveal everything that is not a mine, which is what winning requires.
@@ -364,5 +365,81 @@ describe('Board presets', () => {
         const game = flagAllMines(clearBoard(reveal(createGame(PRESETS.large), 10, 10, Math.random)));
         expect(game.status).toBe(STATUS.WON);
         expect(flagsRemaining(game)).toBe(0);
+    });
+});
+
+describe('Accounting for the flags at the end', () => {
+    /* What the end-of-game dialog reports. It used to say how many squares had been
+       cleared, which measures the means rather than the game - on a board with a big
+       opening cascade, most squares are cleared by one lucky first tap. Finding the
+       mines is the game. */
+    /* placeMines rather than a first reveal: revealing seeds the board but also
+       cascades, and on a small board the cascade can clear every safe square there
+       is - leaving nothing hidden to put a wrong flag on. This seeds and stops. */
+    const seeded = () => placeMines(createGame({ width: 8, height: 8, mineCount: 8 }), 1, 1, () => 0.99);
+
+    const everyCell = (game) => {
+        const cells = [];
+        for (let y = 1; y <= game.height; y++) for (let x = 1; x <= game.width; x++) cells.push({ x, y });
+        return cells;
+    };
+
+    test('a fresh board has no flags of either kind', () => {
+        const game = seeded();
+        expect(correctFlagCount(game)).toBe(0);
+        expect(misplacedFlagCount(game)).toBe(0);
+    });
+
+    test('counts a flag that is on a mine', () => {
+        const game = seeded();
+        const mine = everyCell(game).find(({ x, y }) => isMine(game, x, y) && !isRevealed(game, x, y));
+        const flagged = toggleFlag(game, mine.x, mine.y);
+        expect(correctFlagCount(flagged)).toBe(1);
+        expect(misplacedFlagCount(flagged)).toBe(0);
+        expect(isCorrectlyFlagged(flagged, mine.x, mine.y)).toBe(true);
+    });
+
+    test('counts a flag that is not', () => {
+        const game = seeded();
+        const safe = everyCell(game).find(({ x, y }) => !isMine(game, x, y) && !isRevealed(game, x, y));
+        const flagged = toggleFlag(game, safe.x, safe.y);
+        expect(correctFlagCount(flagged)).toBe(0);
+        expect(misplacedFlagCount(flagged)).toBe(1);
+        expect(isCorrectlyFlagged(flagged, safe.x, safe.y)).toBe(false);
+    });
+
+    test('the two always add up to the flags placed', () => {
+        let game = seeded();
+        everyCell(game)
+            .filter(({ x, y }) => !isRevealed(game, x, y))
+            .slice(0, 6)
+            .forEach(({ x, y }) => { game = toggleFlag(game, x, y); });
+
+        expect(correctFlagCount(game) + misplacedFlagCount(game)).toBe(game.flagged.size);
+    });
+
+    test('taking a flag back takes it out of the count', () => {
+        const game = seeded();
+        const mine = everyCell(game).find(({ x, y }) => isMine(game, x, y) && !isRevealed(game, x, y));
+        const flagged = toggleFlag(game, mine.x, mine.y);
+        expect(correctFlagCount(toggleFlag(flagged, mine.x, mine.y))).toBe(0);
+    });
+
+    test('a won game has every mine correctly flagged and nothing else flagged', () => {
+        const won = flagAllMines(clearBoard(createGame({ width: 5, height: 5, mineCount: 4 })));
+        expect(isWon(won)).toBe(true);
+        expect(correctFlagCount(won)).toBe(won.mineCount);
+        expect(misplacedFlagCount(won)).toBe(0);
+    });
+
+    /* The count is the finished game's account, not a running score - a live one would
+       hand the player the deduction they are there to make. flagsRemaining is what the
+       board shows in play, and it cannot tell a right flag from a wrong one. */
+    test('flagsRemaining still refuses to distinguish them', () => {
+        const game = seeded();
+        const safe = everyCell(game).find(({ x, y }) => !isMine(game, x, y) && !isRevealed(game, x, y));
+        const mine = everyCell(game).find(({ x, y }) => isMine(game, x, y) && !isRevealed(game, x, y));
+        expect(flagsRemaining(toggleFlag(game, safe.x, safe.y)))
+            .toBe(flagsRemaining(toggleFlag(game, mine.x, mine.y)));
     });
 });
