@@ -959,6 +959,76 @@ the frame - which is how the real board reads, where the dark is housing rather 
 empty cells. If that `nth-child(n+5)` rule is ever lost, twelve stray cells appear rather
 than anything failing loudly, so the test pins it.
 
+## Boards ran off the right edge, and why centring was the symptom
+
+Reported 2026-09-10, on mobile: once a board got big enough, it stopped being centred
+and ran off the right of the screen. Four separate causes, all of which had shipped, and
+one shared mechanism underneath.
+
+**The mechanism.** `margin: auto` cannot centre a block that is wider than its
+container - the auto margins compute to zero and the box sits flush against the left
+edge, overflowing right. So "centring failed" was never a centring bug. It is what
+overflowing looks like, and every fix below is about making the thing fit or giving its
+overflow somewhere to go.
+
+**1. Boards were sized against the viewport, not against the column they live in.** The
+page column is 90% of the viewport below 720px and a flat 600px above it, but Snake,
+Minesweeper, Tetris and the touch pads all divided up `100vw` minus a guessed allowance.
+A board budgeting for the whole screen comes out wider than the column, and then cannot
+centre in it. Minesweeper's 20x20 board did this in any window under about 900px, so it
+was never only a phone problem - it was just easiest to see on one.
+
+They now divide `--board-space`, which is `100cqw` of the `.game-view`. Container query
+units measure the container, which is precisely the question being asked, and it tracks
+the 720px breakpoint for free rather than restating it.
+
+**The container is the .game-view, never the .wrapper, and that placement is load
+bearing.** `container-type: inline-size` applies `contain: layout`, and a
+layout-contained element becomes the containing block for its fixed-position
+descendants. `#game-over` is `position: fixed` for a reason recorded elsewhere in this
+file - a dialog that moves the page under a phone's thumb is the bug it was built to
+fix - and it lives inside the wrapper. Containing the wrapper would have silently turned
+it into a scrolling dialog. It is a sibling of the views, so containing the views leaves
+it alone, and a view's inline size is the column's anyway.
+
+**The vw fallback has to be its own declaration, before the @supports block.** Same trap
+as the Minesweeper rounding: a browser with no container units still accepts `100cqw`
+inside a custom property, because custom properties take almost any tokens, and only
+fails where the value is *used* - which would leave `grid-template-columns` invalid and
+collapse the board rather than falling back.
+
+**2. Snake divided the bare width and added the gaps afterwards.** 34 columns means 33px
+of gaps plus 8px of frame, added on top of a board that had already spent the whole
+screen. Minesweeper had learned this exact lesson on its own 20x20 board; Snake had
+not. Both subtract now, before dividing.
+
+**3. `fit-content` boards pushed the page instead of scrolling.** `.butMania` carries
+`overflow-x: auto`, but Snake and Tetris override its width with `fit-content` - and a
+box that is only ever as wide as its own contents has no overflow to scroll. The
+overflow escaped to the page. `max-width: 100%` caps them at the container, which is
+what turns the escape back into a scroll inside the board, while `fit-content` still
+keeps the frame tight when the board fits.
+
+**4. Centring inside a scroll container hides half the overflow.** `justify-content:
+center` overflows a scroll container equally in both directions, and `scrollLeft` stops
+at zero, so the left half cannot be reached - the board looks shoved right with its
+first columns simply gone. `safe center` falls back to start alignment exactly when it
+overflows. The unprefixed value stays first as the fallback.
+
+**5. The Sequence panel had no border-box.** This stylesheet sets `box-sizing` on two
+individual rules rather than globally, and the panel mixed `width: min(92vw, 30rem)`
+with 18px of padding and a 3px border - a real footprint of 92vw + 42px, about 12px past
+the right edge of a 375px phone. It states `border-box` itself now and measures `100%`
+of its container rather than the viewport.
+
+**Minesweeper's floor came down from 12px to 10px.** The existing reasoning held - a
+floor above what fits does not keep cells tappable, it only guarantees an overflow - but
+once the board was measured against the column, 12px had itself become such a floor: a
+320px phone needs 11.7px cells to fit the 20x20 board into its 288px column.
+
+`tests/markup/layout.test.js` pins all of it. None of it can be seen without a browser,
+but each mistake has a shape in the stylesheet, and that is what the test reads.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than

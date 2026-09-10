@@ -9,6 +9,48 @@
     flex: 1;
 }
 
+/* Boards are sized to the column they sit in, not to the viewport.
+ *
+ * They used to divide up `100vw` minus a guessed allowance, which is not the space
+ * they have: the page column is 90% of the viewport below 720px and a flat 600px
+ * above it. A board that budgeted for the whole screen came out wider than the column
+ * on both sides of that breakpoint - and a block wider than its container cannot
+ * honour `margin: auto`, so instead of centring it sat flush against the left edge and
+ * ran off the right. That is the bug this fixes, and it was never only a phone
+ * problem: Minesweeper's 20x20 board did it in any window under about 900px.
+ *
+ * --board-space is that column. Container query units measure the container itself,
+ * which is exactly the question being asked, so the wrapper is declared a container
+ * and the boards divide up 100cqw.
+ *
+ * The 100vw line below is the fallback and has to come first. It also has to be a
+ * whole separate declaration rather than a fallback inside the value: a browser with
+ * no container units still ACCEPTS `100cqw` in a custom property - custom properties
+ * take almost any tokens - and only fails where the value is used, which would leave
+ * the board's grid-template-columns invalid and collapse it entirely. Same trap the
+ * Minesweeper rounding hit; see NOTES.md. A feature query is the safe way round.
+ *
+ * The container is each .game-view, NOT the .wrapper around them, and that placement
+ * is load bearing. `container-type: inline-size` applies `contain: layout`, and a
+ * layout-contained element becomes the containing block for its fixed-position
+ * descendants. The end-of-game dialog is `position: fixed` for a specific reason -
+ * a native alert() on a phone forced the toolbar back and reset the scroll position,
+ * dragging the nav into view and putting the pad out of reach - and containing the
+ * wrapper would have quietly taken that away, leaving it to scroll with the page.
+ * #game-over is a sibling of the views rather than inside one, so containing the
+ * views leaves it alone. A .game-view is a plain block child of the wrapper, so its
+ * inline size is the column's anyway: same number, no casualties. */
+.game-view {
+    --board-space: calc(100vw - 40px);
+}
+
+@supports (container-type: inline-size) {
+    .game-view {
+        container-type: inline-size;
+        --board-space: 100cqw;
+    }
+}
+
 .imageWrap {
     max-width: 100%;
     max-height: 70vh;
@@ -265,7 +307,15 @@ a:active  {color: #002e2c;}
     width: 100%;
     overflow-x: auto; /* Essential: creates the scrollbar for large grids */
     display: grid;    /* Changed from inline-grid for better container behavior */
-    justify-content: center; /* Centers the grid when it's smaller than the screen */
+    /* Centres the grid when it fits, and gives up on centring when it does not.
+       Plain `center` overflows a scroll container equally in both directions, and the
+       left half of that overflow cannot be scrolled to - scrollLeft stops at zero. The
+       board appears shoved to the right with its first columns cut off and no way to
+       reach them. `safe` falls back to start alignment in exactly that case, which is
+       the difference between a board you can scroll through and one that is partly
+       gone. The unprefixed value stays first as the fallback for older browsers. */
+    justify-content: center;
+    justify-content: safe center;
     padding-bottom: 10px;    /* Space for the scrollbar so it doesn't cover buttons */
 }
 
@@ -335,8 +385,15 @@ a:active  {color: #002e2c;}
        becomes 34 rows, which would run off the bottom of a phone and put the board
        under the thumb pad. The height term keeps the whole board on screen; 55vh
        leaves room for the score line and the D-pad below it. */
+    /* The gaps and the frame are subtracted before dividing, not after. Dividing the
+       bare viewport width by the column count budgets for cells only, and then the
+       1px gaps, the 2px padding and the 2px border are added on top of a board that
+       already used the whole screen. On the 20-wide boards the error is small enough
+       to hide; the Infinity board is 34 wide, where the gaps alone are 33px and push
+       it off the right edge. Minesweeper's 20x20 board taught this exact lesson - see
+       the same subtraction there, and NOTES.md. */
     --snake-cell: max(6px, min(
-        calc((100vw - 40px) / var(--snake-cols)),
+        calc((var(--board-space) - (var(--snake-cols) - 1) * 1px - 8px) / var(--snake-cols)),
         calc(55vh / var(--snake-rows)),
         20px
     ));
@@ -347,7 +404,13 @@ a:active  {color: #002e2c;}
     background: linear-gradient(#1b2a20, #101913);
     padding: 2px;
     border: 2px solid #2f4a38;
-    width: fit-content; /* Keeps the dark background tight to the 20x20 grid */
+    /* fit-content keeps the dark background tight to the grid, but it is free to grow
+       past its container, and .butMania's overflow-x cannot scroll a box that is only
+       ever as wide as its own contents - so the overflow escaped to the page and took
+       the whole layout off the right edge. Capping it at the container is what turns
+       that into a scroll inside the board instead. */
+    width: fit-content;
+    max-width: 100%;
     margin-left: auto;
     margin-right: auto;
 }
@@ -375,7 +438,7 @@ a:active  {color: #002e2c;}
 /* --- The Tetris Matrix --- */
 #tetrisDisplay {
     display: grid;
-    --tetris-cell: clamp(12px, calc((100vw - 60px) / 10), 20px);
+    --tetris-cell: clamp(12px, calc((var(--board-space) - 9px - 8px) / 10), 20px);
     /* 10 columns, 20px each = 200px wide + gaps (the cap; narrower screens shrink) */
     grid-template-columns: repeat(10, var(--tetris-cell));
     grid-gap: 1px;
@@ -385,7 +448,12 @@ a:active  {color: #002e2c;}
     background-color: #51553a;
     padding: 2px;
     border: 2px solid #eff1c5;
+    /* Capped for the same reason as the Snake arena above: an uncapped fit-content box
+       pushes the page rather than scrolling. This board is 10 cells at 20px, so it has
+       never needed the cap - it is here so the two boards fail the same way if one
+       ever does. */
     width: fit-content;
+    max-width: 100%;
     margin: 20px auto;
 }
 
@@ -418,7 +486,16 @@ a:active  {color: #002e2c;}
    Chrome's device toolbar reports a coarse pointer, so device emulation shows
    these the same way a real phone does. */
 .touch-pad {
-    --pad-size: 64px;
+    /* 64px where there is room, and never below 44px - the usual minimum comfortable
+       tap target, and the floor these buttons cannot go under and still be hit
+       reliably mid-game.
+
+       Four across is the widest pad (the Tetris row), and at a fixed 64px it came to
+       302px once the 2px borders and the 10px gaps were counted - past the 288px page
+       column on a 320px phone, which put the last button off the right edge. The
+       widest pad is what the size is solved for, so the three-wide d-pad simply has
+       room to spare rather than needing its own rule. */
+    --pad-size: clamp(44px, calc((var(--board-space) - 3 * 10px - 16px) / 4), 64px);
     --pad-gap: 10px;
     --pad-reach: 20px;  /* along a button's own axis */
     --pad-perp: 8px;    /* across it */
@@ -808,8 +885,13 @@ a:active  {color: #002e2c;}
        375px screen lands at about 15px a cell, which is small but reachable, and the
        whole board stays on screen where a scrolling one would be far worse. */
     /* What would fit, before rounding - usually a fraction of a pixel. */
-    --mine-fit: max(12px, min(
-        calc((100vw - 40px - (var(--mine-cols) - 1) * 2px) / var(--mine-cols)),
+    /* The floor is 10px, not 12px. The reasoning above holds - a floor above what fits
+       does not keep cells tappable, it only guarantees the board overflows - and once
+       the board is measured against the column rather than the screen, 12px was itself
+       such a floor: on a 320px phone the 20x20 board needs 11.7px cells to fit the
+       288px column, so a 12px floor put it back over the edge by 6px. */
+    --mine-fit: max(10px, min(
+        calc((var(--board-space) - (var(--mine-cols) - 1) * 2px - 16px) / var(--mine-cols)),
         calc((52vh - (var(--mine-rows) - 1) * 2px) / var(--mine-rows)),
         40px
     ));
@@ -956,7 +1038,14 @@ a:active  {color: #002e2c;}
        difficulty this game is meant to have. */
     grid-template-columns: repeat(calc(var(--pad-count, 4) / 2), 1fr);
     gap: 14px;
-    width: min(92vw, 30rem);
+    /* box-sizing matters here and is not inherited from anywhere: this stylesheet sets
+       border-box on two specific rules rather than globally. Without it the 18px
+       padding and 3px border are added OUTSIDE the stated width, so the panel's real
+       footprint was 92vw + 42px - about 12px past the right edge of a 375px phone.
+       Measuring against the container rather than the viewport also keeps it inside
+       the page column, which is 90% wide, not 100%. */
+    box-sizing: border-box;
+    width: min(100%, 30rem);
     margin: 0 auto;
     padding: 18px;
     background: #171c21;                    /* SEQUENCE_COLORS.panel */
