@@ -1077,6 +1077,14 @@ changed, which is why it carries `tabindex="-1"` - reachable programmatically, n
 the tab order. It is deliberately not the New Game button: that would leave a
 destructive control one stray Enter away from the board the player just asked to keep.
 
+**The dialog's order is the order of the decisions.** From the top: what happened, then
+look at it, then what the next game should be, then start it, then leave. Review sits
+above the mode select because it is about the game that just finished, and everything
+below it is about the next one. Asked for by the project owner on 2026-09-10 after
+playing with the first arrangement, which had put Review under the config. Pinned in
+tests/markup/layout.test.js, since it is the kind of thing a later edit rearranges
+without noticing there was a reason.
+
 **Third instance of the [hidden] specificity trap.** `#game-over-review` needs its
 `display` behind `:not([hidden])`, because an id selector beats the `[hidden]` attribute
 outright and the button would show for every game. The game views, the dialog itself and

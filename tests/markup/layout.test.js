@@ -138,3 +138,30 @@ describe('Things that hide stay hideable', () => {
         },
     );
 });
+
+/* The end-of-game dialog reads top to bottom as the order of the decisions it offers:
+   what happened, then look at it, then what the next game should be, then start it,
+   then leave. Review belongs above the config because it is about the game that just
+   finished and everything below it is about the next one - an order the project owner
+   asked for after playing, so it is worth holding onto. */
+describe('The end-of-game dialog offers its choices in order', () => {
+    const panel = readFileSync(resolve(root, 'entertainment/entertainment.html'), 'utf8')
+        .match(/<div id="game-over-panel"[\s\S]*?\n {12}<\/div>/)[0];
+
+    test('message, review, config, new game, back', () => {
+        // The panel's own id, and the two inside the mode block, are not the sequence.
+        const inner = ['game-over-panel', 'game-over-mode-select', 'game-over-mode-label'];
+        const order = [...panel.matchAll(/\sid="([^"]+)"/g)]
+            .map((match) => match[1])
+            .filter((id) => !inner.includes(id));
+
+        expect(order).toEqual([
+            'game-over-message',
+            'game-over-score',
+            'game-over-review',
+            'game-over-mode',
+            'play-again',
+            'game-over-back',
+        ]);
+    });
+});

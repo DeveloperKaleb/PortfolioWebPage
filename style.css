@@ -842,7 +842,10 @@ a:active  {color: #002e2c;}
     width: 100%;
     min-height: 44px;
     font-size: 16px;
-    margin-bottom: 10px;
+    /* 16px, matching the gap below the mode block rather than the 10px between the two
+       nav buttons. The wider gap is what separates looking back at the game that just
+       ended from setting up the next one. */
+    margin-bottom: 16px;
 }
 
 #play-again {
