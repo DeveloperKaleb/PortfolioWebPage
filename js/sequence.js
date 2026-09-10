@@ -91,6 +91,26 @@ export const isRoundComplete = (game) =>
 
 export const isOver = (game) => game.status === STATUS.LOST;
 
+/* Rounds actually seen through, which is not the same as `round`.
+ *
+ * `round` is the round being attempted: it goes up the moment the machine adds a pad,
+ * before the player has repeated anything. So a game lost on the fourth run has
+ * round === 4 while the player only ever completed three, and reporting `round` at the
+ * end credited them with the round that beat them. That is what the end-of-game dialog
+ * was doing.
+ *
+ * The two only agree in the READY state, which is the gap between rounds - the run has
+ * been repeated in full and the next has not started. Every other state is mid-round,
+ * and mid-round means the current one is not yet earned. */
+export const completedRounds = (game) =>
+    Math.max(0, game.status === STATUS.READY ? game.round : game.round - 1);
+
+/* No game under way: the panel as it sits before anything has been played. Distinct
+   from READY between rounds, which is the same status with rounds behind it, and from
+   LOST, which is a finished game rather than an unstarted one. The DOM layer uses this
+   to let a pad press start the first round - see NOTES.md. */
+export const isUnstarted = (game) => game.status === STATUS.READY && game.round === 0;
+
 // How many pads are still owed in this round. Drives the on-screen progress readout.
 export const remainingInRound = (game) => game.sequence.length - game.inputIndex;
 

@@ -8,6 +8,8 @@ import {
     pressPad,
     isCorrectPress,
     isRoundComplete,
+    completedRounds,
+    isUnstarted,
     isOver,
     remainingInRound,
     expectedPad,
@@ -201,5 +203,101 @@ describe('Pad tones', () => {
     test('the failure buzz is below every pad', () => {
         expect(FAILURE_TONE).toBeLessThan(Math.min(...PAD_TONES));
         expect(PAD_TONES).not.toContain(FAILURE_TONE);
+    });
+});
+
+describe('Counting the rounds that were actually finished', () => {
+    /* `round` is the round being attempted - it goes up the moment the machine adds a
+       pad, before the player has repeated anything. The end-of-game dialog reported it,
+       which credited the player with the round that beat them. Reported from play by
+       the project owner on 2026-09-10. */
+    test('a game that has not started has finished nothing', () => {
+        expect(completedRounds(createGame())).toBe(0);
+    });
+
+    test('the round being shown is not finished yet', () => {
+        const showing = extendSequence(createGame(), dealer(1));
+        expect(showing.round).toBe(1);
+        expect(completedRounds(showing)).toBe(0);
+    });
+
+    test('nor is the round being answered', () => {
+        const awaiting = beginInput(extendSequence(createGame(), dealer(1)));
+        expect(completedRounds(awaiting)).toBe(0);
+    });
+
+    test('a round counts once it has been repeated in full', () => {
+        let game = extendSequence(createGame(), dealer(1));
+        game = answer(game, [1]);
+        expect(completedRounds(game)).toBe(1);
+    });
+
+    test('losing does not credit the round that was lost', () => {
+        // Three rounds seen through, then a wrong pad on the fourth.
+        let game = createGame();
+        const run = [1, 2, 3];
+        run.forEach((pad, i) => {
+            game = extendSequence({ ...game, status: STATUS.READY }, dealer(pad));
+            game = answer(game, run.slice(0, i + 1));
+        });
+        expect(completedRounds(game)).toBe(3);
+
+        game = extendSequence(game, dealer(0));
+        game = beginInput(game);
+        game = pressPad(game, 2); // wrong - the run starts with pad 1
+
+        expect(game.status).toBe(STATUS.LOST);
+        expect(game.round).toBe(4);        // the round it died on
+        expect(completedRounds(game)).toBe(3); // what the player actually did
+    });
+
+    test('losing the very first round leaves nothing to report', () => {
+        let game = beginInput(extendSequence(createGame(), dealer(1)));
+        game = pressPad(game, 3);
+        expect(completedRounds(game)).toBe(0);
+    });
+
+    /* Mid-round the count cannot go up: a run half repeated is not a round. This is
+       what stops the readout climbing while the player is still answering. */
+    test('part way through a long run, the count holds', () => {
+        let game = extendSequence(createGame(), dealer(1));
+        game = answer(game, [1]);
+        game = extendSequence(game, dealer(2));
+        game = beginInput(game);
+        expect(completedRounds(game)).toBe(1);
+        game = pressPad(game, 1); // right, but the run is not finished
+        expect(completedRounds(game)).toBe(1);
+        game = pressPad(game, 2); // now it is
+        expect(completedRounds(game)).toBe(2);
+    });
+});
+
+describe('Telling an unstarted panel from a running one', () => {
+    /* A pad press starts the first round, so the DOM layer has to know the difference
+       between a panel nothing has happened on yet and the same READY status between
+       rounds - where a press must not start anything. */
+    test('a new game is unstarted', () => {
+        expect(isUnstarted(createGame())).toBe(true);
+    });
+
+    test('showing the first run is not unstarted', () => {
+        expect(isUnstarted(extendSequence(createGame(), dealer(1)))).toBe(false);
+    });
+
+    test('the gap between rounds is not unstarted, though it is READY', () => {
+        let game = extendSequence(createGame(), dealer(1));
+        game = answer(game, [1]);
+        expect(game.status).toBe(STATUS.READY);
+        expect(isUnstarted(game)).toBe(false);
+    });
+
+    test('a lost game is not unstarted', () => {
+        let game = beginInput(extendSequence(createGame(), dealer(1)));
+        game = pressPad(game, 2);
+        expect(isUnstarted(game)).toBe(false);
+    });
+
+    test('a fresh game after one has been played is unstarted again', () => {
+        expect(isUnstarted(createGame(PRESETS.six))).toBe(true);
     });
 });

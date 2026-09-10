@@ -1083,6 +1083,44 @@ outright and the button would show for every game. The game views, the dialog it
 now this. `tests/markup/layout.test.js` pins it - including the fact that the views set
 no display at all, which is why they never needed the guard.
 
+## Sequence: two corrections from play
+
+Both reported by the project owner on 2026-09-10, after playing it.
+
+**The end-of-game count was reading the round it died on.** `round` goes up the moment
+the machine adds a pad, before the player has repeated anything, so a game lost on the
+fourth run had `round === 4` while only three had been seen through - and the dialog
+credited the player with the round that beat them. `completedRounds` in js/sequence.js
+is the honest count: it agrees with `round` only in the READY state, the gap between
+rounds where the run has been repeated in full and the next has not started. Every other
+state is mid-round, and mid-round means the current one is not earned.
+
+The session Best was reading the same field and happened to be right, because it is only
+ever read on round completion - which is exactly that state. It goes through
+`completedRounds` now anyway, so both numbers come from one place rather than one being
+correct by luck.
+
+**The live readout still shows the round in progress**, so mid-game it can read
+`Round: 4 · Best: 3`. That is deliberate - it says which run you are on - but it does
+mean Best trails Round by one during play. If that ever reads as a bug rather than as a
+label, the readout is the thing to change, not `completedRounds`.
+
+**A pad press now starts the first round.** There are two ways in as a result, the Start
+button and the panel itself, which is what was wanted: on a machine covered in buttons,
+pressing one is the obvious thing to try, and being ignored teaches the player the panel
+is dead when it is only waiting.
+
+Only from an unstarted game - `isUnstarted`, which is READY with no rounds behind it. A
+press between rounds is the same READY status and must not start anything, and a press
+after a loss is behind the dialog anyway.
+
+**The order of the two lines that do it is load bearing.** The pressed pad is fired
+first and the run is scheduled second. Firing the pad sounds it, which builds the audio
+context *inside the press* - `startSequenceRun` asks for the context as well, but it
+runs from a timer, outside the gesture, and Safari will not start a context from there.
+Reordering them would leave the game silent on iOS while working fine on the desktop it
+was tested on.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than

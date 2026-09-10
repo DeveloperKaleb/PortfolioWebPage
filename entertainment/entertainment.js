@@ -28,6 +28,8 @@ import {
     beginInput,
     pressPad,
     isRoundComplete,
+    completedRounds,
+    isUnstarted,
     isOver as isSequenceOver,
     padIndexes,
     stepDurationMs,
@@ -1066,7 +1068,7 @@ function drawSequenceStatus() {
     const messages = {
         [SEQUENCE_STATUS.READY]: sequenceRunning
             ? 'Correct. Watch for the next one.'
-            : 'Press Start, then repeat what the machine plays.',
+            : 'Tap any pad to begin, then repeat what the machine plays.',
         [SEQUENCE_STATUS.SHOWING]: 'Watch and listen.',
         [SEQUENCE_STATUS.AWAITING]: 'Your turn - play it back.',
         [SEQUENCE_STATUS.LOST]: 'Wrong pad. The run ends there.',
@@ -1101,22 +1103,48 @@ function nextSequenceRound() {
     playSequenceBack();
 }
 
+/* Getting a run going, from whichever gesture asked for it. Both routes have to pass
+   through here rather than only the Start button, because this is where the audio
+   context is created - and it can only be created from a real user gesture, or the
+   browser hands back one that is permanently suspended. */
+function startSequenceRun() {
+    sequenceRunning = true;
+    ensureAudio();
+    nextSequenceRound();
+}
+
 function initSequence({ start = false } = {}) {
     clearSequenceTimers();
     sequenceRunning = start;
     sequenceGame = createSequence(currentSequencePreset());
     buildSequencePads();
     drawSequenceStatus();
-    if (start) {
-        ensureAudio(); // built here: Start is the gesture the autoplay rule wants
-        nextSequenceRound();
-    }
+    if (start) startSequenceRun();
 }
 
 function playSequencePad(pad) {
+    /* A pad press on an idle panel starts the game, which is the second way in
+       alongside the Start button. On a machine covered in buttons, pressing one is the
+       obvious thing to try first, and being ignored teaches the player the panel is
+       dead when it is only waiting.
+
+       The pad answers before the run begins - lit and sounded like any other press -
+       so the gesture is acknowledged and the player hears what that pad does before
+       being asked to remember it. Only from unstarted: a press between rounds must not
+       start anything, and a press after a loss is behind the dialog anyway. */
+    if (isUnstarted(sequenceGame)) {
+        /* firePad first, and not only for the feedback: it sounds the pad, which builds
+           the audio context inside the press itself. startSequenceRun asks for the
+           context too, but it runs from a timer - outside the gesture - and Safari will
+           not start a context from there. By then it is already running and the second
+           call is a no-op. Reordering these two would leave the game silent on iOS. */
+        firePad(pad, 180);
+        sequenceTimers.push(setTimeout(startSequenceRun, 450));
+        return;
+    }
+
     if (sequenceGame.status !== SEQUENCE_STATUS.AWAITING) return;
 
-    const before = sequenceGame;
     sequenceGame = pressPad(sequenceGame, pad);
 
     if (isSequenceOver(sequenceGame)) {
@@ -1128,7 +1156,9 @@ function playSequencePad(pad) {
         sequenceRunning = false;
         sequenceTimers.push(setTimeout(() => showGameOver(
             'Wrong pad.',
-            `${before.round} ${before.round === 1 ? 'round' : 'rounds'}`,
+            // The finished game's own count, not the round it died on - see
+            // completedRounds in js/sequence.js.
+            `${completedRounds(sequenceGame)} ${completedRounds(sequenceGame) === 1 ? 'round' : 'rounds'}`,
             () => initSequence({ start: true }),
             sequenceModeSelect
         ), 500));
@@ -1138,7 +1168,7 @@ function playSequencePad(pad) {
     firePad(pad, 180);
 
     if (isRoundComplete(sequenceGame)) {
-        sequenceBest = Math.max(sequenceBest, sequenceGame.round);
+        sequenceBest = Math.max(sequenceBest, completedRounds(sequenceGame));
         drawSequenceStatus();
         /* A pause before the next run starts, or the reward for finishing one is being
            talked over immediately. */
