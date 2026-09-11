@@ -5,18 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-1106" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260911-1106" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-1151" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260911-1151" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
 
     <!-- Current wrapper for games and toys content. -->
     <main id="main" class="wrapper">
-        <section id="entertainment-hub">
-            <h2>Games</h2>
+        <!-- The way in. Which section each hash shows, and where Back goes, are in
+             js/routes.js, and tests/routes checks this markup against that table. -->
+        <section id="entertainment-dashboard">
+            <h2>Entertainment</h2>
             <div class="card-grid">
-                <button class="entry-card" data-view="tetris">
+                <button class="entry-card dashboard-card" data-route="single">
+                    <span class="card-title">Single Player</span>
+                    <span class="card-subtitle">Games to play on your own</span>
+                </button>
+                <button class="entry-card dashboard-card" data-route="multi">
+                    <span class="card-title">Multiplayer</span>
+                    <span class="card-subtitle">Two players, one phone</span>
+                </button>
+                <!-- Opens Finger Paint directly while it is the only toy; a Toys hub
+                     arrives with the second one. -->
+                <button class="entry-card dashboard-card" data-route="toy">
+                    <span class="card-title">Toys</span>
+                    <span class="card-subtitle">Finger Paint</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="entertainment-hub" class="hub" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
+            <h2>Single Player</h2>
+            <div class="card-grid">
+                <button class="entry-card" data-route="tetris">
                     <div class="thumb thumb-tetris" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
@@ -25,7 +48,7 @@
                     </div>
                     <span class="card-title">Falling Polyominos</span>
                 </button>
-                <button class="entry-card" data-view="snake">
+                <button class="entry-card" data-route="snake">
                     <div class="thumb thumb-snake" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
@@ -34,7 +57,7 @@
                     </div>
                     <span class="card-title">Snake</span>
                 </button>
-                <button class="entry-card" data-view="minesweeper">
+                <button class="entry-card" data-route="minesweeper">
                     <div class="thumb thumb-mines" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
@@ -43,7 +66,7 @@
                     </div>
                     <span class="card-title">Mine Sweeper</span>
                 </button>
-                <button class="entry-card" data-view="sequence">
+                <button class="entry-card" data-route="sequence">
                     <div class="thumb thumb-sequence" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
@@ -52,7 +75,7 @@
                     </div>
                     <span class="card-title">Sequence</span>
                 </button>
-                <button class="entry-card" data-view="tictactoe">
+                <button class="entry-card" data-route="tictactoe">
                     <div class="thumb thumb-tictactoe" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
@@ -62,17 +85,21 @@
                     <span class="card-title">Tic-Tac-Toe</span>
                 </button>
             </div>
+        </section>
 
-            <h2>Toys</h2>
+        <section id="multiplayer-hub" class="hub" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
+            <h2>Multiplayer</h2>
+            <p>Two players, one phone: take turns, and pass it across.</p>
             <div class="card-grid">
-                <button class="entry-card" data-view="toy">
-                    <div class="thumb thumb-toy" aria-hidden="true">
+                <button class="entry-card" data-route="tictactoe-pass">
+                    <div class="thumb thumb-tictactoe" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <span class="card-title">Finger Paint</span>
+                    <span class="card-title">Tic-Tac-Toe</span>
                 </button>
             </div>
         </section>
@@ -175,9 +202,11 @@
 
         <div id="tictactoe-system" class="game-view" hidden>
             <button class="back-btn" data-back>&larr; Back to Entertainment</button>
-            <h2>Tic-Tac-Toe</h2>
+            <h2 id="tictactoe-title">Tic-Tac-Toe</h2>
             <div id="tictactoe-controls">
-                <p>Won: <span id="tictactoe-won">0</span> &middot; Drawn: <span id="tictactoe-drawn">0</span> &middot; Lost: <span id="tictactoe-lost">0</span></p>
+                <p id="tictactoe-score-solo">Won: <span id="tictactoe-won">0</span> &middot; Drawn: <span id="tictactoe-drawn">0</span> &middot; Lost: <span id="tictactoe-lost">0</span></p>
+                <!-- Pass the phone scores the players, not the marks, which change hands every game. -->
+                <p id="tictactoe-score-pass" hidden>Player 1: <span id="tictactoe-one">0</span> &middot; Player 2: <span id="tictactoe-two">0</span> &middot; Draws: <span id="tictactoe-pass-drawn">0</span></p>
                 <select id="tictactoeModeSelect" aria-label="Game">
                     <option value="classic">Classic</option>
                     <option value="terni">Terni Lapilli</option>
@@ -268,9 +297,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-1106"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-1106"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-1106"></script>
-    <script type="module" src="./entertainment.js?v=20260911-1106"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-1151"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-1151"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-1151"></script>
+    <script type="module" src="./entertainment.js?v=20260911-1151"></script>
 </body>
 </html>

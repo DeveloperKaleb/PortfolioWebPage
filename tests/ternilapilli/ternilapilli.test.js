@@ -26,6 +26,11 @@ import {
     emptyTally,
     recordResult,
     otherMark,
+    isPlayerTurn,
+    isOpponentTurn,
+    emptyPassTally,
+    recordPassResult,
+    playerNumberOf,
 } from '../../js/ternilapilli.js';
 
 const _ = null;
@@ -86,7 +91,8 @@ const QUIET = [X, O, X, _, _, _, O, X, O];
    the browser, mid-game. */
 describe('Classic and Terni Lapilli answer the same questions', () => {
     const asked = ['createGame', 'outcome', 'isOver', 'isPlayerTurn', 'isOpponentTurn',
-        'playerMove', 'opponentMove', 'pickOpponent', 'emptyTally', 'recordResult', 'prepare'];
+        'playerMove', 'opponentMove', 'pickOpponent', 'emptyTally', 'recordResult', 'prepare',
+        'emptyPassTally', 'recordPassResult', 'playerNumberOf'];
 
     test.each(asked)('both provide %s', (name) => {
         expect(typeof Classic[name]).toBe('function');
@@ -157,7 +163,7 @@ describe('Moving', () => {
     test('a line made while moving wins', () => {
         const game = withPosition([X, X, _, O, _, X, O, _, O], X, { playerMark: X });
         const after = playerMove(game, { from: 5, to: 2 });
-        expect(outcome(after)).toEqual({ status: STATUS.WON, line: [0, 1, 2], repeated: false });
+        expect(outcome(after)).toEqual({ status: STATUS.WON, line: [0, 1, 2], winner: X, repeated: false });
     });
 });
 
@@ -172,7 +178,7 @@ describe('Endless games', () => {
         expect(isOver(game)).toBe(false);
 
         lap.forEach((move) => { game = makeMove(game, move); });
-        expect(outcome(game)).toEqual({ status: STATUS.DRAW, line: null, repeated: true });
+        expect(outcome(game)).toEqual({ status: STATUS.DRAW, line: null, winner: null, repeated: true });
         expect(recordResult(emptyTally(), game)).toEqual({ won: 0, drawn: 1, lost: 0 });
     });
 
@@ -331,5 +337,43 @@ describe('Winnable games', () => {
         const handed = makeMove(game, { from: 4, to: 8 });
         expect(handed.board).toEqual([X, X, _, O, _, X, O, _, O]);
         expect(handed.winnable).toBe(true);
+    });
+});
+
+describe('Pass the phone', () => {
+    test('either side can move, and no opponent ever does', () => {
+        let game = createGame({ players: 2 });
+        expect(game.opponent).toBeNull();
+
+        game = playerMove(game, { from: null, to: 0 });
+        expect(isPlayerTurn(game)).toBe(true);
+        expect(isOpponentTurn(game)).toBe(false);
+
+        game = playerMove(game, { from: null, to: 4 });
+        expect(game.board[0]).toBe(X);
+        expect(game.board[4]).toBe(O);
+        expect(opponentMove(game)).toBe(game);
+    });
+
+    // Player 1 holds O this game, so X's win is Player 2's.
+    test('the winner is reported by mark, and credited to whoever held it', () => {
+        const game = withPosition([X, X, _, O, _, X, O, _, O], X, { players: 2, playerMark: O });
+        const after = playerMove(game, { from: 5, to: 2 });
+        expect(outcome(after).winner).toBe(X);
+        expect(playerNumberOf(after, X)).toBe(2);
+        expect(recordPassResult(emptyPassTally(), after)).toEqual({ one: 0, two: 1, drawn: 0 });
+    });
+
+    test('a repetition draw is counted as a draw', () => {
+        const lap = [{ from: 0, to: 3 }, { from: 8, to: 5 }, { from: 3, to: 0 }, { from: 5, to: 8 }];
+        let game = withPosition(QUIET, X, { players: 2 });
+        [...lap, ...lap].forEach((move) => { game = playerMove(game, move); });
+        expect(recordPassResult(emptyPassTally(), game)).toEqual({ one: 0, two: 0, drawn: 1 });
+    });
+
+    // The same failed block that marks a game against a computer marks nothing here.
+    test('never marks a game winnable', () => {
+        const game = withPosition([X, X, _, O, O, X, O, _, _], O, { players: 2 });
+        expect(makeMove(game, { from: 4, to: 8 }).winnable).toBe(false);
     });
 });

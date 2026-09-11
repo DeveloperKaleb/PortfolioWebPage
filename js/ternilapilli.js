@@ -28,9 +28,12 @@ import {
     pickWithAccuracy,
     emptyTally,
     recordStatus,
+    emptyPassTally,
+    recordPassOutcome,
+    playerNumberOf,
 } from './tictactoe.js';
 
-export { LINES, MARKS, STATUS, OPPONENTS, ACCURACY, otherMark, pickOpponent, emptyTally };
+export { LINES, MARKS, STATUS, OPPONENTS, ACCURACY, otherMark, pickOpponent, emptyTally, emptyPassTally, playerNumberOf };
 
 export const CENTRE = 4;
 export const PIECES_EACH = 3;
@@ -53,7 +56,8 @@ export const NEIGHBOURS = (() => {
 
 export const positionKey = (board, turn) => board.map((cell) => cell || '-').join('') + turn;
 
-export function createGame({ playerMark = MARKS.X, opponent = 'good' } = {}) {
+// `players: 2` is pass the phone, as in Classic: no opponent, `playerMark` is Player 1's.
+export function createGame({ playerMark = MARKS.X, opponent = 'good', players = 1 } = {}) {
     const board = Array(9).fill(null);
     return {
         board,
@@ -61,7 +65,8 @@ export function createGame({ playerMark = MARKS.X, opponent = 'good' } = {}) {
         // whose turn it is.
         turn: MARKS.X,
         playerMark,
-        opponent,
+        players,
+        opponent: players === 2 ? null : opponent,
         // How many times each position has come up, for the repetition rule.
         seen: { [positionKey(board, MARKS.X)]: 1 },
         // Set once the player, on their turn, could have forced a win - see View Results.
@@ -95,24 +100,32 @@ export function applyMove(board, turn, { from, to }) {
 
 export const timesSeen = (game) => game.seen[positionKey(game.board, game.turn)] || 0;
 
-/* The result from the player's side. `repeated` says a draw came from the repetition
-   rule, which is the only way this game draws. */
+/* The result from the player's side, plus the winning mark for pass the phone. `repeated`
+   says a draw came from the repetition rule, which is the only way this game draws. */
 export function outcome(game) {
     const win = winnerOf(game.board);
     if (win) {
-        return { status: win.mark === game.playerMark ? STATUS.WON : STATUS.LOST, line: win.line, repeated: false };
+        return {
+            status: win.mark === game.playerMark ? STATUS.WON : STATUS.LOST,
+            line: win.line,
+            winner: win.mark,
+            repeated: false,
+        };
     }
     if (timesSeen(game) >= REPETITION_LIMIT) {
-        return { status: STATUS.DRAW, line: null, repeated: true };
+        return { status: STATUS.DRAW, line: null, winner: null, repeated: true };
     }
-    return { status: STATUS.PLAYING, line: null, repeated: false };
+    return { status: STATUS.PLAYING, line: null, winner: null, repeated: false };
 }
 
 export const isOver = (game) => outcome(game).status !== STATUS.PLAYING;
 
-export const isPlayerTurn = (game) => !isOver(game) && game.turn === game.playerMark;
+// With two players on one phone, every turn is a player's and the opponent never moves.
+export const isPlayerTurn = (game) =>
+    !isOver(game) && (game.players === 2 || game.turn === game.playerMark);
 
-export const isOpponentTurn = (game) => !isOver(game) && game.turn !== game.playerMark;
+export const isOpponentTurn = (game) =>
+    !isOver(game) && game.players !== 2 && game.turn !== game.playerMark;
 
 /* Play for whichever side is to move. Anything illegal - the centre on move one, a taken
    point, a step off the lines, the other side's piece - hands back the same game. */
@@ -134,6 +147,8 @@ export function makeMove(game, move) {
    and it runs whoever the opponent is. Once set it stays set: View Results counts games
    where the chance was there, taken or not. */
 function playerCanForceWin(game) {
+    // Pass the phone has no opponent to hand anything over - and so never builds the solve.
+    if (game.players === 2) return false;
     if (isOver(game) || game.turn !== game.playerMark) return false;
     return solve().get(positionKey(game.board, game.turn))?.result === WIN;
 }
@@ -301,3 +316,5 @@ export function opponentMove(game, random = Math.random) {
 }
 
 export const recordResult = (tally, game) => recordStatus(tally, outcome(game).status);
+
+export const recordPassResult = (tally, game) => recordPassOutcome(tally, outcome(game), game.playerMark);

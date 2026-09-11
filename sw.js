@@ -1,7 +1,7 @@
 /* Service worker: makes the site work with no network.
  *
  * Everything here is static and there are no external requests, so "offline" is only a
- * question of holding on to the files. The whole site is 448KB.
+ * question of holding on to the files. The precached files come to about 260KB (2026-09-11).
  *
  * THE VERSION BELOW MUST BE BUMPED WITH EVERY PUSH, alongside LAST_UPDATED in
  * scripts/footer.js and the ?v= stamps in the two HTML files. A test in
@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20260911-1106';
+const VERSION = '20260911-1151';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -40,6 +40,7 @@ const PRECACHE = [
     `${BASE}/js/sequence.js`,
     `${BASE}/js/tictactoe.js`,
     `${BASE}/js/ternilapilli.js`,
+    `${BASE}/js/routes.js`,
 ];
 
 /* The family photo is deliberately NOT precached.
@@ -50,7 +51,7 @@ const PRECACHE = [
  * opened the page. It buys nothing for the reason this worker exists: offline play means
  * the games, and the entertainment page does not reference the photo at all.
  *
- * Leaving it out takes the offline payload from 448KB to about 160KB and keeps a picture
+ * Leaving it out keeps the offline payload to about 260KB rather than about 550KB, and keeps a picture
  * of the family out of long-lived storage on other people's devices, at no cost to
  * anything anyone actually wanted offline. The home page still works without a network;
  * the picture may or may not be there, and hides itself if it is not.

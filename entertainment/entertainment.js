@@ -58,6 +58,7 @@ import {
 // taken whole and the view picks between them - see PART 6.
 import * as TicTacToe from '../js/tictactoe.js';
 import * as TerniLapilli from '../js/ternilapilli.js';
+import { ROUTES, routeFor, parentOf, backTitleFor } from '../js/routes.js';
 import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
@@ -79,8 +80,12 @@ const tetrisBoard = document.getElementById('tetrisDisplay');
 const tetrisScoreEl = document.getElementById('tetris-score');
 const tetrisLevelEl = document.getElementById('tetris-level');
 
-/* --- HUB / VIEW SWITCHING --- */
-const hub = document.getElementById('entertainment-hub');
+/* --- ROUTES / VIEW SWITCHING --- */
+/* Which section a hash shows, and where Back goes, come from js/routes.js. Every section
+   any route can show - the dashboard, the hubs and the game views - is hidden except the
+   current one. */
+
+// The game views by name, for the code below that asks whether one is on screen.
 const views = {
     tetris: document.getElementById('tetris-system'),
     snake: document.getElementById('snake-system'),
@@ -90,7 +95,21 @@ const views = {
     toy: document.getElementById('toy-system'),
 };
 
-function showView(name) {
+// Every section a route can show, by element id.
+const screens = Object.fromEntries(
+    [...new Set(Object.values(ROUTES).map((route) => route.view))]
+        .map((id) => [id, document.getElementById(id)]),
+);
+
+let currentRoute = routeFor(window.location.hash);
+
+function showRoute(route) {
+    currentRoute = route;
+    /* Single player and pass the phone share the Tic-Tac-Toe view, and the route says
+       which this is. It has to be known before stopAllGames, which is what starts the
+       view's fresh game. */
+    tictactoePlayers = route.players || 1;
+
     // Leaving a view abandons whatever was running in it. Hiding a game does not
     // stop its setInterval, so an abandoned game kept playing itself in the
     // background and eventually hit its own game-over - throwing its end-of-game
@@ -98,18 +117,30 @@ function showView(name) {
     // when this was written; the dialog is in-page now, but an abandoned game
     // interrupting a live one is no better for being prettier.
     stopAllGames();
-    hub.hidden = Boolean(name);
-    Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
+    Object.entries(screens).forEach(([id, el]) => { el.hidden = id !== route.view; });
+    labelBackButtons(route);
+
     // Only now is the view on screen, which is when an opponent due to open may move.
-    if (name === 'tictactoe') {
-        tictactoeRules().prepare();
+    // Pass the phone has no opponent, so nothing to work out up front.
+    if (route.view === views.tictactoe.id) {
+        if (tictactoePlayers === 1) tictactoeRules().prepare();
         scheduleTicTacToeReply();
     }
 }
 
+/* Back says where it goes, because that now depends on the route: a game's Back leads to
+   its hub, a hub's and Finger Paint's to the dashboard. The end-of-game dialog's button
+   says it too. */
+function labelBackButtons(route) {
+    const title = backTitleFor(route.key);
+    document.querySelectorAll('.back-btn[data-back]').forEach((btn) => {
+        btn.textContent = `← Back to ${title}`;
+    });
+    document.getElementById('game-over-back').textContent = `Back to ${title}`;
+}
+
 function applyHashRoute() {
-    const hash = window.location.hash.slice(1);
-    showView(views[hash] ? hash : null);
+    showRoute(routeFor(window.location.hash));
 }
 
 /* --- SHARED STATE --- */
@@ -1217,6 +1248,14 @@ const tictactoeResultsPanel = document.getElementById('tictactoe-results');
 const tictactoeResultsCaption = document.getElementById('tictactoe-results-caption');
 const tictactoeResultsBody = document.getElementById('tictactoe-results-body');
 const tictactoeResultsClose = document.getElementById('tictactoeResultsClose');
+const tictactoeTitleEl = document.getElementById('tictactoe-title');
+const tictactoeSoloScoreEl = document.getElementById('tictactoe-score-solo');
+const tictactoePassScoreEl = document.getElementById('tictactoe-score-pass');
+const tictactoePassTallyEls = {
+    one: document.getElementById('tictactoe-one'),
+    two: document.getElementById('tictactoe-two'),
+    drawn: document.getElementById('tictactoe-pass-drawn'),
+};
 
 const TICTACTOE_RULES = { classic: TicTacToe, terni: TerniLapilli };
 const { MARKS: TICTACTOE_MARKS, STATUS: TICTACTOE_STATUS, LINES: TICTACTOE_LINES, otherMark } = TicTacToe;
@@ -1239,6 +1278,11 @@ let terniHeld = null;      // the Terni Lapilli piece picked up, waiting for som
 // One tally per game, for this session only - a reload starts them again.
 const tictactoeTallies = { classic: TicTacToe.emptyTally(), terni: TicTacToe.emptyTally() };
 
+/* Pass the phone: two people on this one device, set by the route (#tictactoe-pass). Its
+   score follows the players, per mode, and is kept apart from single player's. */
+let tictactoePlayers = 1;
+const tictactoePassTallies = { classic: TicTacToe.emptyPassTally(), terni: TicTacToe.emptyPassTally() };
+
 /* And, per mode, who the player was up against in each finished game - never shown in
    play, only through View Results once enough games are behind them. See NOTES.md. */
 const tictactoeResults = { classic: TicTacToe.emptyResults(), terni: TicTacToe.emptyResults() };
@@ -1246,6 +1290,7 @@ const TICTACTOE_OPPONENT_NAMES = { perfect: 'Perfect', good: 'Good', bad: 'Bad' 
 
 const tictactoeRules = () => TICTACTOE_RULES[tictactoeMode];
 const isTerni = () => tictactoeMode === 'terni';
+const isPass = () => tictactoePlayers === 2;
 
 const tictactoeCentre = (cell) => ({ x: (cell % 3) + 0.5, y: Math.floor(cell / 3) + 0.5 });
 
@@ -1305,7 +1350,34 @@ function terniMarkers(game) {
    same rule Minesweeper's status line keeps. They say what the controls do and what the
    rules allow. The mark for the next game is fine to state: the alternation decides it,
    not the board. */
-function tictactoeMessage(game, { status, repeated }) {
+/* Pass the phone's messages name the players, with the mark each holds this game. The
+   marks change hands every game, so a mark on its own would not say whose turn it is. */
+function passMessage(game, { status, winner, repeated }) {
+    const who = (mark) => `Player ${TicTacToe.playerNumberOf(game, mark)} (${mark})`;
+    // X goes first, and next game X belongs to whoever holds O now.
+    const nextFirst = `Player ${TicTacToe.playerNumberOf(game, TICTACTOE_MARKS.O)} is X next game.`;
+
+    if (winner) return `Player ${TicTacToe.playerNumberOf(game, winner)} wins. ${nextFirst}`;
+    if (status === TICTACTOE_STATUS.DRAW) {
+        return repeated
+            ? `A draw: the same position came up three times. ${nextFirst}`
+            : `A draw. ${nextFirst}`;
+    }
+
+    const mover = isTerni() ? game.turn : TicTacToe.turnOf(game.board);
+    const untouched = game.board.every((cell) => cell === null);
+
+    if (!isTerni()) return untouched ? `${who(mover)} goes first. Tap any square.` : `${who(mover)} to move.`;
+    if (untouched) return `${who(mover)} goes first. Place a piece on any point but the centre.`;
+    if (TerniLapilli.isPlacing(game.board, game.turn)) return `${who(mover)}: place a piece.`;
+    return terniHeld === null
+        ? `${who(mover)}: pick up one of your pieces.`
+        : 'Tap a marked point to move there, or pick up a different piece.';
+}
+
+function tictactoeMessage(game, result) {
+    if (isPass()) return passMessage(game, result);
+    const { status, repeated } = result;
     const you = game.playerMark;
     const next = otherMark(you);
     const untouched = game.board.every((cell) => cell === null);
@@ -1363,9 +1435,17 @@ function drawTicTacToe() {
     tictactoeBoard.classList.toggle('is-over', over);
     tictactoeBoard.classList.toggle('is-waiting', tictactoeRules().isOpponentTurn(game));
 
+    tictactoeTitleEl.textContent = isPass() ? 'Tic-Tac-Toe: pass the phone' : 'Tic-Tac-Toe';
+    tictactoeSoloScoreEl.hidden = isPass();
+    tictactoePassScoreEl.hidden = !isPass();
+
     const tally = tictactoeTallies[tictactoeMode];
     Object.entries(tictactoeTallyEls).forEach(([key, el]) => { el.textContent = tally[key]; });
-    tictactoeResultsBtn.hidden = !TicTacToe.canViewResults(tictactoeResults[tictactoeMode]);
+    const passTally = tictactoePassTallies[tictactoeMode];
+    Object.entries(tictactoePassTallyEls).forEach(([key, el]) => { el.textContent = passTally[key]; });
+
+    // Results are about the computer opponents, so pass the phone has nothing to show.
+    tictactoeResultsBtn.hidden = isPass() || !TicTacToe.canViewResults(tictactoeResults[tictactoeMode]);
 
     tictactoeStatusEl.textContent = tictactoeMessage(game, result);
     tictactoeStatusEl.classList.toggle('is-result', over);
@@ -1373,7 +1453,7 @@ function drawTicTacToe() {
 
 /* The pause, then the reply - only while the view is on screen. stopAllGames resets
    this game before the next view is shown, so a reply scheduled from there would be
-   played onto a hidden board; showView asks again once the view is visible. */
+   played onto a hidden board; showRoute asks again once the view is visible. */
 function scheduleTicTacToeReply() {
     if (tictactoeTimer || views.tictactoe.hidden || !tictactoeRules().isOpponentTurn(tictactoeGame)) return;
     tictactoeTimer = setTimeout(() => {
@@ -1387,7 +1467,9 @@ function scheduleTicTacToeReply() {
 // After any move: score a finished game, repaint, and hand over if the opponent is next.
 function settleTicTacToe() {
     const rules = tictactoeRules();
-    if (rules.isOver(tictactoeGame)) {
+    if (rules.isOver(tictactoeGame) && isPass()) {
+        tictactoePassTallies[tictactoeMode] = rules.recordPassResult(tictactoePassTallies[tictactoeMode], tictactoeGame);
+    } else if (rules.isOver(tictactoeGame)) {
         tictactoeTallies[tictactoeMode] = rules.recordResult(tictactoeTallies[tictactoeMode], tictactoeGame);
         tictactoeResults[tictactoeMode] = TicTacToe.recordGame(tictactoeResults[tictactoeMode], {
             opponent: tictactoeGame.opponent,
@@ -1412,14 +1494,17 @@ function initTicTacToe() {
 
     const previous = tictactoeGame;
     let playerMark = TICTACTOE_MARKS.X;
-    if (previous) {
+    // Coming over from the other kind of game starts the alternation afresh: you, or
+    // Player 1, go first as X. Carrying single player's turn into pass the phone would
+    // decide who starts by something neither player did.
+    if (previous && previous.players === tictactoePlayers) {
         const played = previous.board.some((cell) => cell !== null);
         playerMark = played ? otherMark(previous.playerMark) : previous.playerMark;
     }
 
     tictactoeMode = TICTACTOE_RULES[tictactoeModeSelect.value] ? tictactoeModeSelect.value : 'classic';
     const rules = tictactoeRules();
-    tictactoeGame = rules.createGame({ playerMark, opponent: rules.pickOpponent() });
+    tictactoeGame = rules.createGame({ playerMark, opponent: rules.pickOpponent(), players: tictactoePlayers });
     drawTicTacToe();
 }
 
@@ -1465,11 +1550,11 @@ tictactoeBoard.addEventListener('click', (event) => {
 });
 
 /* prepare() does the optimal opponent's thinking up front, for every game whoever the
-   opponent is, so that no reply ever carries it. Here and in showView - the two ways a
+   opponent is, so that no reply ever carries it. Here and in showRoute - the two ways a
    game can be started with the view on screen - and never inside the reply itself. */
 const startTicTacToe = () => {
     initTicTacToe();
-    tictactoeRules().prepare();
+    if (!isPass()) tictactoeRules().prepare();
     scheduleTicTacToeReply();
 };
 
@@ -1780,11 +1865,12 @@ function stopAllGames() {
 
 /* --- Hub Navigation Listeners --- */
 document.querySelectorAll('.entry-card').forEach((card) => {
-    card.addEventListener('click', () => { window.location.hash = card.dataset.view; });
+    card.addEventListener('click', () => { window.location.hash = card.dataset.route; });
 });
 
+// Back goes to the current route's parent, never to browser history - see js/routes.js.
 document.querySelectorAll('[data-back]').forEach((btn) => {
-    btn.addEventListener('click', () => { window.location.hash = ''; });
+    btn.addEventListener('click', () => { window.location.hash = parentOf(currentRoute.key); });
 });
 
 window.addEventListener('hashchange', applyHashRoute);

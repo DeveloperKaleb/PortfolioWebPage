@@ -39,11 +39,15 @@ export const STATUS = {
 
 export const otherMark = (mark) => (mark === MARKS.X ? MARKS.O : MARKS.X);
 
-export function createGame({ playerMark = MARKS.X, opponent = 'good' } = {}) {
+/* `players: 2` is pass the phone: two people taking turns on one device, with no
+   opponent. `playerMark` is then Player 1's mark, which is what lets the alternation of
+   who goes first work the same way in both. */
+export function createGame({ playerMark = MARKS.X, opponent = 'good', players = 1 } = {}) {
     return {
         board: Array(9).fill(null),
         playerMark,
-        opponent,
+        players,
+        opponent: players === 2 ? null : opponent,
         // Set once the player, on their turn, could have forced a win - see View Results.
         winnable: false,
     };
@@ -73,21 +77,25 @@ export function winnerOf(board) {
 
 const isFull = (board) => board.every((cell) => cell !== null);
 
-/* The result from the player's side of the board. `line` is the winning line when
-   there is one, so the DOM layer can strike through it. */
+/* The result from the player's side of the board, plus the winning mark - which is what
+   pass the phone reports, having no single player to be on the side of. `line` is the
+   winning line when there is one, so the DOM layer can strike through it. */
 export function outcome(game) {
     const win = winnerOf(game.board);
     if (win) {
-        return { status: win.mark === game.playerMark ? STATUS.WON : STATUS.LOST, line: win.line };
+        return { status: win.mark === game.playerMark ? STATUS.WON : STATUS.LOST, line: win.line, winner: win.mark };
     }
-    return { status: isFull(game.board) ? STATUS.DRAW : STATUS.PLAYING, line: null };
+    return { status: isFull(game.board) ? STATUS.DRAW : STATUS.PLAYING, line: null, winner: null };
 }
 
 export const isOver = (game) => outcome(game).status !== STATUS.PLAYING;
 
-export const isPlayerTurn = (game) => !isOver(game) && turnOf(game.board) === game.playerMark;
+// With two players on one phone, every turn is a player's and the opponent never moves.
+export const isPlayerTurn = (game) =>
+    !isOver(game) && (game.players === 2 || turnOf(game.board) === game.playerMark);
 
-export const isOpponentTurn = (game) => !isOver(game) && turnOf(game.board) === opponentMark(game);
+export const isOpponentTurn = (game) =>
+    !isOver(game) && game.players !== 2 && turnOf(game.board) === opponentMark(game);
 
 // Put the mark whose turn it is on a cell. Anything illegal hands back the same game.
 function place(game, cell) {
@@ -106,6 +114,8 @@ function place(game, cell) {
    is. Once set it stays set: View Results counts games where the chance was there, taken
    or not. */
 function playerCanForceWin(game) {
+    // Pass the phone has no opponent to hand anything over, so it skips the search.
+    if (game.players === 2) return false;
     return isPlayerTurn(game) && score(game.board, game.playerMark) > 0;
 }
 
@@ -280,3 +290,26 @@ export const gamesRecorded = (results) =>
     OPPONENTS.reduce((total, opponent) => total + results[opponent].played, 0);
 
 export const canViewResults = (results) => gamesRecorded(results) >= RESULTS_AFTER;
+
+/* --- Pass the phone ---
+ *
+ * Two people, one device, no opponent. They are Player 1 and Player 2. X always moves
+ * first and they take turns being X, so who starts alternates. The score follows the
+ * players rather than the marks, because the marks change hands every game - a score by
+ * mark would stop meaning anything the moment they swap. Shared by both modes. */
+
+// Which player holds a mark. `playerMark` is Player 1's.
+export const playerNumberOf = (game, mark) => (mark === game.playerMark ? 1 : 2);
+
+export const emptyPassTally = () => ({ one: 0, two: 0, drawn: 0 });
+
+// Only a finished game counts. Takes an outcome, so Terni Lapilli's draws count too.
+export function recordPassOutcome(tally, { status, winner }, playerOneMark) {
+    if (winner) {
+        return winner === playerOneMark ? { ...tally, one: tally.one + 1 } : { ...tally, two: tally.two + 1 };
+    }
+    if (status === STATUS.DRAW) return { ...tally, drawn: tally.drawn + 1 };
+    return tally;
+}
+
+export const recordPassResult = (tally, game) => recordPassOutcome(tally, outcome(game), game.playerMark);

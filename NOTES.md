@@ -28,6 +28,21 @@ pages per game — deliberate, to avoid duplicating nav/footer/script-include bo
 across more HTML files and to keep `entertainment.js` as the one DOM/state layer for all
 three toys/games, matching how it already worked before the hub existed.
 
+**Since 2026-09-11 the routes live in `js/routes.js`**, a pure module with tests. An empty
+hash is now a dashboard - Single Player, Multiplayer and Toys - and the old hub is
+`#single`. Every existing game link (`#tetris` and the rest) still works. Each route names
+the element it shows, its title and its parent, and `tests/routes` checks the markup
+against the table both ways: every route's element exists, and every card leads to a
+route.
+
+**Back goes to the route's parent, never to browser history.** A visitor who arrived from
+a link, or refreshed, has no history on this page, and `history.back()` would take them
+off the site. The Back buttons are relabelled for wherever they go ("Back to Single
+Player"), including the one in the end-of-game dialog.
+
+**The Toys card opens Finger Paint directly** - the owner's call. With one toy a Toys hub
+would be a screen with a single card on it. It gets a hub when the second toy arrives.
+
 ## Manual cache-busting (`LAST_UPDATED` in `scripts/footer.js`)
 
 Every push needs **two** manual bumps, done together:
@@ -1367,6 +1382,28 @@ than taken from a variable.
 
 Clearing on open is unchanged.
 
+## Pass the phone
+
+Built 2026-09-11 as the first multiplayer on the site: Classic and Terni Lapilli for two
+people on one device, reached from Multiplayer on the dashboard (`#tictactoe-pass`).
+
+**Player 1 and Player 2, not X and O.** X always moves first and the players take turns
+being X, so who starts alternates - the owner's choice. The score follows the players
+(Player 1 / Player 2 / Draws) because the marks change hands every game; a score by mark
+would stop meaning anything the moment they swap. `playerMark` holds Player 1's mark,
+which is what lets the single-player alternation run unchanged - including advancing
+only after a game that had a move in it.
+
+**The same view, switched by the route.** `createGame({ players: 2 })` has no opponent:
+every turn is a player's, `opponentMove` does nothing, and `outcome` reports the `winner`
+by mark. View Results is hidden and the winnable check is skipped, so Terni Lapilli never
+builds its solve in this mode and `prepare()` is not called. Scores are kept apart from
+single player, per game mode.
+
+**Seating is ignored for now.** Two people facing each other across a phone on a table see
+the board one way up. The owner chose to leave it until play-testing says otherwise; a
+button that flips the board is the fallback.
+
 ## Rule: in-game readouts are one or two lines
 
 **The status line and readouts around a board carry short messages only - one or two
@@ -1388,6 +1425,10 @@ rediscovered. Nothing here is committed to; it is a record of what was suggested
 when.
 
 ### Suggested 2026-09-11, by the project owner
+
+**A dog toy** - a cute dog you can feed, pet and play with. The likely next toy after
+Finger Paint, and the point at which the dashboard's Toys card gets a hub instead of
+opening Finger Paint directly. Not a current priority.
 
 **Ashi**, as a third mode alongside Classic and Terni Lapilli. As described: very like
 Terni Lapilli, except that pieces may not move diagonally. Not planned for any
@@ -1448,50 +1489,91 @@ also stops the page scrolling, and a tall card layout on a phone needs to scroll
 tap-to-select-then-tap-to-place scheme avoids that entirely and is usually kinder on
 touch than dragging — worth considering before reaching for drag.
 
-## Rule: multiplayer rewards couch play over remote play
+## Rule: multiplayer is phone to phone, in the same room
 
-**Any multiplayer built here has to be better in the same room than it is apart.** Stated
-by the project owner 2026-09-07, as a standard to hold the site to going forward, on the
-view that the industry's drift toward remote-by-default play has been a loss.
+**Any multiplayer built here has to favour being in the same room.** First stated by the
+project owner 2026-09-07, on the view that the industry's drift toward remote-by-default
+play has been a loss. **Revised 2026-09-11** to drop the shared screen it originally
+required: playing phone to phone in person is far rarer than it should be, and that is
+the gap to fill.
 
 Note the shape of it: **reward** co-presence, not **prevent** remote. Anything on the web
 can be played over a video call if people are determined, and effort spent trying to stop
-that is effort wasted on the wrong problem. The test to apply is: *would two people in the
-same room have a better time than two people on a call?* If the answer is "about the
-same", the design has not honoured the rule yet.
+that is effort wasted on the wrong problem.
 
-What that means in practice, for whoever builds the first one:
+The rule, in the owner's approved wording:
 
-- **One shared screen, phones as controllers.** The game state lives on a screen everyone
-  can see. A phone is a controller and a place for private information - not a second
-  copy of the game. Give every player their own full view and you have built remote play
-  that happens to be in a room.
-- **Joining should require being there.** A short code or QR shown *only* on the shared
-  screen gates entry to people who can see it. That is a natural consequence of the
-  design rather than a restriction bolted on, which is what makes it the right mechanism.
+> **Phone to phone, in the same room.** No shared screen: it adds cost and setup, whether
+> for us or for the player. Each phone may show the game, so co-presence has to be
+> rewarded by the design — boards that span phones, private information and table talk,
+> simultaneous reveals — not by a screen. Joining is a QR exchange between the phones,
+> and play runs over the local network with no relay.
+
+**Plain turn-based play is welcome, and not a lesser case.** Two people across a table,
+taking turns on their own phones, is exactly the in-person play that has become rare.
+Tic-Tac-Toe is a good first test game: its small turn-based messages make it the right
+thing to prove the connection with. The co-presence ideas above make multiplayer better;
+they are not a bar a game must clear before it can have multiplayer at all. *Would two
+people in the same room have a better time than two on a call?* is still worth asking of
+every design - as a direction to push in, not a gate. (The original version of this rule
+failed any design that scored "about the same". That clause is gone, because it would
+have turned away exactly the turn-based play this revision wants.)
+
+**Passing one phone counts.** Two people taking turns on a single device is in person by
+nature and has no joining step, so the QR exchange below applies only once play spans
+two phones. Pass the phone is the first multiplayer built here (2026-09-11) - see its own
+section.
+
+What that means in practice:
+
+- **Why no shared screen.** A TV or laptop showing the game costs money, and its setup
+  falls on someone: an app for us to build, or a player navigating a browser on a TV. The
+  price of dropping it is that every phone shows the game, which is why co-presence has to
+  come from the design rather than the hardware.
+- **Joining happens between the phones.** One phone shows a QR code carrying its connection
+  details; the other scans it and shows a reply code; the first scans that, and the two
+  talk directly. No room server, and nothing from outside the site. It works because both
+  devices have cameras - the version with a TV needed the TV to scan, which is what made
+  it impractical. Costs to plan for: an in-page QR scanner (the browser's built-in
+  detector is missing from iOS Safari, so a vendored library), a camera prompt on each
+  phone, and connection codes that may be too dense to scan from a screen. **Prototype
+  and measure that density before designing anything else.**
+- **Same Wi-Fi is the strongest in-person bias.** Direct connections generally only work
+  on one network, so a friend across town cannot join even holding a valid code: being
+  together falls out of how it works rather than being a restriction bolted on. A code
+  that changes often, or dies once used, adds to it. The price is that guest, hotel and
+  some dorm networks block device-to-device traffic, so that failure needs a message that
+  says so plainly rather than looking like a bug.
 - **Lean on what only co-presence gives you.** Reading a face, talking over each other,
-  reacting out loud, passing a phone around. Mechanics built on those are better in person
-  because of what they are, not because the remote version was hobbled.
+  reacting out loud, passing a phone around, laying two phones side by side. Mechanics built
+  on those are better in person because of what they are, not because the remote version
+  was hobbled.
 - **Local network only.** No relay server, no accounts, no matchmaking with strangers.
-  That keeps latency honest and keeps the scope of the thing small.
-- **No spectator-proofing, no anti-cheat.** Both assume adversaries. This is a game for a
-  living room.
+  **Open question for the owner:** whether a signalling-only room server counts as a
+  relay. It would cut joining to one scan with the phone's own camera app, but it needs
+  server code, so it waits on the move to Cloudflare hosting.
+- **No spectator-proofing, no anti-cheat.** Both assume adversaries. Someone reaching the
+  network over a VPN could join, and that is fine. This is a game for a living room.
 
 The rule is a constraint on design, not a feature to implement. It applies to anything
 multiplayer added later, including ideas already recorded below.
 
+### Suggested 2026-09-11, by the project owner
+
+**An Entertainment dashboard offering Single Player and Multiplayer**, with Multiplayer
+entered through the phone-to-phone QR exchange above. Scoped, not planned. Tic-Tac-Toe is
+the likely first game, as the test bed for the connection. **The dashboard itself was
+built the same day**, with pass the phone as its first multiplayer; the phone-to-phone
+exchange is still to come.
+
 ### Suggested 2026-09-07, by the project owner
 
-**Multiplayer using phones as controllers.** The shared screen would be a laptop or TV
-showing the game; each player's phone is their controller. Explicitly subject to the rule
-above.
-
-Notes for whoever picks it up: the D-pad work already in this file is most of a phone
-controller, so the input side largely exists. The hard part is the connection - peer to
-peer on a local network from a static GitHub Pages site is the real constraint, since
-there is no server to run and WebRTC still needs signalling from somewhere. That
-question is worth settling before any of the game design, because the answer may change
-what is possible.
+**Multiplayer using phones as controllers**, with a laptop or TV as the shared screen.
+**Superseded 2026-09-11** by phone to phone under the revised rule above, and kept for its
+attribution. The connection question it raised - how two devices find each other from a
+static site with no server, when WebRTC still needs signalling from somewhere - now has a
+candidate answer: the two-way QR exchange. The D-pad work in this file is still most of
+what a phone needs for games with directional input.
 
 ## The Bridge board
 
@@ -1756,7 +1838,8 @@ makes offline play a matter of caching files rather than a matter of dependencie
 
 ## Offline play: the service worker
 
-`sw.js` precaches the whole site — 13 files, 448KB — so a device that has visited once
+`sw.js` precaches the site's files — 15 files, 259KB as of 2026-09-11 (13 files and 448KB,
+photo included, when this was first written) — so a device that has visited once
 works with no network. Registered by `scripts/offline.js`, included on both pages.
 
 **Documents are network-first, everything else cache-first.** That split is the whole
@@ -1799,7 +1882,9 @@ far longer and more purposefully, on the device of everyone who has ever opened 
 page. And it buys nothing for the reason the worker exists: offline play means the
 games, and the entertainment page never references the photo.
 
-Leaving it out takes the precache from 448KB to **168KB** at no cost to anything anyone
+Leaving it out took the precache from 448KB to **168KB** when this was written (**259KB** by
+2026-09-11, after Tic-Tac-Toe, Terni Lapilli and the dashboard, against about 550KB if the
+photo were still in it), at no cost to anything anyone
 wanted offline. The home page still loads without a network; the picture hides itself
 rather than showing a broken-image icon.
 
@@ -1818,5 +1903,33 @@ side effect of a caching decision.
 Quotas and eviction, not restraint. Browsers cap what one origin may store and evict
 least-recently-used data when disk runs short; storage is best-effort unless a site
 asks for persistence, which this one does not. Measured on a desktop Chrome: this site
-uses **448KB against a 10GB quota**, about 0.004%. Safari is stricter still and clears
-script-writable storage, service worker included, after roughly a week without a visit.
+used **448KB against a 10GB quota** when measured, about 0.004%; the precache is 259KB as of
+2026-09-11. Safari is stricter still and clears script-writable storage, service worker
+included, after roughly a week without a visit.
+
+## Where the memory goes
+
+Measured 2026-09-11, in Node, for the game logic only - JavaScript memory, not the page
+itself.
+
+| | kept in memory | when |
+|---|---|---|
+| Core modules: logic, contrast, strands | ~410 KB | always, from page load |
+| The other game modules and the router | ~160 KB | always, from page load |
+| Snake boards | ~160 KB each, up to ~1.3 MB | each board built stays cached for the visit (`graphCache` in `js/logic.js`) |
+| Tic-Tac-Toe Classic opponent memo | ~930 KB | after opening single-player Classic |
+| Terni Lapilli solve | ~650-700 KB | after opening single-player Terni Lapilli |
+| Pass the phone | nothing extra | there is no opponent |
+
+At most about 3.5 MB, and only with every Snake board opened in both orientations plus
+both single-player Tic-Tac-Toe modes.
+
+**The Terni Lapilli solve has a brief peak of a few MB while it builds.** Repeated runs read
+either about 650 KB or about 2.7 MB, depending on whether garbage collection had yet
+reclaimed the move lists the solve is worked out from. What stays is the smaller figure.
+
+**Not measured: the page itself**, and that is where the real weight probably is. Every
+board is made of buttons, and Finger Paint's size fields allow 200 × 200 - 40,000 buttons,
+very likely more than everything in the table combined. If the page ever feels heavy on an
+older phone, look there first, and measure it in a real browser (the DevTools Memory tab)
+before changing anything.

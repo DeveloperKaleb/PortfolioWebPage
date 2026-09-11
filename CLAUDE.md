@@ -12,7 +12,7 @@ touch:
 
 - **Colour choices are held to the contrast rules** in `js/contrast.js`, checked against
   both colour-blindness simulations and asserted in `tests/contrast/`.
-- **Any multiplayer must reward couch play over remote play.**
+- **Any multiplayer is phone to phone, in the same room** - no shared screen, co-presence rewarded by design, plain turn-based play welcome.
 
 ## What this is
 
@@ -41,7 +41,7 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Two pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `entertainment/entertainment.html` — a hub page for six browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, and an "Array Grid" color-painting toy). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page shows a landing grid of thumbnail cards (`#entertainment-hub`, split into Games/Toys) by default; clicking a card hides the hub and shows that game/toy's section (`.game-view`) full-screen, with a Back button to return. View switching is a plain URL-hash router (`#tetris`, `#snake`, `#minesweeper`, `#sequence`, `#tictactoe`, `#toy`) implemented in `entertainment.js` — no routing library.
+- `entertainment/entertainment.html` — a hub page for six browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, and an "Array Grid" color-painting toy). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`) and Multiplayer (`#multi`) are hubs of thumbnail cards, the Toys card opens Finger Paint (`#toy`) directly, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
@@ -55,7 +55,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is seven modules, all free of `document`/DOM calls so they stay testable
+The pure layer is eight modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -78,6 +78,9 @@ under Vitest without a browser:
 - `js/ternilapilli.js` — Terni Lapilli, the Roman variant, played as a mode of the
   Tic-Tac-Toe view: three pieces each, then moves along the 8 lines. Its optimal opponent
   comes from a retrograde solve, because positions repeat. See NOTES.md.
+- `js/routes.js` — the Entertainment page's routes: which section each hash shows, its
+  title, and where Back goes (a route's parent, never browser history). `tests/routes`
+  checks the markup against it.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

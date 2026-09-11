@@ -213,6 +213,32 @@ footer li + li {
     font-weight: bold;
 }
 
+/* The dashboard: larger cards with no thumbnail. Single Player, Multiplayer and Toys are
+   ways in rather than games, so there is no board to advertise. Same colours as the
+   game cards. */
+.dashboard-card {
+    min-height: 96px;
+    justify-content: center;
+}
+
+.card-subtitle {
+    font-size: 14px;
+}
+
+/* A hub's way back to the dashboard, in the card colours. The hubs sit outside the game
+   views, so there is no control theme for them to take. */
+.hub .back-btn {
+    min-height: 44px;
+    font-size: 16px;
+    font-family: inherit;
+    padding: 8px 14px;
+    background-color: #002e2c;
+    color: #eff1c5;
+    border: 2px solid #dfe38c;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
 .back-btn {
     display: block;
     margin: 0 0 10px;

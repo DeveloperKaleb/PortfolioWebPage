@@ -27,6 +27,9 @@ import {
     gamesRecorded,
     canViewResults,
     RESULTS_AFTER,
+    playerNumberOf,
+    emptyPassTally,
+    recordPassResult,
 } from '../../js/tictactoe.js';
 
 const _ = null;
@@ -89,7 +92,7 @@ describe('The board', () => {
 
     test('a full board with no line is a draw', () => {
         const game = withBoard([X, O, X, X, O, O, O, X, X]);
-        expect(outcome(game)).toEqual({ status: STATUS.DRAW, line: null });
+        expect(outcome(game)).toEqual({ status: STATUS.DRAW, line: null, winner: null });
         expect(isOver(game)).toBe(true);
     });
 
@@ -373,5 +376,50 @@ describe('Results', () => {
             results = recordGame(results, finished(OPPONENTS[i % 3], STATUS.DRAW));
         }
         expect(canViewResults(results)).toBe(true);
+    });
+});
+
+describe('Pass the phone', () => {
+    test('either side can move, and no opponent ever does', () => {
+        let game = createGame({ players: 2 });
+        expect(game.opponent).toBeNull();
+
+        game = playerMove(game, 4);
+        expect(isPlayerTurn(game)).toBe(true);
+        expect(isOpponentTurn(game)).toBe(false);
+
+        game = playerMove(game, 0);
+        expect(game.board[4]).toBe(X);
+        expect(game.board[0]).toBe(O);
+        expect(opponentMove(game)).toBe(game);
+    });
+
+    test('the winner is reported by mark, and credited to whoever held it', () => {
+        const xWins = [X, X, X, O, O, _, _, _, _];
+        const playerOneIsX = withBoard(xWins, { players: 2, playerMark: X });
+        const playerOneIsO = withBoard(xWins, { players: 2, playerMark: O });
+
+        expect(outcome(playerOneIsX).winner).toBe(X);
+        expect(playerNumberOf(playerOneIsX, X)).toBe(1);
+        expect(playerNumberOf(playerOneIsO, X)).toBe(2);
+
+        let tally = emptyPassTally();
+        tally = recordPassResult(tally, playerOneIsX);
+        tally = recordPassResult(tally, playerOneIsO);
+        tally = recordPassResult(tally, withBoard([X, O, X, X, O, O, O, X, X], { players: 2 }));
+        expect(tally).toEqual({ one: 1, two: 1, drawn: 1 });
+    });
+
+    test('ignores a game still in play', () => {
+        const tally = emptyPassTally();
+        expect(recordPassResult(tally, createGame({ players: 2 }))).toBe(tally);
+    });
+
+    // X takes the centre and O answers on an edge, which would be a handed-over win against
+    // a computer. With no opponent there is nothing to hand over, and no search runs.
+    test('never marks a game winnable', () => {
+        let game = createGame({ players: 2 });
+        [4, 1].forEach((cell) => { game = playerMove(game, cell); });
+        expect(game.winnable).toBe(false);
     });
 });
