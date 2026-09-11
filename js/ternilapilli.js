@@ -7,8 +7,9 @@
  * while moving.
  *
  * Two rules were settled by solving the game rather than by tradition; see NOTES.md.
- *   - The first piece may not go in the centre. With it allowed, the first player wins
- *     by taking it, and only by taking it; without, the game is a draw with best play.
+ *   - Against the computer, the first piece may not go in the centre. With it allowed,
+ *     the first player wins by taking it, and only by taking it; without, the game is a
+ *     draw with best play. Pass the phone allows it - see createGame and NOTES.md.
  *   - The same position with the same side to move, for the third time, is a draw.
  *     Pieces can otherwise shuffle forever.
  *
@@ -67,6 +68,12 @@ export function createGame({ playerMark = MARKS.X, opponent = 'good', players = 
         playerMark,
         players,
         opponent: players === 2 ? null : opponent,
+        /* The centre is banned on the first move only against the computer. The ban was
+           there to keep the perfect opponent's opening from giving it away and to take the
+           edge off moving first; with two people on one phone there is no opponent to
+           hide, the players swap who goes first every game, and the centre's win is hard
+           to play. */
+        centreBan: players !== 2,
         // How many times each position has come up, for the repetition rule.
         seen: { [positionKey(board, MARKS.X)]: 1 },
         // Set once the player, on their turn, could have forced a win - see View Results.
@@ -76,14 +83,16 @@ export function createGame({ playerMark = MARKS.X, opponent = 'good', players = 
 
 export const isPlacing = (board, mark) => board.filter((cell) => cell === mark).length < PIECES_EACH;
 
-// Every move open to `turn`, as { from, to }. `from` is null while placing.
-export function legalMoves(board, turn) {
+/* Every move open to `turn`, as { from, to }. `from` is null while placing. The centre ban
+   is on unless a game says otherwise, which is what the solve and the opponents rely on:
+   they only ever play against a person, where the ban applies. */
+export function legalMoves(board, turn, { centreBan = true } = {}) {
     const empty = board.flatMap((cell, index) => (cell === null ? [index] : []));
 
     if (isPlacing(board, turn)) {
         const firstMove = empty.length === 9;
         return empty
-            .filter((to) => !(firstMove && to === CENTRE))
+            .filter((to) => !(centreBan && firstMove && to === CENTRE))
             .map((to) => ({ from: null, to }));
     }
 
@@ -131,7 +140,7 @@ export const isOpponentTurn = (game) =>
    point, a step off the lines, the other side's piece - hands back the same game. */
 export function makeMove(game, move) {
     if (isOver(game) || !move) return game;
-    const legal = legalMoves(game.board, game.turn)
+    const legal = legalMoves(game.board, game.turn, { centreBan: game.centreBan !== false })
         .some((candidate) => candidate.from === move.from && candidate.to === move.to);
     if (!legal) return game;
 

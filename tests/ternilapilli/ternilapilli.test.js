@@ -355,6 +355,21 @@ describe('Pass the phone', () => {
         expect(opponentMove(game)).toBe(game);
     });
 
+    /* The centre ban is for playing the computer: it hid the perfect opponent's opening
+       and took the edge off moving first. Two people on one phone swap who goes first
+       every game and have no opponent to hide, so pass the phone allows it. */
+    test('the centre is allowed on the first move', () => {
+        const game = playerMove(createGame({ players: 2 }), { from: null, to: CENTRE });
+        expect(game.board[CENTRE]).toBe(X);
+        expect(tos(legalMoves(EMPTY, X, { centreBan: false }))).toContain(CENTRE);
+    });
+
+    test('while single player still refuses it', () => {
+        const game = createGame({ playerMark: X, opponent: 'good' });
+        expect(game.centreBan).toBe(true);
+        expect(playerMove(game, { from: null, to: CENTRE })).toBe(game);
+    });
+
     // Player 1 holds O this game, so X's win is Player 2's.
     test('the winner is reported by mark, and credited to whoever held it', () => {
         const game = withPosition([X, X, _, O, _, X, O, _, O], X, { players: 2, playerMark: O });

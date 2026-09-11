@@ -1230,6 +1230,9 @@ with the centre allowed it would open there every time it went first, which the 
 opponent does one game in nine. With the ban its opening is always a corner, which random
 does half the time - a much weaker tell, and one no rule removes.
 
+**Pass the phone allows the centre** (2026-09-11). Neither reason holds up for two people
+on one phone; see "Pass the phone" below.
+
 **Nobody is ever left without a move** unless the game is already over: a player's three
 pieces can only all be hemmed in by the three opposing pieces, and those form a line. So
 there is no rule for a blocked player, and a test pins that one cannot arise.
@@ -1399,6 +1402,21 @@ every turn is a player's, `opponentMove` does nothing, and `outcome` reports the
 by mark. View Results is hidden and the winnable check is skipped, so Terni Lapilli never
 builds its solve in this mode and `prepare()` is not called. Scores are kept apart from
 single player, per game mode.
+
+**Terni Lapilli allows the centre on the first move here** - the owner's call, 2026-09-11,
+after asking whether the ban should carry over. Of its two reasons, one does not apply and
+the other is weak for two people on one phone:
+
+- **There is no opponent whose opening could give it away.**
+- **The first player's advantage is hard to play, and evens out.** Measured with the
+  centre allowed: after X takes it and O defends as well as it can, X wins in 8 more
+  plies, but has to find the only winning move, or one of two, on every one of its turns
+  - 2 of 7, then 1 of 5, 2 of 5, 1 of 5. And the players swap who is X every game.
+
+The cost is two opening rules under one name, which the status line covers on the first
+move ("Place a piece anywhere" here, "any point but the centre" against the computer).
+`createGame` sets `centreBan` from `players`. The solve is built with the ban and is never
+used in pass the phone, so it does not change.
 
 **Seating is ignored for now.** Two people facing each other across a phone on a table see
 the board one way up. The owner chose to leave it until play-testing says otherwise; a

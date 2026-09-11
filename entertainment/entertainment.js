@@ -1368,7 +1368,8 @@ function passMessage(game, { status, winner, repeated }) {
     const untouched = game.board.every((cell) => cell === null);
 
     if (!isTerni()) return untouched ? `${who(mover)} goes first. Tap any square.` : `${who(mover)} to move.`;
-    if (untouched) return `${who(mover)} goes first. Place a piece on any point but the centre.`;
+    // No centre ban here - pass the phone allows it; see createGame in js/ternilapilli.js.
+    if (untouched) return `${who(mover)} goes first. Place a piece anywhere.`;
     if (TerniLapilli.isPlacing(game.board, game.turn)) return `${who(mover)}: place a piece.`;
     return terniHeld === null
         ? `${who(mover)}: pick up one of your pieces.`
