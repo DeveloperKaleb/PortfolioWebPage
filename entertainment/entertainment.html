@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-0001" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260911-0001" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-0037" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260911-0037" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -178,9 +178,37 @@
             <h2>Tic-Tac-Toe</h2>
             <div id="tictactoe-controls">
                 <p>Won: <span id="tictactoe-won">0</span> &middot; Drawn: <span id="tictactoe-drawn">0</span> &middot; Lost: <span id="tictactoe-lost">0</span></p>
+                <select id="tictactoeModeSelect" aria-label="Game">
+                    <option value="classic">Classic</option>
+                    <option value="terni">Terni Lapilli</option>
+                </select>
                 <button type="button" id="tictactoeStartBtn">New Game</button>
+                <!-- Appears once five games of the selected mode are finished. -->
+                <button type="button" id="tictactoeResultsBtn" hidden>View Results</button>
             </div>
             <p id="tictactoe-status" role="status"></p>
+
+            <!-- Who the player has been up against, per opponent. Opening it clears the
+                 record and the score for the mode - see NOTES.md. Rows built by
+                 entertainment.js. -->
+            <section id="tictactoe-results" hidden aria-labelledby="tictactoe-results-title">
+                <h3 id="tictactoe-results-title">Results</h3>
+                <table>
+                    <caption id="tictactoe-results-caption"></caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Opponent</th>
+                            <th scope="col">Played</th>
+                            <th scope="col">Won</th>
+                            <th scope="col">Drawn</th>
+                            <th scope="col">Winnable</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tictactoe-results-body"></tbody>
+                </table>
+                <p class="tictactoe-results-note">Winnable: games where, on one of your turns, you could have forced a win.</p>
+                <button type="button" id="tictactoeResultsClose">Done</button>
+            </section>
 
             <!-- Squares are built by entertainment.js. The opponent is drawn at random for
                  each game and deliberately never named anywhere on the page - see NOTES.md. -->
@@ -237,9 +265,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-0001"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-0001"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-0001"></script>
-    <script type="module" src="./entertainment.js?v=20260911-0001"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-0037"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-0037"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-0037"></script>
+    <script type="module" src="./entertainment.js?v=20260911-0037"></script>
 </body>
 </html>

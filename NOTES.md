@@ -1142,7 +1142,8 @@ opponent at random, a third of the time each: **optimal**, **deliberately bad**,
 **random**. Rules and opponents in `js/tictactoe.js`; the clock and the board in
 `entertainment.js`.
 
-**The opponent is never revealed** - not during play, not at the end. The owner's call,
+**The opponent is never revealed during play** - not in a game, not at its end. After five
+finished games it can be, in aggregate: see "View Results" below. The owner's call,
 chosen over revealing it at the end: working out who you are up against is part of the
 game. That makes a rule for everything around it: **nothing may vary with the
 opponent.** The obvious leaks are closed off deliberately:
@@ -1188,6 +1189,125 @@ timer also checks the view is visible when it fires.
 
 The hub tile is reshaped to 3x3 the way Sequence's is to 2x2, and pinned by the same kind
 of test.
+
+## Terni Lapilli: the Roman variant
+
+Added 2026-09-11 as a mode of the Tic-Tac-Toe view (Classic / Terni Lapilli). Each side
+places three pieces, then moves one a step along the board's eight lines - three rows,
+three columns, the two long diagonals. Three in a row wins, in either phase. Rules in
+`js/ternilapilli.js`, which borrows Classic's lines, marks and opponent choice.
+
+**The rules were chosen from a solve, not from tradition.** Before anything was designed,
+all 5,390 reachable positions were solved under each candidate rule set:
+
+| movement | with best play |
+|---|---|
+| one step along a line | first player wins - **only** by opening in the centre. An edge opening loses, a corner draws |
+| one step, centre banned on move one | draw |
+| to any empty point | draw, from every opening |
+
+The owner picked stepping along a line with **no centre on the first move**, for two
+reasons that both come out of that table. It makes the game a draw with best play, rather
+than a win for whoever goes first. And it stops the optimal opponent giving itself away:
+with the centre allowed it would open there every time it went first, which the random
+opponent does one game in nine. With the ban its opening is always a corner, which random
+does half the time - a much weaker tell, and one no rule removes.
+
+**Nobody is ever left without a move** unless the game is already over: a player's three
+pieces can only all be hemmed in by the three opposing pieces, and those form a line. So
+there is no rule for a blocked player, and a test pins that one cannot arise.
+
+**Games can go round forever**, so the same position with the same side to move, for the
+third time, is a draw. The game carries the counts (`seen`).
+
+**Optimal is a retrograde solve, not minimax.** Positions repeat, so a recursive search
+never bottoms out. The whole position graph is solved backwards from the won positions
+once, on first use - instant at this size. Working breadth first gives each win its
+shortest distance and each loss its longest, and the optimal player takes the quickest
+win and the slowest loss. That is also what makes the repetition rule safe: along a
+winning line the distance strictly falls, so no position on it recurs, and the losing
+side cannot shelter in a threefold draw. Tested as a property over every won position,
+and the never-loses test runs over positions rather than games, since a tree of games
+here has no end.
+
+**Bad** means what it means in Classic: never a move that wins, never one that takes away
+a win the player had lined up.
+
+**Input is tap to pick up, tap to put down.** The piece in hand gets a ring. The points it
+can reach get a large dark dot in place of an empty point's small graphite one, so where it
+can go is carried by size as well as colour. Tap the piece again to put it back, or
+another of your pieces to swap. A piece with nowhere to go cannot be picked up, since it
+would only offer a choice that is not there. No dragging - see the Solitaire note.
+
+**In this mode the board is drawn as the Roman one** - points joined by lines, diagonals
+included - because the lines are the movement rules and a grid of squares hides the
+diagonals. It is the same element with the same strike-through: the points sit at the
+centres of the thirds, which is where the strike's coordinates already point.
+
+**Each mode keeps its own tally**; the alternation of who goes first is shared.
+
+## Opponents do their thinking up front
+
+Raised 2026-09-11 as a memory question, and memory turned out not to be the problem.
+Measured in Node, which is close enough to a browser engine for this:
+
+| | kept for the session | built in |
+|---|---|---|
+| Classic's minimax memo (both sides) | ~930 KB | ~50 ms |
+| Terni Lapilli's solve | ~650 KB | ~57 ms |
+
+Neither is noticeable next to what a tab costs anyway, and each is only built if that game
+is opened. Terni Lapilli's was 2.2 MB before the solve was changed to keep only each
+position's result and distance, dropping the move lists it was worked out from.
+
+**The problem was when it was paid.** Only the optimal opponent ever asks for the search,
+so it used to happen during that opponent's first reply, and that reply arrived later than
+any other by exactly the build time. That is on top of the fixed pause, not inside it.
+That breaks the rule that nothing may vary with the opponent. Here it costs about 60ms;
+on a slow phone it could be hundreds. Once per session, but a tell.
+
+Both rules modules now have `prepare()`, and the view calls it when it opens and on New
+Game or a mode change: for every game, whoever the opponent is, and never inside a
+reply. Afterwards the optimal opponent answers in a quarter of a millisecond, against a
+few hundredths for the random one, which vanishes inside a 450ms pause. A test pins that
+both modules have every function the view calls, `prepare` included.
+
+**Anything added to an opponent later that takes real time has to be paid the same way:**
+up front, for all three.
+
+## View Results: the opponents, in aggregate, after five games
+
+Added 2026-09-11 at the owner's request. The opponent stays hidden in play. Once five
+games of a mode are finished, a View Results button appears. It shows, per opponent,
+games played, won, drawn and **winnable**, and opening it clears that mode's record and
+score.
+
+**Drawn is there because of the perfect opponent**, and was the owner's catch. It cannot be
+beaten, so a draw is the best result available against it. Without the column, a player
+holding it every game would see a row of zeros, when in fact every one of those games
+went as well as it could.
+
+**Winnable, not "won with perfect play".** The literal version cannot be computed: the
+opponent's replies depended on the player's moves, so there is no knowing how it would
+have answered different ones. Winnable means that on one of the player's turns, the
+position was a forced win: the opponent handed one over. It costs one lookup per turn in
+the memo or solve that `prepare()` has already built. It is carried on the game as
+`winnable` and stays set once set, since the column counts chances, not conversions.
+Every won game is winnable, so it reads as "won 1 of 2 winnable". Against the perfect
+opponent it is always 0, which is tested for both modes.
+
+**Five games, counted per mode**, matching the separate scores. The table groups games by
+opponent rather than listing them in order. After exactly five, one opponent often has a
+single game, so a player can usually match a game to its opponent. Accepted: the grouping
+is there for readability, not secrecy.
+
+**Clears on opening, not on closing**, so leaving the page mid-view cannot leave an
+already-seen record running on. The panel keeps showing that snapshot until Done or the
+next game.
+
+**The rule during play is unchanged.** Nothing a player sees mid-game varies with the
+opponent. The per-turn winnable lookup runs for every opponent alike, and inside the
+fixed pause.
 
 ## Ideas not yet built
 

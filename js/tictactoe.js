@@ -37,6 +37,8 @@ export function createGame({ playerMark = MARKS.X, opponent = 'random' } = {}) {
         board: Array(9).fill(null),
         playerMark,
         opponent,
+        // Set once the player, on their turn, could have forced a win - see View Results.
+        winnable: false,
     };
 }
 
@@ -88,7 +90,16 @@ function place(game, cell) {
 
     const board = [...game.board];
     board[cell] = turnOf(game.board);
-    return { ...game, board };
+    const next = { ...game, board };
+    return { ...next, winnable: Boolean(game.winnable) || playerCanForceWin(next) };
+}
+
+/* Whether the player, now to move, could force a win from here - the opponent has handed
+   one over. A lookup once prepare() has filled the memo, and it runs whoever the opponent
+   is. Once set it stays set: View Results counts games where the chance was there, taken
+   or not. */
+function playerCanForceWin(game) {
+    return isPlayerTurn(game) && score(game.board, game.playerMark) > 0;
 }
 
 // A tap from the player. Taps on the opponent's turn are ignored, not queued.
@@ -162,6 +173,21 @@ export function completingMoves(board, mark) {
     });
 }
 
+/* Fill the search's memo now rather than on the optimal opponent's first move. Only that
+   opponent searches, so leaving it until then would make its first reply alone arrive
+   late - a tell. The DOM layer calls this before any opponent is due to move, whoever
+   the opponent is. Scores are kept per side, so both are filled: X from the empty
+   board, and O from every opening X could make. */
+export function prepare() {
+    const empty = Array(9).fill(null);
+    bestMoves(empty, MARKS.X);
+    legalMoves(empty).forEach((cell) => {
+        const opened = [...empty];
+        opened[cell] = MARKS.X;
+        bestMoves(opened, MARKS.O);
+    });
+}
+
 export const optimalMove = (board, mark, random = Math.random) => pick(bestMoves(board, mark), random);
 
 export const randomMove = (board, _mark, random = Math.random) => pick(legalMoves(board), random);
@@ -198,11 +224,48 @@ export function opponentMove(game, random = Math.random) {
 
 export const emptyTally = () => ({ won: 0, drawn: 0, lost: 0 });
 
-// Only a finished game counts. An abandoned one changes nothing.
-export function recordResult(tally, game) {
-    const { status } = outcome(game);
+/* Counted by status rather than by game, so Terni Lapilli - which has its own idea of a
+   draw - can share it. Only a finished game counts; an abandoned one changes nothing. */
+export function recordStatus(tally, status) {
     if (status === STATUS.WON) return { ...tally, won: tally.won + 1 };
     if (status === STATUS.LOST) return { ...tally, lost: tally.lost + 1 };
     if (status === STATUS.DRAW) return { ...tally, drawn: tally.drawn + 1 };
     return tally;
 }
+
+export const recordResult = (tally, game) => recordStatus(tally, outcome(game).status);
+
+/* --- Results, by opponent ---
+ *
+ * The opponent is never shown during play. Once RESULTS_AFTER games are finished the
+ * player may look back at them, grouped by who they were up against: how many were
+ * played, how many won, and how many were winnable - the opponent handed over a forced
+ * win at some point, whether or not it was taken. Shared by both modes; each keeps its
+ * own record. */
+
+export const RESULTS_AFTER = 5;
+
+export const emptyResults = () =>
+    Object.fromEntries(OPPONENTS.map((opponent) => [opponent, { played: 0, won: 0, drawn: 0, winnable: 0 }]));
+
+/* Only a finished game counts, as with the score. Draws are counted as well as wins
+   because against the perfect opponent a draw is the best there is - without the column,
+   holding it every game would read as nothing. */
+export function recordGame(results, { opponent, status, winnable }) {
+    const row = results[opponent];
+    if (!row || status === STATUS.PLAYING) return results;
+    return {
+        ...results,
+        [opponent]: {
+            played: row.played + 1,
+            won: row.won + (status === STATUS.WON ? 1 : 0),
+            drawn: row.drawn + (status === STATUS.DRAW ? 1 : 0),
+            winnable: row.winnable + (winnable ? 1 : 0),
+        },
+    };
+}
+
+export const gamesRecorded = (results) =>
+    OPPONENTS.reduce((total, opponent) => total + results[opponent].played, 0);
+
+export const canViewResults = (results) => gamesRecorded(results) >= RESULTS_AFTER;

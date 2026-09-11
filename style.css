@@ -1288,6 +1288,128 @@ a:active  {color: #002e2c;}
     vector-effect: non-scaling-stroke;
 }
 
+/* Terni Lapilli: the same board redrawn as the Roman one - nine points joined by eight
+   lines, the diagonals included, because the lines are the movement rules. The points
+   sit at the centres of the thirds, which is where the strike-through already points,
+   so the winning line needs nothing new. */
+.tictactoe-board.is-terni .tictactoe-cell {
+    position: relative;
+    z-index: 1;
+    border-width: 0;
+    padding: 26%;                           /* a piece on a point, not a whole square */
+}
+
+.terni-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    pointer-events: none;
+}
+
+.tictactoe-board.is-terni .terni-lines {
+    display: block;
+}
+
+.tictactoe-board.is-terni .tictactoe-strike {
+    z-index: 2;
+}
+
+.terni-lines line {
+    stroke: #6b645a;                        /* .grid */
+    stroke-width: 3px;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+/* An empty point. */
+.tictactoe-board.is-terni .tictactoe-cell::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 12%;
+    height: 12%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #6b645a;                    /* .grid */
+}
+
+.tictactoe-board.is-terni .tictactoe-cell[data-mark="X"]::before,
+.tictactoe-board.is-terni .tictactoe-cell[data-mark="O"]::before {
+    display: none;
+}
+
+/* Where the piece in hand can go: a bigger, darker dot. Size carries it as well as colour. */
+.tictactoe-board.is-terni .tictactoe-cell.is-destination::before {
+    width: 30%;
+    height: 30%;
+    background: #1c1a17;                    /* .strike */
+}
+
+/* The piece in hand: a ring around it. */
+.tictactoe-board.is-terni .tictactoe-cell.is-held::after {
+    content: '';
+    position: absolute;
+    inset: 12%;
+    border: 4px solid #1c1a17;              /* .strike */
+    border-radius: 50%;
+}
+
+.tictactoe-board.is-terni .tictactoe-cell.is-movable,
+.tictactoe-board.is-terni .tictactoe-cell.is-destination {
+    cursor: pointer;
+}
+
+/* View Results. The theme's own colours, already contrast-checked in tests/contrast:
+   control text on the control surface, edges in the control border. No display rule of
+   its own, so the hidden attribute keeps working. */
+#tictactoe-results {
+    box-sizing: border-box;
+    width: min(100%, 26rem);
+    margin: 12px auto 0;
+    padding: 12px 16px 16px;
+    background-color: var(--control-surface);
+    color: var(--control-text);
+    border: 2px solid var(--control-border);
+    border-radius: 6px;
+    text-align: left;
+}
+
+#tictactoe-results h3 {
+    margin: 0 0 8px;
+    font-size: 1.15em;
+}
+
+#tictactoe-results table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+#tictactoe-results caption {
+    text-align: left;
+    padding-bottom: 6px;
+}
+
+#tictactoe-results th,
+#tictactoe-results td {
+    padding: 6px 4px;
+    text-align: right;
+    border-bottom: 1px solid var(--control-border);
+}
+
+#tictactoe-results th:first-child {
+    text-align: left;
+}
+
+.tictactoe-results-note {
+    margin: 10px 0 12px;
+    font-size: 0.9em;
+}
+
 #tictactoe-status {
     min-height: 1.4em;
     margin: 8px 0 0;
@@ -1404,6 +1526,8 @@ a:active  {color: #002e2c;}
 #sequence-controls button,
 #sequence-controls select,
 #tictactoe-controls button,
+#tictactoe-controls select,
+#tictactoe-results button,
 #arrayForm button,
 #arrayForm input,
 #toyColorPicker select,
@@ -1434,6 +1558,7 @@ a:active  {color: #002e2c;}
 #tetris-controls select,
 #mine-controls select,
 #sequence-controls select,
+#tictactoe-controls select,
 #toyColorPicker select {
     appearance: none;
     -webkit-appearance: none;
@@ -1452,7 +1577,8 @@ a:active  {color: #002e2c;}
 #game-controls select option,
 #tetris-controls select option,
 #mine-controls select option,
-#sequence-controls select option {
+#sequence-controls select option,
+#tictactoe-controls select option {
     background-color: var(--control-surface);
     color: var(--control-text);
 }
@@ -1487,6 +1613,7 @@ a:active  {color: #002e2c;}
     #mine-controls button:hover:not(:disabled),
     #sequence-controls button:hover:not(:disabled),
     #tictactoe-controls button:hover:not(:disabled),
+    #tictactoe-results button:hover:not(:disabled),
     #arrayForm button:hover:not(:disabled),
     .game-view .back-btn:hover {
         border-color: var(--control-text);
@@ -1502,6 +1629,8 @@ a:active  {color: #002e2c;}
 #sequence-controls button:focus-visible,
 #sequence-controls select:focus-visible,
 #tictactoe-controls button:focus-visible,
+#tictactoe-controls select:focus-visible,
+#tictactoe-results button:focus-visible,
 #arrayForm button:focus-visible,
 #arrayForm input:focus-visible,
 .game-view .back-btn:focus-visible {
@@ -1546,7 +1675,9 @@ a:active  {color: #002e2c;}
 #mine-controls button:disabled,
 #mine-controls select:disabled,
 #sequence-controls button:disabled,
-#sequence-controls select:disabled {
+#sequence-controls select:disabled,
+#tictactoe-controls button:disabled,
+#tictactoe-controls select:disabled {
     background-color: #b9bba4;
     color: #2f2a1f;
     -webkit-text-fill-color: #2f2a1f;

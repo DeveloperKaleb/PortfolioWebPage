@@ -140,7 +140,7 @@ describe('What the service worker keeps', () => {
     test('the games are, which is the point of it', () => {
         ['entertainment/entertainment.html', 'entertainment/entertainment.js',
          'js/logic.js', 'js/minesweeper.js', 'js/strands.js', 'js/sequence.js',
-         'js/tictactoe.js', 'style.css']
+         'js/tictactoe.js', 'js/ternilapilli.js', 'style.css']
             .forEach((file) => expect(worker).toContain(file));
     });
 

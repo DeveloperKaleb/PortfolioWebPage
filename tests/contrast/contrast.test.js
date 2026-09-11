@@ -298,6 +298,13 @@ describe('Tic-Tac-Toe palette', () => {
         expect(areDistinguishable(strike, x)).toBe(true);
         expect(areDistinguishable(strike, o)).toBe(true);
     });
+
+    /* Terni Lapilli marks the points a picked-up piece can reach with a larger dot in the
+       strike colour, against the small grid-coloured dot of any empty point. Size carries
+       it too, but the colour has to hold up as a second cue. */
+    test('a point you can move to is tellable from one you cannot', () => {
+        expect(areDistinguishable(strike, grid)).toBe(true);
+    });
 });
 
 describe('Control bar themes', () => {

@@ -21,6 +21,11 @@ import {
     blunderingMove,
     emptyTally,
     recordResult,
+    emptyResults,
+    recordGame,
+    gamesRecorded,
+    canViewResults,
+    RESULTS_AFTER,
 } from '../../js/tictactoe.js';
 
 const _ = null;
@@ -254,5 +259,108 @@ describe('The session tally', () => {
     test('ignores a game still in play', () => {
         const tally = emptyTally();
         expect(recordResult(tally, createGame())).toBe(tally);
+    });
+});
+
+// A small seeded generator, so the playouts below are the same on every run.
+const seeded = (seed) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// A whole game, with the player moving at random.
+function playOut(playerMark, opponent, random) {
+    let game = createGame({ playerMark, opponent });
+    while (!isOver(game)) {
+        game = isPlayerTurn(game)
+            ? playerMove(game, randomMove(game.board, playerMark, random))
+            : opponentMove(game, random);
+    }
+    return game;
+}
+
+describe('Winnable games', () => {
+    test('a game starts not winnable', () => {
+        expect(createGame().winnable).toBe(false);
+    });
+
+    test('the opponent handing over a forced win marks the game', () => {
+        // O to move. Taking 4 leaves X free to finish the top row.
+        const game = withBoard([X, X, _, O, _, _, _, _, _], { playerMark: X, opponent: 'random' });
+        const handed = opponentMove(game, () => 0.2);
+        expect(handed.board[4]).toBe(O);
+        expect(handed.winnable).toBe(true);
+    });
+
+    // The column counts chances, not conversions.
+    test('and it stays marked when the win is thrown away', () => {
+        const game = withBoard([X, X, _, O, _, _, _, _, _], { playerMark: X, opponent: 'random' });
+        const thrown = playerMove(opponentMove(game, () => 0.2), 8);
+        expect(thrown.winnable).toBe(true);
+    });
+
+    test('a drawn position does not mark it', () => {
+        const game = opponentMove(playerMove(createGame({ playerMark: X, opponent: 'optimal' }), 4), () => 0);
+        expect(game.winnable).toBe(false);
+    });
+
+    test.each([X, O])('the perfect opponent never hands one over (player is %s)', (playerMark) => {
+        const random = seeded(playerMark === X ? 11 : 12);
+        for (let g = 0; g < 200; g++) {
+            expect(playOut(playerMark, 'optimal', random).winnable).toBe(false);
+        }
+    });
+
+    test('the other two do', () => {
+        const random = seeded(13);
+        ['bad', 'random'].forEach((opponent) => {
+            const handed = Array.from({ length: 100 }, () => playOut(X, opponent, random))
+                .filter((game) => game.winnable);
+            expect(handed.length).toBeGreaterThan(0);
+        });
+    });
+
+    // A win is always reached from a won position, so won can never exceed winnable.
+    test('every game won was winnable', () => {
+        const random = seeded(14);
+        for (let g = 0; g < 300; g++) {
+            const game = playOut(g % 2 ? X : O, OPPONENTS[g % 3], random);
+            if (outcome(game).status === STATUS.WON) expect(game.winnable).toBe(true);
+        }
+    });
+});
+
+describe('Results', () => {
+    const finished = (opponent, status, winnable = false) => ({ opponent, status, winnable });
+
+    test('are counted per opponent', () => {
+        let results = emptyResults();
+        results = recordGame(results, finished('optimal', STATUS.DRAW));
+        results = recordGame(results, finished('bad', STATUS.WON, true));
+        results = recordGame(results, finished('bad', STATUS.LOST, true));
+        results = recordGame(results, finished('random', STATUS.LOST));
+        expect(results).toEqual({
+            optimal: { played: 1, won: 0, drawn: 1, winnable: 0 },
+            bad: { played: 2, won: 1, drawn: 0, winnable: 2 },
+            random: { played: 1, won: 0, drawn: 0, winnable: 0 },
+        });
+        expect(gamesRecorded(results)).toBe(4);
+    });
+
+    test('ignore a game still in play', () => {
+        const results = emptyResults();
+        expect(recordGame(results, finished('random', STATUS.PLAYING))).toBe(results);
+    });
+
+    test('can be viewed once five games are finished, and not before', () => {
+        expect(RESULTS_AFTER).toBe(5);
+        let results = emptyResults();
+        for (let i = 0; i < RESULTS_AFTER; i++) {
+            expect(canViewResults(results)).toBe(false);
+            results = recordGame(results, finished(OPPONENTS[i % 3], STATUS.DRAW));
+        }
+        expect(canViewResults(results)).toBe(true);
     });
 });

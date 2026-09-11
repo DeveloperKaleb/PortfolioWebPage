@@ -54,20 +54,10 @@ import {
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
-import {
-    createGame as createTicTacToe,
-    playerMove,
-    opponentMove,
-    isOpponentTurn,
-    isOver as isTicTacToeOver,
-    outcome as tictactoeOutcome,
-    otherMark,
-    pickOpponent,
-    emptyTally,
-    recordResult as recordTicTacToeResult,
-    MARKS as TICTACTOE_MARKS,
-    STATUS as TICTACTOE_STATUS
-} from '../js/tictactoe.js';
+// Classic and Terni Lapilli share one view and answer the same questions, so they are
+// taken whole and the view picks between them - see PART 6.
+import * as TicTacToe from '../js/tictactoe.js';
+import * as TerniLapilli from '../js/ternilapilli.js';
 import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
@@ -111,7 +101,10 @@ function showView(name) {
     hub.hidden = Boolean(name);
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
     // Only now is the view on screen, which is when an opponent due to open may move.
-    if (name === 'tictactoe') scheduleTicTacToeReply();
+    if (name === 'tictactoe') {
+        tictactoeRules().prepare();
+        scheduleTicTacToeReply();
+    }
 }
 
 function applyHashRoute() {
@@ -1198,8 +1191,14 @@ setSoundOn(soundOn);
    NOTES.md.
 
    That puts a rule on this layer: nothing here may behave differently depending on who
-   the opponent is. Same pause before every reply, same messages, same look. The rules
-   and the three opponents are in js/tictactoe.js.
+   the opponent is. Same pause before every reply, same messages, same look.
+
+   Two games share the view. Classic is js/tictactoe.js; Terni Lapilli, the Roman game -
+   three pieces each, then moved one step along the board's eight lines - is
+   js/ternilapilli.js. Both answer the same questions (createGame, outcome, playerMove,
+   opponentMove and the rest), so most of this layer asks tictactoeRules() rather than
+   caring which game it has. Where they differ is input: a Terni Lapilli piece is picked
+   up and put down, which is the one piece of state below that Classic does not use.
 
    Like Minesweeper it ends in place rather than in the end-of-game dialog. The finished
    position is the whole story of a game this small, and covering it to announce who
@@ -1207,11 +1206,20 @@ setSoundOn(soundOn);
 
 const tictactoeBoard = document.getElementById('tictactoeDisplay');
 const tictactoeStatusEl = document.getElementById('tictactoe-status');
+const tictactoeModeSelect = document.getElementById('tictactoeModeSelect');
 const tictactoeTallyEls = {
     won: document.getElementById('tictactoe-won'),
     drawn: document.getElementById('tictactoe-drawn'),
     lost: document.getElementById('tictactoe-lost'),
 };
+const tictactoeResultsBtn = document.getElementById('tictactoeResultsBtn');
+const tictactoeResultsPanel = document.getElementById('tictactoe-results');
+const tictactoeResultsCaption = document.getElementById('tictactoe-results-caption');
+const tictactoeResultsBody = document.getElementById('tictactoe-results-body');
+const tictactoeResultsClose = document.getElementById('tictactoeResultsClose');
+
+const TICTACTOE_RULES = { classic: TicTacToe, terni: TerniLapilli };
+const { MARKS: TICTACTOE_MARKS, STATUS: TICTACTOE_STATUS, LINES: TICTACTOE_LINES, otherMark } = TicTacToe;
 
 /* Long enough that the reply is seen arriving rather than landing with the tap. Fixed,
    and the same for all three opponents: a pause that tracked how hard the opponent had
@@ -1223,27 +1231,50 @@ const TICTACTOE_GLYPHS = {
     O: '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="28" /></svg>',
 };
 
+let tictactoeMode = 'classic';
 let tictactoeGame = null;
-let tictactoeTally = emptyTally(); // this session only - a reload starts it again
-let tictactoeTimer = null;         // the opponent's pending reply
+let tictactoeTimer = null; // the opponent's pending reply
+let terniHeld = null;      // the Terni Lapilli piece picked up, waiting for somewhere to go
 
-/* Built once and repainted, like Minesweeper's board: replacing the buttons under a
-   finger cancels the tap on touch. The strike-through is an SVG laid over the grid in
-   board units - three a side - so a line between two squares' centres needs no
-   measuring. */
-function buildTicTacToeBoard() {
-    tictactoeBoard.innerHTML = Array.from({ length: 9 }, (_, i) =>
-        `<button type="button" class="tictactoe-cell" data-cell="${i}"></button>`).join('')
-        + '<svg class="tictactoe-strike" viewBox="0 0 3 3" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line /></svg>';
-}
+// One tally per game, for this session only - a reload starts them again.
+const tictactoeTallies = { classic: TicTacToe.emptyTally(), terni: TicTacToe.emptyTally() };
+
+/* And, per mode, who the player was up against in each finished game - never shown in
+   play, only through View Results once enough games are behind them. See NOTES.md. */
+const tictactoeResults = { classic: TicTacToe.emptyResults(), terni: TicTacToe.emptyResults() };
+const TICTACTOE_OPPONENT_NAMES = { optimal: 'Perfect', bad: 'Deliberately bad', random: 'Random' };
+
+const tictactoeRules = () => TICTACTOE_RULES[tictactoeMode];
+const isTerni = () => tictactoeMode === 'terni';
 
 const tictactoeCentre = (cell) => ({ x: (cell % 3) + 0.5, y: Math.floor(cell / 3) + 0.5 });
+
+/* Built once and repainted, like Minesweeper's board: replacing the buttons under a
+   finger cancels the tap on touch. Both overlays are SVGs in board units - three a side -
+   so a line between two points' centres needs no measuring.
+
+   The Roman board's eight lines sit behind the points, shown only for Terni Lapilli.
+   They are that game's movement rules - a piece steps along one - which is why it cannot
+   be drawn as a grid of squares: the squares hide the diagonals. */
+function buildTicTacToeBoard() {
+    const cells = Array.from({ length: 9 }, (_, i) =>
+        `<button type="button" class="tictactoe-cell" data-cell="${i}"></button>`).join('');
+    const lines = TICTACTOE_LINES.map(([a, , c]) => {
+        const from = tictactoeCentre(a);
+        const to = tictactoeCentre(c);
+        return `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" />`;
+    }).join('');
+
+    tictactoeBoard.innerHTML = cells
+        + '<svg class="tictactoe-strike" viewBox="0 0 3 3" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line /></svg>'
+        + `<svg class="terni-lines" viewBox="0 0 3 3" preserveAspectRatio="none" aria-hidden="true" focusable="false">${lines}</svg>`;
+}
 
 function drawTicTacToeStrike(line) {
     tictactoeBoard.classList.toggle('is-struck', Boolean(line));
     if (!line) return;
 
-    // Carried a little past the end squares' centres, so it reads as crossing them out.
+    // Carried a little past the end points' centres, so it reads as crossing them out.
     const from = tictactoeCentre(line[0]);
     const to = tictactoeCentre(line[2]);
     const reach = 0.36;
@@ -1256,10 +1287,56 @@ function drawTicTacToeStrike(line) {
     el.setAttribute('y2', to.y + dy);
 }
 
+/* What a tap can do right now in Terni Lapilli's movement phase: which of the player's
+   pieces can move, and where the one in hand can go. Legality only - nothing here says
+   which move is any good. */
+function terniMarkers(game) {
+    const none = { movable: new Set(), destinations: new Set() };
+    if (!isTerni() || !TerniLapilli.isPlayerTurn(game) || TerniLapilli.isPlacing(game.board, game.turn)) {
+        return none;
+    }
+    return {
+        movable: new Set(TerniLapilli.legalMoves(game.board, game.turn).map((move) => move.from)),
+        destinations: new Set(terniHeld === null ? [] : TerniLapilli.movesFrom(game, terniHeld)),
+    };
+}
+
+/* None of these may depend on who the opponent is, and none describe the position - the
+   same rule Minesweeper's status line keeps. They say what the controls do and what the
+   rules allow. The mark for the next game is fine to state: the alternation decides it,
+   not the board. */
+function tictactoeMessage(game, { status, repeated }) {
+    const you = game.playerMark;
+    const next = otherMark(you);
+    const untouched = game.board.every((cell) => cell === null);
+
+    if (status === TICTACTOE_STATUS.WON) return `You win. Next game you are ${next}.`;
+    if (status === TICTACTOE_STATUS.LOST) return `The opponent wins. Next game you are ${next}.`;
+    if (status === TICTACTOE_STATUS.DRAW) {
+        return repeated
+            ? `A draw: the same position came up three times. Next game you are ${next}.`
+            : `A draw. Next game you are ${next}.`;
+    }
+
+    if (tictactoeRules().isOpponentTurn(game)) return 'The opponent is thinking.';
+
+    if (!isTerni()) {
+        return untouched ? `You are ${you} and go first. Tap any square.` : `Your move. You are ${you}.`;
+    }
+    if (untouched) return `You are ${you} and go first. Place a piece on any point but the centre.`;
+    if (TerniLapilli.isPlacing(game.board, game.turn)) return `Your move. Place a piece. You are ${you}.`;
+    return terniHeld === null
+        ? `Your move. Pick up one of your pieces. You are ${you}.`
+        : 'Tap a marked point to move there, or pick up a different piece.';
+}
+
 function drawTicTacToe() {
     const game = tictactoeGame;
-    const { status, line } = tictactoeOutcome(game);
-    const over = status !== TICTACTOE_STATUS.PLAYING;
+    const result = tictactoeRules().outcome(game);
+    const over = result.status !== TICTACTOE_STATUS.PLAYING;
+    const { movable, destinations } = terniMarkers(game);
+
+    tictactoeBoard.classList.toggle('is-terni', isTerni());
 
     tictactoeBoard.querySelectorAll('.tictactoe-cell').forEach((cell) => {
         const index = Number(cell.dataset.cell);
@@ -1269,31 +1346,28 @@ function drawTicTacToe() {
             cell.dataset.mark = mark;
             cell.innerHTML = mark ? TICTACTOE_GLYPHS[mark] : '';
         }
-        cell.setAttribute('aria-label',
-            `Row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}, ${mark || 'empty'}`);
+        cell.classList.toggle('is-movable', movable.has(index));
+        cell.classList.toggle('is-held', index === terniHeld);
+        cell.classList.toggle('is-destination', destinations.has(index));
+
+        const where = `row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}`;
+        const notes = [
+            mark || 'empty',
+            index === terniHeld ? 'picked up' : '',
+            destinations.has(index) ? 'can move here' : '',
+        ].filter(Boolean).join(', ');
+        cell.setAttribute('aria-label', `${isTerni() ? 'Point' : 'Square'}, ${where}, ${notes}`);
     });
 
-    drawTicTacToeStrike(line);
+    drawTicTacToeStrike(result.line);
     tictactoeBoard.classList.toggle('is-over', over);
-    tictactoeBoard.classList.toggle('is-waiting', isOpponentTurn(game));
+    tictactoeBoard.classList.toggle('is-waiting', tictactoeRules().isOpponentTurn(game));
 
-    Object.entries(tictactoeTallyEls).forEach(([key, el]) => { el.textContent = tictactoeTally[key]; });
+    const tally = tictactoeTallies[tictactoeMode];
+    Object.entries(tictactoeTallyEls).forEach(([key, el]) => { el.textContent = tally[key]; });
+    tictactoeResultsBtn.hidden = !TicTacToe.canViewResults(tictactoeResults[tictactoeMode]);
 
-    /* None of these may depend on who the opponent is, and none describe the position -
-       the same rule Minesweeper's status line keeps. The mark for the next game is fine
-       to state: the alternation decides it, not the board. */
-    const you = game.playerMark;
-    const next = otherMark(you);
-    const untouched = game.board.every((cell) => cell === null);
-    const messages = {
-        [TICTACTOE_STATUS.PLAYING]: isOpponentTurn(game)
-            ? 'The opponent is thinking.'
-            : (untouched ? `You are ${you} and go first. Tap any square.` : `Your move. You are ${you}.`),
-        [TICTACTOE_STATUS.WON]: `You win. Next game you are ${next}.`,
-        [TICTACTOE_STATUS.LOST]: `The opponent wins. Next game you are ${next}.`,
-        [TICTACTOE_STATUS.DRAW]: `A draw. Next game you are ${next}.`,
-    };
-    tictactoeStatusEl.textContent = messages[status];
+    tictactoeStatusEl.textContent = tictactoeMessage(game, result);
     tictactoeStatusEl.classList.toggle('is-result', over);
 }
 
@@ -1301,31 +1375,40 @@ function drawTicTacToe() {
    this game before the next view is shown, so a reply scheduled from there would be
    played onto a hidden board; showView asks again once the view is visible. */
 function scheduleTicTacToeReply() {
-    if (tictactoeTimer || views.tictactoe.hidden || !isOpponentTurn(tictactoeGame)) return;
+    if (tictactoeTimer || views.tictactoe.hidden || !tictactoeRules().isOpponentTurn(tictactoeGame)) return;
     tictactoeTimer = setTimeout(() => {
         tictactoeTimer = null;
         if (views.tictactoe.hidden) return;
-        tictactoeGame = opponentMove(tictactoeGame);
+        tictactoeGame = tictactoeRules().opponentMove(tictactoeGame);
         settleTicTacToe();
     }, TICTACTOE_REPLY_MS);
 }
 
 // After any move: score a finished game, repaint, and hand over if the opponent is next.
 function settleTicTacToe() {
-    if (isTicTacToeOver(tictactoeGame)) {
-        tictactoeTally = recordTicTacToeResult(tictactoeTally, tictactoeGame);
+    const rules = tictactoeRules();
+    if (rules.isOver(tictactoeGame)) {
+        tictactoeTallies[tictactoeMode] = rules.recordResult(tictactoeTallies[tictactoeMode], tictactoeGame);
+        tictactoeResults[tictactoeMode] = TicTacToe.recordGame(tictactoeResults[tictactoeMode], {
+            opponent: tictactoeGame.opponent,
+            status: rules.outcome(tictactoeGame).status,
+            winnable: tictactoeGame.winnable,
+        });
     }
     drawTicTacToe();
     scheduleTicTacToeReply();
 }
 
-/* A new game with a freshly drawn opponent. The player swaps marks - and so who goes
-   first, since X always does - but only once the game before had a move in it. Leaving
-   the view, or pressing New Game on an untouched board, is not a game played and does
-   not use up a turn at going first. */
+/* A new game of whichever mode is selected, with a freshly drawn opponent. The player
+   swaps marks - and so who goes first, since X always does - but only once the game
+   before had a move in it. Leaving the view, or pressing New Game on an untouched
+   board, is not a game played and does not use up a turn at going first. */
 function initTicTacToe() {
     clearTimeout(tictactoeTimer);
     tictactoeTimer = null;
+    terniHeld = null;
+    // Results are read between games; starting the next one puts them away.
+    tictactoeResultsPanel.hidden = true;
 
     const previous = tictactoeGame;
     let playerMark = TICTACTOE_MARKS.X;
@@ -1334,23 +1417,93 @@ function initTicTacToe() {
         playerMark = played ? otherMark(previous.playerMark) : previous.playerMark;
     }
 
-    tictactoeGame = createTicTacToe({ playerMark, opponent: pickOpponent() });
+    tictactoeMode = TICTACTOE_RULES[tictactoeModeSelect.value] ? tictactoeModeSelect.value : 'classic';
+    const rules = tictactoeRules();
+    tictactoeGame = rules.createGame({ playerMark, opponent: rules.pickOpponent() });
     drawTicTacToe();
+}
+
+// Anything illegal comes back as the same game, and is simply ignored.
+function commitTicTacToe(next) {
+    if (next === tictactoeGame) return;
+    tictactoeGame = next;
+    terniHeld = null;
+    settleTicTacToe();
+}
+
+/* A tap plays - or, in Terni Lapilli once the pieces are down, picks up or puts down. */
+function tapTicTacToe(index) {
+    const rules = tictactoeRules();
+    const game = tictactoeGame;
+    if (!rules.isPlayerTurn(game)) return;
+
+    if (!isTerni()) {
+        commitTicTacToe(rules.playerMove(game, index));
+        return;
+    }
+
+    if (TerniLapilli.isPlacing(game.board, game.turn)) {
+        commitTicTacToe(rules.playerMove(game, { from: null, to: index }));
+        return;
+    }
+
+    if (game.board[index] === game.turn) {
+        // Your own piece: put it back, or pick it up - unless it has nowhere to go, when
+        // picking it up would only offer a choice that is not there.
+        if (terniHeld === index) terniHeld = null;
+        else if (TerniLapilli.movesFrom(game, index).length) terniHeld = index;
+        drawTicTacToe();
+        return;
+    }
+
+    if (terniHeld !== null) commitTicTacToe(rules.playerMove(game, { from: terniHeld, to: index }));
 }
 
 tictactoeBoard.addEventListener('click', (event) => {
     const cell = event.target.closest('.tictactoe-cell');
-    if (!cell) return;
-    const next = playerMove(tictactoeGame, Number(cell.dataset.cell));
-    if (next === tictactoeGame) return; // not your turn, a taken square, or the game is over
-    tictactoeGame = next;
-    settleTicTacToe();
+    if (cell) tapTicTacToe(Number(cell.dataset.cell));
 });
 
-document.getElementById('tictactoeStartBtn').addEventListener('click', () => {
+/* prepare() does the optimal opponent's thinking up front, for every game whoever the
+   opponent is, so that no reply ever carries it. Here and in showView - the two ways a
+   game can be started with the view on screen - and never inside the reply itself. */
+const startTicTacToe = () => {
     initTicTacToe();
+    tictactoeRules().prepare();
     scheduleTicTacToeReply();
-});
+};
+
+document.getElementById('tictactoeStartBtn').addEventListener('click', startTicTacToe);
+
+/* View Results: per opponent, games played, won, and winnable. Offered only once
+   RESULTS_AFTER games of this mode are finished - before that the opponents stay a
+   question. Opening it clears this mode's record and score, so what is shown is the
+   account of those games and the next ones start a fresh puzzle. Cleared on opening
+   rather than on closing, so leaving the page mid-view cannot leave an already-seen
+   record running on. */
+function showTicTacToeResults() {
+    const results = tictactoeResults[tictactoeMode];
+    const modeName = tictactoeModeSelect.options[tictactoeModeSelect.selectedIndex].textContent;
+
+    tictactoeResultsCaption.textContent = `${modeName}, your last ${TicTacToe.gamesRecorded(results)} games`;
+    tictactoeResultsBody.innerHTML = TicTacToe.OPPONENTS.map((opponent) => {
+        const { played, won, drawn, winnable } = results[opponent];
+        return `<tr><th scope="row">${TICTACTOE_OPPONENT_NAMES[opponent]}</th>`
+            + `<td>${played}</td><td>${won}</td><td>${drawn}</td><td>${winnable}</td></tr>`;
+    }).join('');
+
+    tictactoeResults[tictactoeMode] = TicTacToe.emptyResults();
+    tictactoeTallies[tictactoeMode] = TicTacToe.emptyTally();
+    tictactoeResultsPanel.hidden = false;
+    drawTicTacToe();
+    // The button just pressed has hidden itself, which would drop focus to the page.
+    tictactoeResultsClose.focus({ preventScroll: true });
+}
+
+tictactoeResultsBtn.addEventListener('click', showTicTacToeResults);
+tictactoeResultsClose.addEventListener('click', () => { tictactoeResultsPanel.hidden = true; });
+// Changing the game starts a fresh board of it; the one abandoned is not scored.
+tictactoeModeSelect.addEventListener('change', startTicTacToe);
 
 buildTicTacToeBoard();
 

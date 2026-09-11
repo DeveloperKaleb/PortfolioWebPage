@@ -55,7 +55,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is six modules, all free of `document`/DOM calls so they stay testable
+The pure layer is seven modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -75,6 +75,9 @@ under Vitest without a browser:
 - `js/tictactoe.js` — Tic-Tac-Toe rules and its three opponents (optimal, deliberately
   bad, random). Immutable and timer-free. The opponent is drawn per game and never
   shown; see NOTES.md before adding anything that could give it away.
+- `js/ternilapilli.js` — Terni Lapilli, the Roman variant, played as a mode of the
+  Tic-Tac-Toe view: three pieces each, then moves along the 8 lines. Its optimal opponent
+  comes from a retrograde solve, because positions repeat. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports
