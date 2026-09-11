@@ -1,4 +1,4 @@
-/* Tic-Tac-Toe: the rules and the three opponents, with no DOM and no timers.
+/* Tic-Tac-Toe: the rules and the opponents, with no DOM and no timers.
  *
  * Immutable like js/minesweeper.js and js/sequence.js - every function returns a new
  * game - so a test can hold a position and try every continuation from it.
@@ -7,15 +7,22 @@
  * 'X' or 'O'. X always moves first. Whose turn it is is worked out from the counts
  * rather than stored, so it cannot drift out of step with the board.
  *
- * The opponent is picked at random per game and is never shown to the player - see
- * NOTES.md. Nothing in this file leaks which one is playing, and the DOM layer has to
- * keep it that way: the same delay before every reply, the same messages whoever is on
- * the other side.
+ * The opponent - Perfect, Good or Bad - is picked at random per game and is never shown
+ * during play; see NOTES.md. Nothing in this file leaks which one is playing, and the DOM
+ * layer has to keep it that way: the same delay before every reply, the same messages
+ * whoever is on the other side.
  */
 
 export const MARKS = { X: 'X', O: 'O' };
 
-export const OPPONENTS = ['optimal', 'bad', 'random'];
+/* Three opponents, told apart only by how often they play the best move. */
+export const OPPONENTS = ['perfect', 'good', 'bad'];
+
+// How many games in a hundred each is drawn for.
+export const OPPONENT_WEIGHTS = { perfect: 20, good: 40, bad: 40 };
+
+// How often each plays the best move, wherever a worse one was there to play instead.
+export const ACCURACY = { perfect: 1, good: 0.7, bad: 0.3 };
 
 export const LINES = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -32,7 +39,7 @@ export const STATUS = {
 
 export const otherMark = (mark) => (mark === MARKS.X ? MARKS.O : MARKS.X);
 
-export function createGame({ playerMark = MARKS.X, opponent = 'random' } = {}) {
+export function createGame({ playerMark = MARKS.X, opponent = 'good' } = {}) {
     return {
         board: Array(9).fill(null),
         playerMark,
@@ -111,8 +118,15 @@ export function playerMove(game, cell) {
 
 const pick = (options, random) => options[Math.floor(random() * options.length)];
 
-/* One of the three, each a third of the time. */
-export const pickOpponent = (random = Math.random) => pick(OPPONENTS, random);
+// One of the three, by OPPONENT_WEIGHTS.
+export function pickOpponent(random = Math.random) {
+    let roll = random() * 100;
+    for (const opponent of OPPONENTS) {
+        roll -= OPPONENT_WEIGHTS[opponent];
+        if (roll < 0) return opponent;
+    }
+    return OPPONENTS[OPPONENTS.length - 1];
+}
 
 /* Minimax, scored from `mark`'s side: a win is worth more the sooner it comes and a loss
  * costs less the later it comes. Without the depth term every forced win looks the same,
@@ -150,34 +164,50 @@ function score(board, mark) {
     return value;
 }
 
-/* Every move a perfect player could make here, not just one of them. The optimal
-   opponent picks among these at random, so it does not play the same game every time -
-   and, from an empty board, where every move draws with best play, its first move tells
-   the player nothing about who they are up against. */
+const scoredMoves = (board, mark) => legalMoves(board).map((cell) => {
+    const next = [...board];
+    next[cell] = mark;
+    return { cell, value: score(next, mark) };
+});
+
+/* Every move a perfect player could make here, not just one of them. It picks among
+   these at random, so it does not play the same game every time - and, from an empty
+   board, where every move draws with best play, its first move tells the player nothing
+   about who they are up against. */
 export function bestMoves(board, mark = turnOf(board)) {
-    const scored = legalMoves(board).map((cell) => {
-        const next = [...board];
-        next[cell] = mark;
-        return { cell, value: score(next, mark) };
-    });
+    const scored = scoredMoves(board, mark);
     const top = Math.max(...scored.map((move) => move.value));
     return scored.filter((move) => move.value === top).map((move) => move.cell);
 }
 
-// Cells that would complete a line for `mark` right now.
-export function completingMoves(board, mark) {
-    return legalMoves(board).filter((cell) => {
-        const next = [...board];
-        next[cell] = mark;
-        return winnerOf(next)?.mark === mark;
-    });
+/* Moves with a worse result than the best available: a draw where a win was there, a loss
+   where a draw was. Result, not score - a slower win is not among them, because nobody
+   watching would call it a mistake. Empty when every move leads to the same result. */
+export function worseMoves(board, mark = turnOf(board)) {
+    const classed = scoredMoves(board, mark).map((move) => ({ cell: move.cell, result: Math.sign(move.value) }));
+    const best = Math.max(...classed.map((move) => move.result));
+    return classed.filter((move) => move.result < best).map((move) => move.cell);
 }
 
-/* Fill the search's memo now rather than on the optimal opponent's first move. Only that
-   opponent searches, so leaving it until then would make its first reply alone arrive
-   late - a tell. The DOM layer calls this before any opponent is due to move, whoever
-   the opponent is. Scores are kept per side, so both are filled: X from the empty
-   board, and O from every opening X could make. */
+/* How every opponent chooses, in both modes. The best move, unless a roll against its
+ * accuracy says otherwise - and then any worse move, at random: sometimes a slip from a
+ * win to a draw, sometimes a blunder that hands the player the game.
+ *
+ * Where no worse move exists there is no mistake to make, so no roll is spent and a best
+ * move is played. That covers the empty board, forced moves and lost positions, and it
+ * means the accuracy is a rate over the moves where a mistake was possible - which is
+ * what makes 70 and 30 mean what they say. */
+export function pickWithAccuracy(best, worse, accuracy, random = Math.random) {
+    if (worse.length === 0 || random() < accuracy) return pick(best, random);
+    return pick(worse, random);
+}
+
+/* Fill the search's memo now rather than inside the first reply. It was written when
+   only the perfect opponent searched, and its first reply alone arrived late - a tell.
+   Every opponent searches now, so that tell has gone, but a first reply that stalls while
+   the search runs would still be a visible hitch on a slow phone. The DOM layer calls
+   this before any opponent is due to move. Scores are kept per side, so both are filled:
+   X from the empty board, and O from every opening X could make. */
 export function prepare() {
     const empty = Array(9).fill(null);
     bestMoves(empty, MARKS.X);
@@ -190,34 +220,15 @@ export function prepare() {
 
 export const optimalMove = (board, mark, random = Math.random) => pick(bestMoves(board, mark), random);
 
+// Any open cell. No opponent plays like this; the tests use it for a player not trying.
 export const randomMove = (board, _mark, random = Math.random) => pick(legalMoves(board), random);
-
-/* The deliberately bad player: random, except it never takes a win that is sitting there
- * and never blocks one of yours. Those are the two moves anyone would spot, and missing
- * both every time is what makes it bad rather than merely unlucky.
- *
- * If every open cell is a win or a block, it has no choice left and plays one of them
- * anyway. A player who refuses to finish their own line can still lose to it. */
-export function blunderingMove(board, mark, random = Math.random) {
-    const avoid = new Set([
-        ...completingMoves(board, mark),
-        ...completingMoves(board, otherMark(mark)),
-    ]);
-    const allowed = legalMoves(board).filter((cell) => !avoid.has(cell));
-    return pick(allowed.length ? allowed : legalMoves(board), random);
-}
-
-const STRATEGIES = {
-    optimal: optimalMove,
-    bad: blunderingMove,
-    random: randomMove,
-};
 
 // The opponent's reply, or the same game if it is not the opponent's turn.
 export function opponentMove(game, random = Math.random) {
     if (!isOpponentTurn(game)) return game;
-    const strategy = STRATEGIES[game.opponent] || randomMove;
-    return place(game, strategy(game.board, opponentMark(game), random));
+    const mark = opponentMark(game);
+    const accuracy = ACCURACY[game.opponent] ?? ACCURACY.good;
+    return place(game, pickWithAccuracy(bestMoves(game.board, mark), worseMoves(game.board, mark), accuracy, random));
 }
 
 /* --- The session tally --- */
@@ -239,7 +250,7 @@ export const recordResult = (tally, game) => recordStatus(tally, outcome(game).s
  *
  * The opponent is never shown during play. Once RESULTS_AFTER games are finished the
  * player may look back at them, grouped by who they were up against: how many were
- * played, how many won, and how many were winnable - the opponent handed over a forced
+ * played, won and drawn, and how many were winnable - the opponent handed over a forced
  * win at some point, whether or not it was taken. Shared by both modes; each keeps its
  * own record. */
 

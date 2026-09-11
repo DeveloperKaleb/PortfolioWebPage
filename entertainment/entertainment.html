@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-0037" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260911-0037" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-1106" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260911-1106" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -188,10 +188,12 @@
             </div>
             <p id="tictactoe-status" role="status"></p>
 
-            <!-- Who the player has been up against, per opponent. Opening it clears the
-                 record and the score for the mode - see NOTES.md. Rows built by
+            <!-- Who the player has been up against, per opponent. A dialog rather than
+                 the status line, which is for one or two lines - see NOTES.md. Opening it
+                 clears the record and the score for the mode. Rows built by
                  entertainment.js. -->
-            <section id="tictactoe-results" hidden aria-labelledby="tictactoe-results-title">
+            <dialog id="tictactoe-results" aria-labelledby="tictactoe-results-title">
+                <div class="tictactoe-results-panel">
                 <h3 id="tictactoe-results-title">Results</h3>
                 <table>
                     <caption id="tictactoe-results-caption"></caption>
@@ -208,7 +210,8 @@
                 </table>
                 <p class="tictactoe-results-note">Winnable: games where, on one of your turns, you could have forced a win.</p>
                 <button type="button" id="tictactoeResultsClose">Done</button>
-            </section>
+                </div>
+            </dialog>
 
             <!-- Squares are built by entertainment.js. The opponent is drawn at random for
                  each game and deliberately never named anywhere on the page - see NOTES.md. -->
@@ -265,9 +268,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-0037"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-0037"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-0037"></script>
-    <script type="module" src="./entertainment.js?v=20260911-0037"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-1106"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-1106"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-1106"></script>
+    <script type="module" src="./entertainment.js?v=20260911-1106"></script>
 </body>
 </html>

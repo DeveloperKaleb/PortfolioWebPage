@@ -1137,9 +1137,11 @@ was tested on.
 
 ## Tic-Tac-Toe: an opponent you have to work out
 
-Built 2026-09-10 at the project owner's request. Single player. Each game draws its
-opponent at random, a third of the time each: **optimal**, **deliberately bad**, or
-**random**. Rules and opponents in `js/tictactoe.js`; the clock and the board in
+Built 2026-09-10 at the project owner's request. Single player. Each game originally drew
+its opponent a third of the time each: **optimal**, **deliberately bad**, or **random**.
+**Replaced 2026-09-11 by Perfect, Good and Bad** - see "Opponents: Perfect, Good and Bad"
+below. The paragraphs here about the old opponents are kept for the reasoning that still
+applies. Rules and opponents in `js/tictactoe.js`; the clock and the board in
 `entertainment.js`.
 
 **The opponent is never revealed during play** - not in a game, not at its end. After five
@@ -1278,7 +1280,7 @@ up front, for all three.
 ## View Results: the opponents, in aggregate, after five games
 
 Added 2026-09-11 at the owner's request. The opponent stays hidden in play. Once five
-games of a mode are finished, a View Results button appears. It shows, per opponent,
+games of a mode are finished, a View Results button appears. Its dialog shows, per opponent,
 games played, won, drawn and **winnable**, and opening it clears that mode's record and
 score.
 
@@ -1309,11 +1311,107 @@ next game.
 opponent. The per-turn winnable lookup runs for every opponent alike, and inside the
 fixed pause.
 
+## Opponents: Perfect, Good and Bad
+
+Changed 2026-09-11 after play-testing, when the owner judged the optimal / bad / random
+set poorly built for fun. The spec, as given: **Perfect, Good and Bad** are drawn **20,
+40 and 40** games in a hundred, and play the best move **100, 70 and 30** percent of the
+time. The rest of the time they play a deliberately suboptimal move.
+
+**What "suboptimal" means.** Every move has a result with best play from there: win, draw
+or loss. A mistake is a move with a *worse result* than the best available, such as a
+draw where a win was there or a loss where a draw was. A slower win is not a mistake,
+since nobody watching would call it one. When a mistake is rolled, it is **any worse move
+at random**. The owner chose that over "the smallest mistake" and "the worst move", so
+sometimes it is a slip and sometimes a blunder that hands the game over.
+
+**No mistake is rolled where none exists.** If every move leads to the same result, such
+as the empty Classic board, a forced move or a lost position, a best move is played and
+no roll is spent. So 70 and 30 are rates over the moves where a mistake was possible, and
+the tests check them as rates. `pickWithAccuracy` in `js/tictactoe.js` is the one
+implementation, and both modes use it.
+
+**Where the first mistake shows up.** Classic's empty board has none, since every opening
+draws. Against a centre opening, a corner holds and an edge loses. In Terni Lapilli the
+empty board already has one: the edges lose. That weakens further the one opening tell
+the centre ban left - Good and Bad open in a corner most or some of the time, just as
+Perfect always does.
+
+**`prepare()` stays, for a different reason.** It was added so the perfect opponent's
+first reply would not arrive late. Every opponent now reads the search, so that tell is
+gone, but a first reply that stalls while the search runs would still be a visible hitch
+on a slow phone.
+
+**Winnable still means what it did.** Perfect never hands over a forced win - tested in
+both modes - and Good and Bad do. Results are keyed `perfect` / `good` / `bad`, shown as
+Perfect, Good and Bad.
+
+## Results are a dialog
+
+Moved 2026-09-11 under the readouts rule below: a table is more than the status line is
+for. A native `<dialog>` opened with `showModal()`, styled as a sibling of the end-of-game
+panel - the same `UI_COLORS.dialog*` colours and the same scrim.
+
+**Native, not another hand-built overlay**, for three reasons. Esc closes it and focus stays
+inside while it is open, which the custom `#game-over` has to do without. Opening it moves
+nothing on the page, so none of the phone scrolling problems that ruled out `alert()` come
+back. And it sits in the browser's top layer, which matters here: each `.game-view` is a
+size container, and a `position: fixed` overlay inside one would be confined to the view.
+The top layer is not confined by anything, so the dialog can live beside its board in the
+markup.
+
+**A backdrop tap closes it.** The content fills an inner `.tictactoe-results-panel`, so a
+click whose target is the `<dialog>` element itself can only have landed on the backdrop.
+`::backdrop` inherits from nothing, which is why the scrim colour is written out rather
+than taken from a variable.
+
+Clearing on open is unchanged.
+
+## Rule: in-game readouts are one or two lines
+
+**The status line and readouts around a board carry short messages only - one or two
+lines.** Stated by the project owner 2026-09-11, after play-testing View Results, whose
+table first opened in place above the Tic-Tac-Toe board and read awkwardly there.
+
+Anything longer or structured - a table, a summary, a set of choices - goes in a dialog.
+A banner result like Minesweeper's ("Detonated. 9 of 12 mines correctly flagged.") is
+within the rule. A results table is not.
+
+This does not undo the reasons Minesweeper and Tic-Tac-Toe end in place: a short result
+beside a board worth studying still belongs there. The rule is about how much goes in the
+readout, not about whether a game ends in place.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than
 rediscovered. Nothing here is committed to; it is a record of what was suggested and
 when.
+
+### Suggested 2026-09-11, by the project owner
+
+**Ashi**, as a third mode alongside Classic and Terni Lapilli. As described: very like
+Terni Lapilli, except that pieces may not move diagonally. Not planned for any
+particular session.
+
+Notes for whoever picks it up, from building Terni Lapilli:
+
+- **Confirm the rules before building.** Traditional games on this board go by several
+  names, and descriptions differ on details such as how many pieces each side has. Two
+  questions to settle: do diagonal lines still count as three in a row, or only rows and
+  columns? And does the first-move centre ban still apply?
+- **Re-run the solve before choosing anything.** That is how Terni Lapilli's rules were
+  picked (see its section above), and removing the diagonals changes the answers. The
+  centre drops from eight neighbours to four and a corner from three to two, so who wins
+  from which opening has to be worked out again.
+- **"Nobody is ever left without a move" may stop being true.** In Terni Lapilli it holds
+  only because hemming in all three of a player's pieces forces the opposing pieces into
+  a line. With fewer neighbours per point, that may no longer follow, and the mode would
+  need a rule for a blocked player. The existing reachability test is the check.
+- **Most of the machinery carries over.** `js/ternilapilli.js` builds its neighbours from
+  the lines, so a board without diagonal moves is mainly a different neighbour table (and
+  a different line list, if diagonals stop winning). The retrograde solve, `prepare()`,
+  the winnable flag and View Results all work unchanged, and the view already switches
+  modes through one set of rules calls.
 
 ### Suggested 2026-09-08, by the project owner
 

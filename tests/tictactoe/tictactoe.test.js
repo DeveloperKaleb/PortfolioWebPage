@@ -2,6 +2,8 @@ import { describe, test, expect } from 'vitest';
 import {
     MARKS,
     OPPONENTS,
+    OPPONENT_WEIGHTS,
+    ACCURACY,
     STATUS,
     createGame,
     turnOf,
@@ -15,10 +17,9 @@ import {
     opponentMove,
     pickOpponent,
     bestMoves,
-    completingMoves,
+    worseMoves,
     optimalMove,
     randomMove,
-    blunderingMove,
     emptyTally,
     recordResult,
     emptyResults,
@@ -30,12 +31,40 @@ import {
 
 const _ = null;
 const { X, O } = MARKS;
+const CORNERS = [0, 2, 6, 8];
 
 // A game with a given position, for tests that start mid-game.
 const withBoard = (board, options = {}) => ({ ...createGame(options), board });
 
 // Every value an evenly spread random source would give over n draws.
 const spread = (n) => Array.from({ length: n }, (_unused, i) => () => i / n);
+
+// A random source that hands back exactly these values, in order.
+const scripted = (...values) => {
+    let i = 0;
+    return () => values[i++];
+};
+
+// A small seeded generator, so the playouts below are the same on every run.
+const seeded = (seed) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// A whole game, with the player moving at random.
+function playOut(playerMark, opponent, random) {
+    let game = createGame({ playerMark, opponent });
+    while (!isOver(game)) {
+        game = isPlayerTurn(game)
+            ? playerMove(game, randomMove(game.board, playerMark, random))
+            : opponentMove(game, random);
+    }
+    return game;
+}
+
+const markedBy = (game, mark) => game.board.findIndex((cell) => cell === mark);
 
 describe('The board', () => {
     test('starts empty with X to move', () => {
@@ -95,7 +124,7 @@ describe('Moves', () => {
     });
 
     test('the opponent only moves on its own turn', () => {
-        const game = createGame({ playerMark: X, opponent: 'random' });
+        const game = createGame({ playerMark: X, opponent: 'good' });
         expect(opponentMove(game)).toBe(game);
 
         const afterPlayer = playerMove(game, 0);
@@ -105,35 +134,38 @@ describe('Moves', () => {
     });
 
     test('the opponent opens when the player is O', () => {
-        const game = opponentMove(createGame({ playerMark: O, opponent: 'optimal' }));
+        const game = opponentMove(createGame({ playerMark: O, opponent: 'perfect' }));
         expect(game.board.filter((cell) => cell === X)).toHaveLength(1);
         expect(isPlayerTurn(game)).toBe(true);
     });
 });
 
 describe('Choosing the opponent', () => {
-    test('there are exactly three', () => {
-        expect(OPPONENTS).toEqual(['optimal', 'bad', 'random']);
+    test('there are three: Perfect, Good and Bad', () => {
+        expect(OPPONENTS).toEqual(['perfect', 'good', 'bad']);
     });
 
-    // An evenly spread set of draws from [0, 1) lands exactly a third on each.
-    test('each is picked a third of the time', () => {
-        const counts = { optimal: 0, bad: 0, random: 0 };
-        spread(3000).forEach((random) => { counts[pickOpponent(random)] += 1; });
-        expect(counts).toEqual({ optimal: 1000, bad: 1000, random: 1000 });
+    // An evenly spread set of draws from [0, 1) lands on each exactly by its weight.
+    test('they come up 20, 40 and 40 games in a hundred', () => {
+        expect(OPPONENT_WEIGHTS).toEqual({ perfect: 20, good: 40, bad: 40 });
+        const counts = { perfect: 0, good: 0, bad: 0 };
+        spread(1000).forEach((random) => { counts[pickOpponent(random)] += 1; });
+        expect(counts).toEqual({ perfect: 200, good: 400, bad: 400 });
     });
 
     test('and Math.random gets there too', () => {
-        const counts = { optimal: 0, bad: 0, random: 0 };
-        for (let i = 0; i < 30000; i++) counts[pickOpponent()] += 1;
-        Object.values(counts).forEach((count) => {
-            expect(count).toBeGreaterThan(9400);
-            expect(count).toBeLessThan(10600);
+        const counts = { perfect: 0, good: 0, bad: 0 };
+        for (let i = 0; i < 50000; i++) counts[pickOpponent()] += 1;
+        expect(counts.perfect).toBeGreaterThan(9400);
+        expect(counts.perfect).toBeLessThan(10600);
+        [counts.good, counts.bad].forEach((count) => {
+            expect(count).toBeGreaterThan(19200);
+            expect(count).toBeLessThan(20800);
         });
     });
 });
 
-describe('The optimal opponent', () => {
+describe('The perfect opponent', () => {
     test('takes a win when there is one', () => {
         // O to move: 2 finishes the top row, even though X is threatening 5.
         expect(bestMoves([O, O, _, X, X, _, X, _, _], O)).toEqual([2]);
@@ -161,8 +193,13 @@ describe('The optimal opponent', () => {
         expect(optimalMove(board, X, () => 0.99)).toBe(8);
     });
 
+    test('never rolls a mistake', () => {
+        const game = playerMove(createGame({ playerMark: X, opponent: 'perfect' }), 4);
+        expect(CORNERS).toContain(markedBy(opponentMove(game, () => 0.99), O));
+    });
+
     /* The property that matters, checked exhaustively: every line the player could take,
-       against every move the optimal opponent could choose, from both sides of the board.
+       against every move the perfect opponent could choose, from both sides of the board.
        It never loses. */
     test.each([X, O])('never loses, whatever the player does (player is %s)', (playerMark) => {
         let losses = 0;
@@ -186,64 +223,57 @@ describe('The optimal opponent', () => {
             }
         };
 
-        explore(createGame({ playerMark, opponent: 'optimal' }));
+        explore(createGame({ playerMark, opponent: 'perfect' }));
         expect(games).toBeGreaterThan(0);
         expect(losses).toBe(0);
     });
 });
 
-describe('The random opponent', () => {
-    test('can play any open cell', () => {
-        const board = [X, _, O, _, X, _, _, _, _];
-        const chosen = new Set(spread(6).map((random) => randomMove(board, O, random)));
-        expect([...chosen].sort()).toEqual(legalMoves(board));
+describe('Good and Bad opponents', () => {
+    // X has taken the centre and O is to move.
+    const CENTRE_TAKEN = [_, _, _, _, X, _, _, _, _];
+
+    test('play the best move 100, 70 and 30 percent of the time', () => {
+        expect(ACCURACY).toEqual({ perfect: 1, good: 0.7, bad: 0.3 });
     });
 
-    test('does not steer away from a win', () => {
-        // O to move; 2 wins. The random player can land on it like anywhere else.
-        const board = [O, O, _, X, X, _, X, _, _];
-        expect(randomMove(board, O, () => 0)).toBe(2);
-    });
-});
-
-describe('The deliberately bad opponent', () => {
-    test('passes up a win', () => {
-        // O to move: 2 wins for O. (X also threatens 7, which it will not block either.)
-        const board = [O, O, _, X, _, _, X, _, X];
-        spread(20).forEach((random) => {
-            expect(blunderingMove(board, O, random)).not.toBe(2);
-        });
+    // Against the centre, a corner holds the draw and an edge loses.
+    test('know a mistake when there is one', () => {
+        expect(bestMoves(CENTRE_TAKEN, O)).toEqual(CORNERS);
+        expect(worseMoves(CENTRE_TAKEN, O)).toEqual([1, 3, 5, 7]);
     });
 
-    test('never blocks the player', () => {
-        // O to move, X threatens 2, O has no win of its own.
-        const board = [X, X, _, _, O, _, _, _, _];
-        spread(20).forEach((random) => {
-            expect(blunderingMove(board, O, random)).not.toBe(2);
-        });
+    test('a rolled mistake can be any worse move', () => {
+        const game = playerMove(createGame({ playerMark: X, opponent: 'bad' }), 4);
+        const replies = new Set(spread(4).map((pickFrom) =>
+            markedBy(opponentMove(game, scripted(0.99, pickFrom())), O)));
+        expect([...replies].sort()).toEqual([1, 3, 5, 7]);
     });
 
-    test('avoids both at once', () => {
-        // O to move: O wins at 2; X threatens 5 (middle row) and 2 (the diagonal).
-        const board = [O, O, _, X, X, _, X, _, _];
-        spread(20).forEach((random) => {
-            expect([7, 8]).toContain(blunderingMove(board, O, random));
-        });
+    test.each([['good', 0.7], ['bad', 0.3]])('%s answers the centre with a corner about %s of the time', (opponent, rate) => {
+        const random = seeded(opponent.length * 17);
+        const game = playerMove(createGame({ playerMark: X, opponent }), 4);
+        const trials = 4000;
+        let corners = 0;
+        for (let i = 0; i < trials; i++) {
+            if (CORNERS.includes(markedBy(opponentMove(game, random), O))) corners += 1;
+        }
+        expect(corners / trials).toBeGreaterThan(rate - 0.03);
+        expect(corners / trials).toBeLessThan(rate + 0.03);
     });
 
-    test('otherwise plays at random, reaching every other cell', () => {
-        const board = [X, X, _, _, O, _, _, _, _];
-        const chosen = new Set(spread(50).map((random) => blunderingMove(board, O, random)));
-        expect([...chosen].sort()).toEqual([3, 5, 6, 7, 8]);
+    /* O to move, and every move loses: anywhere but 2 and X wins at once; 2 lets X fork
+       from the centre. With every result the same there is no mistake to make, so even Bad
+       plays the best move - the slowest loss - and spends no roll on it. */
+    test('where every move leads to the same result, even Bad plays the best one', () => {
+        const game = withBoard([X, X, _, O, _, _, _, _, _], { playerMark: X, opponent: 'bad' });
+        expect(worseMoves(game.board, O)).toEqual([]);
+        expect(bestMoves(game.board, O)).toEqual([2]);
+        expect(opponentMove(game, () => 0.99).board[2]).toBe(O);
     });
 
-    /* Forced: the only open cell completes a line. There is no other legal move, so it
-       has to play it - a player who will not finish their own line can still lose. */
-    test('plays a win when nothing else is left', () => {
-        // X to move, and 8 completes the diagonal.
-        const board = [X, O, X, O, X, O, O, X, _];
-        expect(completingMoves(board, X)).toEqual([8]);
-        expect(blunderingMove(board, X, () => 0.5)).toBe(8);
+    test('and an empty board has no mistake in it at all', () => {
+        expect(worseMoves(Array(9).fill(null), X)).toEqual([]);
     });
 });
 
@@ -262,60 +292,41 @@ describe('The session tally', () => {
     });
 });
 
-// A small seeded generator, so the playouts below are the same on every run.
-const seeded = (seed) => () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-
-// A whole game, with the player moving at random.
-function playOut(playerMark, opponent, random) {
-    let game = createGame({ playerMark, opponent });
-    while (!isOver(game)) {
-        game = isPlayerTurn(game)
-            ? playerMove(game, randomMove(game.board, playerMark, random))
-            : opponentMove(game, random);
-    }
-    return game;
-}
-
 describe('Winnable games', () => {
     test('a game starts not winnable', () => {
         expect(createGame().winnable).toBe(false);
     });
 
-    test('the opponent handing over a forced win marks the game', () => {
-        // O to move. Taking 4 leaves X free to finish the top row.
-        const game = withBoard([X, X, _, O, _, _, _, _, _], { playerMark: X, opponent: 'random' });
-        const handed = opponentMove(game, () => 0.2);
-        expect(handed.board[4]).toBe(O);
+    // X takes the centre; Bad rolls a mistake and answers on an edge, which loses.
+    test('an opponent\'s mistake that hands over a win marks the game', () => {
+        const game = playerMove(createGame({ playerMark: X, opponent: 'bad' }), 4);
+        const handed = opponentMove(game, scripted(0.99, 0));
+        expect(handed.board[1]).toBe(O);
         expect(handed.winnable).toBe(true);
     });
 
     // The column counts chances, not conversions.
     test('and it stays marked when the win is thrown away', () => {
-        const game = withBoard([X, X, _, O, _, _, _, _, _], { playerMark: X, opponent: 'random' });
-        const thrown = playerMove(opponentMove(game, () => 0.2), 8);
+        const game = playerMove(createGame({ playerMark: X, opponent: 'bad' }), 4);
+        const thrown = playerMove(opponentMove(game, scripted(0.99, 0)), 2);
         expect(thrown.winnable).toBe(true);
     });
 
     test('a drawn position does not mark it', () => {
-        const game = opponentMove(playerMove(createGame({ playerMark: X, opponent: 'optimal' }), 4), () => 0);
+        const game = opponentMove(playerMove(createGame({ playerMark: X, opponent: 'perfect' }), 4), () => 0);
         expect(game.winnable).toBe(false);
     });
 
     test.each([X, O])('the perfect opponent never hands one over (player is %s)', (playerMark) => {
         const random = seeded(playerMark === X ? 11 : 12);
         for (let g = 0; g < 200; g++) {
-            expect(playOut(playerMark, 'optimal', random).winnable).toBe(false);
+            expect(playOut(playerMark, 'perfect', random).winnable).toBe(false);
         }
     });
 
-    test('the other two do', () => {
+    test('Good and Bad do', () => {
         const random = seeded(13);
-        ['bad', 'random'].forEach((opponent) => {
+        ['good', 'bad'].forEach((opponent) => {
             const handed = Array.from({ length: 100 }, () => playOut(X, opponent, random))
                 .filter((game) => game.winnable);
             expect(handed.length).toBeGreaterThan(0);
@@ -337,21 +348,21 @@ describe('Results', () => {
 
     test('are counted per opponent', () => {
         let results = emptyResults();
-        results = recordGame(results, finished('optimal', STATUS.DRAW));
+        results = recordGame(results, finished('perfect', STATUS.DRAW));
         results = recordGame(results, finished('bad', STATUS.WON, true));
         results = recordGame(results, finished('bad', STATUS.LOST, true));
-        results = recordGame(results, finished('random', STATUS.LOST));
+        results = recordGame(results, finished('good', STATUS.LOST));
         expect(results).toEqual({
-            optimal: { played: 1, won: 0, drawn: 1, winnable: 0 },
+            perfect: { played: 1, won: 0, drawn: 1, winnable: 0 },
+            good: { played: 1, won: 0, drawn: 0, winnable: 0 },
             bad: { played: 2, won: 1, drawn: 0, winnable: 2 },
-            random: { played: 1, won: 0, drawn: 0, winnable: 0 },
         });
         expect(gamesRecorded(results)).toBe(4);
     });
 
     test('ignore a game still in play', () => {
         const results = emptyResults();
-        expect(recordGame(results, finished('random', STATUS.PLAYING))).toBe(results);
+        expect(recordGame(results, finished('good', STATUS.PLAYING))).toBe(results);
     });
 
     test('can be viewed once five games are finished, and not before', () => {

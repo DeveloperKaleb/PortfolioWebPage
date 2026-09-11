@@ -1185,10 +1185,10 @@ document.getElementById('sequenceStartBtn').addEventListener('click', () => init
 setSoundOn(soundOn);
 
 /* --- PART 6: TIC-TAC-TOE --- */
-/* Single player, against an opponent drawn at random for each game - a perfect player,
-   a deliberately bad one, or one that plays at random, a third of the time each - and
-   never named. Working out which one you are facing is left to the player; see
-   NOTES.md.
+/* Single player, against an opponent drawn at random for each game - Perfect, Good or
+   Bad, twenty, forty and forty games in a hundred - and never named during play.
+   Working out which one you are facing is left to the player; View Results gives the
+   answer in aggregate once five games are done. See NOTES.md.
 
    That puts a rule on this layer: nothing here may behave differently depending on who
    the opponent is. Same pause before every reply, same messages, same look.
@@ -1242,7 +1242,7 @@ const tictactoeTallies = { classic: TicTacToe.emptyTally(), terni: TicTacToe.emp
 /* And, per mode, who the player was up against in each finished game - never shown in
    play, only through View Results once enough games are behind them. See NOTES.md. */
 const tictactoeResults = { classic: TicTacToe.emptyResults(), terni: TicTacToe.emptyResults() };
-const TICTACTOE_OPPONENT_NAMES = { optimal: 'Perfect', bad: 'Deliberately bad', random: 'Random' };
+const TICTACTOE_OPPONENT_NAMES = { perfect: 'Perfect', good: 'Good', bad: 'Bad' };
 
 const tictactoeRules = () => TICTACTOE_RULES[tictactoeMode];
 const isTerni = () => tictactoeMode === 'terni';
@@ -1408,7 +1408,7 @@ function initTicTacToe() {
     tictactoeTimer = null;
     terniHeld = null;
     // Results are read between games; starting the next one puts them away.
-    tictactoeResultsPanel.hidden = true;
+    if (tictactoeResultsPanel.open) tictactoeResultsPanel.close();
 
     const previous = tictactoeGame;
     let playerMark = TICTACTOE_MARKS.X;
@@ -1494,14 +1494,29 @@ function showTicTacToeResults() {
 
     tictactoeResults[tictactoeMode] = TicTacToe.emptyResults();
     tictactoeTallies[tictactoeMode] = TicTacToe.emptyTally();
-    tictactoeResultsPanel.hidden = false;
     drawTicTacToe();
-    // The button just pressed has hidden itself, which would drop focus to the page.
-    tictactoeResultsClose.focus({ preventScroll: true });
+
+    /* A native modal dialog, not a hand-built overlay. Esc closes it, focus stays inside
+       while it is open and lands on Done without scrolling the page, and it sits in the
+       browser's top layer. That last part matters here: each .game-view is a size
+       container, which confines a fixed-position overlay inside it to the view - see the
+       note on --board-space. The top layer is not confined by anything. */
+    if (typeof tictactoeResultsPanel.showModal === 'function') tictactoeResultsPanel.showModal();
+    else tictactoeResultsPanel.setAttribute('open', '');
+}
+
+function closeTicTacToeResults() {
+    if (typeof tictactoeResultsPanel.close === 'function') tictactoeResultsPanel.close();
+    else tictactoeResultsPanel.removeAttribute('open');
 }
 
 tictactoeResultsBtn.addEventListener('click', showTicTacToeResults);
-tictactoeResultsClose.addEventListener('click', () => { tictactoeResultsPanel.hidden = true; });
+tictactoeResultsClose.addEventListener('click', closeTicTacToeResults);
+/* A tap on the dimmed backdrop closes it too. The content fills an inner panel, so a
+   click whose target is the dialog element itself can only have landed outside it. */
+tictactoeResultsPanel.addEventListener('click', (event) => {
+    if (event.target === tictactoeResultsPanel) closeTicTacToeResults();
+});
 // Changing the game starts a fresh board of it; the one abandoned is not scored.
 tictactoeModeSelect.addEventListener('change', startTicTacToe);
 

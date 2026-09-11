@@ -72,8 +72,8 @@ under Vitest without a browser:
   and one tone per pad. Immutable like Minesweeper, and deliberately free of timers —
   playback timing belongs to the DOM layer, which is what keeps this testable. Sequence
   is the only game that makes sound; see NOTES.md before touching the audio.
-- `js/tictactoe.js` — Tic-Tac-Toe rules and its three opponents (optimal, deliberately
-  bad, random). Immutable and timer-free. The opponent is drawn per game and never
+- `js/tictactoe.js` — Tic-Tac-Toe rules and its three opponents (Perfect, Good
+  and Bad). Immutable and timer-free. The opponent is drawn per game and never
   shown; see NOTES.md before adding anything that could give it away.
 - `js/ternilapilli.js` — Terni Lapilli, the Roman variant, played as a mode of the
   Tic-Tac-Toe view: three pieces each, then moves along the 8 lines. Its optimal opponent

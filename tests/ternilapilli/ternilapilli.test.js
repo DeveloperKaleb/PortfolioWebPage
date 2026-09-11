@@ -21,10 +21,8 @@ import {
     positionKey,
     evaluate,
     bestMoves,
+    worseMoves,
     randomMove,
-    blunderingMove,
-    winningMoves,
-    pickOpponent,
     emptyTally,
     recordResult,
     otherMark,
@@ -33,6 +31,7 @@ import {
 const _ = null;
 const { X, O } = MARKS;
 const EMPTY = Array(9).fill(null);
+const CORNERS = [0, 2, 6, 8];
 
 // A game at a given position, as if it had just arisen for the first time.
 const withPosition = (board, turn, options = {}) => ({
@@ -46,6 +45,12 @@ const tos = (moves) => moves.map((move) => move.to);
 
 // Every value an evenly spread random source would give over n draws.
 const spread = (n) => Array.from({ length: n }, (_unused, i) => () => i / n);
+
+// A random source that hands back exactly these values, in order.
+const scripted = (...values) => {
+    let i = 0;
+    return () => values[i++];
+};
 
 // A small seeded generator, so the playouts below are the same on every run.
 const seeded = (seed) => () => {
@@ -70,14 +75,15 @@ function reachable() {
     return [...found.values()];
 }
 
+const openingOf = (game) => game.board.findIndex((cell) => cell === X);
+
 /* A movement-phase position with nobody threatening anything: X on 0, 2 and 7, O on 1, 6
    and 8, X to move. */
 const QUIET = [X, O, X, _, _, _, O, X, O];
 
 /* The Tic-Tac-Toe view swaps between the two modules without asking which it has, so
    anything it calls has to exist on both - a gap would only show up as a thrown error in
-   the browser, mid-game. prepare() matters most: without it the optimal opponent's first
-   reply carries the whole search, and arrives late enough to give it away. */
+   the browser, mid-game. */
 describe('Classic and Terni Lapilli answer the same questions', () => {
     const asked = ['createGame', 'outcome', 'isOver', 'isPlayerTurn', 'isOpponentTurn',
         'playerMove', 'opponentMove', 'pickOpponent', 'emptyTally', 'recordResult', 'prepare'];
@@ -85,6 +91,11 @@ describe('Classic and Terni Lapilli answer the same questions', () => {
     test.each(asked)('both provide %s', (name) => {
         expect(typeof Classic[name]).toBe('function');
         expect(typeof Terni[name]).toBe('function');
+    });
+
+    test('and play with the same opponents at the same accuracy', () => {
+        expect(Terni.OPPONENTS).toBe(Classic.OPPONENTS);
+        expect(Terni.ACCURACY).toBe(Classic.ACCURACY);
     });
 });
 
@@ -174,15 +185,7 @@ describe('Endless games', () => {
     });
 });
 
-describe('Choosing the opponent', () => {
-    test('each is picked a third of the time', () => {
-        const counts = { optimal: 0, bad: 0, random: 0 };
-        spread(3000).forEach((random) => { counts[pickOpponent(random)] += 1; });
-        expect(counts).toEqual({ optimal: 1000, bad: 1000, random: 1000 });
-    });
-});
-
-describe('The optimal opponent', () => {
+describe('The perfect opponent', () => {
     /* The results the rules were chosen from - see NOTES.md. With the centre banned on the
        first move it is a draw; an edge opening loses; a corner opening draws. */
     test('the solve agrees with what the rules were chosen from', () => {
@@ -192,7 +195,7 @@ describe('The optimal opponent', () => {
     });
 
     test('opens in a corner - any corner', () => {
-        expect(tos(bestMoves(EMPTY, X))).toEqual([0, 2, 6, 8]);
+        expect(tos(bestMoves(EMPTY, X))).toEqual(CORNERS);
     });
 
     test('takes a win that is there', () => {
@@ -214,7 +217,7 @@ describe('The optimal opponent', () => {
     });
 
     /* Exhaustive over positions rather than games - positions repeat, so a tree of games
-       has no end. Every move the player could make, against every move the optimal
+       has no end. Every move the player could make, against every move the perfect
        opponent could choose, from both sides: no position reached has a line for the
        player. */
     test.each([X, O])('never loses, whatever the player does (player is %s)', (playerMark) => {
@@ -242,36 +245,57 @@ describe('The optimal opponent', () => {
     });
 });
 
-describe('The random opponent', () => {
-    test('can play any legal move', () => {
-        const chosen = new Set(spread(5).map((random) => JSON.stringify(randomMove(QUIET, X, random))));
-        expect(chosen.size).toBe(legalMoves(QUIET, X).length);
-    });
-});
-
-describe('The deliberately bad opponent', () => {
-    test('passes up a win', () => {
-        const board = [X, X, _, O, _, X, O, _, O];
-        spread(20).forEach((random) => {
-            expect(blunderingMove(board, X, random)).not.toEqual({ from: 5, to: 2 });
-        });
+describe('Good and Bad opponents', () => {
+    // Corners draw and edges lose, so an edge opening is the first mistake there is.
+    test('know a mistake when there is one', () => {
+        expect(tos(worseMoves(EMPTY, X))).toEqual([1, 3, 5, 7]);
     });
 
-    test('never blocks the player', () => {
-        // X to move, two pieces each: O threatens 0, which X is free to take.
-        const board = [_, X, _, _, O, X, _, _, O];
-        expect(tos(winningMoves(board, O))).toEqual([0]);
-        expect(tos(legalMoves(board, X))).toContain(0);
-        spread(20).forEach((random) => {
-            expect(blunderingMove(board, X, random).to).not.toBe(0);
-        });
+    test('a rolled mistake can be any worse move', () => {
+        const game = createGame({ playerMark: O, opponent: 'bad' });
+        const openings = new Set(spread(4).map((pickFrom) =>
+            openingOf(opponentMove(game, scripted(0.99, pickFrom())))));
+        expect([...openings].sort()).toEqual([1, 3, 5, 7]);
+    });
+
+    test('Perfect never rolls one', () => {
+        const game = createGame({ playerMark: O, opponent: 'perfect' });
+        expect(CORNERS).toContain(openingOf(opponentMove(game, () => 0.99)));
+    });
+
+    test.each([['good', 0.7], ['bad', 0.3]])('%s opens in a corner about %s of the time', (opponent, rate) => {
+        const random = seeded(opponent.length * 31);
+        const game = createGame({ playerMark: O, opponent });
+        const trials = 4000;
+        let corners = 0;
+        for (let i = 0; i < trials; i++) {
+            if (CORNERS.includes(openingOf(opponentMove(game, random)))) corners += 1;
+        }
+        expect(corners / trials).toBeGreaterThan(rate - 0.03);
+        expect(corners / trials).toBeLessThan(rate + 0.03);
+    });
+
+    /* A position where every move leads to the same result, but not at the same distance,
+       has no mistake in it - so even Bad plays one of the best moves there, and spends no
+       roll doing it. */
+    test('where every move leads to the same result, even Bad plays a best move', () => {
+        const flat = reachable().find(({ board, turn }) =>
+            !winnerOf(board)
+            && worseMoves(board, turn).length === 0
+            && bestMoves(board, turn).length < legalMoves(board, turn).length);
+        expect(flat).toBeDefined();
+
+        const game = withPosition(flat.board, flat.turn, { playerMark: otherMark(flat.turn), opponent: 'bad' });
+        const played = opponentMove(game, () => 0.99);
+        const bestBoards = bestMoves(flat.board, flat.turn).map((move) => applyMove(flat.board, flat.turn, move));
+        expect(bestBoards).toContainEqual(played.board);
     });
 });
 
 /* Whole games against each opponent, from both sides, with a player moving at random.
-   Every move either side makes has to be legal, and the optimal opponent never loses. */
+   Every move either side makes has to be legal, and the perfect opponent never loses. */
 describe('Playing it out', () => {
-    test.each(['optimal', 'bad', 'random'])('against the %s opponent', (opponent) => {
+    test.each(['perfect', 'good', 'bad'])('against the %s opponent', (opponent) => {
         const random = seeded(opponent.length * 7919);
         let handed = 0;
         [X, O].forEach((playerMark) => {
@@ -286,11 +310,11 @@ describe('Playing it out', () => {
                 }
                 if (game.winnable) handed += 1;
                 if (outcome(game).status === STATUS.WON) expect(game.winnable).toBe(true);
-                if (opponent === 'optimal') expect(outcome(game).status).not.toBe(STATUS.WON);
+                if (opponent === 'perfect') expect(outcome(game).status).not.toBe(STATUS.WON);
             }
         });
-        // The perfect opponent never hands the player a forced win; the other two do.
-        if (opponent === 'optimal') expect(handed).toBe(0);
+        // The perfect opponent never hands the player a forced win; Good and Bad do.
+        if (opponent === 'perfect') expect(handed).toBe(0);
         else expect(handed).toBeGreaterThan(0);
     });
 });
@@ -303,7 +327,7 @@ describe('Winnable games', () => {
     /* O to move, and only 4 to 2 stops X finishing the top row with 5 to 2. Stepping 4 to 8
        instead hands the win over. */
     test('the opponent failing to block marks the game', () => {
-        const game = withPosition([X, X, _, O, O, X, O, _, _], O, { playerMark: X, opponent: 'random' });
+        const game = withPosition([X, X, _, O, O, X, O, _, _], O, { playerMark: X, opponent: 'good' });
         const handed = makeMove(game, { from: 4, to: 8 });
         expect(handed.board).toEqual([X, X, _, O, _, X, O, _, O]);
         expect(handed.winnable).toBe(true);

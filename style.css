@@ -1363,24 +1363,37 @@ a:active  {color: #002e2c;}
     cursor: pointer;
 }
 
-/* View Results. The theme's own colours, already contrast-checked in tests/contrast:
-   control text on the control surface, edges in the control border. No display rule of
-   its own, so the hidden attribute keeps working. */
+/* View Results, in a native <dialog> opened with showModal() - a table is more than the
+   one or two lines the status readout is for (see NOTES.md). Styled as a sibling of the
+   end-of-game panel: the same UI_COLORS.dialog* colours, which are contrast-checked, and
+   the same scrim. It sits in the top layer, so the view's size containment does not
+   confine it the way it would a fixed overlay. */
 #tictactoe-results {
     box-sizing: border-box;
-    width: min(100%, 26rem);
-    margin: 12px auto 0;
-    padding: 12px 16px 16px;
-    background-color: var(--control-surface);
-    color: var(--control-text);
-    border: 2px solid var(--control-border);
-    border-radius: 6px;
+    width: min(92vw, 26rem);
+    max-height: 90vh;
+    padding: 0;
+    background: #002e2c;                    /* UI_COLORS.dialogBackground */
+    color: #eff1c5;                         /* UI_COLORS.dialogText */
+    border: 2px solid #dfe38c;
+    border-radius: 8px;
+}
+
+/* ::backdrop inherits from nothing, so the scrim is written out rather than borrowed. */
+#tictactoe-results::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* The content fills this inner panel, which is what lets a click on the dialog element
+   itself be read as a tap on the backdrop. */
+.tictactoe-results-panel {
+    padding: 20px;
     text-align: left;
 }
 
 #tictactoe-results h3 {
-    margin: 0 0 8px;
-    font-size: 1.15em;
+    margin: 0 0 10px;
+    font-size: 18px;
 }
 
 #tictactoe-results table {
@@ -1391,14 +1404,14 @@ a:active  {color: #002e2c;}
 
 #tictactoe-results caption {
     text-align: left;
-    padding-bottom: 6px;
+    padding-bottom: 8px;
 }
 
 #tictactoe-results th,
 #tictactoe-results td {
     padding: 6px 4px;
     text-align: right;
-    border-bottom: 1px solid var(--control-border);
+    border-bottom: 1px solid #dfe38c;
 }
 
 #tictactoe-results th:first-child {
@@ -1406,8 +1419,16 @@ a:active  {color: #002e2c;}
 }
 
 .tictactoe-results-note {
-    margin: 10px 0 12px;
+    margin: 12px 0 16px;
     font-size: 0.9em;
+}
+
+/* Matches Play Again on the end-of-game panel. */
+#tictactoeResultsClose {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
 }
 
 #tictactoe-status {
@@ -1527,7 +1548,6 @@ a:active  {color: #002e2c;}
 #sequence-controls select,
 #tictactoe-controls button,
 #tictactoe-controls select,
-#tictactoe-results button,
 #arrayForm button,
 #arrayForm input,
 #toyColorPicker select,
@@ -1613,7 +1633,6 @@ a:active  {color: #002e2c;}
     #mine-controls button:hover:not(:disabled),
     #sequence-controls button:hover:not(:disabled),
     #tictactoe-controls button:hover:not(:disabled),
-    #tictactoe-results button:hover:not(:disabled),
     #arrayForm button:hover:not(:disabled),
     .game-view .back-btn:hover {
         border-color: var(--control-text);
@@ -1630,7 +1649,6 @@ a:active  {color: #002e2c;}
 #sequence-controls select:focus-visible,
 #tictactoe-controls button:focus-visible,
 #tictactoe-controls select:focus-visible,
-#tictactoe-results button:focus-visible,
 #arrayForm button:focus-visible,
 #arrayForm input:focus-visible,
 .game-view .back-btn:focus-visible {

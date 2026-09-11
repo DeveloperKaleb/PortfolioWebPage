@@ -21,14 +21,16 @@ import {
     MARKS,
     STATUS,
     OPPONENTS,
+    ACCURACY,
     otherMark,
     winnerOf,
     pickOpponent,
+    pickWithAccuracy,
     emptyTally,
     recordStatus,
 } from './tictactoe.js';
 
-export { LINES, MARKS, STATUS, OPPONENTS, otherMark, pickOpponent, emptyTally };
+export { LINES, MARKS, STATUS, OPPONENTS, ACCURACY, otherMark, pickOpponent, emptyTally };
 
 export const CENTRE = 4;
 export const PIECES_EACH = 3;
@@ -51,7 +53,7 @@ export const NEIGHBOURS = (() => {
 
 export const positionKey = (board, turn) => board.map((cell) => cell || '-').join('') + turn;
 
-export function createGame({ playerMark = MARKS.X, opponent = 'random' } = {}) {
+export function createGame({ playerMark = MARKS.X, opponent = 'good' } = {}) {
     const board = Array(9).fill(null);
     return {
         board,
@@ -235,10 +237,11 @@ function solve() {
     return solved;
 }
 
-/* Do the solve now rather than on the optimal opponent's first move. Only that opponent
-   ever asks for it, so leaving it until then would make its first reply alone arrive
-   late - a tell, on a slow phone a visible one. The DOM layer calls this before any
-   opponent is due to move, whoever the opponent is. */
+/* Do the solve now rather than inside the first reply. It was written when only the
+   perfect opponent read the solve, and its first reply alone arrived late - a tell.
+   Every opponent reads it now, so that tell has gone, but a first reply that stalls for
+   the build would still be a visible hitch on a slow phone. The DOM layer calls this
+   before any opponent is due to move. */
 export function prepare() {
     solve();
 }
@@ -259,53 +262,42 @@ function moveScore(board, turn, move) {
     return 0;
 }
 
-/* Every move a perfect player could make here. The optimal opponent picks among them at
-   random, so it does not replay the same game - and so its opening, which the solve says
-   is any of the four corners, is not one fixed point. */
+/* Every move a perfect player could make here. It picks among them at random, so it does
+   not replay the same game - and so its opening, which the solve says is any of the four
+   corners, is not one fixed point. */
 export function bestMoves(board, turn) {
     const scored = legalMoves(board, turn).map((move) => ({ move, score: moveScore(board, turn, move) }));
     const top = Math.max(...scored.map((entry) => entry.score));
     return scored.filter((entry) => entry.score === top).map((entry) => entry.move);
 }
 
-export const optimalMove = (board, turn, random = Math.random) => pick(bestMoves(board, turn), random);
-
-export const randomMove = (board, turn, random = Math.random) => pick(legalMoves(board, turn), random);
-
-// Moves that would complete a line for `mark` right now.
-export const winningMoves = (board, mark) =>
-    legalMoves(board, mark).filter((move) => winnerOf(applyMove(board, mark, move))?.mark === mark);
-
-/* The deliberately bad player, meaning what it means in Classic: random, except it never
- * makes a move that wins and never one that takes away a win the player had lined up for
- * their next turn. If every move open to it is one of those, it has no choice and plays
- * one anyway. */
-export function blunderingMove(board, turn, random = Math.random) {
-    const them = otherMark(turn);
-    const theyHaveAWin = winningMoves(board, them).length > 0;
-    const moves = legalMoves(board, turn);
-
-    const allowed = moves.filter((move) => {
-        const next = applyMove(board, turn, move);
-        if (winnerOf(next)?.mark === turn) return false;
-        if (theyHaveAWin && winningMoves(next, them).length === 0) return false;
-        return true;
-    });
-
-    return pick(allowed.length ? allowed : moves, random);
+/* Moves with a worse result than the best available - a draw where a win was there, a
+   loss where a draw was. Result, not distance: a slower win is not a mistake. The empty
+   board is the plainest case: the corners draw and the edges lose, so an edge opening is
+   the first mistake Good or Bad can make. */
+export function worseMoves(board, turn) {
+    const classed = legalMoves(board, turn)
+        .map((move) => ({ move, result: Math.sign(moveScore(board, turn, move)) }));
+    const best = Math.max(...classed.map((entry) => entry.result));
+    return classed.filter((entry) => entry.result < best).map((entry) => entry.move);
 }
 
-const STRATEGIES = {
-    optimal: optimalMove,
-    bad: blunderingMove,
-    random: randomMove,
-};
+export const optimalMove = (board, turn, random = Math.random) => pick(bestMoves(board, turn), random);
 
-// The opponent's reply, or the same game if it is not the opponent's turn.
+// Any legal move. No opponent plays like this; the tests use it for a player not trying.
+export const randomMove = (board, turn, random = Math.random) => pick(legalMoves(board, turn), random);
+
+// The opponent's reply, chosen the way Classic's opponents choose - see pickWithAccuracy.
 export function opponentMove(game, random = Math.random) {
     if (!isOpponentTurn(game)) return game;
-    const strategy = STRATEGIES[game.opponent] || randomMove;
-    return makeMove(game, strategy(game.board, game.turn, random));
+    const accuracy = ACCURACY[game.opponent] ?? ACCURACY.good;
+    const move = pickWithAccuracy(
+        bestMoves(game.board, game.turn),
+        worseMoves(game.board, game.turn),
+        accuracy,
+        random,
+    );
+    return makeMove(game, move);
 }
 
 export const recordResult = (tally, game) => recordStatus(tally, outcome(game).status);
