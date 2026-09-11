@@ -1026,6 +1026,7 @@ a:active  {color: #002e2c;}
    The colours are the control theme's, already contrast-checked in tests/contrast, and
    the outcome is carried by the words alone. Nothing here is coloured win-green or
    lose-red: that would put the result on the one channel this site never trusts. */
+#tictactoe-status.is-result,
 #mine-status.is-result {
     display: inline-block;
     max-width: 100%;
@@ -1193,6 +1194,129 @@ a:active  {color: #002e2c;}
 /* The other twelve cells of the shared 4x4 markup. */
 .thumb-sequence span:nth-child(n+5) { display: none; }
 
+/* --- TIC-TAC-TOE --- */
+/* Pencil on paper. Colours are TICTACTOE_COLORS in js/logic.js, asserted in
+   tests/contrast - keep these in step. The marks are told apart by shape first, a cross
+   and a ring, and colour second. */
+
+.tictactoe-board {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    /* Measured against the column, not the viewport, and counting its own border -
+       the two mistakes behind boards running off the right edge. See NOTES.md. */
+    box-sizing: border-box;
+    width: min(100%, 22rem);
+    aspect-ratio: 1;
+    margin: 12px auto 0;
+    background: #f1ead6;                    /* .paper */
+    border: 3px solid #6b645a;              /* .grid */
+    border-radius: 8px;
+}
+
+/* No grid gap: the lines are the cells' own borders, so every cell is the same size and
+   a square's centre sits exactly at its third of the board - which is what the
+   strike-through's coordinates assume. */
+.tictactoe-cell {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 12%;
+    border: 0 solid #6b645a;                /* .grid */
+    background: transparent;
+    cursor: pointer;
+    touch-action: manipulation;             /* no double-tap zoom between two quick taps */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tictactoe-cell:not(:nth-child(3n)) { border-right-width: 3px; }
+.tictactoe-cell:nth-child(-n+6)     { border-bottom-width: 3px; }
+
+.tictactoe-cell svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 11;
+    stroke-linecap: round;
+}
+
+.tictactoe-cell[data-mark="X"] { color: #1f4f8f; }  /* .x */
+.tictactoe-cell[data-mark="O"] { color: #8a4b0f; }  /* .o */
+
+/* A taken square, the opponent's turn, or a finished game: a tap does nothing, and the
+   cursor should not promise otherwise. */
+.tictactoe-cell[data-mark="X"],
+.tictactoe-cell[data-mark="O"],
+.tictactoe-board.is-waiting .tictactoe-cell,
+.tictactoe-board.is-over .tictactoe-cell {
+    cursor: default;
+}
+
+.tictactoe-cell:focus-visible {
+    outline: 3px solid #1f4f8f;             /* .x */
+    outline-offset: -8px;
+}
+
+/* Laid over the grid; three board units a side, stretched to the board. The stroke is
+   kept in pixels so the stretching does not thin it. */
+.tictactoe-strike {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.tictactoe-board.is-struck .tictactoe-strike {
+    display: block;
+}
+
+.tictactoe-strike line {
+    stroke: #1c1a17;                        /* .strike */
+    stroke-width: 7px;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+#tictactoe-status {
+    min-height: 1.4em;
+    margin: 8px 0 0;
+}
+
+/* The tally must not jitter as it climbs. */
+#tictactoe-controls p {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Hub thumbnail: a finished game - a diagonal of crosses beside two noughts. Three by
+   three, so like Sequence's it restates the grid and drops the spare cells of the shared
+   4x4 markup. The frame and the gaps are the graphite lines. */
+.thumb-tictactoe {
+    background: #6b645a;                    /* Grid */
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+}
+
+.thumb-tictactoe span { background: #f1ead6; }              /* Paper */
+.thumb-tictactoe span:nth-child(1),
+.thumb-tictactoe span:nth-child(5),
+.thumb-tictactoe span:nth-child(9) { background: #1f4f8f; } /* Crosses */
+.thumb-tictactoe span:nth-child(2),
+.thumb-tictactoe span:nth-child(6) { background: #8a4b0f; } /* Noughts */
+
+/* The other seven cells of the shared 4x4 markup. */
+.thumb-tictactoe span:nth-child(n+10) { display: none; }
+
 /* --- GAME CONTROL BARS --- */
 /* The row of selects, buttons and readouts above each board.
  *
@@ -1243,11 +1367,22 @@ a:active  {color: #002e2c;}
     --control-on-text: #2f2a1f;
 }
 
+/* Keep in step with CONTROL_THEMES.tictactoe in js/logic.js. */
+#tictactoe-system {
+    --control-surface: #23384d; /* Ink */
+    --control-text: #f1ead6;    /* Paper */
+    --control-border: #8aa4bd;
+    --control-readout: #f1ead6;
+    --control-on: #e8c872;      /* Pencil yellow */
+    --control-on-text: #1c1a17;
+}
+
 /* Every control bar is the same shape; only the colours differ. */
 #game-controls,
 #tetris-controls,
 #mine-controls,
 #sequence-controls,
+#tictactoe-controls,
 #arrayForm,
 #toyColorPicker {
     display: flex;
@@ -1268,6 +1403,7 @@ a:active  {color: #002e2c;}
 #mine-controls select,
 #sequence-controls button,
 #sequence-controls select,
+#tictactoe-controls button,
 #arrayForm button,
 #arrayForm input,
 #toyColorPicker select,
@@ -1328,13 +1464,15 @@ a:active  {color: #002e2c;}
 #game-controls p,
 #tetris-controls p,
 #mine-controls p,
-#sequence-controls p {
+#sequence-controls p,
+#tictactoe-controls p {
     margin: 0;
     color: var(--control-readout);
 }
 
 #mine-status,
-#sequence-status {
+#sequence-status,
+#tictactoe-status {
     color: var(--control-readout);
 }
 
@@ -1348,6 +1486,7 @@ a:active  {color: #002e2c;}
     #tetris-controls button:hover:not(:disabled),
     #mine-controls button:hover:not(:disabled),
     #sequence-controls button:hover:not(:disabled),
+    #tictactoe-controls button:hover:not(:disabled),
     #arrayForm button:hover:not(:disabled),
     .game-view .back-btn:hover {
         border-color: var(--control-text);
@@ -1362,6 +1501,7 @@ a:active  {color: #002e2c;}
 #mine-controls select:focus-visible,
 #sequence-controls button:focus-visible,
 #sequence-controls select:focus-visible,
+#tictactoe-controls button:focus-visible,
 #arrayForm button:focus-visible,
 #arrayForm input:focus-visible,
 .game-view .back-btn:focus-visible {

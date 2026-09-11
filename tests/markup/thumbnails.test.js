@@ -12,6 +12,7 @@ import {
     MINE_NUMBER_TIERS,
     SEQUENCE_COLORS,
     SEQUENCE_PADS,
+    TICTACTOE_COLORS,
     TOY_COLORS,
     toHex,
 } from '../../js/logic.js';
@@ -56,6 +57,7 @@ const PALETTES = {
         SEQUENCE_PADS.map((pad) => pad.face),
         SEQUENCE_PADS.map((pad) => pad.lit),
     ),
+    tictactoe: paletteOf(Object.values(TICTACTOE_COLORS)),
     toy: paletteOf(TOY_COLORS.map((paint) => paint.value), TOY_SURFACES),
 };
 
@@ -100,5 +102,19 @@ describe('The sequence thumbnail', () => {
         });
         expect(pads.filter(Boolean)).toHaveLength(4);
         expect(pads).not.toContain(normalise(SEQUENCE_COLORS.panel));
+    });
+});
+
+// Tic-Tac-Toe is three by three - same reshaping, same way to fail quietly.
+describe('The tictactoe thumbnail', () => {
+    const rules = css.slice(css.indexOf('.thumb-tictactoe'));
+
+    test('is reshaped to the three-by-three board', () => {
+        expect(rules).toMatch(/grid-template-columns:\s*repeat\(3, 1fr\)/);
+        expect(rules).toMatch(/grid-template-rows:\s*repeat\(3, 1fr\)/);
+    });
+
+    test('drops the cells the shared markup has spare', () => {
+        expect(rules).toMatch(/\.thumb-tictactoe span:nth-child\(n\+10\)\s*\{\s*display:\s*none/);
     });
 });

@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -268,6 +268,35 @@ describe('Sequence palette', () => {
     test('the readout is legible on the panel', () => {
         expect(worstCaseContrast(SEQUENCE_COLORS.readout, panel))
             .toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+});
+
+describe('Tic-Tac-Toe palette', () => {
+    const { paper, grid, x, o, strike } = TICTACTOE_COLORS;
+
+    test.each([
+        ['the cross', x],
+        ['the nought', o],
+        ['the strike-through', strike],
+    ])('%s is legible on the paper', (_label, color) => {
+        expect(worstCaseContrast(color, paper)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    // An edge, not something read - the graphic threshold, as for control borders.
+    test('the grid lines are visible on the paper', () => {
+        expect(worstCaseContrast(grid, paper)).toBeGreaterThanOrEqual(3);
+    });
+
+    /* Shape is what separates a cross from a nought. Colour is the second cue, and a
+       second cue that collapses under simulation is not one. */
+    test('crosses and noughts are tellable apart by colour too', () => {
+        expect(areDistinguishable(x, o)).toBe(true);
+    });
+
+    // The line is drawn over the winning marks, so it has to stand off both inks.
+    test('the strike-through stands apart from the marks it crosses', () => {
+        expect(areDistinguishable(strike, x)).toBe(true);
+        expect(areDistinguishable(strike, o)).toBe(true);
     });
 });
 

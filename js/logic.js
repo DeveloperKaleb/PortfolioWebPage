@@ -681,6 +681,22 @@ export const SEQUENCE_PADS = [
     { name: 'brass',  face: '#cdba6e', lit: '#f7ecbc' },
 ];
 
+/* --- TIC-TAC-TOE PALETTE --- */
+/* Pencil and paper: ink-blue crosses, pencil-brown noughts, graphite lines. The marks
+   are told apart by shape first - a cross and a ring - and colour only second, but the
+   colour still has to hold up on its own: blue and brown sit at opposite ends of the
+   blue-yellow axis, which survives both kinds of red/green colour blindness.
+
+   The strike-through goes over whichever mark won, so it is near-black graphite - a
+   clear lightness step below both inks rather than a third hue beside them. */
+export const TICTACTOE_COLORS = {
+    paper: '#f1ead6',   // the board
+    grid: '#6b645a',    // graphite - the lines, and the frame
+    x: '#1f4f8f',       // ink blue
+    o: '#8a4b0f',       // pencil brown
+    strike: '#1c1a17',  // the winning line
+};
+
 /* --- CONTROL BAR THEMES --- */
 /* The row of selects, buttons and readouts above each board. These were browser
    defaults until now: identical grey chrome above five games that otherwise look
@@ -743,6 +759,18 @@ export const CONTROL_THEMES = {
         readout: '#e3e7af',
         activeSurface: '#dfe38c',
         activeText: '#2f2a1f',
+    },
+
+    /* Tic-Tac-Toe: the controls are the ink and their labels the paper, so the bar reads
+       as the same pad the board is drawn on. It has no toggle yet; the on state is
+       stated anyway so the theme is whole and asserted like the others. */
+    tictactoe: {
+        surface: '#23384d',      // Ink
+        text: '#f1ead6',         // Paper - TICTACTOE_COLORS.paper
+        border: '#8aa4bd',       // Washed ink
+        readout: '#f1ead6',
+        activeSurface: '#e8c872',// Pencil yellow
+        activeText: '#1c1a17',   // Graphite - TICTACTOE_COLORS.strike
     },
 };
 

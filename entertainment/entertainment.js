@@ -54,6 +54,20 @@ import {
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
+import {
+    createGame as createTicTacToe,
+    playerMove,
+    opponentMove,
+    isOpponentTurn,
+    isOver as isTicTacToeOver,
+    outcome as tictactoeOutcome,
+    otherMark,
+    pickOpponent,
+    emptyTally,
+    recordResult as recordTicTacToeResult,
+    MARKS as TICTACTOE_MARKS,
+    STATUS as TICTACTOE_STATUS
+} from '../js/tictactoe.js';
 import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
@@ -82,6 +96,7 @@ const views = {
     snake: document.getElementById('snake-system'),
     minesweeper: document.getElementById('minesweeper-system'),
     sequence: document.getElementById('sequence-system'),
+    tictactoe: document.getElementById('tictactoe-system'),
     toy: document.getElementById('toy-system'),
 };
 
@@ -95,6 +110,8 @@ function showView(name) {
     stopAllGames();
     hub.hidden = Boolean(name);
     Object.entries(views).forEach(([key, el]) => { el.hidden = key !== name; });
+    // Only now is the view on screen, which is when an opponent due to open may move.
+    if (name === 'tictactoe') scheduleTicTacToeReply();
 }
 
 function applyHashRoute() {
@@ -1174,6 +1191,169 @@ document.getElementById('sequenceStartBtn').addEventListener('click', () => init
 
 setSoundOn(soundOn);
 
+/* --- PART 6: TIC-TAC-TOE --- */
+/* Single player, against an opponent drawn at random for each game - a perfect player,
+   a deliberately bad one, or one that plays at random, a third of the time each - and
+   never named. Working out which one you are facing is left to the player; see
+   NOTES.md.
+
+   That puts a rule on this layer: nothing here may behave differently depending on who
+   the opponent is. Same pause before every reply, same messages, same look. The rules
+   and the three opponents are in js/tictactoe.js.
+
+   Like Minesweeper it ends in place rather than in the end-of-game dialog. The finished
+   position is the whole story of a game this small, and covering it to announce who
+   won would hide the evidence to report the verdict. */
+
+const tictactoeBoard = document.getElementById('tictactoeDisplay');
+const tictactoeStatusEl = document.getElementById('tictactoe-status');
+const tictactoeTallyEls = {
+    won: document.getElementById('tictactoe-won'),
+    drawn: document.getElementById('tictactoe-drawn'),
+    lost: document.getElementById('tictactoe-lost'),
+};
+
+/* Long enough that the reply is seen arriving rather than landing with the tap. Fixed,
+   and the same for all three opponents: a pause that tracked how hard the opponent had
+   to think would tell the player who it was. */
+const TICTACTOE_REPLY_MS = 450;
+
+const TICTACTOE_GLYPHS = {
+    X: '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path d="M24 24 L76 76 M76 24 L24 76" /></svg>',
+    O: '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="28" /></svg>',
+};
+
+let tictactoeGame = null;
+let tictactoeTally = emptyTally(); // this session only - a reload starts it again
+let tictactoeTimer = null;         // the opponent's pending reply
+
+/* Built once and repainted, like Minesweeper's board: replacing the buttons under a
+   finger cancels the tap on touch. The strike-through is an SVG laid over the grid in
+   board units - three a side - so a line between two squares' centres needs no
+   measuring. */
+function buildTicTacToeBoard() {
+    tictactoeBoard.innerHTML = Array.from({ length: 9 }, (_, i) =>
+        `<button type="button" class="tictactoe-cell" data-cell="${i}"></button>`).join('')
+        + '<svg class="tictactoe-strike" viewBox="0 0 3 3" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line /></svg>';
+}
+
+const tictactoeCentre = (cell) => ({ x: (cell % 3) + 0.5, y: Math.floor(cell / 3) + 0.5 });
+
+function drawTicTacToeStrike(line) {
+    tictactoeBoard.classList.toggle('is-struck', Boolean(line));
+    if (!line) return;
+
+    // Carried a little past the end squares' centres, so it reads as crossing them out.
+    const from = tictactoeCentre(line[0]);
+    const to = tictactoeCentre(line[2]);
+    const reach = 0.36;
+    const dx = Math.sign(to.x - from.x) * reach;
+    const dy = Math.sign(to.y - from.y) * reach;
+    const el = tictactoeBoard.querySelector('.tictactoe-strike line');
+    el.setAttribute('x1', from.x - dx);
+    el.setAttribute('y1', from.y - dy);
+    el.setAttribute('x2', to.x + dx);
+    el.setAttribute('y2', to.y + dy);
+}
+
+function drawTicTacToe() {
+    const game = tictactoeGame;
+    const { status, line } = tictactoeOutcome(game);
+    const over = status !== TICTACTOE_STATUS.PLAYING;
+
+    tictactoeBoard.querySelectorAll('.tictactoe-cell').forEach((cell) => {
+        const index = Number(cell.dataset.cell);
+        const mark = game.board[index] || '';
+        // Only rewritten when it changes, so a repaint never swaps out what is under a finger.
+        if (cell.dataset.mark !== mark) {
+            cell.dataset.mark = mark;
+            cell.innerHTML = mark ? TICTACTOE_GLYPHS[mark] : '';
+        }
+        cell.setAttribute('aria-label',
+            `Row ${Math.floor(index / 3) + 1}, column ${(index % 3) + 1}, ${mark || 'empty'}`);
+    });
+
+    drawTicTacToeStrike(line);
+    tictactoeBoard.classList.toggle('is-over', over);
+    tictactoeBoard.classList.toggle('is-waiting', isOpponentTurn(game));
+
+    Object.entries(tictactoeTallyEls).forEach(([key, el]) => { el.textContent = tictactoeTally[key]; });
+
+    /* None of these may depend on who the opponent is, and none describe the position -
+       the same rule Minesweeper's status line keeps. The mark for the next game is fine
+       to state: the alternation decides it, not the board. */
+    const you = game.playerMark;
+    const next = otherMark(you);
+    const untouched = game.board.every((cell) => cell === null);
+    const messages = {
+        [TICTACTOE_STATUS.PLAYING]: isOpponentTurn(game)
+            ? 'The opponent is thinking.'
+            : (untouched ? `You are ${you} and go first. Tap any square.` : `Your move. You are ${you}.`),
+        [TICTACTOE_STATUS.WON]: `You win. Next game you are ${next}.`,
+        [TICTACTOE_STATUS.LOST]: `The opponent wins. Next game you are ${next}.`,
+        [TICTACTOE_STATUS.DRAW]: `A draw. Next game you are ${next}.`,
+    };
+    tictactoeStatusEl.textContent = messages[status];
+    tictactoeStatusEl.classList.toggle('is-result', over);
+}
+
+/* The pause, then the reply - only while the view is on screen. stopAllGames resets
+   this game before the next view is shown, so a reply scheduled from there would be
+   played onto a hidden board; showView asks again once the view is visible. */
+function scheduleTicTacToeReply() {
+    if (tictactoeTimer || views.tictactoe.hidden || !isOpponentTurn(tictactoeGame)) return;
+    tictactoeTimer = setTimeout(() => {
+        tictactoeTimer = null;
+        if (views.tictactoe.hidden) return;
+        tictactoeGame = opponentMove(tictactoeGame);
+        settleTicTacToe();
+    }, TICTACTOE_REPLY_MS);
+}
+
+// After any move: score a finished game, repaint, and hand over if the opponent is next.
+function settleTicTacToe() {
+    if (isTicTacToeOver(tictactoeGame)) {
+        tictactoeTally = recordTicTacToeResult(tictactoeTally, tictactoeGame);
+    }
+    drawTicTacToe();
+    scheduleTicTacToeReply();
+}
+
+/* A new game with a freshly drawn opponent. The player swaps marks - and so who goes
+   first, since X always does - but only once the game before had a move in it. Leaving
+   the view, or pressing New Game on an untouched board, is not a game played and does
+   not use up a turn at going first. */
+function initTicTacToe() {
+    clearTimeout(tictactoeTimer);
+    tictactoeTimer = null;
+
+    const previous = tictactoeGame;
+    let playerMark = TICTACTOE_MARKS.X;
+    if (previous) {
+        const played = previous.board.some((cell) => cell !== null);
+        playerMark = played ? otherMark(previous.playerMark) : previous.playerMark;
+    }
+
+    tictactoeGame = createTicTacToe({ playerMark, opponent: pickOpponent() });
+    drawTicTacToe();
+}
+
+tictactoeBoard.addEventListener('click', (event) => {
+    const cell = event.target.closest('.tictactoe-cell');
+    if (!cell) return;
+    const next = playerMove(tictactoeGame, Number(cell.dataset.cell));
+    if (next === tictactoeGame) return; // not your turn, a taken square, or the game is over
+    tictactoeGame = next;
+    settleTicTacToe();
+});
+
+document.getElementById('tictactoeStartBtn').addEventListener('click', () => {
+    initTicTacToe();
+    scheduleTicTacToeReply();
+});
+
+buildTicTacToeBoard();
+
 /* --- Input Listeners --- */
 document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener
 
@@ -1423,6 +1603,11 @@ function stopAllGames() {
        pads and playing tones behind whatever view came next. Being audible, it would
        be the most intrusive of these to leave running. */
     initSequence();
+
+    /* Tic-Tac-Toe's opponent replies from a timeout, which has to be cancelled by name
+       like Sequence's. A game left half played is abandoned, not scored. The reply for
+       the fresh game is not scheduled from here - see scheduleTicTacToeReply. */
+    initTicTacToe();
 }
 
 /* --- Hub Navigation Listeners --- */

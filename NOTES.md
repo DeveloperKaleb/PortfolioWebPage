@@ -1135,6 +1135,60 @@ runs from a timer, outside the gesture, and Safari will not start a context from
 Reordering them would leave the game silent on iOS while working fine on the desktop it
 was tested on.
 
+## Tic-Tac-Toe: an opponent you have to work out
+
+Built 2026-09-10 at the project owner's request. Single player. Each game draws its
+opponent at random, a third of the time each: **optimal**, **deliberately bad**, or
+**random**. Rules and opponents in `js/tictactoe.js`; the clock and the board in
+`entertainment.js`.
+
+**The opponent is never revealed** - not during play, not at the end. The owner's call,
+chosen over revealing it at the end: working out who you are up against is part of the
+game. That makes a rule for everything around it: **nothing may vary with the
+opponent.** The obvious leaks are closed off deliberately:
+
+- **The reply delay is fixed** (`TICTACTOE_REPLY_MS`). A delay that tracked how long the
+  search took would be a tell. Minimax is memoised, so it is instant anyway, but the pause
+  is not allowed to depend on that.
+- **Messages are identical** for all three. "The opponent is thinking" is said by the
+  random player too.
+- **The optimal player's opening says nothing.** It picks at random among all equally
+  good moves, and from an empty board every move draws with best play - so all nine are
+  equal and its first move is uniform, exactly like the random player's. A perfect player
+  that always took the centre would give itself away on move one. Tested.
+
+**Optimal** is full minimax, scored so a sooner win is worth more and a later loss costs
+less - otherwise it dawdles through won positions, which looks like a mistake to a person
+watching. Tested exhaustively: every player line against every optimal choice, from both
+sides, and it never loses.
+
+**Deliberately bad** plays at random, except it never takes a win that is sitting there
+and never blocks yours. When every open square is one of those it has no choice and
+plays one, so a player who refuses to finish a line can still lose to it. The owner chose
+this over "tries to lose" (reverse minimax), knowing it is the harder of the two to tell
+apart from random - which, with the opponent hidden, is part of the puzzle rather than a
+problem.
+
+**Who goes first alternates.** X always moves first; the player swaps between X and O -
+but only once the game before had a move in it. Leaving the view or pressing New Game on
+an untouched board is not a game played, so it does not use up a turn at going first.
+
+**The tally** (won / drawn / lost) is session-only and counts finished games only. An
+abandoned game counts for nothing, which means a losing position can be dodged with New
+Game. Accepted: nobody is being ranked.
+
+**It ends in place, like Minesweeper**, with the result as a banner in the status line and
+the winning line struck through - a graphite line over the marks, so the win is a shape
+and not only a colour. The dialog would cover the one thing worth looking at.
+
+**The reply is scheduled from `showView`, not from `stopAllGames`.** `stopAllGames` runs
+before the new view is unhidden, so when the player is O, a fresh game's opening move
+scheduled from there would land on a hidden board, or fire behind another game. The
+timer also checks the view is visible when it fires.
+
+The hub tile is reshaped to 3x3 the way Sequence's is to 2x2, and pinned by the same kind
+of test.
+
 ## Ideas not yet built
 
 Kept with dates and attribution so they can be prioritised later rather than
