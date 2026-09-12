@@ -1494,7 +1494,9 @@ a:active  {color: #002e2c;}
 .pets-scene {
     position: relative;
     box-sizing: border-box;
-    width: min(100%, 30rem);
+    /* 34rem, up from 30rem when the room grew from 52 to 60 pixels wide - so on a desktop
+       the dog keeps much the same size and simply has more room around it. */
+    width: min(100%, 34rem);
     margin: 12px auto 0;
     background: #f1ead6;                    /* .wall */
     border: 3px solid #3b2a1a;              /* .outline */
@@ -1506,7 +1508,7 @@ a:active  {color: #002e2c;}
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 52 / 26;
+    aspect-ratio: 60 / 30;
 }
 
 /* Where a stroke lands. This and the two items are the only things that refuse to
@@ -1541,7 +1543,7 @@ a:active  {color: #002e2c;}
     justify-content: center;
     gap: 28px;
     box-sizing: border-box;
-    width: min(100%, 30rem);
+    width: min(100%, 34rem);
     margin: 14px auto 0;
     padding: 10px;
     background: #e6dcc2;                    /* .tray */

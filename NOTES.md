@@ -1440,8 +1440,11 @@ clock and input in `entertainment.js`, and the colours in `PETS_COLORS`.
 
 **Sprites are data.** They are rows of palette keys in `js/pets.js`, drawn as SVG rects
 with `shape-rendering="crispEdges"`. Horizontal runs are merged, so a frame is tens of
-rects rather than hundreds. The room is 52 × 26 pixels, making each pixel six to nine
-screen pixels across: visible, as asked. The dog is two layers, head and body, so a pose
+rects rather than hundreds. The room is 60 × 30 pixels, grown from 52 × 26 when the
+owner asked for a little more room. Its on-screen limit went from 30rem to 34rem at the same
+time, so on a desktop the dog keeps much the same size with more space around it. On a
+phone the room already fills the column, so each pixel is a little smaller - still plainly
+visible, which was the brief. The dog is two layers, head and body, so a pose
 moves the head without redrawing the dog - raised toward the hand while petted, lowered
 into the bowl while eating.
 
@@ -1455,6 +1458,13 @@ the build, and that caught four things no test could:
 
 Eating now has its own body with the neck sloping down, petting moves only the head, and
 the bowls are drawn in front of the dog so a lowered head looks like it is in the bowl.
+
+**The dog rests sitting, and gets up only for food or water** - the owner's call,
+2026-09-12, "at this stage". Petting and barking happen sitting down; a filled bowl brings
+it to its feet to walk over, and once home it sits again. The state is a `posture` (sit,
+stand or down) plus a separate `leaning` flag for a head raised into a stroking hand, so a
+lean works in any posture. The sitting body shares the standing body's neck, which is what
+lets one head position serve both; its wag lifts the tip of the tail off the floor.
 
 **Petting.** A stroke is travel, not a tap: 24px of movement over the dog while pressed.
 The dog stops rubbing once the hand has been still for 450ms. It barks once per stroke:

@@ -95,6 +95,33 @@ const DOG_BODY_DOWN = patchRows(DOG_BODY, [
     [8, 6, '...ofc'],
 ]);
 
+/* Sitting, the resting pose: front legs straight under the chest, the back sloping down to
+   the haunch, the tail along the floor behind. The neck is the standing body's, so the
+   head sits in the same place on both. */
+const DOG_SIT = [
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '..........ffo...............',
+    '..........fffo..............',
+    '..........fcffo.............',
+    '......olfffcfffo............',
+    '......ollffcffffo...........',
+    '......olllfcfffffo..........',
+    '......olllffffffffo.........',
+    '......ollssfffffffso........',
+    '.......ofsoffffffssso.......',
+    '.......ofsofffffssssso......',
+    '.......ofsoffffsssssso......',
+    '.......ofsoffffssssssooooo..',
+    '.......ofsofffffffffffffffo.',
+    '.......oooooooooooooooooooo.',
+];
+
+// The tip of the tail lifting off the floor, for the wag while sitting.
+const TAIL_SWISH = [[14, 22, '..oo'], [15, 21, 'ooofo.'], [16, 24, 'fo..'], [17, 24, 'oo..']];
+
 export const SPECIES = {
     dog: {
         name: 'Dog',
@@ -108,6 +135,8 @@ export const SPECIES = {
             bark: patchRows(DOG_HEAD, [[5, 1, 'nnnn']]),
         },
         body: {
+            sit: DOG_SIT,
+            sitWag: patchRows(DOG_SIT, TAIL_SWISH),
             stand: DOG_BODY,
             wag: patchRows(DOG_BODY, TAIL_UP),
             down: DOG_BODY_DOWN,
@@ -116,13 +145,25 @@ export const SPECIES = {
     },
 };
 
-/* Where the head sits over the body in each pose. Leaning is one pixel toward the hand
-   and one up - only the head moves, because an earlier draft lifted the whole dog and it
-   read as jumping. Down puts the muzzle in the bowl; chompUp is the half of a mouthful
-   where the head comes back up a pixel. */
-export function headOffset(pose, { leanDx = -1, chompUp = false } = {}) {
-    if (pose === 'lean') return { dx: leanDx, dy: -1 };
-    if (pose === 'down') return { dx: -2, dy: chompUp ? 6 : 7 };
+/* The dog rests sitting - the owner's call. It gets up only to go to a bowl; petting and
+   barking happen sitting down, and it sits again once it is home. */
+export const RESTING_POSTURE = 'sit';
+
+// Which body to draw for a posture - sit, stand or down - with the tail going if wagging.
+export const bodyFrame = (posture, wag = false) => ({
+    sit: wag ? 'sitWag' : 'sit',
+    stand: wag ? 'wag' : 'stand',
+    down: wag ? 'downWag' : 'down',
+}[posture] ?? (wag ? 'sitWag' : 'sit'));
+
+/* Where the head sits over the body. Sitting and standing share a neck, so the head is in
+   the same place on both. Leaning into a stroking hand is one pixel toward it and one up -
+   only the head moves, because an earlier draft lifted the whole dog and it read as
+   jumping. Down puts the muzzle in the bowl; chompUp is the half of a mouthful where the
+   head comes back up a pixel. */
+export function headOffset(posture, { leaning = false, leanDx = -1, chompUp = false } = {}) {
+    if (posture === 'down') return { dx: -2, dy: chompUp ? 6 : 7 };
+    if (leaning) return { dx: leanDx, dy: -1 };
     return { dx: 0, dy: 0 };
 }
 
@@ -149,19 +190,20 @@ export function spriteRuns(rows) {
 
 /* --- The room ---
  *
- * 52 x 26 pixels, so on a phone each pixel is six or seven screen pixels across: small
- * enough to be a scene, large enough that the pixels are plainly visible, which was the
- * brief. */
+ * 60 x 30 pixels. It was 52 x 26 until the owner asked for a little more room: the dog now
+ * has more space around it, and on a desktop, where the room may also grow wider, it stays
+ * much the same size. On a phone, where the room is already as wide as the page, each
+ * pixel is a little smaller - still plainly visible, which was the brief. */
 
-export const SCENE = { width: 52, height: 26, floorY: 18 };
-export const DOG_Y = 6;
-export const HOME_X = 22;
+export const SCENE = { width: 60, height: 30, floorY: 21 };
+export const DOG_Y = 10;
+export const HOME_X = 28;
 
 export const BOWL_SIZE = { width: 9, height: 5 };
 export const BOWL_LEVELS = 3;
 export const BOWLS = {
-    food: { x: 1, y: 19 },
-    water: { x: 12, y: 19 },
+    food: { x: 2, y: 23 },
+    water: { x: 14, y: 23 },
 };
 export const ITEMS = ['food', 'water'];
 

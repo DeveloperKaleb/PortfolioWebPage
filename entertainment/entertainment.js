@@ -1709,9 +1709,8 @@ function buildPetsScene() {
 
 function drawPet() {
     const species = petSpecies();
-    const down = pets.pose === 'down';
-    const body = species.body[down ? (pets.wag ? 'downWag' : 'down') : (pets.wag ? 'wag' : 'stand')];
-    const offset = Pets.headOffset(pets.pose, { leanDx: pets.leanDx, chompUp: pets.chompUp });
+    const body = species.body[Pets.bodyFrame(pets.posture, pets.wag)];
+    const offset = Pets.headOffset(pets.posture, { leaning: pets.leaning, leanDx: pets.leanDx, chompUp: pets.chompUp });
 
     const dog = petsSvg.querySelector('.pets-dog');
     dog.setAttribute('transform', `translate(${pets.x} ${Pets.DOG_Y})`);
@@ -1755,7 +1754,8 @@ function resetPets() {
         species: Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog',
         x: Pets.HOME_X,
         activity: 'idle',   // idle | walking | eating | drinking
-        pose: 'stand',      // stand | lean | down
+        posture: Pets.RESTING_POSTURE, // sit | stand | down - it rests sitting
+        leaning: false,     // head raised into a stroking hand
         eyes: 'open',       // open | closed | bark
         wag: false,
         leanDx: -1,
@@ -1806,15 +1806,18 @@ function petsBusyMessage() {
 function showPetRubbing(leanDx) {
     pets.leanDx = leanDx;
     if (pets.eyes === 'bark') return; // the bark finishes first, then the rub resumes
-    pets.pose = petsReduceMotion.matches ? 'stand' : 'lean';
+    // Only the head moves: the dog stays sitting to be petted.
+    pets.leaning = !petsReduceMotion.matches;
     pets.eyes = 'closed';
     setPetWagging(true);
     drawPet();
 }
 
-// Back to standing quietly - and, if something was put in a bowl meanwhile, over to it.
+/* Back to resting quietly - sitting, if it is at home - and, if something was put in a bowl
+   meanwhile, over to it. */
 function settlePet() {
-    pets.pose = 'stand';
+    pets.leaning = false;
+    if (pets.activity === 'idle') pets.posture = Pets.RESTING_POSTURE;
     pets.eyes = 'open';
     setPetWagging(false);
     drawPet();
@@ -1982,9 +1985,11 @@ function walkPetTo(targetX, arrived) {
     }, PETS_STEP_MS);
 }
 
+// Getting up: food or water is the only thing that brings the dog to its feet.
 function visitBowl(kind) {
     pets.activity = 'walking';
-    pets.pose = 'stand';
+    pets.posture = 'stand';
+    pets.leaning = false;
     pets.eyes = 'open';
     setPetWagging(true);
     walkPetTo(Pets.dogXForBowl(kind), () => startEating(kind));
@@ -1992,7 +1997,7 @@ function visitBowl(kind) {
 
 function startEating(kind) {
     pets.activity = kind === 'food' ? 'eating' : 'drinking';
-    pets.pose = 'down';
+    pets.posture = 'down';
     pets.chompUp = false;
     drawPet();
 
@@ -2015,7 +2020,7 @@ function startEating(kind) {
 
 // Then to the other bowl if it has something in it, or home.
 function finishEating(kind) {
-    pets.pose = 'stand';
+    pets.posture = 'stand';
     pets.chompUp = false;
     const next = Pets.bowlToVisit(pets.bowls, kind === 'food' ? 'water' : 'food');
     if (next) {

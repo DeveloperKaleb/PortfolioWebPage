@@ -5,6 +5,8 @@ import {
     SPECIES,
     patchRows,
     headOffset,
+    RESTING_POSTURE,
+    bodyFrame,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -71,6 +73,7 @@ describe('The sprites', () => {
         expect(dog.head.closed).not.toEqual(dog.head.open);
         expect(dog.head.bark).not.toEqual(dog.head.open);
         expect(dog.body.wag).not.toEqual(dog.body.stand);
+        expect(dog.body.sitWag).not.toEqual(dog.body.sit);
     });
 
     test('patching overwrites pixels without resizing the sprite', () => {
@@ -91,13 +94,33 @@ describe('The sprites', () => {
 });
 
 describe('Poses', () => {
-    test('standing leaves the head where it is', () => {
+    // The owner's call: the dog rests sitting, and gets up only for food or water.
+    test('the dog rests sitting', () => {
+        expect(RESTING_POSTURE).toBe('sit');
+        expect(bodyFrame(RESTING_POSTURE)).toBe('sit');
+        expect(dog.body.sit).not.toEqual(dog.body.stand);
+    });
+
+    test.each([
+        ['sit', false, 'sit'],
+        ['sit', true, 'sitWag'],
+        ['stand', false, 'stand'],
+        ['stand', true, 'wag'],
+        ['down', false, 'down'],
+        ['down', true, 'downWag'],
+    ])('%s, wagging %s, draws the %s body', (posture, wag, frame) => {
+        expect(bodyFrame(posture, wag)).toBe(frame);
+        expect(dog.body).toHaveProperty(frame);
+    });
+
+    test('sitting and standing leave the head where it is', () => {
+        expect(headOffset('sit')).toEqual({ dx: 0, dy: 0 });
         expect(headOffset('stand')).toEqual({ dx: 0, dy: 0 });
     });
 
-    test('leaning raises the head a pixel toward the hand', () => {
-        expect(headOffset('lean', { leanDx: -1 })).toEqual({ dx: -1, dy: -1 });
-        expect(headOffset('lean', { leanDx: 1 })).toEqual({ dx: 1, dy: -1 });
+    test('leaning, sitting or standing, raises the head a pixel toward the hand', () => {
+        expect(headOffset('sit', { leaning: true, leanDx: -1 })).toEqual({ dx: -1, dy: -1 });
+        expect(headOffset('stand', { leaning: true, leanDx: 1 })).toEqual({ dx: 1, dy: -1 });
     });
 
     test('eating lowers the head, and a mouthful brings it up a pixel', () => {
@@ -139,6 +162,8 @@ describe('The room', () => {
         const muzzleRight = x + dx + 5;
         expect(muzzleLeft).toBeGreaterThanOrEqual(BOWLS[kind].x);
         expect(muzzleRight).toBeLessThanOrEqual(BOWLS[kind].x + BOWL_SIZE.width - 1);
+        // ...and at the height of what is in it: the head's bottom row on the contents row.
+        expect(DOG_Y + headOffset('down').dy + dog.head.open.length - 1).toBe(BOWLS[kind].y);
     });
 
     test('walking goes a pixel at a time and stops at the target', () => {
