@@ -1646,7 +1646,6 @@ const PETS_STEP_MS = 70;          // one pixel of walking
 const PETS_HALF_CHOMP_MS = 190;   // head up, or head down
 const PETS_HALF_CHOMPS_PER_BITE = 4;
 const PETS_WAG_MS = 170;
-const PETS_BARK_MS = 280;         // how long the mouth stays open
 const PETS_TICK_MS = 100;         // how often a held stroke is checked
 const PETS_HINT_MS = 2800;        // how long a hint stays before the usual line returns
 const PETS_DROP_PAD = 24;         // slack around a bowl for a finger
@@ -1711,8 +1710,13 @@ function buildPetsScene() {
 
 function drawPet() {
     const species = petSpecies();
-    const body = species.body[Pets.bodyFrame(pets.posture, pets.wag)];
-    const offset = Pets.headOffset(pets.posture, { leaning: pets.leaning, leanDx: pets.leanDx, chompUp: pets.chompUp });
+    const body = species.body[Pets.bodyFrame(pets.posture, pets.wag, pets.stepsWalked)];
+    const offset = Pets.headOffset(pets.posture, {
+        leaning: pets.leaning,
+        leanDx: pets.leanDx,
+        chompUp: pets.chompUp,
+        stepsWalked: pets.stepsWalked,
+    });
 
     const dog = petsSvg.querySelector('.pets-dog');
     /* Facing right is the same drawing mirrored within its own box, so the dog stays in the
@@ -1740,13 +1744,13 @@ function petsHint(message) {
 }
 
 function clearPetsTimers() {
-    const { walk, chomp, wag, tick, bark, hint, fidget } = pets.timers;
+    const { walk, chomp, wag, tick, barkSteps, hint, fidget } = pets.timers;
     clearTimeout(fidget);
     clearInterval(walk);
     clearInterval(chomp);
     clearInterval(wag);
     clearInterval(tick);
-    clearTimeout(bark);
+    barkSteps.forEach(clearTimeout);
     clearTimeout(hint);
 }
 
@@ -1763,8 +1767,10 @@ function resetPets() {
         homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
         facing: 'left',     // left | right - right only while walking right
         activity: 'idle',   // idle | walking | eating | drinking | fidgeting
-        posture: Pets.RESTING_POSTURE, // sit | stand | down - it rests sitting
+        posture: Pets.RESTING_POSTURE, // sit | stand | down | walk - it rests sitting
         leaning: false,     // head raised into a stroking hand
+        barking: false,     // from the first yip to the end of the last, gaps included
+        stepsWalked: 0,     // pixels into the current walk, for the leg frames
         eyes: 'open',       // open | happy | bark
         wag: false,
         leanDx: -1,
@@ -1772,7 +1778,7 @@ function resetPets() {
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
-        timers: { walk: null, chomp: null, wag: null, tick: null, bark: null, hint: null, fidget: null },
+        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], hint: null, fidget: null },
     };
 
     petsDogHit.setAttribute('aria-label', `${petSpecies().description}. Stroke it to pet it.`);
@@ -1815,7 +1821,7 @@ function petsBusyMessage() {
 // Leaning into the hand: head raised toward it, eyes closed, tail going.
 function showPetRubbing(leanDx) {
     pets.leanDx = leanDx;
-    if (pets.eyes === 'bark') return; // the bark finishes first, then the rub resumes
+    if (pets.barking) return; // the bark finishes first, then the rub resumes
     // Only the head moves: the dog stays sitting to be petted.
     pets.leaning = !petsReduceMotion.matches;
     pets.eyes = 'happy';
@@ -1865,24 +1871,47 @@ function playBark() {
     source.start();
 }
 
-// The mouth opens and the bark sounds together - the same pairing Sequence keeps.
+/* The mouth opens and the bark sounds together - the same pairing Sequence keeps - and now
+   once per yip rather than once for the whole bark. barkMouthTimes in js/pets.js says
+   when, from the same settings the sound is built from. Between yips the face goes back to
+   what it was, happy if the dog is still being stroked; after the last yip the dog settles
+   as before. `barking` covers the whole bark, gaps included, so a stroke that ends between
+   yips does not cut the bark short. */
 function barkPet() {
     pets.lastBarkAt = performance.now();
-    pets.eyes = 'bark';
+    pets.barking = true;
     setPetWagging(true);
-    drawPet();
     playBark();
 
-    clearTimeout(pets.timers.bark);
-    pets.timers.bark = setTimeout(() => {
-        pets.timers.bark = null;
-        if (pets.stroke && Pets.isRubbing(pets.stroke, performance.now())) {
-            pets.eyes = 'happy';
+    pets.timers.barkSteps.forEach(clearTimeout);
+    pets.timers.barkSteps = [];
+    const stillStroked = () => pets.stroke && Pets.isRubbing(pets.stroke, performance.now());
+    const times = Pets.barkMouthTimes();
+
+    times.forEach(({ openMs, closeMs }, i) => {
+        const openMouth = () => {
+            pets.eyes = 'bark';
             drawPet();
-        } else {
-            settlePet();
-        }
-    }, PETS_BARK_MS);
+        };
+        if (openMs === 0) openMouth();
+        else pets.timers.barkSteps.push(setTimeout(openMouth, openMs));
+
+        pets.timers.barkSteps.push(setTimeout(() => {
+            if (i < times.length - 1) {
+                pets.eyes = stillStroked() ? 'happy' : 'open';
+                drawPet();
+                return;
+            }
+            pets.barking = false;
+            pets.timers.barkSteps = [];
+            if (stillStroked()) {
+                pets.eyes = 'happy';
+                drawPet();
+            } else {
+                settlePet();
+            }
+        }, closeMs));
+    });
 }
 
 // While a stroke is held: bark on a long pet, and stop rubbing when the hand goes still.
@@ -1894,7 +1923,7 @@ function petsTick() {
         barkPet();
         return;
     }
-    if (pets.eyes === 'happy' && !Pets.isRubbing(pets.stroke, now)) settlePet();
+    if (!pets.barking && pets.eyes === 'happy' && !Pets.isRubbing(pets.stroke, now)) settlePet();
 }
 
 function endPetStroke() {
@@ -1907,7 +1936,7 @@ function endPetStroke() {
 
     if (Pets.barkDue(stroke, { now: performance.now(), ending: true, lastBarkAt: pets.lastBarkAt })) {
         barkPet();
-    } else if (pets.eyes !== 'bark') {
+    } else if (!pets.barking) {
         settlePet();
     }
 }
@@ -1963,14 +1992,24 @@ function walkPetTo(targetX, arrived) {
         arrived();
         return;
     }
+
+    /* The legs cycle through WALK_CYCLE as the dog goes - a frame every couple of pixels,
+       the head dipping on each stride - and it arrives standing. The pace is unchanged. */
+    pets.posture = 'walk';
+    pets.stepsWalked = 0;
+    drawPet();
     pets.timers.walk = setInterval(() => {
         pets.x = Pets.stepToward(pets.x, targetX);
-        drawPet();
+        pets.stepsWalked += 1;
         if (pets.x === targetX) {
             clearInterval(pets.timers.walk);
             pets.timers.walk = null;
+            pets.posture = 'stand';
+            drawPet();
             arrived();
+            return;
         }
+        drawPet();
     }, PETS_STEP_MS);
 }
 

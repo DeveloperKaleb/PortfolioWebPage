@@ -1515,6 +1515,27 @@ never barks within 2.5s of the last bark, so it cannot be made to yap, and a tap
 barks. All of that is pure and tested (`moveStroke`, `isRubbing`, `barkDue`). While
 walking, eating or drinking the dog ignores petting, and the status line says why.
 
+**The dog walks on moving legs, and barks with its mouth** (2026-09-12). Both asked for by
+the owner, to close the gap between what the player sees and what they are asked to
+believe: that the dog is real.
+
+- **The walk cycle.** Before this the dog slid along on still legs. Walking now cycles
+  four frames - a stride, the legs passing, the opposite stride, passing again -
+  advancing one frame per two pixels walked, so the legs keep pace with the ground at the
+  unchanged speed. The passing frames are the standing body. A stride replaces only the
+  legs and feet (rows 13 to 17). Standing, each pair of legs is one post, near leg in fur
+  and far leg in shade; a stride splits them, the near legs reaching one way and the far
+  legs the other. The head dips a pixel on each stride, the bob of a real gait. Walking
+  right mirrors the same frames. At this size the two strides differ mainly in which leg
+  is shaded, so they read as a rhythm more than as two distinct poses - worth judging in
+  motion before redrawing. Reduced motion has no walk, so it has no leg frames either.
+- **The mouth opens once per yip.** It used to open once, for 280ms, across the whole
+  double bark. `barkMouthTimes` works out each yip's open and close times from `BARK` -
+  the same settings the sound is built from - so the mouth stays in time if the bark
+  changes. Between yips the face returns to what it was, happy if still being stroked. A
+  `barking` flag covers the whole bark, gaps included, so a stroke ending between yips
+  cannot settle the dog halfway through.
+
 **The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
 neck, and when the owner circled it and asked what it was meant to be, the honest answer
 was that it did not read as anything.

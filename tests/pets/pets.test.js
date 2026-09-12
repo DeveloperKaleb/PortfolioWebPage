@@ -7,6 +7,10 @@ import {
     headOffset,
     RESTING_POSTURE,
     bodyFrame,
+    WALK_CYCLE,
+    PIXELS_PER_WALK_FRAME,
+    walkFrame,
+    barkMouthTimes,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -134,6 +138,35 @@ describe('Poses', () => {
     ])('%s, wagging %s, draws the %s body', (posture, wag, frame) => {
         expect(bodyFrame(posture, wag)).toBe(frame);
         expect(dog.body).toHaveProperty(frame);
+    });
+
+    test('walking cycles stride, passing, other stride, passing - a frame every two pixels', () => {
+        expect(WALK_CYCLE).toEqual(['walkA', 'stand', 'walkB', 'stand']);
+        expect(PIXELS_PER_WALK_FRAME).toBe(2);
+        expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map(walkFrame))
+            .toEqual(['walkA', 'walkA', 'stand', 'stand', 'walkB', 'walkB', 'stand', 'stand', 'walkA']);
+    });
+
+    test('a walking dog draws its walk frame, with the tail up when wagging', () => {
+        expect(bodyFrame('walk', false, 0)).toBe('walkA');
+        expect(bodyFrame('walk', true, 0)).toBe('walkAWag');
+        expect(bodyFrame('walk', true, 2)).toBe('wag');
+        expect(bodyFrame('walk', false, 4)).toBe('walkB');
+        ['walkA', 'walkAWag', 'walkB', 'walkBWag'].forEach((frame) => expect(dog.body).toHaveProperty(frame));
+    });
+
+    // A stride moves the legs, and nothing else - the collar, back and tail stay put.
+    test('the strides really move the legs, and leave the body above them alone', () => {
+        expect(dog.body.walkA).not.toEqual(dog.body.stand);
+        expect(dog.body.walkB).not.toEqual(dog.body.walkA);
+        expect(dog.body.walkA.slice(0, 13)).toEqual(dog.body.stand.slice(0, 13));
+        expect(dog.body.walkB.slice(0, 13)).toEqual(dog.body.stand.slice(0, 13));
+    });
+
+    test('the head dips a pixel on each stride, and not while the legs pass', () => {
+        expect(headOffset('walk', { stepsWalked: 0 })).toEqual({ dx: 0, dy: 1 });
+        expect(headOffset('walk', { stepsWalked: 2 })).toEqual({ dx: 0, dy: 0 });
+        expect(headOffset('walk', { stepsWalked: 4 })).toEqual({ dx: 0, dy: 1 });
     });
 
     test('sitting and standing leave the head where it is', () => {
@@ -446,6 +479,22 @@ describe('The bark', () => {
             expect(value).toBeGreaterThanOrEqual(0);
             expect(value).toBeLessThan(1);
         });
+    });
+
+    // The owner's ask: the mouth opens once per yip, not once for the whole bark.
+    test('the mouth opens once per yip, and each opening lasts as long as its yip', () => {
+        const times = barkMouthTimes();
+        expect(times).toHaveLength(BARK.yips.length);
+        expect(times[0]).toEqual({ openMs: 0, closeMs: first.durationMs });
+        expect(times[1].openMs).toBe(first.durationMs + second.gapMs);
+        expect(times[1].closeMs).toBeCloseTo(secondEndMs, 5);
+    });
+
+    test('the mouth is open while each yip is loud, and shut in the quieter gap', () => {
+        const [yip1, yip2] = barkMouthTimes();
+        const gap = loudestBetween(yip1.closeMs + 10, yip2.openMs - 5);
+        expect(loudestBetween(yip1.openMs, yip1.closeMs)).toBeGreaterThan(gap);
+        expect(loudestBetween(yip2.openMs, yip2.closeMs)).toBeGreaterThan(gap);
     });
 
     // "Gentle and appreciative": played well below full scale.

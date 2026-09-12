@@ -125,6 +125,27 @@ const DOG_SIT = [
 // The tip of the tail lifting off the floor, for the wag while sitting.
 const TAIL_SWISH = [[14, 22, '..oo'], [15, 21, 'ooofo.'], [16, 24, 'fo..'], [17, 24, 'oo..']];
 
+/* The walk's two strides - the legs and feet only, rows 13 to 17; everything above is the
+   standing body. Standing, each pair of legs is drawn as one post, the near leg in fur and
+   the far leg in shade. A stride splits them: in the first the near front leg reaches
+   forward and the near back leg back, with the far legs the other way; the second is the
+   opposite. The frames between them are the standing body, the legs passing underneath. */
+const STRIDE_A = [
+    '.......ofso.......offso.....',
+    '......ofooso.....osoffo.....',
+    '.....ofo..oso...oso.offo....',
+    '.....ofo..oso...oso.offo....',
+    '.....ooo..ooo...ooo.oooo....',
+].map((text, i) => [13 + i, 0, text]);
+
+const STRIDE_B = [
+    '.......ofso.......offso.....',
+    '......osoofo.....offoso.....',
+    '.....oso..ofo...offo.oso....',
+    '.....oso..ofo...offo.oso....',
+    '.....ooo..ooo...oooo.ooo....',
+].map((text, i) => [13 + i, 0, text]);
+
 /* The collar. It was a one-pixel strip standing up the neck, and the owner could not tell
    what it was meant to be - rightly: a collar seen from the side is a band slanting across
    the neck, from the nape down to the throat. So that is what is drawn, two pixels deep
@@ -159,6 +180,10 @@ export const SPECIES = {
             wag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...TAIL_UP]),
             down: patchRows(DOG_BODY_DOWN, COLLAR_LOWERED),
             downWag: patchRows(DOG_BODY_DOWN, [...COLLAR_LOWERED, ...TAIL_UP]),
+            walkA: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_A]),
+            walkAWag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_A, ...TAIL_UP]),
+            walkB: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_B]),
+            walkBWag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_B, ...TAIL_UP]),
         },
     },
 };
@@ -167,21 +192,41 @@ export const SPECIES = {
    barking happen sitting down, and it sits again once it is home. */
 export const RESTING_POSTURE = 'sit';
 
-// Which body to draw for a posture - sit, stand or down - with the tail going if wagging.
-export const bodyFrame = (posture, wag = false) => ({
-    sit: wag ? 'sitWag' : 'sit',
-    stand: wag ? 'wag' : 'stand',
-    down: wag ? 'downWag' : 'down',
-}[posture] ?? (wag ? 'sitWag' : 'sit'));
+/* The walk: four frames - a stride, the legs passing under the body, the opposite stride,
+   passing again - advancing a frame for every two pixels walked, so the legs keep pace
+   with the ground however far the dog goes. Before this the dog slid along on still legs,
+   and the owner wanted to close the gap between what the player sees and what they are
+   asked to believe. The passing frames are simply the standing body. */
+export const WALK_CYCLE = ['walkA', 'stand', 'walkB', 'stand'];
+export const PIXELS_PER_WALK_FRAME = 2;
+
+export const walkFrame = (stepsWalked) =>
+    WALK_CYCLE[Math.floor(stepsWalked / PIXELS_PER_WALK_FRAME) % WALK_CYCLE.length];
+
+// Which body to draw for a posture - sit, stand, down or walk - with the tail going if wagging.
+export function bodyFrame(posture, wag = false, stepsWalked = 0) {
+    if (posture === 'walk') {
+        const frame = walkFrame(stepsWalked);
+        if (frame === 'stand') return wag ? 'wag' : 'stand';
+        return wag ? `${frame}Wag` : frame;
+    }
+    return {
+        sit: wag ? 'sitWag' : 'sit',
+        stand: wag ? 'wag' : 'stand',
+        down: wag ? 'downWag' : 'down',
+    }[posture] ?? (wag ? 'sitWag' : 'sit');
+}
 
 /* Where the head sits over the body. Sitting and standing share a neck, so the head is in
    the same place on both. Leaning into a stroking hand is one pixel toward it and one up -
    only the head moves, because an earlier draft lifted the whole dog and it read as
    jumping. Down puts the muzzle in the bowl; chompUp is the half of a mouthful where the
    head comes back up a pixel. */
-export function headOffset(posture, { leaning = false, leanDx = -1, chompUp = false } = {}) {
+export function headOffset(posture, { leaning = false, leanDx = -1, chompUp = false, stepsWalked = 0 } = {}) {
     if (posture === 'down') return { dx: -2, dy: chompUp ? 6 : 7 };
     if (leaning) return { dx: leanDx, dy: -1 };
+    // Walking, the head dips a pixel on each stride: the bob of a real gait.
+    if (posture === 'walk' && walkFrame(stepsWalked) !== 'stand') return { dx: 0, dy: 1 };
     return { dx: 0, dy: 0 };
 }
 
@@ -416,6 +461,19 @@ export const BARK = {
     peak: 0.9,           // the loudest sample, before the playback level
     playbackGain: 0.3,   // how loud it is played
 };
+
+/* When the mouth is open during a bark: once per yip, from the moment it starts to the
+   moment it ends. Worked out from BARK, so the mouth follows the sound if the bark ever
+   changes. A yip played faster is shorter: its length is its duration over its speed. */
+export function barkMouthTimes(bark = BARK) {
+    let at = 0;
+    return bark.yips.map((step) => {
+        const openMs = at + step.gapMs;
+        const closeMs = openMs + step.durationMs / step.speed;
+        at = closeMs;
+        return { openMs, closeMs };
+    });
+}
 
 // A small seeded random source (mulberry32): a given seed always makes the same noise.
 export function seededRandom(seed) {
