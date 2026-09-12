@@ -1536,6 +1536,40 @@ believe: that the dog is real.
   `barking` flag covers the whole bark, gaps included, so a stroke ending between yips
   cannot settle the dog halfway through.
 
+**The dog says thank you after a meal** (2026-09-12). When the last bowl is empty, it
+double-barks standing where it is - mouth opening per yip, tail going - then walks home.
+The owner picked "once, at the last bowl" over barking once it was home and sitting, or
+after every bowl. So it is one bark per meal whether it ate, drank or both. The dog is
+`thanking` meanwhile, and busy like when eating: a stroke gets "The dog is saying thank
+you." A bowl filled during the bark is visited before it goes home, and thanked for too.
+The bark counts toward the petting cooldown, as every bark does.
+
+**The room is lived in** (2026-09-12). The owner asked for a clear back wall, a window
+onto a yard and a plant in a corner; from offered options they chose the back-right corner
+for the plant, sky, grass and a fence for the yard, and "clearly reads as a wall" for the
+wall. What changed:
+
+- **The wall meets the floor at a skirting board** - an edge line, three rows of painted
+  board, an edge line - replacing a one-pixel strip. The floor has a shaded top row and
+  two floorboard seams, which give it depth.
+- **The window** is a sprite (`WINDOW` in `js/pets.js`), framed in the skirting's paint
+  with a sill, above the dog: its sill is lower than the head ever rises, which is tested,
+  so the dog never walks in front of it. The first draft had a four-pane window; the
+  crossbar cut through the fence and it read as dashes, so it is two panes.
+- **The plant** is a leafy canopy in a blue pot (`PLANT`), standing on the floor in front
+  of the skirting in the back-right corner. The dog walks in front of it when it fidgets
+  that far. The first draft was a snake plant, upright leaves, which read as a cactus.
+- **Draw order is back to front:** room, window and plant, then the dog, then the bowls.
+
+**Colour rules for the furnishings.** Everything the dog can walk in front of - board,
+seams, leaves and pot - clears 4.5:1 against its outline, as the wall and floor always
+have. The furnishings' own one-pixel edges (`sceneLine`) are held to 3:1 instead, as a
+graphic, against the wall, the board and the dog's outline. A line can't clear 4.5:1
+against the dark outline and 3:1 against the pale wall at once. The yard, the leaves and
+the pot must each stay tellable from their neighbours under simulation; shades within
+one thing are shading and exempt, as with the decorative gradients. The dog's fur is
+close to the leaf green under simulation, which is fine: the outline separates them.
+
 **The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
 neck, and when the owner circled it and asked what it was meant to be, the honest answer
 was that it did not read as anything.

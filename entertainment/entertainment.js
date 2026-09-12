@@ -1683,17 +1683,24 @@ function placePetsOverlay(el, x, y, width, height) {
     el.style.height = `${(height / room.height) * 100}%`;
 }
 
-/* The room is built once: wall, skirting and floor, then a group for the dog and one for
-   each bowl. Drawing a frame only replaces what is inside those groups. The bowls come
-   after the dog, so they draw in front of it - a lowered head then looks like it is in
-   the bowl rather than beside it. */
+/* The room is built once, back to front: wall, skirting board and floor, the window and the
+   plant, then a group for the dog and one for each bowl. Drawing a frame only replaces
+   what is inside those groups. The bowls come after the dog, so they draw in front of it -
+   a lowered head then looks like it is in the bowl rather than beside it. */
 function buildPetsScene() {
     const { width, height, floorY } = Pets.SCENE;
+    const band = (y, rows, color) => `<rect x="0" y="${y}" width="${width}" height="${rows}" fill="${color}"/>`;
+    const furnishing = ({ x, y, rows }) => `<g transform="translate(${x} ${y})">${petRects(rows)}</g>`;
     petsSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     petsSvg.innerHTML =
-        `<rect x="0" y="0" width="${width}" height="${floorY}" fill="${PETS_COLORS.wall}"/>`
-        + `<rect x="0" y="${floorY}" width="${width}" height="1" fill="${PETS_COLORS.skirting}"/>`
-        + `<rect x="0" y="${floorY + 1}" width="${width}" height="${height - floorY - 1}" fill="${PETS_COLORS.floor}"/>`
+        band(0, floorY, PETS_COLORS.wall)
+        + band(Pets.SKIRTING_TOP, 1, PETS_COLORS.sceneLine)
+        + band(Pets.SKIRTING_TOP + 1, floorY - Pets.SKIRTING_TOP - 1, PETS_COLORS.trim)
+        + band(floorY, 1, PETS_COLORS.sceneLine)
+        + band(floorY + 1, height - floorY - 1, PETS_COLORS.floor)
+        + Pets.FLOOR_SEAMS.map((y) => band(y, 1, PETS_COLORS.floorShade)).join('')
+        + furnishing(Pets.WINDOW)
+        + furnishing(Pets.PLANT)
         + '<g class="pets-dog"><g class="pets-body"></g><g class="pets-head"></g></g>'
         + Pets.ITEMS.map((kind) => `<g class="pets-bowl" data-bowl="${kind}"></g>`).join('');
 
@@ -1766,7 +1773,7 @@ function resetPets() {
         x: Pets.HOME_X,
         homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
         facing: 'left',     // left | right - right only while walking right
-        activity: 'idle',   // idle | walking | eating | drinking | fidgeting
+        activity: 'idle',   // idle | walking | eating | drinking | thanking | fidgeting
         posture: Pets.RESTING_POSTURE, // sit | stand | down | walk - it rests sitting
         leaning: false,     // head raised into a stroking hand
         barking: false,     // from the first yip to the end of the last, gaps included
@@ -1815,6 +1822,7 @@ function petsBusyMessage() {
     if (pets.activity === 'eating') return `Let the ${name} finish eating first.`;
     if (pets.activity === 'drinking') return `Let the ${name} finish drinking first.`;
     if (pets.activity === 'fidgeting') return `The ${name} is finding a new spot.`;
+    if (pets.activity === 'thanking') return `The ${name} is saying thank you.`;
     return `The ${name} is on its way to its bowl.`;
 }
 
@@ -1877,7 +1885,7 @@ function playBark() {
    what it was, happy if the dog is still being stroked; after the last yip the dog settles
    as before. `barking` covers the whole bark, gaps included, so a stroke that ends between
    yips does not cut the bark short. */
-function barkPet() {
+function barkPet(finished = null) {
     pets.lastBarkAt = performance.now();
     pets.barking = true;
     setPetWagging(true);
@@ -1904,7 +1912,9 @@ function barkPet() {
             }
             pets.barking = false;
             pets.timers.barkSteps = [];
-            if (stillStroked()) {
+            if (finished) {
+                finished();
+            } else if (stillStroked()) {
                 pets.eyes = 'happy';
                 drawPet();
             } else {
@@ -2046,20 +2056,34 @@ function startEating(kind) {
     }, PETS_HALF_CHOMP_MS);
 }
 
-// Then to the other bowl if it has something in it, or home.
+/* Then to the other bowl if it has something in it. If not, the meal is over: a thank-you
+   bark standing at the last bowl - the owner's pick over barking at home or after every
+   bowl - and then home. One bark per meal, whether it ate, drank or both. */
 function finishEating(kind) {
     pets.posture = 'stand';
     pets.chompUp = false;
-    const next = Pets.bowlToVisit(pets.bowls, kind === 'food' ? 'water' : 'food');
+    const other = kind === 'food' ? 'water' : 'food';
+    const next = Pets.bowlToVisit(pets.bowls, other);
     if (next) {
         visitBowl(next);
         return;
     }
-    pets.activity = 'walking';
-    // Back to wherever it last settled, which fidgeting moves about.
-    walkPetTo(pets.homeX, () => {
-        pets.activity = 'idle';
-        settlePet();
+    pets.activity = 'thanking';
+    barkPet(() => {
+        pets.eyes = 'open';
+        // A bowl filled during the bark is still visited before going home, and thanked for.
+        const refilled = Pets.bowlToVisit(pets.bowls, other);
+        if (refilled) {
+            visitBowl(refilled);
+            return;
+        }
+        pets.activity = 'walking';
+        drawPet();
+        // Back to wherever it last settled, which fidgeting moves about.
+        walkPetTo(pets.homeX, () => {
+            pets.activity = 'idle';
+            settlePet();
+        });
     });
 }
 

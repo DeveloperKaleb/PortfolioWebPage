@@ -709,7 +709,6 @@ export const TICTACTOE_COLORS = {
 export const PETS_COLORS = {
     wall: '#f1ead6',
     floor: '#d9c9a5',
-    skirting: '#b9a67f',
     tray: '#e6dcc2',
     outline: '#3b2a1a',
     fur: '#e6be72',
@@ -728,6 +727,19 @@ export const PETS_COLORS = {
     bag: '#a8683a',
     bagLabel: '#f3e3bf',
     bagCrimp: '#7a4a28',
+    // The room's furnishings. They are drawn behind the dog, so every fill it can walk in
+    // front of clears the text floor against its outline; the window is out of its reach.
+    sceneLine: '#8a7556',   // the soft edge of everything behind the dog - a graphic, 3:1
+    trim: '#fbf8f1',        // the painted skirting board and window frame
+    floorShade: '#c9b690',  // the floorboard seams - shading, not something to tell apart
+    sky: '#8ec5ee',
+    fence: '#f7f4ec',
+    grass: '#6fa850',
+    grassShade: '#5a9140',  // tufts - shading again
+    leaf: '#9ccc6e',
+    leafShade: '#7fb356',
+    pot: '#9fb7cf',
+    potShade: '#86a0bb',
 };
 
 /* --- CONTROL BAR THEMES --- */

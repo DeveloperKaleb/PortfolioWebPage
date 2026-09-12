@@ -36,6 +36,17 @@ export const SPRITE_KEYS = {
     B: 'bag',
     L: 'bagLabel',
     m: 'bagCrimp',
+    // The room's furnishings.
+    e: 'sceneLine',
+    W: 'trim',
+    S: 'sky',
+    F: 'fence',
+    R: 'grass',
+    T: 'grassShade',
+    g: 'leaf',
+    G: 'leafShade',
+    P: 'pot',
+    Q: 'potShade',
 };
 
 // Overwrite runs of pixels: each edit is [row, column, text].
@@ -270,6 +281,74 @@ export const BOWLS = {
     water: { x: 16, y: 40 },
 };
 export const ITEMS = ['food', 'water'];
+
+/* The furnishings, so the room looks lived in (2026-09-12): a skirting board where the
+ * wall meets the floor, floorboard seams, a window onto the yard and a plant in the back
+ * right corner. All drawn behind the dog. The window sits above the highest the dog's head
+ * goes, so the dog never walks in front of it; the plant stands on the floor, and the dog
+ * walks in front of it when it fidgets that far right. */
+export const SKIRTING_TOP = SCENE.floorY - 4;     // an edge line, three rows of board, an edge line
+export const FLOOR_SEAMS = [SCENE.floorY + 1, SCENE.floorY + 6, SCENE.floorY + 11];
+
+// Two panes - a crossbar cut the fence into dashes - over sky, a picket fence and grass.
+export const WINDOW = {
+    x: 34,
+    y: 5,
+    rows: [
+        '..eeeeeeeeeeeeeeeeeeeeeeeeeee..',
+        '..eWWWWWWWWWWWWWWWWWWWWWWWWWe..',
+        '..eWSSSSSSSSSSSWSSSSSSSSSSSWe..',
+        '..eWSSSSSSSSSSSWSSSSSSSSSSSWe..',
+        '..eWSSSSSSSSSSSWSSSSSSSSSSSWe..',
+        '..eWSSSSSSSSSSSWSSSSSSSSSSSWe..',
+        '..eWSSSSSSSSSSSWSSSSSSSSSSSWe..',
+        '..eWSFSSFSSFSSFWSFSSFSSFSSFWe..',
+        '..eWFFFFFFFFFFFWFFFFFFFFFFFWe..',
+        '..eWSFSSFSSFSSFWSFSSFSSFSSFWe..',
+        '..eWFFFFFFFFFFFWFFFFFFFFFFFWe..',
+        '..eWSFSSFSSFSSFWSFSSFSSFSSFWe..',
+        '..eWTTTTTTTTTTTWTTTTTTTTTTTWe..',
+        '..eWRRTRRRRTRRRWTRRRRTRRRRTWe..',
+        '..eWRRRTRRRRTRRWRTRRRRTRRRRWe..',
+        '..eWRRRRRRRRRRRWRRRRRRRRRRRWe..',
+        '..eWWWWWWWWWWWWWWWWWWWWWWWWWe..',
+        'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        'eWWWWWWWWWWWWWWWWWWWWWWWWWWWWWe',
+        'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    ],
+};
+
+// A leafy houseplant in a blue pot. A first draft of upright leaves read as a cactus.
+export const PLANT = {
+    x: 84,
+    y: 16,
+    rows: [
+        '.....eeeee....',
+        '....egggge....',
+        '....egggge....',
+        '..eeGggggGeee.',
+        '.egggGggGGggge',
+        '.eggggGGGgggge',
+        '.eggGGgggGGgge',
+        '..eGgGgggGgGe.',
+        '..eggGgggGgge.',
+        '.eggggGGGggge.',
+        '..egggGegggge.',
+        '..eegee.eegee.',
+        '....e.eGe.e...',
+        '......eGe.....',
+        '......eGe.....',
+        '......eGe.....',
+        '.eeeeeeeeeeee.',
+        '.ePPPPPPPPPQe.',
+        '.eeeeeeeeeeee.',
+        '..ePPPPPPPQe..',
+        '..ePPPPPPPQe..',
+        '..ePPPPPPPQe..',
+        '...ePPPPPQe...',
+        '...eeeeeeee...',
+    ],
+};
 
 const BOWL_FILL = ['.........', '...xxx...', '..xxxxx..', '.xxxxxxx.'];
 const BOWL_BASE = ['ooooooooo', 'oBBBBBBBo', '.oBBBBBo.', '..ooooo..'];

@@ -1602,7 +1602,7 @@ a:active  {color: #002e2c;}
 }
 
 /* Hub thumbnail: the dog's head and back against the wall, legs on the floor. */
-.thumb-pets { background: #b9a67f; }                          /* Skirting */
+.thumb-pets { background: #8a7556; }                          /* Skirting board's edge */
 .thumb-pets span { background: #f1ead6; }                     /* Wall */
 .thumb-pets span:nth-child(2),
 .thumb-pets span:nth-child(3),

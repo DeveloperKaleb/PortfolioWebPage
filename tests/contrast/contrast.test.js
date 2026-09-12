@@ -317,8 +317,39 @@ describe('Pets palette', () => {
         ['the floor', P.floor],
         ['the tray', P.tray],
         ['the water bowl', P.waterBowl],
+        ['the skirting board', P.trim],
+        ['a floorboard seam', P.floorShade],
+        ['the leaves', P.leaf],
+        ['the shaded leaves', P.leafShade],
+        ['the plant pot', P.pot],
+        ['the shaded pot', P.potShade],
     ])('the outline is legible on %s', (_label, background) => {
         expect(worstCaseContrast(P.outline, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* The furnishings' edges are one-pixel lines, not surfaces, so they are held to the 3:1
+       of a graphic: against what they edge, and against the dog's outline where it crosses
+       them. The dog's silhouette still comes from its fur meeting its outline. A line can't
+       clear 4.5:1 against the outline and 3:1 against the pale wall at once - the two ask
+       for a colour both darker and lighter than the same value. */
+    test.each([
+        ['the wall', P.wall],
+        ['the skirting board', P.trim],
+        ["the dog's outline", P.outline],
+    ])('the furnishings\' edge shows against %s', (_label, neighbour) => {
+        expect(worstCaseContrast(P.sceneLine, neighbour)).toBeGreaterThanOrEqual(3);
+    });
+
+    /* The yard, the plant and its pot are pictures rather than things to find, so no floor -
+       but each has to stay tellable from what it sits beside, or under simulation the fence
+       vanishes into the sky and the leaves into the pot. Shades within one thing (grass
+       tufts, a leaf's underside, a floorboard seam) are shading, and exempt, as with the
+       decorative gradients elsewhere. */
+    test.each([
+        ['sky', 'fence'], ['fence', 'grass'], ['sky', 'grass'], ['trim', 'sky'], ['trim', 'grass'],
+        ['leaf', 'pot'], ['leafShade', 'pot'], ['leaf', 'wall'], ['pot', 'wall'],
+    ])('%s is tellable from %s', (a, b) => {
+        expect(areDistinguishable(P[a], P[b])).toBe(true);
     });
 
     test.each([['the fur', P.fur], ['the light fur', P.furLight]])('the eye and nose are legible on %s', (_label, background) => {

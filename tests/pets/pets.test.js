@@ -11,6 +11,10 @@ import {
     PIXELS_PER_WALK_FRAME,
     walkFrame,
     barkMouthTimes,
+    SKIRTING_TOP,
+    FLOOR_SEAMS,
+    WINDOW,
+    PLANT,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -232,6 +236,49 @@ describe('The room', () => {
         const filled = (level) => bowlRows('food', level)[0].replace(/\./g, '').length;
         expect([0, 1, 2, 3].map(filled)).toEqual([0, 3, 5, 7]);
         expect(bowlRows('water', 9)).toEqual(bowlRows('water', BOWL_LEVELS));
+    });
+});
+
+describe('The furnishings', () => {
+    const furnishings = [['the window', WINDOW], ['the plant', PLANT]];
+    const bottomOf = ({ y, rows }) => y + rows.length - 1;
+    const rightOf = ({ x, rows }) => x + rows[0].length - 1;
+
+    test.each(furnishings)('%s is a rectangle of known palette keys, inside the room', (_name, item) => {
+        const { x, y, rows } = item;
+        rows.forEach((row) => {
+            expect(row).toHaveLength(rows[0].length);
+            [...row].forEach((key) => {
+                if (key !== '.') expect(Object.keys(SPRITE_KEYS)).toContain(key);
+            });
+        });
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(rightOf(item)).toBeLessThan(SCENE.width);
+        expect(bottomOf(item)).toBeLessThan(SCENE.height);
+    });
+
+    /* The dog never walks in front of the window, so its colours need not clear the text
+       floor against the outline. That holds only while the sill stays above the highest
+       the head goes: raised a pixel into a stroking hand. */
+    test('the window stays above the highest the dog\'s head goes', () => {
+        const highestHead = DOG_Y + Math.min(0, headOffset('sit', { leaning: true }).dy);
+        expect(bottomOf(WINDOW)).toBeLessThan(highestHead);
+    });
+
+    test('the plant stands on the floor in the back right corner, clear of the window', () => {
+        expect(bottomOf(PLANT)).toBeGreaterThan(SCENE.floorY);
+        expect(SCENE.width - 1 - rightOf(PLANT)).toBeLessThanOrEqual(3);
+        expect(PLANT.x).toBeGreaterThan(rightOf(WINDOW));
+    });
+
+    test('the skirting board and the floor seams sit where the wall meets the floor', () => {
+        expect(SKIRTING_TOP).toBeLessThan(SCENE.floorY);
+        expect(SKIRTING_TOP).toBeGreaterThan(bottomOf(WINDOW));
+        FLOOR_SEAMS.forEach((y) => {
+            expect(y).toBeGreaterThan(SCENE.floorY);
+            expect(y).toBeLessThan(SCENE.height);
+        });
     });
 });
 
