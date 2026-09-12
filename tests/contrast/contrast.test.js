@@ -341,6 +341,15 @@ describe('Pets palette', () => {
         expect(areDistinguishable(P.foodBowl, P.waterBowl)).toBe(true);
     });
 
+    /* The tongue is a detail of the happy face rather than something to find, so it is not
+       held to a contrast floor - but it has to stay tellable from everything it touches,
+       or under simulation it simply is not there. */
+    test('the tongue is tellable from the fur, the open mouth and the outline', () => {
+        [P.fur, P.furLight, P.nose, P.outline].forEach((neighbour) => {
+            expect(areDistinguishable(P.tongue, neighbour)).toBe(true);
+        });
+    });
+
     test('the fur is tellable from its outline, and the water from its highlight', () => {
         expect(areDistinguishable(P.fur, P.outline)).toBe(true);
         expect(areDistinguishable(P.water, P.waterHighlight)).toBe(true);

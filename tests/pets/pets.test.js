@@ -26,6 +26,8 @@ import {
     barkDue,
     leanToward,
     BARK,
+    barkPitchAt,
+    barkSamples,
     emptyBowls,
     fillBowl,
     takeBite,
@@ -69,8 +71,9 @@ describe('The sprites', () => {
         });
     });
 
-    test('closing the eyes and barking each change the face', () => {
-        expect(dog.head.closed).not.toEqual(dog.head.open);
+    test('being petted and barking each change the face', () => {
+        expect(dog.head.happy).not.toEqual(dog.head.open);
+        expect(dog.head.happy).not.toEqual(dog.head.bark);
         expect(dog.head.bark).not.toEqual(dog.head.open);
         expect(dog.body.wag).not.toEqual(dog.body.stand);
         expect(dog.body.sitWag).not.toEqual(dog.body.sit);
@@ -231,13 +234,71 @@ describe('Petting', () => {
         expect(barkDue(stroke, { now, ending: true, lastBarkAt: now - PETTING.barkCooldownMs })).toBe(true);
     });
 
-    // "Gentle and appreciative": a short, low, soft wuf rather than a yap.
-    test('the bark is short, low and soft', () => {
-        expect(BARK.peakHz).toBeGreaterThan(BARK.startHz);
-        expect(BARK.endHz).toBeLessThan(BARK.startHz);
-        expect(BARK.peakHz).toBeLessThan(600);
+});
+
+/* What can be tested about a bark: its shape. Whether it sounds like a dog is for a
+   listener - these pin the properties the first version lacked (it was a toot: a smooth
+   note with no onset or rasp) so they cannot quietly go missing again. */
+describe('The bark', () => {
+    const RATE = 44100;
+
+    // A small seeded generator, so the noise - and so the bark - is the same every run.
+    const seeded = (seed) => () => {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+
+    const samples = barkSamples(RATE, BARK, seeded(7));
+    const loudestBetween = (fromMs, toMs) => {
+        let loudest = 0;
+        const end = Math.min(samples.length, Math.round((toMs * RATE) / 1000));
+        for (let i = Math.round((fromMs * RATE) / 1000); i < end; i++) loudest = Math.max(loudest, Math.abs(samples[i]));
+        return loudest;
+    };
+
+    test('is short, and exactly as long as it says', () => {
         expect(BARK.durationMs).toBeLessThan(400);
-        expect(BARK.gain).toBeLessThanOrEqual(0.2);
+        expect(samples.length).toBe(Math.round((RATE * BARK.durationMs) / 1000));
+    });
+
+    // Compared as magnitudes: the scaling can leave a silent sample as -0, which is silence.
+    test('starts and ends in silence, so neither end clicks', () => {
+        expect(Math.abs(samples[0])).toBe(0);
+        expect(Math.abs(samples[samples.length - 1])).toBe(0);
+    });
+
+    test('peaks at its stated level', () => {
+        expect(loudestBetween(0, BARK.durationMs)).toBeCloseTo(BARK.peak, 5);
+    });
+
+    // A bark hits hard and dies away; a note holds.
+    test('is loudest at the start and dies away fast', () => {
+        expect(loudestBetween(0, 60)).toBeGreaterThan(loudestBetween(BARK.durationMs - 60, BARK.durationMs) * 5);
+    });
+
+    test('jumps up in pitch, then falls below where it began', () => {
+        expect(barkPitchAt(0)).toBe(BARK.pitch.startHz);
+        expect(barkPitchAt(BARK.pitch.peakMs)).toBeCloseTo(BARK.pitch.peakHz, 5);
+        expect(barkPitchAt(BARK.durationMs)).toBeCloseTo(BARK.pitch.endHz, 5);
+        expect(BARK.pitch.peakHz).toBeGreaterThan(BARK.pitch.startHz);
+        expect(BARK.pitch.endHz).toBeLessThan(BARK.pitch.startHz);
+    });
+
+    test('has a rasp and a throat, not a pure tone', () => {
+        expect(BARK.noise.level).toBeGreaterThan(0);
+        expect(BARK.drive).toBeGreaterThan(1);
+        expect(BARK.formants.length).toBeGreaterThanOrEqual(2);
+    });
+
+    test('is the same bark for the same noise', () => {
+        expect(barkSamples(RATE, BARK, seeded(7))).toEqual(samples);
+    });
+
+    // "Gentle and appreciative": played well below full scale.
+    test('is played gently', () => {
+        expect(BARK.playbackGain).toBeLessThanOrEqual(0.5);
     });
 });
 

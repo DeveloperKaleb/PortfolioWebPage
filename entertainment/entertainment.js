@@ -1756,7 +1756,7 @@ function resetPets() {
         activity: 'idle',   // idle | walking | eating | drinking
         posture: Pets.RESTING_POSTURE, // sit | stand | down - it rests sitting
         leaning: false,     // head raised into a stroking hand
-        eyes: 'open',       // open | closed | bark
+        eyes: 'open',       // open | happy | bark
         wag: false,
         leanDx: -1,
         chompUp: false,
@@ -1808,7 +1808,7 @@ function showPetRubbing(leanDx) {
     if (pets.eyes === 'bark') return; // the bark finishes first, then the rub resumes
     // Only the head moves: the dog stays sitting to be petted.
     pets.leaning = !petsReduceMotion.matches;
-    pets.eyes = 'closed';
+    pets.eyes = 'happy';
     setPetWagging(true);
     drawPet();
 }
@@ -1824,57 +1824,33 @@ function settlePet() {
     maybeVisitBowl();
 }
 
-/* The bark: a sawtooth that jumps up and falls away, rolled off by a low-pass - which is
-   most of what makes it gentle - with a short breath of band-passed noise so it is a
-   bark and not a note. The numbers are BARK in js/pets.js. */
+/* The bark is built as samples by barkSamples in js/pets.js - pure, and so tested for its
+   shape - and played from a buffer here. The first version was an oscillator swept through
+   a low-pass, and it sounded like a toot rather than a dog. The buffer is made once for
+   the audio context's sample rate and reused, and each bark plays at a slightly random
+   speed so two in a row are not identical. */
+let petsBarkBuffer = null;
+
 function playBark() {
     if (!petsSoundOn) return;
     const ctx = audioContext();
     if (!ctx) return;
 
-    const { startHz, peakHz, endHz, durationMs, gain } = Pets.BARK;
-    const now = ctx.currentTime;
-    const seconds = durationMs / 1000;
+    if (!petsBarkBuffer || petsBarkBuffer.sampleRate !== ctx.sampleRate) {
+        const samples = Pets.barkSamples(ctx.sampleRate);
+        petsBarkBuffer = ctx.createBuffer(1, samples.length, ctx.sampleRate);
+        petsBarkBuffer.getChannelData(0).set(samples);
+    }
 
-    const voice = ctx.createOscillator();
-    voice.type = 'sawtooth';
-    voice.frequency.setValueAtTime(startHz, now);
-    voice.frequency.exponentialRampToValueAtTime(peakHz, now + 0.035);
-    voice.frequency.exponentialRampToValueAtTime(endHz, now + seconds);
+    const source = ctx.createBufferSource();
+    source.buffer = petsBarkBuffer;
+    source.playbackRate.value = 0.95 + Math.random() * 0.1;
 
-    const soften = ctx.createBiquadFilter();
-    soften.type = 'lowpass';
-    soften.frequency.setValueAtTime(1100, now);
-    soften.Q.setValueAtTime(0.8, now);
+    const level = ctx.createGain();
+    level.gain.value = Pets.BARK.playbackGain;
 
-    const envelope = ctx.createGain();
-    envelope.gain.setValueAtTime(0.0001, now);
-    envelope.gain.exponentialRampToValueAtTime(gain, now + 0.02);
-    envelope.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-
-    voice.connect(soften).connect(envelope).connect(ctx.destination);
-    voice.start(now);
-    voice.stop(now + seconds + 0.02);
-
-    const breathSeconds = 0.12;
-    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * breathSeconds), ctx.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
-
-    const breath = ctx.createBufferSource();
-    breath.buffer = buffer;
-    const band = ctx.createBiquadFilter();
-    band.type = 'bandpass';
-    band.frequency.setValueAtTime(700, now);
-    band.Q.setValueAtTime(1.2, now);
-    const breathGain = ctx.createGain();
-    breathGain.gain.setValueAtTime(0.0001, now);
-    breathGain.gain.exponentialRampToValueAtTime(gain * 0.5, now + 0.01);
-    breathGain.gain.exponentialRampToValueAtTime(0.0001, now + breathSeconds);
-
-    breath.connect(band).connect(breathGain).connect(ctx.destination);
-    breath.start(now);
-    breath.stop(now + breathSeconds + 0.01);
+    source.connect(level).connect(ctx.destination);
+    source.start();
 }
 
 // The mouth opens and the bark sounds together - the same pairing Sequence keeps.
@@ -1889,7 +1865,7 @@ function barkPet() {
     pets.timers.bark = setTimeout(() => {
         pets.timers.bark = null;
         if (pets.stroke && Pets.isRubbing(pets.stroke, performance.now())) {
-            pets.eyes = 'closed';
+            pets.eyes = 'happy';
             drawPet();
         } else {
             settlePet();
@@ -1906,7 +1882,7 @@ function petsTick() {
         barkPet();
         return;
     }
-    if (pets.eyes === 'closed' && !Pets.isRubbing(pets.stroke, now)) settlePet();
+    if (pets.eyes === 'happy' && !Pets.isRubbing(pets.stroke, now)) settlePet();
 }
 
 function endPetStroke() {

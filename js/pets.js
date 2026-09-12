@@ -25,6 +25,7 @@ export const SPRITE_KEYS = {
     l: 'furLight',
     n: 'nose',
     c: 'collar',
+    p: 'tongue',
     a: 'foodBowl',
     q: 'waterBowl',
     k: 'kibble',
@@ -131,7 +132,12 @@ export const SPECIES = {
         headCentreX: 6,
         head: {
             open: DOG_HEAD,
-            closed: patchRows(DOG_HEAD, [[3, 6, 'f'], [4, 5, 'oo']]),
+            /* Being petted: the eyes squinted shut in upturned arcs, the mouth hanging open,
+               and a pixel or two of tongue over the jaw - a panting smile. It replaced a
+               single closed-eye line when the owner asked for more detail. Of three drafts,
+               one also lifted the brow and swept the ear back; the brow read as a crack in
+               the skull, so it went. */
+            happy: patchRows(DOG_HEAD, [[2, 6, 'o'], [3, 5, 'ofo'], [5, 2, 'nnno'], [6, 2, 'pp']]),
             bark: patchRows(DOG_HEAD, [[5, 1, 'nnnn']]),
         },
         body: {
@@ -287,10 +293,107 @@ export function barkDue(stroke, { now, ending = false, lastBarkAt = -Infinity },
 // Which way the head leans: toward the hand.
 export const leanToward = (pointerX, headCentreX) => (pointerX < headCentreX ? -1 : 1);
 
-/* The bark: a "wuf", not a yap. Pitch jumps from start to peak and falls away to end
-   over the duration; the DOM layer plays it through a low-pass, which is most of what
-   makes it gentle. */
-export const BARK = { startHz: 300, peakHz: 440, endHz: 210, durationMs: 220, gain: 0.14 };
+/* The bark: a single "ruff" - gentle, but a bark.
+ *
+ * The first version was a sawtooth swept through a low-pass, and it came out as a toot: a
+ * note rather than a dog. What makes a bark a bark is roughness and shape - a hard onset,
+ * a pitch that jumps and then drops away, a rasp of breath at the start, and resonances
+ * that give it a throat. So the sound is built sample by sample here, where it can be
+ * tested, and the DOM layer only plays the result:
+ *
+ *   - a sawtooth whose pitch rises to a peak in the first few tens of milliseconds and
+ *     then falls away (barkPitchAt);
+ *   - a burst of noise at the onset that decays fast - the rasp;
+ *   - both driven through a soft clipper, which adds the growl;
+ *   - then three band-pass formants, the resonances of a throat and mouth;
+ *   - under a fast attack, a short hold and an exponential release.
+ *
+ * The gentleness is in the playback level and the short length, not in leaving the rasp
+ * out - without the rasp it stops being a bark. */
+export const BARK = {
+    durationMs: 260,
+    pitch: { startHz: 380, peakHz: 620, peakMs: 24, endHz: 230 },
+    attackMs: 4,
+    holdMs: 30,
+    drive: 3,
+    noise: { level: 0.45, decayMs: 60 },
+    formants: [
+        { hz: 600, q: 3.5, level: 1 },
+        { hz: 1400, q: 4.5, level: 0.55 },
+        { hz: 2700, q: 6, level: 0.2 },
+    ],
+    peak: 0.9,           // the loudest sample, before the playback level
+    playbackGain: 0.3,   // how loud it is played
+};
+
+// The pitch a moment into the bark: rising to the peak, then falling away to the end.
+export function barkPitchAt(ms, bark = BARK) {
+    const { startHz, peakHz, peakMs, endHz } = bark.pitch;
+    if (ms <= peakMs) return startHz * Math.pow(peakHz / startHz, Math.max(0, ms) / peakMs);
+    const progress = Math.min(1, (ms - peakMs) / (bark.durationMs - peakMs));
+    return peakHz * Math.pow(endHz / peakHz, progress);
+}
+
+// A band-pass filter - the RBJ cookbook's, unity gain at its peak - one sample at a time.
+function bandPass(hz, q, sampleRate) {
+    const w0 = (2 * Math.PI * hz) / sampleRate;
+    const alpha = Math.sin(w0) / (2 * q);
+    const a0 = 1 + alpha;
+    const b0 = alpha / a0;
+    const b2 = -alpha / a0;
+    const a1 = (-2 * Math.cos(w0)) / a0;
+    const a2 = (1 - alpha) / a0;
+    let x1 = 0;
+    let x2 = 0;
+    let y1 = 0;
+    let y2 = 0;
+    return (x) => {
+        const y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = x;
+        y2 = y1;
+        y1 = y;
+        return y;
+    };
+}
+
+/* The bark as samples at a sample rate, scaled so the loudest is `peak`. `random` is the
+   noise source; seeding it gives the same bark every time, which is what makes it
+   testable. */
+export function barkSamples(sampleRate, bark = BARK, random = Math.random) {
+    const length = Math.round((sampleRate * bark.durationMs) / 1000);
+    const out = new Float32Array(length);
+    const formants = bark.formants.map(({ hz, q, level }) => ({ filter: bandPass(hz, q, sampleRate), level }));
+    const fadeSamples = Math.max(1, Math.round(sampleRate * 0.005));
+    const releaseMs = bark.durationMs - bark.attackMs - bark.holdMs;
+    const driveScale = Math.tanh(bark.drive);
+    let phase = 0;
+    let loudest = 0;
+
+    for (let i = 0; i < length; i++) {
+        const ms = (i * 1000) / sampleRate;
+        phase = (phase + barkPitchAt(ms, bark) / sampleRate) % 1;
+        const saw = 2 * phase - 1;
+        const noise = (random() * 2 - 1) * bark.noise.level * Math.exp(-ms / bark.noise.decayMs);
+        const driven = Math.tanh(bark.drive * (saw + noise)) / driveScale;
+        const voiced = formants.reduce((sum, { filter, level }) => sum + filter(driven) * level, 0);
+
+        let envelope;
+        if (ms < bark.attackMs) envelope = ms / bark.attackMs;
+        else if (ms < bark.attackMs + bark.holdMs) envelope = 1;
+        else envelope = Math.exp((-5 * (ms - bark.attackMs - bark.holdMs)) / releaseMs);
+
+        // A few milliseconds of fade at the very end, so the last sample is silence rather
+        // than a click.
+        const tail = Math.min(1, (length - 1 - i) / fadeSamples);
+        out[i] = voiced * envelope * tail;
+        loudest = Math.max(loudest, Math.abs(out[i]));
+    }
+
+    const scale = loudest > 0 ? bark.peak / loudest : 0;
+    for (let i = 0; i < length; i++) out[i] *= scale;
+    return out;
+}
 
 /* --- The bowls --- */
 

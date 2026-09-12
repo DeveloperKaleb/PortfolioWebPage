@@ -1473,11 +1473,37 @@ never barks within 2.5s of the last bark, so it cannot be made to yap, and a tap
 barks. All of that is pure and tested (`moveStroke`, `isRubbing`, `barkDue`). While
 walking, eating or drinking the dog ignores petting, and the status line says why.
 
+**The petting face is its own head sprite**, added 2026-09-12 when the owner asked for more
+detail than a closed-eye line. The eyes squint shut in upturned arcs, the mouth hangs open,
+and a two-pixel tongue shows over the jaw: a panting smile. Three drafts were rendered and
+compared. A closed-mouth smile was too subtle at this size, and a version that also lifted
+the brow and swept the ear back was dropped because the brow read as a crack in the skull.
+The tongue is decoration rather than something to find, so it is held to
+distinguishability from the fur, the light fur, the mouth and the outline under both
+simulations, not to a contrast floor.
+
 **The bark is synthesised, not recorded.** The site loads nothing from anywhere else, and
-a recording would be the first binary asset in the precache. It is a sawtooth that jumps
-up and falls away, rolled off by a low-pass - which is most of what makes it gentle - with
-a short breath of band-passed noise so it is a bark and not a note. `BARK` in
-`js/pets.js` holds the numbers.
+a recording would be the first binary asset in the precache.
+
+The first version was a sawtooth swept through a low-pass, and the owner found it not
+bark-like enough: it was a toot, a note rather than a dog. It is now built sample by sample
+in `barkSamples`:
+
+- a sawtooth whose pitch jumps to a peak in the first 24ms, then falls well below where it
+  began;
+- a burst of noise at the onset that decays fast, for the rasp;
+- both driven through a soft clipper for growl;
+- three band-pass formants to give it a throat;
+- a fast attack, a short hold and an exponential release.
+
+The gentleness is in the playback level and the length, not in leaving out the rasp -
+without it the bark stops being a bark.
+
+Being pure, it is tested for what can be tested: a hard start that dies away fast, a pitch
+that jumps and falls, silent ends so it never clicks, and the same bark for the same noise.
+Whether it sounds like a dog is for a listener. The DOM layer plays it from a buffer made
+once per sample rate, at a slightly random speed each time so two barks in a row are not
+identical. `BARK` holds the numbers.
 
 Pets has its own Sound switch, remembered separately from Sequence's, and both share the
 page's one audio context. The context is started on `pointerdown` on the dog, because the
@@ -1509,7 +1535,7 @@ the water bowl; the eye and nose clear it on the fur. Food and water, and their 
 are distinguishable under both simulations.
 
 **Reduced motion.** No walking steps (the dog is simply at the bowl), no chomping, no
-swinging tail and no lean. The eyes still close when petted, the tail still goes up, and
+swinging tail and no lean. The happy face still shows when petted, the tail still goes up, and
 the bark still sounds - those carry the response, not the movement.
 
 ## Rule: in-game readouts are one or two lines
