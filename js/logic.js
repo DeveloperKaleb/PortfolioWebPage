@@ -740,6 +740,20 @@ export const PETS_COLORS = {
     leafShade: '#7fb356',
     pot: '#9fb7cf',
     potShade: '#86a0bb',
+    moon: '#f2edd0',        // the night sky's moon and stars, drawn only at night
+    star: '#dfe5f5',
+};
+
+/* The sky through the Pets window at each time of day - overrides of PETS_COLORS for the
+   view outside, applied only to the window. Day is the room's own colours. Everything
+   out there is a picture, so each colour is held apart from its neighbours rather than to
+   a floor; the dog never walks in front of the window. The fence and grass darken toward
+   night so the yard dims with the sky instead of glowing in front of it. */
+export const PETS_SKIES = {
+    dawn: { sky: '#e7b3c0', fence: '#f4eee6', grass: '#5c964a', grassShade: '#4c7f3d' },
+    day: {},
+    dusk: { sky: '#d9825a', fence: '#d6c6b4', grass: '#4a7a3a', grassShade: '#3d6830' },
+    night: { sky: '#1e2b52', fence: '#7d8299', grass: '#2c4a33', grassShade: '#243d2a' },
 };
 
 /* --- CONTROL BAR THEMES --- */

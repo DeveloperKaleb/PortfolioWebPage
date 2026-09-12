@@ -1541,9 +1541,10 @@ believe: that the dog is real.
   cannot settle the dog halfway through.
 
 **The dog says thank you after a meal** (2026-09-12). When the last bowl is empty, it
-stands, waits a second, double-barks - mouth opening per yip, tail going - waits another
+stands, waits half a second, double-barks - mouth opening per yip, tail going - waits a
 second, then walks home. The pauses were the owner's follow-up: straight after eating and
-straight into the walk, the bark wasn't defined enough to read as a thank-you.
+straight into the walk, the bark wasn't defined enough to read as a thank-you. They began
+at a second either side; in use the lead-in felt long, and came down to half a second.
 The owner picked "once, at the last bowl" over barking once it was home and sitting, or
 after every bowl. So it is one bark per meal whether it ate, drank or both. The dog is
 `thanking` meanwhile, and busy like when eating: a stroke gets "The dog is saying thank
@@ -1575,6 +1576,35 @@ against the dark outline and 3:1 against the pale wall at once. The yard, the le
 the pot must each stay tellable from their neighbours under simulation; shades within
 one thing are shading and exempt, as with the decorative gradients. The dog's fur is
 close to the leaf green under simulation, which is fine: the outline separates them.
+
+**The room keeps the time of day** (2026-09-12). The device's local clock, no location, no
+permission. From offered options the owner chose fixed hours - dawn 6-8, day 8-18, dusk
+18-20, night 20-6 - over hours shifting with the season, which would need a guess at the
+hemisphere. Dimming the whole room at night was scoped and set aside: it would need a
+second palette held to every contrast rule, and the owner would want it to be the
+player's choice anyway.
+
+- **The sky.** `PETS_SKIES` in `js/logic.js` recolours the view through the window: a
+  pink dawn, the day's blue, an orange dusk, and a dark night with a moon and stars
+  (`NIGHT_SKY`). The fence and grass darken with it. The first dawn, a peach, failed
+  against the fence under simulation. The first moon sat against the frame and read as
+  a notch in it, so it moved into open sky.
+- **Drowsy at dusk.** The waits between fidgets double.
+- **Asleep at night.** Left alone, the dog lies down, eyes shut, chin on its paws, its back
+  rising and falling and Z's drifting up from its head. Opened at night, it is already
+  asleep. **Petting wakes it; food and water do not** - the owner's one change to the
+  offered design. A bowl filled in the night gets "It will find this when it wakes", and
+  once a stroke has woken it, it goes to eat as usual. Awake at night, it dozes off again
+  20 seconds after it last settled. In the morning it wakes on its own and finds anything
+  left out overnight.
+- **The clock** is checked on opening the view and once a minute while it's open, so a room
+  left open through the evening goes dark on its own. A tap that never becomes a stroke
+  leaves it sleeping.
+- **Looking at night by day:** `entertainment.html?time=night#pets` (or `dawn`, `day`,
+  `dusk`). It is in the query, not the hash, because the hash is the route.
+- **Art.** Of two closed-eye drafts, a line on the eye row read better than one a row
+  lower. The small z began with a straight middle stroke and read as an I.
+- **Reduced motion.** No breathing and no drifting: it lies still with its Z's in place.
 
 **The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
 neck, and when the owner circled it and asked what it was meant to be, the honest answer

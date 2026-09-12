@@ -15,6 +15,15 @@ import {
     FLOOR_SEAMS,
     WINDOW,
     PLANT,
+    TIMES_OF_DAY,
+    DAY_STARTS,
+    timeOfDay,
+    DUSK_WAIT_SCALE,
+    SLEEP,
+    restDelayMs,
+    Z_RISE,
+    zzzFrame,
+    NIGHT_SKY,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -278,6 +287,87 @@ describe('The furnishings', () => {
         FLOOR_SEAMS.forEach((y) => {
             expect(y).toBeGreaterThan(SCENE.floorY);
             expect(y).toBeLessThan(SCENE.height);
+        });
+    });
+});
+
+describe('Time of day', () => {
+    const at = (hour, minute = 0) => new Date(2026, 8, 12, hour, minute);
+
+    // Fixed local hours, the owner's pick: dawn 6-8, day 8-18, dusk 18-20, night 20-6.
+    test('the hours fall into dawn, day, dusk and night', () => {
+        expect(TIMES_OF_DAY).toEqual(['dawn', 'day', 'dusk', 'night']);
+        expect(DAY_STARTS).toEqual({ dawn: 6, day: 8, dusk: 18, night: 20 });
+        expect(timeOfDay(at(0))).toBe('night');
+        expect(timeOfDay(at(5, 59))).toBe('night');
+        expect(timeOfDay(at(6))).toBe('dawn');
+        expect(timeOfDay(at(7, 59))).toBe('dawn');
+        expect(timeOfDay(at(8))).toBe('day');
+        expect(timeOfDay(at(17, 59))).toBe('day');
+        expect(timeOfDay(at(18))).toBe('dusk');
+        expect(timeOfDay(at(19, 59))).toBe('dusk');
+        expect(timeOfDay(at(20))).toBe('night');
+        expect(timeOfDay(at(23, 59))).toBe('night');
+    });
+
+    test('the dog rests twice as long between fidgets at dusk, and dozes off at night', () => {
+        const scripted = () => { const values = [0.3, 0.5]; let i = 0; return () => values[i++]; };
+        const day = restDelayMs('day', scripted());
+        expect(restDelayMs('dawn', scripted())).toBe(day);
+        expect(restDelayMs('dusk', scripted())).toBe(day * DUSK_WAIT_SCALE);
+        expect(DUSK_WAIT_SCALE).toBe(2);
+        expect(restDelayMs('night')).toBe(SLEEP.dozeAfterMs);
+    });
+
+    test('asleep, it lies down with its eyes shut and its chin on its paws', () => {
+        expect(bodyFrame('sleep')).toBe('sleep');
+        expect(bodyFrame('sleep', true, 0, true)).toBe('sleepBreath');
+        const { dy } = headOffset('sleep');
+        expect(dy + dog.head.asleep.length).toBeLessThanOrEqual(dog.size.height);
+        // Only the eye changes: shut, a line where it was open.
+        const changed = dog.head.asleep.flatMap((row, y) => [...row].map((key, x) => [x, y, key]))
+            .filter(([x, y, key]) => dog.head.open[y][x] !== key);
+        expect(changed.length).toBeGreaterThan(0);
+        expect(changed.every(([, y]) => y === 3)).toBe(true);
+    });
+
+    test('a sleeping breath lifts only the back, never the paws or the floor line', () => {
+        expect(dog.body.sleepBreath).not.toEqual(dog.body.sleep);
+        expect(dog.body.sleepBreath.slice(12)).toEqual(dog.body.sleep.slice(12));
+    });
+
+    /* The Z's are drawn over the wall and must never reach the window, whose colours are
+       only held apart from each other, nor leave the room, wherever the dog sleeps. */
+    test('the Z\'s stay in the room and below the window, wherever the dog sleeps', () => {
+        const windowBottom = WINDOW.y + WINDOW.rows.length - 1;
+        for (const dogX of [FIDGET.minX, FIDGET.maxX]) {
+            for (let step = 0; step < Z_RISE; step++) {
+                zzzFrame(step).forEach(({ x, y, rows }) => {
+                    expect(DOG_Y + y).toBeGreaterThan(windowBottom);
+                    expect(dogX + x + rows[0].length).toBeLessThanOrEqual(SCENE.width);
+                    rows.join('').split('').forEach((key) => {
+                        if (key !== '.') expect(Object.keys(SPRITE_KEYS)).toContain(key);
+                    });
+                });
+            }
+        }
+    });
+
+    test('the Z\'s rise a step at a time, grow as they go, and loop', () => {
+        const [first] = zzzFrame(0);
+        const [later] = zzzFrame(Z_RISE / 2);
+        expect(later.y).toBeLessThan(first.y);
+        expect(later.rows.length).toBeGreaterThan(first.rows.length);
+        expect(zzzFrame(Z_RISE)).toEqual(zzzFrame(0));
+        expect(zzzFrame(0)).toHaveLength(2);
+    });
+
+    test('the moon and stars land on sky, never on the frame, the fence or the grass', () => {
+        NIGHT_SKY.forEach(([row, col, text]) => {
+            [...text].forEach((key, i) => {
+                expect(WINDOW.rows[row][col + i]).toBe('S');
+                expect(['S', 'M', 'K']).toContain(key);
+            });
         });
     });
 });

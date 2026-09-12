@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -350,6 +350,21 @@ describe('Pets palette', () => {
         ['leaf', 'pot'], ['leafShade', 'pot'], ['leaf', 'wall'], ['pot', 'wall'],
     ])('%s is tellable from %s', (a, b) => {
         expect(areDistinguishable(P[a], P[b])).toBe(true);
+    });
+
+    /* The yard changes with the time of day, so its rules are checked at every time. The
+       first dawn sky, a peach, failed against the fence under simulation and went pink. */
+    test.each(Object.keys(PETS_SKIES))('at %s, the sky, fence and grass stay tellable apart, and from the frame', (period) => {
+        const C = { ...P, ...PETS_SKIES[period] };
+        [['sky', 'fence'], ['fence', 'grass'], ['sky', 'grass'], ['trim', 'sky'], ['trim', 'grass']].forEach(([a, b]) => {
+            expect(areDistinguishable(C[a], C[b]), `${a} / ${b}`).toBe(true);
+        });
+    });
+
+    // The moon and stars are single small shapes, so they are held to a graphic's 3:1.
+    test('the moon and the stars show on the night sky', () => {
+        expect(worstCaseContrast(P.moon, PETS_SKIES.night.sky)).toBeGreaterThanOrEqual(3);
+        expect(worstCaseContrast(P.star, PETS_SKIES.night.sky)).toBeGreaterThanOrEqual(3);
     });
 
     test.each([['the fur', P.fur], ['the light fur', P.furLight]])('the eye and nose are legible on %s', (_label, background) => {

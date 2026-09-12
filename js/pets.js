@@ -47,6 +47,9 @@ export const SPRITE_KEYS = {
     G: 'leafShade',
     P: 'pot',
     Q: 'potShade',
+    // The night sky.
+    M: 'moon',
+    K: 'star',
 };
 
 // Overwrite runs of pixels: each edit is [row, column, text].
@@ -167,6 +170,34 @@ const STRIDE_B = [
 const COLLAR_UPRIGHT = [[6, 12, 'cc'], [7, 10, 'ccd'], [8, 8, 'ccd'], [9, 7, 'cd'], [10, 7, 't']];
 const COLLAR_LOWERED = [[7, 12, 'c'], [8, 11, 'cd'], [9, 10, 'cd'], [10, 10, 't']];
 
+/* Asleep: lying down, the body low along the floor, the front paws reaching out under the
+   chin and the tail lying behind with its tip curled. The head is the usual one with its eye
+   shut, lowered onto the paws (see headOffset); it covers the front of the neck, so the
+   collar shows as a band behind it. Collar and tail are drawn in. */
+const DOG_SLEEP = [
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '............................',
+    '...........ooooooooooo......',
+    '..........ofcfffffffffoo....',
+    '.........offcdfffffffffffo..',
+    '.........offcdffffffffffffo.',
+    '.........offdffffffffffsffo.',
+    '.........offffffffffffsssfo.',
+    '.........ossfffffffffsssssoo',
+    '..offffffosssssssssssssssffo',
+    '..oooooooooooooooooooooooooo',
+];
+
+// Breathing in, the back rises a pixel: rows 8 to 11 take the rows below them.
+const DOG_SLEEP_BREATH = DOG_SLEEP.map((row, y) => (y >= 8 && y <= 11 ? DOG_SLEEP[y + 1] : row));
+
 export const SPECIES = {
     dog: {
         name: 'Dog',
@@ -183,6 +214,8 @@ export const SPECIES = {
                the skull, so it went. */
             happy: patchRows(DOG_HEAD, [[2, 6, 'o'], [3, 5, 'ofo'], [5, 2, 'nnno'], [6, 2, 'pp']]),
             bark: patchRows(DOG_HEAD, [[5, 1, 'nnnn']]),
+            // Asleep: the eye shut to a short line.
+            asleep: patchRows(DOG_HEAD, [[3, 5, 'oo']]),
         },
         body: {
             sit: patchRows(DOG_SIT, COLLAR_UPRIGHT),
@@ -195,6 +228,8 @@ export const SPECIES = {
             walkAWag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_A, ...TAIL_UP]),
             walkB: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_B]),
             walkBWag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_B, ...TAIL_UP]),
+            sleep: DOG_SLEEP,
+            sleepBreath: DOG_SLEEP_BREATH,
         },
     },
 };
@@ -214,8 +249,11 @@ export const PIXELS_PER_WALK_FRAME = 2;
 export const walkFrame = (stepsWalked) =>
     WALK_CYCLE[Math.floor(stepsWalked / PIXELS_PER_WALK_FRAME) % WALK_CYCLE.length];
 
-// Which body to draw for a posture - sit, stand, down or walk - with the tail going if wagging.
-export function bodyFrame(posture, wag = false, stepsWalked = 0) {
+/* Which body to draw for a posture - sit, stand, down, walk or sleep - with the tail going
+   if wagging. Asleep, the tail is still; breath is the half of each slow breath where the
+   back rises a pixel. */
+export function bodyFrame(posture, wag = false, stepsWalked = 0, breath = false) {
+    if (posture === 'sleep') return breath ? 'sleepBreath' : 'sleep';
     if (posture === 'walk') {
         const frame = walkFrame(stepsWalked);
         if (frame === 'stand') return wag ? 'wag' : 'stand';
@@ -233,7 +271,11 @@ export function bodyFrame(posture, wag = false, stepsWalked = 0) {
    only the head moves, because an earlier draft lifted the whole dog and it read as
    jumping. Down puts the muzzle in the bowl; chompUp is the half of a mouthful where the
    head comes back up a pixel. */
+// Asleep, the chin rests on the front paws, nine pixels below where it sits upright.
+const SLEEP_HEAD_DY = 9;
+
 export function headOffset(posture, { leaning = false, leanDx = -1, chompUp = false, stepsWalked = 0 } = {}) {
+    if (posture === 'sleep') return { dx: 0, dy: SLEEP_HEAD_DY };
     if (posture === 'down') return { dx: -2, dy: chompUp ? 6 : 7 };
     if (leaning) return { dx: leanDx, dy: -1 };
     // Walking, the head dips a pixel on each stride: the bob of a real gait.
@@ -429,6 +471,66 @@ export function fidgetDelayMs(random = Math.random, rules = FIDGET) {
     const seconds = band.fromSeconds + Math.floor(random() * (band.toSeconds - band.fromSeconds + 1));
     return seconds * 1000;
 }
+
+/* --- Time of day ---
+ *
+ * The room follows the device's local clock (2026-09-12, the owner's ask). Fixed hours,
+ * the owner's pick over hours that shift with the season: those would need a guess at the
+ * hemisphere, or the visitor's location. The time of day changes the sky through the
+ * window and the dog: drowsy at dusk - the waits between fidgets double - and asleep at
+ * night. The clock itself is read in the DOM layer; everything here takes the time as an
+ * argument, so it can be tested at any hour. */
+export const TIMES_OF_DAY = ['dawn', 'day', 'dusk', 'night'];
+export const DAY_STARTS = { dawn: 6, day: 8, dusk: 18, night: 20 }; // local hours
+
+export function timeOfDay(date) {
+    const hour = date.getHours();
+    if (hour >= DAY_STARTS.night || hour < DAY_STARTS.dawn) return 'night';
+    if (hour >= DAY_STARTS.dusk) return 'dusk';
+    if (hour >= DAY_STARTS.day) return 'day';
+    return 'dawn';
+}
+
+export const DUSK_WAIT_SCALE = 2;
+
+/* Night. Left alone, the dog lies down to sleep - on opening the room at night, it is
+ * already asleep. Petting wakes it; food and water do not (the owner's call): a bowl
+ * filled in the night waits until petting has woken it, and then it goes to eat. Awake at
+ * night, it dozes off again once it has settled and been left alone for dozeAfterMs. Its
+ * back rises and falls, and Z's drift up from its head, a step every zzzStepMs. */
+export const SLEEP = { dozeAfterMs: 20000, zzzStepMs: 350, stepsPerBreath: 4 };
+
+// How long the dog rests before its next move: a fidget by day, dozing off at night.
+export function restDelayMs(period, random = Math.random) {
+    if (period === 'night') return SLEEP.dozeAfterMs;
+    return fidgetDelayMs(random) * (period === 'dusk' ? DUSK_WAIT_SCALE : 1);
+}
+
+/* The Z's: two at a time, each rising a pixel a step from just above the head and drifting
+ * right, starting as a small z and growing to a big one for the second half of its rise.
+ * The small z has a diagonal stroke - a first draft with a straight middle read as an I.
+ * Positions are relative to the dog's sprite, which always faces left while asleep. */
+const Z_SMALL = ['oo.', '.o.', '.oo'];
+const Z_BIG = ['oooo', '..o.', '.o..', 'oooo'];
+export const Z_RISE = 8;
+
+export function zzzFrame(step) {
+    return [0, Z_RISE / 2].map((lag) => {
+        const k = (((step - lag) % Z_RISE) + Z_RISE) % Z_RISE;
+        return {
+            x: 10 + Math.floor(k / 2),
+            y: SLEEP_HEAD_DY - 3 - k,
+            rows: k < Z_RISE / 2 ? Z_SMALL : Z_BIG,
+        };
+    });
+}
+
+/* The night sky: a moon and a few stars, patched over the window's sky. The moon sits in
+ * open sky - against the frame, a first draft read as a notch in it. Its corners are sky. */
+export const NIGHT_SKY = [
+    [3, 19, 'SMMS'], [4, 19, 'MMMM'], [5, 19, 'MMMM'], [6, 19, 'SMMS'],
+    [3, 6, 'K'], [5, 10, 'K'], [2, 13, 'K'], [4, 17, 'K'], [6, 25, 'K'],
+];
 
 /* Where one fidget takes the dog. A move that would leave the bounds goes the other way
    instead; if a full move fits neither way, the dog goes as far as it can toward the

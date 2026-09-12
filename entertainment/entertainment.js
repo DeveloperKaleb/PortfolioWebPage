@@ -21,7 +21,8 @@ import {
     MINE_COLORS,
     numberColor,
     SEQUENCE_PADS,
-    PETS_COLORS
+    PETS_COLORS,
+    PETS_SKIES
 } from '../js/logic.js';
 import {
     createGame as createSequence,
@@ -129,8 +130,9 @@ function showRoute(route) {
         if (tictactoePlayers === 1) tictactoeRules().prepare();
         scheduleTicTacToeReply();
     }
-    // The dog only fidgets while it can be seen; stopAllGames has just cleared its timer.
-    if (route.view === views.pets.id) scheduleFidget();
+    // The dog only fidgets, sleeps and keeps time while it can be seen; stopAllGames has
+    // just cleared its timers.
+    if (route.view === views.pets.id) startPetsView();
 }
 
 /* Back says where it goes, because that now depends on the route: a game's Back leads to
@@ -1665,12 +1667,21 @@ try {
 } catch { /* no storage - stay with the default */ }
 
 const petSpecies = () => Pets.SPECIES[pets.species];
-const petsDefaultMessage = () => `Stroke the ${petSpecies().name.toLowerCase()} to pet it. Drag food or water to its bowl.`;
+const petsDefaultMessage = () => {
+    const name = petSpecies().name.toLowerCase();
+    return pets?.asleep
+        ? `The ${name} is asleep. Stroke it to wake it up.`
+        : `Stroke the ${name} to pet it. Drag food or water to its bowl.`;
+};
+const petsDogLabel = () => (pets.asleep
+    ? `${petSpecies().description}, asleep. Stroke it to wake it up.`
+    : `${petSpecies().description}. Stroke it to pet it.`);
 
-// A sprite as SVG rects, one per run of a colour, offset into place.
-const petRects = (rows, x0 = 0, y0 = 0) => Pets.spriteRuns(rows)
+// A sprite as SVG rects, one per run of a colour, offset into place. The window passes the
+// sky's colours for the time of day.
+const petRects = (rows, x0 = 0, y0 = 0, colors = PETS_COLORS) => Pets.spriteRuns(rows)
     .map(({ x, y, width, key }) =>
-        `<rect x="${x + x0}" y="${y + y0}" width="${width}" height="1" fill="${PETS_COLORS[Pets.SPRITE_KEYS[key]]}"/>`)
+        `<rect x="${x + x0}" y="${y + y0}" width="${width}" height="1" fill="${colors[Pets.SPRITE_KEYS[key]]}"/>`)
     .join('');
 
 // Place an HTML overlay over a region of the room, in room pixels. Percentages, so it
@@ -1699,9 +1710,10 @@ function buildPetsScene() {
         + band(floorY, 1, PETS_COLORS.sceneLine)
         + band(floorY + 1, height - floorY - 1, PETS_COLORS.floor)
         + Pets.FLOOR_SEAMS.map((y) => band(y, 1, PETS_COLORS.floorShade)).join('')
-        + furnishing(Pets.WINDOW)
+        + '<g class="pets-window"></g>'   // drawn by drawPetsWindow, for the time of day
         + furnishing(Pets.PLANT)
         + '<g class="pets-dog"><g class="pets-body"></g><g class="pets-head"></g></g>'
+        + '<g class="pets-zzz"></g>'
         + Pets.ITEMS.map((kind) => `<g class="pets-bowl" data-bowl="${kind}"></g>`).join('');
 
     Pets.ITEMS.forEach((kind) => {
@@ -1717,7 +1729,7 @@ function buildPetsScene() {
 
 function drawPet() {
     const species = petSpecies();
-    const body = species.body[Pets.bodyFrame(pets.posture, pets.wag, pets.stepsWalked)];
+    const body = species.body[Pets.bodyFrame(pets.posture, pets.wag, pets.stepsWalked, pets.breath)];
     const offset = Pets.headOffset(pets.posture, {
         leaning: pets.leaning,
         leanDx: pets.leanDx,
@@ -1733,6 +1745,10 @@ function drawPet() {
         : `translate(${pets.x} ${Pets.DOG_Y})`);
     dog.querySelector('.pets-body').innerHTML = petRects(body);
     dog.querySelector('.pets-head').innerHTML = petRects(species.head[pets.eyes], offset.dx, offset.dy);
+    // The Z's are outside the dog's group, so a mirrored dog could never mirror the letters.
+    petsSvg.querySelector('.pets-zzz').innerHTML = pets.asleep
+        ? Pets.zzzFrame(pets.zzzStep).map(({ x, y, rows }) => petRects(rows, pets.x + x, Pets.DOG_Y + y)).join('')
+        : '';
     placePetsOverlay(petsDogHit, pets.x, Pets.DOG_Y, species.size.width, species.size.height);
 }
 
@@ -1751,8 +1767,10 @@ function petsHint(message) {
 }
 
 function clearPetsTimers() {
-    const { walk, chomp, wag, tick, barkSteps, thank, hint, fidget } = pets.timers;
+    const { walk, chomp, wag, tick, barkSteps, thank, hint, fidget, sleep, clock } = pets.timers;
     clearTimeout(fidget);
+    clearInterval(sleep);
+    clearInterval(clock);
     clearInterval(walk);
     clearInterval(chomp);
     clearInterval(wag);
@@ -1769,28 +1787,35 @@ function resetPets() {
     endPetsDrag();
     petsDogHit.classList.remove('is-petting');
 
+    const period = petsTimeOfDay();
+    const asleep = period === 'night'; // opened at night, the dog is already asleep
     pets = {
         species: Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog',
         x: Pets.HOME_X,
         homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
         facing: 'left',     // left | right - right only while walking right
         activity: 'idle',   // idle | walking | eating | drinking | thanking | fidgeting
-        posture: Pets.RESTING_POSTURE, // sit | stand | down | walk - it rests sitting
+        posture: asleep ? 'sleep' : Pets.RESTING_POSTURE, // sit | stand | down | walk | sleep
         leaning: false,     // head raised into a stroking hand
         barking: false,     // from the first yip to the end of the last, gaps included
         stepsWalked: 0,     // pixels into the current walk, for the leg frames
-        eyes: 'open',       // open | happy | bark
+        eyes: asleep ? 'asleep' : 'open', // open | happy | bark | asleep
         wag: false,
         leanDx: -1,
         chompUp: false,
+        period,             // dawn | day | dusk | night - see Pets.timeOfDay
+        asleep,
+        breath: false,      // the half of a sleeping breath where the back is up
+        zzzStep: 0,         // how far the Z's have drifted
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
-        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], thank: null, hint: null, fidget: null },
+        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], thank: null, hint: null, fidget: null, sleep: null, clock: null },
     };
 
-    petsDogHit.setAttribute('aria-label', `${petSpecies().description}. Stroke it to pet it.`);
+    petsDogHit.setAttribute('aria-label', petsDogLabel());
     petsStatusEl.textContent = petsDefaultMessage();
+    drawPetsWindow();
     drawPetBowls();
     drawPet();
 }
@@ -1830,6 +1855,7 @@ function petsBusyMessage() {
 // Leaning into the hand: head raised toward it, eyes closed, tail going.
 function showPetRubbing(leanDx) {
     pets.leanDx = leanDx;
+    if (pets.asleep) wakePet(); // petting is the one thing that wakes it at night
     if (pets.barking) return; // the bark finishes first, then the rub resumes
     // Only the head moves: the dog stays sitting to be petted.
     pets.leaning = !petsReduceMotion.matches;
@@ -1841,6 +1867,7 @@ function showPetRubbing(leanDx) {
 /* Back to resting quietly - sitting, if it is at home - and, if something was put in a bowl
    meanwhile, over to it. */
 function settlePet() {
+    if (pets.asleep) return; // a tap that never became a stroke leaves it sleeping
     pets.leaning = false;
     if (pets.activity === 'idle') {
         pets.posture = Pets.RESTING_POSTURE;
@@ -1851,6 +1878,8 @@ function settlePet() {
     setPetWagging(false);
     drawPet();
     maybeVisitBowl();
+    // At night, each time it settles, the countdown to dozing off starts again.
+    if (pets.activity === 'idle' && pets.period === 'night' && !views.pets.hidden) scheduleFidget();
 }
 
 /* The bark is built as samples by barkSamples in js/pets.js - pure, and so tested for its
@@ -1986,7 +2015,7 @@ petsDogHit.addEventListener('pointermove', (event) => {
 /* --- Food and water --- */
 
 function maybeVisitBowl() {
-    if (pets.activity !== 'idle' || pets.stroke) return;
+    if (pets.activity !== 'idle' || pets.stroke || pets.asleep) return;
     const next = Pets.bowlToVisit(pets.bowls);
     if (next) visitBowl(next);
 }
@@ -2061,8 +2090,10 @@ function startEating(kind) {
    bark standing at the last bowl - the owner's pick over barking at home or after every
    bowl - and then home. One bark per meal, whether it ate, drank or both. The bark is set
    apart by a pause either side, so it reads as its own moment rather than part of the
-   eating or the walk: stand, wait, bark, wait, go. */
-const PETS_THANK_PAUSE_MS = 1000;
+   eating or the walk: stand, wait, bark, wait, go. The owner tuned the pauses by feel: a
+   second either side at first, then half a second before. */
+const PETS_THANK_WAIT_BEFORE_MS = 500;
+const PETS_THANK_WAIT_AFTER_MS = 1000;
 
 function finishEating(kind) {
     pets.posture = 'stand';
@@ -2094,9 +2125,9 @@ function finishEating(kind) {
                     pets.activity = 'idle';
                     settlePet();
                 });
-            }, PETS_THANK_PAUSE_MS);
+            }, PETS_THANK_WAIT_AFTER_MS);
         });
-    }, PETS_THANK_PAUSE_MS);
+    }, PETS_THANK_WAIT_BEFORE_MS);
 }
 
 function givePetItem(kind) {
@@ -2107,6 +2138,8 @@ function givePetItem(kind) {
     }
     pets.bowls = bowls;
     drawPetBowls();
+    // Food and water don't wake it at night - the owner's call. Once petting has, it goes to eat.
+    if (pets.asleep) petsHint(`The ${petSpecies().name.toLowerCase()} is asleep. It will find this when it wakes.`);
     maybeVisitBowl();
 }
 
@@ -2197,22 +2230,28 @@ petsSpeciesSelect.addEventListener('change', resetPets);
 
 /* --- Fidgeting --- */
 /* Left alone, the dog gets up every so often and resettles nearby - the owner's brief: wait
-   a random whole number of seconds up to 90, walk a random, bounded distance, sit, and wait
-   again. The numbers and the bounds are FIDGET in js/pets.js, and tested there.
+   a random whole number of seconds, walk a random, bounded distance, sit, and wait again.
+   The numbers and the bounds are FIDGET in js/pets.js, and tested there. At dusk the waits
+   are twice as long; at night the same timer is the countdown to dozing off instead.
 
    It only runs while the Pets view is on screen: showRoute starts it, and stopAllGames
    clears it through resetPets. A fidget that falls due while the dog is busy - being
    petted, mid-drag, walking or eating - is skipped, and a fresh wait begins. */
 function scheduleFidget() {
     clearTimeout(pets.timers.fidget);
-    pets.timers.fidget = setTimeout(fidget, Pets.fidgetDelayMs());
+    pets.timers.fidget = setTimeout(fidget, Pets.restDelayMs(pets.period));
 }
 
 function fidget() {
     pets.timers.fidget = null;
     if (views.pets.hidden) return;
+    if (pets.asleep) return; // waking starts the next wait
     if (pets.activity !== 'idle' || pets.stroke || petsDrag) {
         scheduleFidget();
+        return;
+    }
+    if (pets.period === 'night') {
+        fallAsleep();
         return;
     }
 
@@ -2228,6 +2267,102 @@ function fidget() {
         settlePet();
         scheduleFidget();
     });
+}
+
+/* --- Time of day --- */
+/* The room follows the device's local clock - the sky through the window, and the dog,
+   drowsy at dusk and asleep at night. The rules are in js/pets.js; here is the clock. It
+   is checked on opening the view and once a minute while it stays open, so a room left
+   open through the evening goes dark on its own.
+
+   ?time=dawn, day, dusk or night on the page's address pins the time of day, so night can
+   be looked at in daylight - e.g. entertainment.html?time=night#pets. It is in the query,
+   not the hash, because the hash is the route. */
+const PETS_CLOCK_MS = 60000;
+
+const petsTimeOverride = (() => {
+    try {
+        const asked = new URLSearchParams(window.location.search).get('time');
+        return Pets.TIMES_OF_DAY.includes(asked) ? asked : null;
+    } catch {
+        return null;
+    }
+})();
+
+function petsTimeOfDay() {
+    return petsTimeOverride ?? Pets.timeOfDay(new Date());
+}
+
+function drawPetsWindow() {
+    const { x, y, rows } = Pets.WINDOW;
+    const view = pets.period === 'night' ? Pets.patchRows(rows, Pets.NIGHT_SKY) : rows;
+    petsSvg.querySelector('.pets-window').innerHTML =
+        petRects(view, x, y, { ...PETS_COLORS, ...PETS_SKIES[pets.period] });
+}
+
+/* The breathing and the Z's share one timer. With reduced motion neither moves: the dog
+   lies still with its Z's in place, which still says asleep. */
+function startPetSleepAnimation() {
+    clearInterval(pets.timers.sleep);
+    pets.timers.sleep = null;
+    if (!pets.asleep || petsReduceMotion.matches || views.pets.hidden) return;
+    pets.timers.sleep = setInterval(() => {
+        pets.zzzStep += 1;
+        pets.breath = Math.floor(pets.zzzStep / Pets.SLEEP.stepsPerBreath) % 2 === 1;
+        drawPet();
+    }, Pets.SLEEP.zzzStepMs);
+}
+
+// Lying down where it is, facing the bowls.
+function fallAsleep() {
+    pets.asleep = true;
+    pets.posture = 'sleep';
+    pets.eyes = 'asleep';
+    pets.facing = 'left';
+    pets.leaning = false;
+    pets.breath = false;
+    pets.zzzStep = 0;
+    setPetWagging(false);
+    petsStatusEl.textContent = petsDefaultMessage();
+    petsDogHit.setAttribute('aria-label', petsDogLabel());
+    drawPet();
+    startPetSleepAnimation();
+}
+
+// Sitting up, awake. Whoever woke it carries on from here - a stroke, or the morning.
+function wakePet() {
+    pets.asleep = false;
+    clearInterval(pets.timers.sleep);
+    pets.timers.sleep = null;
+    pets.posture = Pets.RESTING_POSTURE;
+    pets.eyes = 'open';
+    pets.breath = false;
+    petsStatusEl.textContent = petsDefaultMessage();
+    petsDogHit.setAttribute('aria-label', petsDogLabel());
+    drawPet();
+}
+
+function applyPetsTimeOfDay() {
+    const period = petsTimeOfDay();
+    if (period === pets.period) return;
+    pets.period = period;
+    drawPetsWindow();
+    if (period !== 'night' && pets.asleep) {
+        // Morning: it wakes, and anything left in a bowl overnight is found now.
+        wakePet();
+        settlePet();
+    }
+    // How long it rests depends on the time of day, so the wait starts over.
+    scheduleFidget();
+}
+
+// Opening the view: the clock, the sleep animation if it is asleep, and the first wait.
+function startPetsView() {
+    applyPetsTimeOfDay();
+    startPetSleepAnimation();
+    scheduleFidget();
+    clearInterval(pets.timers.clock);
+    pets.timers.clock = setInterval(applyPetsTimeOfDay, PETS_CLOCK_MS);
 }
 
 setPetsSoundOn(petsSoundOn);
