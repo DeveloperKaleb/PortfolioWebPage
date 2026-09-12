@@ -269,23 +269,39 @@ export const facingFor = (fromX, toX, current = 'left') => {
 /* --- Fidgeting ---
  *
  * Left alone, the dog gets up now and then and resettles nearby - the owner's brief. It
- * waits a random whole number of seconds, from minSeconds to maxSeconds; then gets up,
- * walks a random whole number of pixels from minStep to maxStep, left or right at random,
- * sits, and waits again.
+ * waits a random whole number of seconds; then gets up, walks a random whole number of
+ * pixels from minStep to maxStep, left or right at random, sits, and waits again.
+ *
+ * The wait is heavily weighted toward the short end: 70% of waits are under 20 seconds,
+ * 15% from 20 up to 35, and 15% from 35 to 45 - never longer. It was a flat 10 to 90
+ * seconds at first, and the owner found that far too long to watch for. The bands are
+ * whole seconds that meet without overlapping - 10-19, 20-34 and 35-45 - so each second
+ * belongs to exactly one, and within a band every second is equally likely.
  *
  * Every move stays inside minX..maxX: clear of the bowls on the left, and with the whole
  * dog - tail included - inside the right wall. */
 export const FIDGET = {
-    minSeconds: 10,
-    maxSeconds: 90,
+    waitBands: [
+        { fromSeconds: 10, toSeconds: 19, share: 0.7 },
+        { fromSeconds: 20, toSeconds: 34, share: 0.15 },
+        { fromSeconds: 35, toSeconds: 45, share: 0.15 },
+    ],
     minStep: 8,
     maxStep: 24,
     minX: BOWLS.water.x + BOWL_SIZE.width + 3,
     maxX: SCENE.width - SPECIES.dog.size.width - 2,
 };
 
-export const fidgetDelayMs = (random = Math.random, rules = FIDGET) =>
-    (rules.minSeconds + Math.floor(random() * (rules.maxSeconds - rules.minSeconds + 1))) * 1000;
+/* A wait in milliseconds: the first draw picks a band by its share, the second a whole
+   second within that band. */
+export function fidgetDelayMs(random = Math.random, rules = FIDGET) {
+    const roll = random();
+    let reached = 0;
+    const band = rules.waitBands.find(({ share }) => (reached += share) > roll)
+        ?? rules.waitBands[rules.waitBands.length - 1];
+    const seconds = band.fromSeconds + Math.floor(random() * (band.toSeconds - band.fromSeconds + 1));
+    return seconds * 1000;
+}
 
 /* Where one fidget takes the dog. A move that would leave the bounds goes the other way
    instead; if a full move fits neither way, the dog goes as far as it can toward the

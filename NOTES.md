@@ -1461,11 +1461,27 @@ the build, and that caught four things no test could:
 Eating now has its own body with the neck sloping down, petting moves only the head, and
 the bowls are drawn in front of the dog so a lowered head looks like it is in the bowl.
 
-**The dog fidgets** (2026-09-12). Left alone, it waits a random whole number of seconds
-from 10 to 90, gets up, walks a random 8 to 24 pixels left or right, sits, and starts a
-new wait. The owner set the 90-second ceiling and chose the 10-second floor, the distance
-and the facing from offered options. `FIDGET` in `js/pets.js` holds the numbers, and
-`fidgetDelayMs` and `fidgetTarget` are pure and tested.
+**The dog fidgets** (2026-09-12). Left alone, it waits a random whole number of seconds,
+gets up, walks a random 8 to 24 pixels left or right, sits, and starts a new wait. The
+owner chose the 10-second floor, the distance and the facing from offered options.
+`FIDGET` in `js/pets.js` holds the numbers, and `fidgetDelayMs` and `fidgetTarget` are
+pure and tested.
+
+**The wait is weighted toward short.** The first version drew a flat 10 to 90 seconds, a
+ceiling the owner had guessed at; in use it was far too long to watch for. It now comes
+from three bands, at the owner's shares:
+
+| wait | share |
+|---|---|
+| 10-19 seconds | 70% |
+| 20-34 seconds | 15% |
+| 35-45 seconds | 15% |
+
+The bands are whole seconds and meet without overlapping, so each second belongs to
+exactly one - the brief's "20-35" and "35-45" share an end, and 35 went to the upper band.
+One draw picks the band by its share, a second picks a second within it, and within a band
+every second is equally likely. Tested at the band edges, and as rates: over 20,000 seeded
+waits each band lands within two points of its share, and nothing exceeds 45 seconds.
 
 - **Bounds.** A move stays clear of the bowls on the left and keeps the whole dog, tail
   included, inside the right wall. A move that would leave the bounds goes the other way;
