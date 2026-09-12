@@ -1751,13 +1751,14 @@ function petsHint(message) {
 }
 
 function clearPetsTimers() {
-    const { walk, chomp, wag, tick, barkSteps, hint, fidget } = pets.timers;
+    const { walk, chomp, wag, tick, barkSteps, thank, hint, fidget } = pets.timers;
     clearTimeout(fidget);
     clearInterval(walk);
     clearInterval(chomp);
     clearInterval(wag);
     clearInterval(tick);
     barkSteps.forEach(clearTimeout);
+    clearTimeout(thank);
     clearTimeout(hint);
 }
 
@@ -1785,7 +1786,7 @@ function resetPets() {
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
-        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], hint: null, fidget: null },
+        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], thank: null, hint: null, fidget: null },
     };
 
     petsDogHit.setAttribute('aria-label', `${petSpecies().description}. Stroke it to pet it.`);
@@ -2058,7 +2059,11 @@ function startEating(kind) {
 
 /* Then to the other bowl if it has something in it. If not, the meal is over: a thank-you
    bark standing at the last bowl - the owner's pick over barking at home or after every
-   bowl - and then home. One bark per meal, whether it ate, drank or both. */
+   bowl - and then home. One bark per meal, whether it ate, drank or both. The bark is set
+   apart by a pause either side, so it reads as its own moment rather than part of the
+   eating or the walk: stand, wait, bark, wait, go. */
+const PETS_THANK_PAUSE_MS = 1000;
+
 function finishEating(kind) {
     pets.posture = 'stand';
     pets.chompUp = false;
@@ -2069,22 +2074,29 @@ function finishEating(kind) {
         return;
     }
     pets.activity = 'thanking';
-    barkPet(() => {
-        pets.eyes = 'open';
-        // A bowl filled during the bark is still visited before going home, and thanked for.
-        const refilled = Pets.bowlToVisit(pets.bowls, other);
-        if (refilled) {
-            visitBowl(refilled);
-            return;
-        }
-        pets.activity = 'walking';
-        drawPet();
-        // Back to wherever it last settled, which fidgeting moves about.
-        walkPetTo(pets.homeX, () => {
-            pets.activity = 'idle';
-            settlePet();
+    drawPet();
+    pets.timers.thank = setTimeout(() => {
+        pets.timers.thank = null;
+        barkPet(() => {
+            pets.eyes = 'open';
+            drawPet();
+            pets.timers.thank = setTimeout(() => {
+                pets.timers.thank = null;
+                // A bowl filled meanwhile is still visited before going home, and thanked for.
+                const refilled = Pets.bowlToVisit(pets.bowls, other);
+                if (refilled) {
+                    visitBowl(refilled);
+                    return;
+                }
+                pets.activity = 'walking';
+                // Back to wherever it last settled, which fidgeting moves about.
+                walkPetTo(pets.homeX, () => {
+                    pets.activity = 'idle';
+                    settlePet();
+                });
+            }, PETS_THANK_PAUSE_MS);
         });
-    });
+    }, PETS_THANK_PAUSE_MS);
 }
 
 function givePetItem(kind) {

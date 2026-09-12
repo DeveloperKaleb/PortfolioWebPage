@@ -1463,25 +1463,29 @@ the bowls are drawn in front of the dog so a lowered head looks like it is in th
 
 **The dog fidgets** (2026-09-12). Left alone, it waits a random whole number of seconds,
 gets up, walks a random 8 to 24 pixels left or right, sits, and starts a new wait. The
-owner chose the 10-second floor, the distance and the facing from offered options.
+owner chose the distance and the facing from offered options, and the floor - first 10
+seconds, then 5.
 `FIDGET` in `js/pets.js` holds the numbers, and `fidgetDelayMs` and `fidgetTarget` are
 pure and tested.
 
 **The wait is weighted toward short.** The first version drew a flat 10 to 90 seconds, a
-ceiling the owner had guessed at; in use it was far too long to watch for. It now comes
-from three bands, at the owner's shares:
+ceiling the owner had guessed at; in use it was far too long to watch for. Then it came
+from three bands on a 10-second floor: 70% 10-19 seconds, 15% 20-34, 15% 35-45. Later the
+same day the owner dropped the floor to 5 seconds and set four bands:
 
 | wait | share |
 |---|---|
-| 10-19 seconds | 70% |
-| 20-34 seconds | 15% |
-| 35-45 seconds | 15% |
+| 5-9 seconds | 50% |
+| 10-24 seconds | 25% |
+| 25-34 seconds | 15% |
+| 35-45 seconds | 10% |
 
 The bands are whole seconds and meet without overlapping, so each second belongs to
-exactly one - the brief's "20-35" and "35-45" share an end, and 35 went to the upper band.
-One draw picks the band by its share, a second picks a second within it, and within a band
-every second is equally likely. Tested at the band edges, and as rates: over 20,000 seeded
-waits each band lands within two points of its share, and nothing exceeds 45 seconds.
+exactly one. The brief's bands share their ends ("5-10", "10-25", "25-35", "35-45"), and
+each shared second went to the upper band, as it did the first time. One draw picks the
+band by its share, a second picks a second within it, and within a band every second is
+equally likely. Tested at the band edges, and as rates: over 20,000 seeded waits each band
+lands within two points of its share, and nothing exceeds 45 seconds.
 
 - **Bounds.** A move stays clear of the bowls on the left and keeps the whole dog, tail
   included, inside the right wall. A move that would leave the bounds goes the other way;
@@ -1537,7 +1541,9 @@ believe: that the dog is real.
   cannot settle the dog halfway through.
 
 **The dog says thank you after a meal** (2026-09-12). When the last bowl is empty, it
-double-barks standing where it is - mouth opening per yip, tail going - then walks home.
+stands, waits a second, double-barks - mouth opening per yip, tail going - waits another
+second, then walks home. The pauses were the owner's follow-up: straight after eating and
+straight into the walk, the bark wasn't defined enough to read as a thank-you.
 The owner picked "once, at the last bowl" over barking once it was home and sitting, or
 after every bowl. So it is one bark per meal whether it ate, drank or both. The dog is
 `thanking` meanwhile, and busy like when eating: a stroke gets "The dog is saying thank

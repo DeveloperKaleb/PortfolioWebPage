@@ -291,46 +291,49 @@ describe('Fidgeting', () => {
         return () => values[i++];
     };
 
-    /* The owner's brief, revised: a flat 10 to 90 seconds was too long to watch for. Now
-       never more than 45 seconds, and mostly short. */
-    test('waits in three bands: 70% under 20 seconds, 15% from 20 to 35, 15% from 35 to 45', () => {
+    /* The owner's brief, revised twice: a flat 10 to 90 seconds was too long to watch for,
+       then the 10-second floor came down to 5. Never more than 45 seconds, mostly short. */
+    test('waits in four bands: 50% 5-10 seconds, 25% 10-25, 15% 25-35, 10% 35-45', () => {
         expect(FIDGET.waitBands).toEqual([
-            { fromSeconds: 10, toSeconds: 19, share: 0.7 },
-            { fromSeconds: 20, toSeconds: 34, share: 0.15 },
-            { fromSeconds: 35, toSeconds: 45, share: 0.15 },
+            { fromSeconds: 5, toSeconds: 9, share: 0.5 },
+            { fromSeconds: 10, toSeconds: 24, share: 0.25 },
+            { fromSeconds: 25, toSeconds: 34, share: 0.15 },
+            { fromSeconds: 35, toSeconds: 45, share: 0.1 },
         ]);
         const total = FIDGET.waitBands.reduce((sum, band) => sum + band.share, 0);
         expect(total).toBeCloseTo(1, 10);
     });
 
     test('the first draw picks the band, the second the second within it', () => {
-        expect(fidgetDelayMs(scripted(0, 0))).toBe(10000);
-        expect(fidgetDelayMs(scripted(0.69, 0.999999))).toBe(19000);
-        expect(fidgetDelayMs(scripted(0.7, 0))).toBe(20000);
-        expect(fidgetDelayMs(scripted(0.84, 0.999999))).toBe(34000);
-        expect(fidgetDelayMs(scripted(0.86, 0))).toBe(35000);
+        expect(fidgetDelayMs(scripted(0, 0))).toBe(5000);
+        expect(fidgetDelayMs(scripted(0.49, 0.999999))).toBe(9000);
+        expect(fidgetDelayMs(scripted(0.5, 0))).toBe(10000);
+        expect(fidgetDelayMs(scripted(0.74, 0.999999))).toBe(24000);
+        expect(fidgetDelayMs(scripted(0.75, 0))).toBe(25000);
+        expect(fidgetDelayMs(scripted(0.89, 0.999999))).toBe(34000);
+        expect(fidgetDelayMs(scripted(0.91, 0))).toBe(35000);
         expect(fidgetDelayMs(scripted(0.999999, 0.999999))).toBe(45000);
     });
 
-    test('never waits longer than 45 seconds, and every whole second from 10 to 45 can come up', () => {
+    test('never waits longer than 45 seconds, and every whole second from 5 to 45 can come up', () => {
         const random = seededRandom(3);
         const waits = [];
         for (let i = 0; i < 20000; i++) waits.push(fidgetDelayMs(random));
         expect(waits.every((ms) => ms % 1000 === 0)).toBe(true);
-        expect(Math.min(...waits)).toBe(10000);
+        expect(Math.min(...waits)).toBe(5000);
         expect(Math.max(...waits)).toBe(45000);
-        expect(new Set(waits).size).toBe(36);
+        expect(new Set(waits).size).toBe(41);
     });
 
     test('in practice, lands in each band about as often as its share', () => {
         const random = seededRandom(4);
         const trials = 20000;
-        const counts = [0, 0, 0];
+        const counts = [0, 0, 0, 0];
         for (let i = 0; i < trials; i++) {
             const seconds = fidgetDelayMs(random) / 1000;
-            counts[seconds < 20 ? 0 : seconds < 35 ? 1 : 2] += 1;
+            counts[seconds < 10 ? 0 : seconds < 25 ? 1 : seconds < 35 ? 2 : 3] += 1;
         }
-        [0.7, 0.15, 0.15].forEach((share, band) => {
+        [0.5, 0.25, 0.15, 0.1].forEach((share, band) => {
             expect(counts[band] / trials).toBeGreaterThan(share - 0.02);
             expect(counts[band] / trials).toBeLessThan(share + 0.02);
         });

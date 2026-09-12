@@ -396,19 +396,22 @@ export const facingFor = (fromX, toX, current = 'left') => {
  * waits a random whole number of seconds; then gets up, walks a random whole number of
  * pixels from minStep to maxStep, left or right at random, sits, and waits again.
  *
- * The wait is heavily weighted toward the short end: 70% of waits are under 20 seconds,
- * 15% from 20 up to 35, and 15% from 35 to 45 - never longer. It was a flat 10 to 90
- * seconds at first, and the owner found that far too long to watch for. The bands are
- * whole seconds that meet without overlapping - 10-19, 20-34 and 35-45 - so each second
- * belongs to exactly one, and within a band every second is equally likely.
+ * The wait is heavily weighted toward the short end: half of all waits are 5 to 10
+ * seconds, a quarter 10 up to 25, 15% 25 up to 35, and 10% 35 to 45 - never longer. It was
+ * a flat 10 to 90 seconds at first, far too long to watch for; then three bands from a
+ * 10-second floor; then, at the owner's ask, the floor came down to 5 and a fourth band was
+ * added. The bands are whole seconds that meet without overlapping - 5-9, 10-24, 25-34 and
+ * 35-45 - so each second belongs to exactly one, and within a band every second is equally
+ * likely.
  *
  * Every move stays inside minX..maxX: clear of the bowls on the left, and with the whole
  * dog - tail included - inside the right wall. */
 export const FIDGET = {
     waitBands: [
-        { fromSeconds: 10, toSeconds: 19, share: 0.7 },
-        { fromSeconds: 20, toSeconds: 34, share: 0.15 },
-        { fromSeconds: 35, toSeconds: 45, share: 0.15 },
+        { fromSeconds: 5, toSeconds: 9, share: 0.5 },
+        { fromSeconds: 10, toSeconds: 24, share: 0.25 },
+        { fromSeconds: 25, toSeconds: 34, share: 0.15 },
+        { fromSeconds: 35, toSeconds: 45, share: 0.1 },
     ],
     minStep: 8,
     maxStep: 24,
