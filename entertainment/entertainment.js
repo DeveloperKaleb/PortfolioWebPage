@@ -129,6 +129,8 @@ function showRoute(route) {
         if (tictactoePlayers === 1) tictactoeRules().prepare();
         scheduleTicTacToeReply();
     }
+    // The dog only fidgets while it can be seen; stopAllGames has just cleared its timer.
+    if (route.view === views.pets.id) scheduleFidget();
 }
 
 /* Back says where it goes, because that now depends on the route: a game's Back leads to
@@ -1713,7 +1715,11 @@ function drawPet() {
     const offset = Pets.headOffset(pets.posture, { leaning: pets.leaning, leanDx: pets.leanDx, chompUp: pets.chompUp });
 
     const dog = petsSvg.querySelector('.pets-dog');
-    dog.setAttribute('transform', `translate(${pets.x} ${Pets.DOG_Y})`);
+    /* Facing right is the same drawing mirrored within its own box, so the dog stays in the
+       same place and the stroke overlay still covers it. */
+    dog.setAttribute('transform', pets.facing === 'right'
+        ? `translate(${pets.x + species.size.width} ${Pets.DOG_Y}) scale(-1 1)`
+        : `translate(${pets.x} ${Pets.DOG_Y})`);
     dog.querySelector('.pets-body').innerHTML = petRects(body);
     dog.querySelector('.pets-head').innerHTML = petRects(species.head[pets.eyes], offset.dx, offset.dy);
     placePetsOverlay(petsDogHit, pets.x, Pets.DOG_Y, species.size.width, species.size.height);
@@ -1734,7 +1740,8 @@ function petsHint(message) {
 }
 
 function clearPetsTimers() {
-    const { walk, chomp, wag, tick, bark, hint } = pets.timers;
+    const { walk, chomp, wag, tick, bark, hint, fidget } = pets.timers;
+    clearTimeout(fidget);
     clearInterval(walk);
     clearInterval(chomp);
     clearInterval(wag);
@@ -1753,7 +1760,9 @@ function resetPets() {
     pets = {
         species: Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog',
         x: Pets.HOME_X,
-        activity: 'idle',   // idle | walking | eating | drinking
+        homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
+        facing: 'left',     // left | right - right only while walking right
+        activity: 'idle',   // idle | walking | eating | drinking | fidgeting
         posture: Pets.RESTING_POSTURE, // sit | stand | down - it rests sitting
         leaning: false,     // head raised into a stroking hand
         eyes: 'open',       // open | happy | bark
@@ -1763,7 +1772,7 @@ function resetPets() {
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
-        timers: { walk: null, chomp: null, wag: null, tick: null, bark: null, hint: null },
+        timers: { walk: null, chomp: null, wag: null, tick: null, bark: null, hint: null, fidget: null },
     };
 
     petsDogHit.setAttribute('aria-label', `${petSpecies().description}. Stroke it to pet it.`);
@@ -1799,6 +1808,7 @@ function petsBusyMessage() {
     const name = petSpecies().name.toLowerCase();
     if (pets.activity === 'eating') return `Let the ${name} finish eating first.`;
     if (pets.activity === 'drinking') return `Let the ${name} finish drinking first.`;
+    if (pets.activity === 'fidgeting') return `The ${name} is finding a new spot.`;
     return `The ${name} is on its way to its bowl.`;
 }
 
@@ -1817,7 +1827,11 @@ function showPetRubbing(leanDx) {
    meanwhile, over to it. */
 function settlePet() {
     pets.leaning = false;
-    if (pets.activity === 'idle') pets.posture = Pets.RESTING_POSTURE;
+    if (pets.activity === 'idle') {
+        pets.posture = Pets.RESTING_POSTURE;
+        // It turns back to face the bowls when it sits, whichever way it walked.
+        pets.facing = 'left';
+    }
     pets.eyes = 'open';
     setPetWagging(false);
     drawPet();
@@ -1942,6 +1956,7 @@ function maybeVisitBowl() {
 function walkPetTo(targetX, arrived) {
     clearInterval(pets.timers.walk);
     pets.timers.walk = null;
+    pets.facing = Pets.facingFor(pets.x, targetX, pets.facing);
     if (petsReduceMotion.matches || pets.x === targetX) {
         pets.x = targetX;
         drawPet();
@@ -2002,7 +2017,8 @@ function finishEating(kind) {
         return;
     }
     pets.activity = 'walking';
-    walkPetTo(Pets.HOME_X, () => {
+    // Back to wherever it last settled, which fidgeting moves about.
+    walkPetTo(pets.homeX, () => {
         pets.activity = 'idle';
         settlePet();
     });
@@ -2103,6 +2119,41 @@ function setPetsSoundOn(on) {
 
 petsSoundToggle.addEventListener('click', () => setPetsSoundOn(!petsSoundOn));
 petsSpeciesSelect.addEventListener('change', resetPets);
+
+/* --- Fidgeting --- */
+/* Left alone, the dog gets up every so often and resettles nearby - the owner's brief: wait
+   a random whole number of seconds up to 90, walk a random, bounded distance, sit, and wait
+   again. The numbers and the bounds are FIDGET in js/pets.js, and tested there.
+
+   It only runs while the Pets view is on screen: showRoute starts it, and stopAllGames
+   clears it through resetPets. A fidget that falls due while the dog is busy - being
+   petted, mid-drag, walking or eating - is skipped, and a fresh wait begins. */
+function scheduleFidget() {
+    clearTimeout(pets.timers.fidget);
+    pets.timers.fidget = setTimeout(fidget, Pets.fidgetDelayMs());
+}
+
+function fidget() {
+    pets.timers.fidget = null;
+    if (views.pets.hidden) return;
+    if (pets.activity !== 'idle' || pets.stroke || petsDrag) {
+        scheduleFidget();
+        return;
+    }
+
+    const target = Pets.fidgetTarget(pets.x);
+    pets.activity = 'fidgeting';
+    pets.posture = 'stand';
+    pets.leaning = false;
+    pets.eyes = 'open';
+    setPetWagging(false);
+    walkPetTo(target, () => {
+        pets.homeX = target;
+        pets.activity = 'idle';
+        settlePet();
+        scheduleFidget();
+    });
+}
 
 setPetsSoundOn(petsSoundOn);
 buildPetsScene();

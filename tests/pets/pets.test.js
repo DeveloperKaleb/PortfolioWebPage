@@ -19,6 +19,10 @@ import {
     ITEM_ICONS,
     dogXForBowl,
     stepToward,
+    facingFor,
+    FIDGET,
+    fidgetDelayMs,
+    fidgetTarget,
     PETTING,
     startStroke,
     moveStroke,
@@ -195,6 +199,78 @@ describe('The room', () => {
         const filled = (level) => bowlRows('food', level)[0].replace(/\./g, '').length;
         expect([0, 1, 2, 3].map(filled)).toEqual([0, 3, 5, 7]);
         expect(bowlRows('water', 9)).toEqual(bowlRows('water', BOWL_LEVELS));
+    });
+});
+
+describe('Fidgeting', () => {
+    // Every value an evenly spread random source would give over n draws.
+    const spread = (n) => Array.from({ length: n }, (_unused, i) => () => i / n);
+    // A random source that hands back exactly these values, in order.
+    const scripted = (...values) => {
+        let i = 0;
+        return () => values[i++];
+    };
+
+    // The owner's brief: a random wait of no more than 90 seconds, with a floor of 10.
+    test('waits a whole number of seconds, from 10 to 90', () => {
+        expect(FIDGET.minSeconds).toBe(10);
+        expect(FIDGET.maxSeconds).toBe(90);
+        expect(fidgetDelayMs(() => 0)).toBe(10000);
+        expect(fidgetDelayMs(() => 0.999999)).toBe(90000);
+        spread(1000).forEach((random) => {
+            const ms = fidgetDelayMs(random);
+            expect(ms % 1000).toBe(0);
+            expect(ms).toBeGreaterThanOrEqual(10000);
+            expect(ms).toBeLessThanOrEqual(90000);
+        });
+    });
+
+    test('every whole second in the range can come up', () => {
+        const waits = new Set(spread(810).map((random) => fidgetDelayMs(random)));
+        expect(waits.size).toBe(81);
+    });
+
+    test('moves 8 to 24 pixels, either way', () => {
+        expect(FIDGET.minStep).toBe(8);
+        expect(FIDGET.maxStep).toBe(24);
+        expect(fidgetTarget(40, scripted(0, 0))).toBe(32);
+        expect(fidgetTarget(40, scripted(0.999999, 0.9))).toBe(64);
+    });
+
+    test('turns round when the chosen way would leave its bounds', () => {
+        expect(fidgetTarget(FIDGET.maxX, scripted(0, 0.9))).toBe(FIDGET.maxX - 8);
+        expect(fidgetTarget(FIDGET.minX, scripted(0, 0))).toBe(FIDGET.minX + 8);
+    });
+
+    // In the middle of the bounds, a 24-pixel move can overshoot both ways.
+    test('goes as far as it can when a full move fits neither way', () => {
+        const middle = Math.floor((FIDGET.minX + FIDGET.maxX) / 2);
+        const target = fidgetTarget(middle, scripted(0.999999, 0));
+        expect([FIDGET.minX, FIDGET.maxX]).toContain(target);
+    });
+
+    test('always ends somewhere new, and never leaves its bounds', () => {
+        for (let x = FIDGET.minX; x <= FIDGET.maxX; x++) {
+            for (let i = 0; i < 40; i++) {
+                const target = fidgetTarget(x, scripted(i / 40, ((i * 7) % 40) / 40));
+                expect(target).not.toBe(x);
+                expect(target).toBeGreaterThanOrEqual(FIDGET.minX);
+                expect(target).toBeLessThanOrEqual(FIDGET.maxX);
+            }
+        }
+    });
+
+    test('the bounds keep the whole dog in the room, clear of the bowls, and include home', () => {
+        expect(FIDGET.minX).toBeGreaterThanOrEqual(BOWLS.water.x + BOWL_SIZE.width);
+        expect(FIDGET.maxX + dog.size.width).toBeLessThanOrEqual(SCENE.width);
+        expect(HOME_X).toBeGreaterThanOrEqual(FIDGET.minX);
+        expect(HOME_X).toBeLessThanOrEqual(FIDGET.maxX);
+    });
+
+    test('faces the way it walks, and keeps its facing when it does not move', () => {
+        expect(facingFor(10, 20)).toBe('right');
+        expect(facingFor(20, 10)).toBe('left');
+        expect(facingFor(5, 5, 'right')).toBe('right');
     });
 });
 

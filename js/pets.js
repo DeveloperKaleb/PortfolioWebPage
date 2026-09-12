@@ -208,20 +208,21 @@ export function spriteRuns(rows) {
 
 /* --- The room ---
  *
- * 60 x 30 pixels. It was 52 x 26 until the owner asked for a little more room: the dog now
- * has more space around it, and on a desktop, where the room may also grow wider, it stays
- * much the same size. On a phone, where the room is already as wide as the page, each
- * pixel is a little smaller - still plainly visible, which was the brief. */
+ * 100 x 50 pixels. It began at 52 x 26, grew to 60 x 30, and grew again to give the dog
+ * room to wander when fidgeting arrived. The last time, the room's size on screen stayed
+ * where it was, so the dog shrank on screen while keeping every pixel of its drawing - the
+ * owner's call. On a phone a room pixel is now about three screen pixels across, where the
+ * pixel look begins to soften; that was offered as the cost, and chosen. */
 
-export const SCENE = { width: 60, height: 30, floorY: 21 };
-export const DOG_Y = 10;
-export const HOME_X = 28;
+export const SCENE = { width: 100, height: 50, floorY: 35 };
+export const DOG_Y = 27;
+export const HOME_X = 48;
 
 export const BOWL_SIZE = { width: 9, height: 5 };
 export const BOWL_LEVELS = 3;
 export const BOWLS = {
-    food: { x: 2, y: 23 },
-    water: { x: 14, y: 23 },
+    food: { x: 4, y: 40 },
+    water: { x: 16, y: 40 },
 };
 export const ITEMS = ['food', 'water'];
 
@@ -255,6 +256,50 @@ export const dogXForBowl = (kind) => BOWLS[kind].x + Math.floor(BOWL_SIZE.width 
 
 // One pixel of walking toward a target.
 export const stepToward = (x, target) => x + Math.sign(target - x);
+
+/* Which way the dog faces while walking: the way it is going. The sprites face left, so
+   facing right is the same drawing mirrored. It turns back to face left when it sits, so
+   the bowls, the petting lean and eating all keep working as drawn. */
+export const facingFor = (fromX, toX, current = 'left') => {
+    if (toX > fromX) return 'right';
+    if (toX < fromX) return 'left';
+    return current;
+};
+
+/* --- Fidgeting ---
+ *
+ * Left alone, the dog gets up now and then and resettles nearby - the owner's brief. It
+ * waits a random whole number of seconds, from minSeconds to maxSeconds; then gets up,
+ * walks a random whole number of pixels from minStep to maxStep, left or right at random,
+ * sits, and waits again.
+ *
+ * Every move stays inside minX..maxX: clear of the bowls on the left, and with the whole
+ * dog - tail included - inside the right wall. */
+export const FIDGET = {
+    minSeconds: 10,
+    maxSeconds: 90,
+    minStep: 8,
+    maxStep: 24,
+    minX: BOWLS.water.x + BOWL_SIZE.width + 3,
+    maxX: SCENE.width - SPECIES.dog.size.width - 2,
+};
+
+export const fidgetDelayMs = (random = Math.random, rules = FIDGET) =>
+    (rules.minSeconds + Math.floor(random() * (rules.maxSeconds - rules.minSeconds + 1))) * 1000;
+
+/* Where one fidget takes the dog. A move that would leave the bounds goes the other way
+   instead; if a full move fits neither way, the dog goes as far as it can toward the
+   side with more room. It always ends somewhere new. */
+export function fidgetTarget(x, random = Math.random, rules = FIDGET) {
+    const { minStep, maxStep, minX, maxX } = rules;
+    const step = minStep + Math.floor(random() * (maxStep - minStep + 1));
+    const direction = random() < 0.5 ? -1 : 1;
+    const fits = (target) => target >= minX && target <= maxX;
+
+    if (fits(x + direction * step)) return x + direction * step;
+    if (fits(x - direction * step)) return x - direction * step;
+    return x - minX >= maxX - x ? minX : maxX;
+}
 
 /* --- Petting --- */
 

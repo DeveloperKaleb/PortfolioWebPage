@@ -1440,11 +1440,13 @@ clock and input in `entertainment.js`, and the colours in `PETS_COLORS`.
 
 **Sprites are data.** They are rows of palette keys in `js/pets.js`, drawn as SVG rects
 with `shape-rendering="crispEdges"`. Horizontal runs are merged, so a frame is tens of
-rects rather than hundreds. The room is 60 × 30 pixels, grown from 52 × 26 when the
-owner asked for a little more room. Its on-screen limit went from 30rem to 34rem at the same
-time, so on a desktop the dog keeps much the same size with more space around it. On a
-phone the room already fills the column, so each pixel is a little smaller - still plainly
-visible, which was the brief. The dog is two layers, head and body, so a pose
+rects rather than hundreds. The room is 100 × 50 pixels. It began at 52 × 26, then
+grew to 60 × 30 when the owner asked for a little more room, with its on-screen limit
+raised from 30rem to 34rem. On 2026-09-12 it grew to 100 × 50 to give the dog room to
+wander. That time the on-screen size stayed at 34rem, so the dog shrank on screen while
+keeping every pixel of its drawing - the owner's call, from 80 × 40, 90 × 45 and 100 × 50.
+On a phone a room pixel is now about three screen pixels across, where the pixel look starts
+to soften. That was offered as the cost, and chosen. The dog is two layers, head and body, so a pose
 moves the head without redrawing the dog - raised toward the hand while petted, lowered
 into the bowl while eating.
 
@@ -1458,6 +1460,30 @@ the build, and that caught four things no test could:
 
 Eating now has its own body with the neck sloping down, petting moves only the head, and
 the bowls are drawn in front of the dog so a lowered head looks like it is in the bowl.
+
+**The dog fidgets** (2026-09-12). Left alone, it waits a random whole number of seconds
+from 10 to 90, gets up, walks a random 8 to 24 pixels left or right, sits, and starts a
+new wait. The owner set the 90-second ceiling and chose the 10-second floor, the distance
+and the facing from offered options. `FIDGET` in `js/pets.js` holds the numbers, and
+`fidgetDelayMs` and `fidgetTarget` are pure and tested.
+
+- **Bounds.** A move stays clear of the bowls on the left and keeps the whole dog, tail
+  included, inside the right wall. A move that would leave the bounds goes the other way;
+  if a full move fits neither way, the dog goes as far as it can toward the side with
+  more room. It always ends somewhere new.
+- **Facing.** The sprites face left, so walking right is the same drawing mirrored within
+  its own box. The dog faces the way it walks and turns back to face left when it sits,
+  so petting, the lean and eating all work exactly as drawn.
+- **Busy.** A fidget that falls due while the dog is being petted, mid-drag, walking or
+  eating is skipped, and a fresh wait begins. While it is moving, a tap on it says it is
+  finding a new spot.
+- **Home moves with it.** After eating, the dog returns to where it last settled, not to
+  where the room first put it.
+- **Only while visible.** `showRoute` starts the timer when the Pets view opens, and
+  `stopAllGames` clears it along with everything else.
+
+This changes one earlier line: the dog now also gets up to fidget, not only for food or
+water.
 
 **The dog rests sitting, and gets up only for food or water** - the owner's call,
 2026-09-12, "at this stage". Petting and barking happen sitting down; a filled bowl brings

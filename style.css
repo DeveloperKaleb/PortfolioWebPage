@@ -1494,8 +1494,9 @@ a:active  {color: #002e2c;}
 .pets-scene {
     position: relative;
     box-sizing: border-box;
-    /* 34rem, up from 30rem when the room grew from 52 to 60 pixels wide - so on a desktop
-       the dog keeps much the same size and simply has more room around it. */
+    /* 34rem, up from 30rem when the room grew from 52 to 60 pixels wide. It stayed at 34rem
+       when the room grew again to 100 pixels, so that time the dog shrank on screen - the
+       owner's call. */
     width: min(100%, 34rem);
     margin: 12px auto 0;
     background: #f1ead6;                    /* .wall */
@@ -1508,7 +1509,7 @@ a:active  {color: #002e2c;}
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 60 / 30;
+    aspect-ratio: 100 / 50;
 }
 
 /* Where a stroke lands. This and the two items are the only things that refuse to
