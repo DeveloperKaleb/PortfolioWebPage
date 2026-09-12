@@ -20,7 +20,8 @@ import {
     toHex,
     MINE_COLORS,
     numberColor,
-    SEQUENCE_PADS
+    SEQUENCE_PADS,
+    PETS_COLORS
 } from '../js/logic.js';
 import {
     createGame as createSequence,
@@ -59,6 +60,7 @@ import {
 import * as TicTacToe from '../js/tictactoe.js';
 import * as TerniLapilli from '../js/ternilapilli.js';
 import { ROUTES, routeFor, parentOf, backTitleFor } from '../js/routes.js';
+import * as Pets from '../js/pets.js';
 import { contrastRatio } from '../js/contrast.js';
 import {
     stepFrom,
@@ -93,6 +95,7 @@ const views = {
     sequence: document.getElementById('sequence-system'),
     tictactoe: document.getElementById('tictactoe-system'),
     toy: document.getElementById('toy-system'),
+    pets: document.getElementById('pets-system'),
 };
 
 // Every section a route can show, by element id.
@@ -979,14 +982,20 @@ try {
     soundOn = window.localStorage.getItem('sequence-sound') !== 'off';
 } catch { /* no storage - stay with the default */ }
 
-function ensureAudio() {
-    if (!soundOn) return null;
+/* The page's one audio context, shared by everything that makes a sound - Sequence's pads
+   and the Pets bark. Each asks through its own sound setting first. */
+function audioContext() {
     const Ctor = window.AudioContext || window.webkitAudioContext;
-    if (!Ctor) return null; // no Web Audio: the game is still fully playable by light
+    if (!Ctor) return null; // no Web Audio: everything still works without sound
     if (!audioCtx) audioCtx = new Ctor();
     // Returning to the tab can leave it suspended even after the first gesture.
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
+}
+
+function ensureAudio() {
+    if (!soundOn) return null;
+    return audioContext();
 }
 
 /* A pad's voice: a square wave rolled off by a low-pass, which is a relay or a bench
@@ -1608,6 +1617,518 @@ tictactoeModeSelect.addEventListener('change', startTicTacToe);
 
 buildTicTacToeBoard();
 
+/* --- PART 7: PETS --- */
+/* A toy, not a game: nothing to win or lose. A pixel-art pet in a small room - a yellow
+   Labrador retriever for now, with the species select there for the animals to come.
+   Stroke it and it leans into your hand and gives a soft bark; drag food or water to its
+   bowls and it walks over to eat or drink.
+
+   The sprites, what counts as a stroke, when a bark is due, and the bowls are in
+   js/pets.js; the colours are PETS_COLORS in js/logic.js. Everything with a clock lives
+   here, as it does for Sequence. It all runs on timers, so it is torn down in
+   stopAllGames with the rest. */
+
+const petsScene = document.getElementById('pets-scene');
+const petsSvg = document.getElementById('pets-svg');
+const petsDogHit = document.getElementById('pets-dog-hit');
+const petsStatusEl = document.getElementById('pets-status');
+const petsSpeciesSelect = document.getElementById('petsSpeciesSelect');
+const petsSoundToggle = document.getElementById('petsSoundToggle');
+const petsItems = document.querySelectorAll('.pets-item');
+const petsBowlSlots = {
+    food: petsScene.querySelector('.pets-bowl-slot[data-bowl="food"]'),
+    water: petsScene.querySelector('.pets-bowl-slot[data-bowl="water"]'),
+};
+
+const PETS_STEP_MS = 70;          // one pixel of walking
+const PETS_HALF_CHOMP_MS = 190;   // head up, or head down
+const PETS_HALF_CHOMPS_PER_BITE = 4;
+const PETS_WAG_MS = 170;
+const PETS_BARK_MS = 280;         // how long the mouth stays open
+const PETS_TICK_MS = 100;         // how often a held stroke is checked
+const PETS_HINT_MS = 2800;        // how long a hint stays before the usual line returns
+const PETS_DROP_PAD = 24;         // slack around a bowl for a finger
+const PETS_DRAG_START_PX = 8;     // movement before a press on an item is a drag, not a tap
+
+const petsReduceMotion = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : { matches: false };
+
+let pets = null;       // the pet and its room; see resetPets
+let petsDrag = null;   // an item being dragged: { item, startX, startY, moved, ghost, target }
+let petsSoundOn = true;
+
+try {
+    // Remembered separately from Sequence's switch: one is a game's tones, the other a pet.
+    petsSoundOn = window.localStorage.getItem('pets-sound') !== 'off';
+} catch { /* no storage - stay with the default */ }
+
+const petSpecies = () => Pets.SPECIES[pets.species];
+const petsDefaultMessage = () => `Stroke the ${petSpecies().name.toLowerCase()} to pet it. Drag food or water to its bowl.`;
+
+// A sprite as SVG rects, one per run of a colour, offset into place.
+const petRects = (rows, x0 = 0, y0 = 0) => Pets.spriteRuns(rows)
+    .map(({ x, y, width, key }) =>
+        `<rect x="${x + x0}" y="${y + y0}" width="${width}" height="1" fill="${PETS_COLORS[Pets.SPRITE_KEYS[key]]}"/>`)
+    .join('');
+
+// Place an HTML overlay over a region of the room, in room pixels. Percentages, so it
+// follows the room as it resizes.
+function placePetsOverlay(el, x, y, width, height) {
+    const room = Pets.SCENE;
+    el.style.left = `${(x / room.width) * 100}%`;
+    el.style.top = `${(y / room.height) * 100}%`;
+    el.style.width = `${(width / room.width) * 100}%`;
+    el.style.height = `${(height / room.height) * 100}%`;
+}
+
+/* The room is built once: wall, skirting and floor, then a group for the dog and one for
+   each bowl. Drawing a frame only replaces what is inside those groups. The bowls come
+   after the dog, so they draw in front of it - a lowered head then looks like it is in
+   the bowl rather than beside it. */
+function buildPetsScene() {
+    const { width, height, floorY } = Pets.SCENE;
+    petsSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    petsSvg.innerHTML =
+        `<rect x="0" y="0" width="${width}" height="${floorY}" fill="${PETS_COLORS.wall}"/>`
+        + `<rect x="0" y="${floorY}" width="${width}" height="1" fill="${PETS_COLORS.skirting}"/>`
+        + `<rect x="0" y="${floorY + 1}" width="${width}" height="${height - floorY - 1}" fill="${PETS_COLORS.floor}"/>`
+        + '<g class="pets-dog"><g class="pets-body"></g><g class="pets-head"></g></g>'
+        + Pets.ITEMS.map((kind) => `<g class="pets-bowl" data-bowl="${kind}"></g>`).join('');
+
+    Pets.ITEMS.forEach((kind) => {
+        const { x, y } = Pets.BOWLS[kind];
+        placePetsOverlay(petsBowlSlots[kind], x, y, Pets.BOWL_SIZE.width, Pets.BOWL_SIZE.height);
+    });
+
+    petsItems.forEach((item) => {
+        const rows = Pets.ITEM_ICONS[item.dataset.item];
+        item.innerHTML = `<svg viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges" aria-hidden="true" focusable="false">${petRects(rows)}</svg>`;
+    });
+}
+
+function drawPet() {
+    const species = petSpecies();
+    const down = pets.pose === 'down';
+    const body = species.body[down ? (pets.wag ? 'downWag' : 'down') : (pets.wag ? 'wag' : 'stand')];
+    const offset = Pets.headOffset(pets.pose, { leanDx: pets.leanDx, chompUp: pets.chompUp });
+
+    const dog = petsSvg.querySelector('.pets-dog');
+    dog.setAttribute('transform', `translate(${pets.x} ${Pets.DOG_Y})`);
+    dog.querySelector('.pets-body').innerHTML = petRects(body);
+    dog.querySelector('.pets-head').innerHTML = petRects(species.head[pets.eyes], offset.dx, offset.dy);
+    placePetsOverlay(petsDogHit, pets.x, Pets.DOG_Y, species.size.width, species.size.height);
+}
+
+function drawPetBowls() {
+    Pets.ITEMS.forEach((kind) => {
+        const { x, y } = Pets.BOWLS[kind];
+        petsSvg.querySelector(`.pets-bowl[data-bowl="${kind}"]`).innerHTML = petRects(Pets.bowlRows(kind, pets.bowls[kind]), x, y);
+    });
+}
+
+// A hint in the status line, which goes back to the usual line after a moment.
+function petsHint(message) {
+    petsStatusEl.textContent = message;
+    clearTimeout(pets.timers.hint);
+    pets.timers.hint = setTimeout(() => { petsStatusEl.textContent = petsDefaultMessage(); }, PETS_HINT_MS);
+}
+
+function clearPetsTimers() {
+    const { walk, chomp, wag, tick, bark, hint } = pets.timers;
+    clearInterval(walk);
+    clearInterval(chomp);
+    clearInterval(wag);
+    clearInterval(tick);
+    clearTimeout(bark);
+    clearTimeout(hint);
+}
+
+/* A fresh room: the pet at home, the bowls empty, nothing moving. Called on load, when the
+   animal changes, and from stopAllGames whenever the view changes. */
+function resetPets() {
+    if (pets) clearPetsTimers();
+    endPetsDrag();
+    petsDogHit.classList.remove('is-petting');
+
+    pets = {
+        species: Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog',
+        x: Pets.HOME_X,
+        activity: 'idle',   // idle | walking | eating | drinking
+        pose: 'stand',      // stand | lean | down
+        eyes: 'open',       // open | closed | bark
+        wag: false,
+        leanDx: -1,
+        chompUp: false,
+        bowls: Pets.emptyBowls(),
+        stroke: null,
+        lastBarkAt: -Infinity,
+        timers: { walk: null, chomp: null, wag: null, tick: null, bark: null, hint: null },
+    };
+
+    petsDogHit.setAttribute('aria-label', `${petSpecies().description}. Stroke it to pet it.`);
+    petsStatusEl.textContent = petsDefaultMessage();
+    drawPetBowls();
+    drawPet();
+}
+
+/* The wag. With reduced motion the tail simply stays up while the pet is happy, rather than
+   swinging - the tail up still says it. */
+function setPetWagging(on) {
+    if (petsReduceMotion.matches) {
+        pets.wag = on;
+        return;
+    }
+    if (on && !pets.timers.wag) {
+        pets.timers.wag = setInterval(() => {
+            pets.wag = !pets.wag;
+            drawPet();
+        }, PETS_WAG_MS);
+    } else if (!on && pets.timers.wag) {
+        clearInterval(pets.timers.wag);
+        pets.timers.wag = null;
+        pets.wag = false;
+    }
+}
+
+/* --- Petting --- */
+
+const petsPoint = (event) => ({ x: event.clientX, y: event.clientY, t: performance.now() });
+
+function petsBusyMessage() {
+    const name = petSpecies().name.toLowerCase();
+    if (pets.activity === 'eating') return `Let the ${name} finish eating first.`;
+    if (pets.activity === 'drinking') return `Let the ${name} finish drinking first.`;
+    return `The ${name} is on its way to its bowl.`;
+}
+
+// Leaning into the hand: head raised toward it, eyes closed, tail going.
+function showPetRubbing(leanDx) {
+    pets.leanDx = leanDx;
+    if (pets.eyes === 'bark') return; // the bark finishes first, then the rub resumes
+    pets.pose = petsReduceMotion.matches ? 'stand' : 'lean';
+    pets.eyes = 'closed';
+    setPetWagging(true);
+    drawPet();
+}
+
+// Back to standing quietly - and, if something was put in a bowl meanwhile, over to it.
+function settlePet() {
+    pets.pose = 'stand';
+    pets.eyes = 'open';
+    setPetWagging(false);
+    drawPet();
+    maybeVisitBowl();
+}
+
+/* The bark: a sawtooth that jumps up and falls away, rolled off by a low-pass - which is
+   most of what makes it gentle - with a short breath of band-passed noise so it is a
+   bark and not a note. The numbers are BARK in js/pets.js. */
+function playBark() {
+    if (!petsSoundOn) return;
+    const ctx = audioContext();
+    if (!ctx) return;
+
+    const { startHz, peakHz, endHz, durationMs, gain } = Pets.BARK;
+    const now = ctx.currentTime;
+    const seconds = durationMs / 1000;
+
+    const voice = ctx.createOscillator();
+    voice.type = 'sawtooth';
+    voice.frequency.setValueAtTime(startHz, now);
+    voice.frequency.exponentialRampToValueAtTime(peakHz, now + 0.035);
+    voice.frequency.exponentialRampToValueAtTime(endHz, now + seconds);
+
+    const soften = ctx.createBiquadFilter();
+    soften.type = 'lowpass';
+    soften.frequency.setValueAtTime(1100, now);
+    soften.Q.setValueAtTime(0.8, now);
+
+    const envelope = ctx.createGain();
+    envelope.gain.setValueAtTime(0.0001, now);
+    envelope.gain.exponentialRampToValueAtTime(gain, now + 0.02);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
+
+    voice.connect(soften).connect(envelope).connect(ctx.destination);
+    voice.start(now);
+    voice.stop(now + seconds + 0.02);
+
+    const breathSeconds = 0.12;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * breathSeconds), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+
+    const breath = ctx.createBufferSource();
+    breath.buffer = buffer;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.setValueAtTime(700, now);
+    band.Q.setValueAtTime(1.2, now);
+    const breathGain = ctx.createGain();
+    breathGain.gain.setValueAtTime(0.0001, now);
+    breathGain.gain.exponentialRampToValueAtTime(gain * 0.5, now + 0.01);
+    breathGain.gain.exponentialRampToValueAtTime(0.0001, now + breathSeconds);
+
+    breath.connect(band).connect(breathGain).connect(ctx.destination);
+    breath.start(now);
+    breath.stop(now + breathSeconds + 0.01);
+}
+
+// The mouth opens and the bark sounds together - the same pairing Sequence keeps.
+function barkPet() {
+    pets.lastBarkAt = performance.now();
+    pets.eyes = 'bark';
+    setPetWagging(true);
+    drawPet();
+    playBark();
+
+    clearTimeout(pets.timers.bark);
+    pets.timers.bark = setTimeout(() => {
+        pets.timers.bark = null;
+        if (pets.stroke && Pets.isRubbing(pets.stroke, performance.now())) {
+            pets.eyes = 'closed';
+            drawPet();
+        } else {
+            settlePet();
+        }
+    }, PETS_BARK_MS);
+}
+
+// While a stroke is held: bark on a long pet, and stop rubbing when the hand goes still.
+function petsTick() {
+    if (!pets.stroke) return;
+    const now = performance.now();
+    if (Pets.barkDue(pets.stroke, { now, lastBarkAt: pets.lastBarkAt })) {
+        pets.stroke = { ...pets.stroke, barked: true };
+        barkPet();
+        return;
+    }
+    if (pets.eyes === 'closed' && !Pets.isRubbing(pets.stroke, now)) settlePet();
+}
+
+function endPetStroke() {
+    const stroke = pets.stroke;
+    if (!stroke) return;
+    pets.stroke = null;
+    clearInterval(pets.timers.tick);
+    pets.timers.tick = null;
+    petsDogHit.classList.remove('is-petting');
+
+    if (Pets.barkDue(stroke, { now: performance.now(), ending: true, lastBarkAt: pets.lastBarkAt })) {
+        barkPet();
+    } else if (pets.eyes !== 'bark') {
+        settlePet();
+    }
+}
+
+petsDogHit.addEventListener('pointerdown', (event) => {
+    if (pets.activity !== 'idle') {
+        petsHint(petsBusyMessage());
+        return;
+    }
+    event.preventDefault();
+    /* The bark can come from a long stroke, which arrives as pointermove - and that is not
+       a gesture a browser will start audio from. So the context is started here, on the
+       press itself. */
+    if (petsSoundOn) audioContext();
+    try { petsDogHit.setPointerCapture(event.pointerId); } catch { /* keep going without capture */ }
+    pets.stroke = Pets.startStroke(petsPoint(event));
+    petsDogHit.classList.add('is-petting');
+    clearInterval(pets.timers.tick);
+    pets.timers.tick = setInterval(petsTick, PETS_TICK_MS);
+});
+
+petsDogHit.addEventListener('pointermove', (event) => {
+    if (!pets.stroke) return;
+    pets.stroke = Pets.moveStroke(pets.stroke, petsPoint(event));
+    if (!Pets.isRubbing(pets.stroke, performance.now())) return;
+
+    const rect = petsDogHit.getBoundingClientRect();
+    const headCentre = rect.left + rect.width * (petSpecies().headCentreX / petSpecies().size.width);
+    showPetRubbing(Pets.leanToward(event.clientX, headCentre));
+});
+
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach((type) => {
+    petsDogHit.addEventListener(type, endPetStroke);
+});
+
+/* --- Food and water --- */
+
+function maybeVisitBowl() {
+    if (pets.activity !== 'idle' || pets.stroke) return;
+    const next = Pets.bowlToVisit(pets.bowls);
+    if (next) visitBowl(next);
+}
+
+/* Walk a pixel at a time. With reduced motion the pet is simply there - where it is going
+   is the information, not the walk. */
+function walkPetTo(targetX, arrived) {
+    clearInterval(pets.timers.walk);
+    pets.timers.walk = null;
+    if (petsReduceMotion.matches || pets.x === targetX) {
+        pets.x = targetX;
+        drawPet();
+        arrived();
+        return;
+    }
+    pets.timers.walk = setInterval(() => {
+        pets.x = Pets.stepToward(pets.x, targetX);
+        drawPet();
+        if (pets.x === targetX) {
+            clearInterval(pets.timers.walk);
+            pets.timers.walk = null;
+            arrived();
+        }
+    }, PETS_STEP_MS);
+}
+
+function visitBowl(kind) {
+    pets.activity = 'walking';
+    pets.pose = 'stand';
+    pets.eyes = 'open';
+    setPetWagging(true);
+    walkPetTo(Pets.dogXForBowl(kind), () => startEating(kind));
+}
+
+function startEating(kind) {
+    pets.activity = kind === 'food' ? 'eating' : 'drinking';
+    pets.pose = 'down';
+    pets.chompUp = false;
+    drawPet();
+
+    let halfChomps = 0;
+    pets.timers.chomp = setInterval(() => {
+        halfChomps += 1;
+        if (!petsReduceMotion.matches) pets.chompUp = !pets.chompUp;
+        if (halfChomps % PETS_HALF_CHOMPS_PER_BITE === 0) {
+            pets.bowls = Pets.takeBite(pets.bowls, kind);
+            drawPetBowls();
+        }
+        drawPet();
+        if (pets.bowls[kind] === 0 && !pets.chompUp) {
+            clearInterval(pets.timers.chomp);
+            pets.timers.chomp = null;
+            finishEating(kind);
+        }
+    }, PETS_HALF_CHOMP_MS);
+}
+
+// Then to the other bowl if it has something in it, or home.
+function finishEating(kind) {
+    pets.pose = 'stand';
+    pets.chompUp = false;
+    const next = Pets.bowlToVisit(pets.bowls, kind === 'food' ? 'water' : 'food');
+    if (next) {
+        visitBowl(next);
+        return;
+    }
+    pets.activity = 'walking';
+    walkPetTo(Pets.HOME_X, () => {
+        pets.activity = 'idle';
+        settlePet();
+    });
+}
+
+function givePetItem(kind) {
+    const { bowls, filled } = Pets.fillBowl(pets.bowls, kind);
+    if (!filled) {
+        petsHint(`The ${kind} bowl is already full.`);
+        return;
+    }
+    pets.bowls = bowls;
+    drawPetBowls();
+    maybeVisitBowl();
+}
+
+/* --- Dragging --- */
+
+function petsBowlTargets() {
+    return Pets.ITEMS.map((kind) => {
+        const { left, top, right, bottom } = petsBowlSlots[kind].getBoundingClientRect();
+        return { kind, rect: { left, top, right, bottom } };
+    });
+}
+
+function movePetsDrag(event) {
+    const drag = petsDrag;
+    drag.ghost.style.left = `${event.clientX}px`;
+    drag.ghost.style.top = `${event.clientY}px`;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > PETS_DRAG_START_PX) drag.moved = true;
+    drag.target = Pets.dropTarget({ x: event.clientX, y: event.clientY }, petsBowlTargets(), PETS_DROP_PAD);
+    // Only the bowl the item belongs in lights up, so the outline never invites a wrong drop.
+    Pets.ITEMS.forEach((kind) => {
+        petsBowlSlots[kind].classList.toggle('is-drop-target', kind === drag.target && kind === drag.item.dataset.item);
+    });
+}
+
+function endPetsDrag() {
+    if (!petsDrag) return;
+    petsDrag.ghost.remove();
+    petsDrag.item.classList.remove('is-dragging');
+    Pets.ITEMS.forEach((kind) => petsBowlSlots[kind].classList.remove('is-drop-target'));
+    petsDrag = null;
+}
+
+function dropPetsItem(event) {
+    movePetsDrag(event);
+    const item = petsDrag.item.dataset.item;
+    const { target, moved } = petsDrag;
+    endPetsDrag();
+
+    if (target && Pets.acceptsItem(target, item)) givePetItem(item);
+    else if (target) petsHint(`That goes in the ${item} bowl.`);
+    else if (!moved) petsHint(`Drag the ${item} to its bowl.`);
+}
+
+petsItems.forEach((item) => {
+    item.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        endPetsDrag();
+        try { item.setPointerCapture(event.pointerId); } catch { /* keep going without capture */ }
+
+        /* The copy that follows the finger goes on the body, not in the view: each
+           .game-view is a size container, which would confine a fixed-position element to
+           the view instead of the screen. */
+        const ghost = document.createElement('div');
+        ghost.className = 'pets-ghost';
+        ghost.innerHTML = item.innerHTML;
+        document.body.appendChild(ghost);
+
+        petsDrag = { item, startX: event.clientX, startY: event.clientY, moved: false, ghost, target: null };
+        item.classList.add('is-dragging');
+        movePetsDrag(event);
+    });
+    item.addEventListener('pointermove', (event) => {
+        if (petsDrag && petsDrag.item === item) movePetsDrag(event);
+    });
+    item.addEventListener('pointerup', (event) => {
+        if (petsDrag && petsDrag.item === item) dropPetsItem(event);
+    });
+    item.addEventListener('pointercancel', endPetsDrag);
+    /* A keyboard activation arrives as a click with no pointer behind it (detail === 0, as
+       in Sequence). There is no dragging from a keyboard, so it fills the bowl directly. */
+    item.addEventListener('click', (event) => {
+        if (event.detail === 0) givePetItem(item.dataset.item);
+    });
+});
+
+function setPetsSoundOn(on) {
+    petsSoundOn = on;
+    petsSoundToggle.setAttribute('aria-pressed', String(on));
+    petsSoundToggle.classList.toggle('is-active', on);
+    petsSoundToggle.classList.toggle('is-muted', !on);
+    try {
+        window.localStorage.setItem('pets-sound', on ? 'on' : 'off');
+    } catch { /* nothing to do - the toy just forgets between visits */ }
+}
+
+petsSoundToggle.addEventListener('click', () => setPetsSoundOn(!petsSoundOn));
+petsSpeciesSelect.addEventListener('change', resetPets);
+
+setPetsSoundOn(petsSoundOn);
+buildPetsScene();
+resetPets();
+
 /* --- Input Listeners --- */
 document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener
 
@@ -1862,6 +2383,11 @@ function stopAllGames() {
        like Sequence's. A game left half played is abandoned, not scored. The reply for
        the fresh game is not scheduled from here - see scheduleTicTacToeReply. */
     initTicTacToe();
+
+    /* Pets runs its walk, chomp, wag and bark on timers, and a drag leaves a copy of the
+       item on the page body. A dog left eating behind another view, or a food bag left
+       floating over it, is exactly what this function is for. */
+    resetPets();
 }
 
 /* --- Hub Navigation Listeners --- */

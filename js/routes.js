@@ -26,9 +26,11 @@ export const ROUTES = {
     // Pass the phone: the same view, for two people taking turns on one device.
     'tictactoe-pass': { view: 'tictactoe-system', title: 'Tic-Tac-Toe', parent: 'multi', players: 2 },
 
-    /* Finger Paint opens straight from the dashboard's Toys card. With one toy, a Toys hub
-       would be a screen holding a single card; it gets one when there is a second toy. */
-    toy: { view: 'toy-system', title: 'Finger Paint', parent: DASHBOARD },
+    /* The Toys hub arrived with the second toy, Pets. While Finger Paint was the only one,
+       the dashboard's Toys card opened it directly. */
+    toys: { view: 'toys-hub', title: 'Toys', parent: DASHBOARD },
+    toy: { view: 'toy-system', title: 'Finger Paint', parent: 'toys' },
+    pets: { view: 'pets-system', title: 'Pets', parent: 'toys' },
 };
 
 const keyOf = (hash) => String(hash ?? '').replace(/^#/, '');

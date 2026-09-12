@@ -13,6 +13,7 @@ import {
     SEQUENCE_COLORS,
     SEQUENCE_PADS,
     TICTACTOE_COLORS,
+    PETS_COLORS,
     TOY_COLORS,
     toHex,
 } from '../../js/logic.js';
@@ -58,6 +59,7 @@ const PALETTES = {
         SEQUENCE_PADS.map((pad) => pad.lit),
     ),
     tictactoe: paletteOf(Object.values(TICTACTOE_COLORS)),
+    pets: paletteOf(Object.values(PETS_COLORS)),
     toy: paletteOf(TOY_COLORS.map((paint) => paint.value), TOY_SURFACES),
 };
 

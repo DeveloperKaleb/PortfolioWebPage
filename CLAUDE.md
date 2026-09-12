@@ -41,21 +41,21 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Two pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `entertainment/entertainment.html` — a hub page for six browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, and an "Array Grid" color-painting toy). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`) and Multiplayer (`#multi`) are hubs of thumbnail cards, the Toys card opens Finger Paint (`#toy`) directly, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.
+- `entertainment/entertainment.html` — a hub page for seven browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, an "Array Grid" color-painting toy, and Pets). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`), Multiplayer (`#multi`) and Toys (`#toys`: Finger Paint `#toy` and Pets `#pets`) are hubs of thumbnail cards, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
 **Display names differ from the names in the code.** The games are called Falling
-Polyominos, Snake, Mine Sweeper, Sequence, Tic-Tac-Toe and Finger Paint on screen, but everything in
+Polyominos, Snake, Mine Sweeper, Sequence, Tic-Tac-Toe, Finger Paint and Pets on screen, but everything in
 the source - ids, classes, hash routes, variables, palettes, test files - still says
-tetris, snake, minesweeper, sequence, tictactoe and toy. Renaming those would touch the routes,
+tetris, snake, minesweeper, sequence, tictactoe, toy and pets. Renaming those would touch the routes,
 every selector and all the tests for no visible gain, so searching the code for a display
 name will find nothing. Search for the internal one. Sequence is the one exception: it is
 called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is eight modules, all free of `document`/DOM calls so they stay testable
+The pure layer is nine modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -81,6 +81,9 @@ under Vitest without a browser:
 - `js/routes.js` — the Entertainment page's routes: which section each hash shows, its
   title, and where Back goes (a route's parent, never browser history). `tests/routes`
   checks the markup against it.
+- `js/pets.js` — Pets: the pixel sprites as data, the room's layout, what counts as a
+  stroke and when a bark is due, and the bowls. No timers: the walk, the chomp, the wag
+  and the synthesised bark live in `entertainment.js`. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

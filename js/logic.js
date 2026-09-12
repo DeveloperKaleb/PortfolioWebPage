@@ -697,6 +697,36 @@ export const TICTACTOE_COLORS = {
     strike: '#1c1a17',  // the winning line
 };
 
+/* --- PETS PALETTE --- */
+/* A small warm room and a yellow Labrador. The dog is a silhouette first: a dark outline
+   that clears the text floor on the wall, the floor and the tray, so its shape reads
+   whatever the fur does. The eye and nose clear it on the fur. The rest is held to the
+   graphic threshold or to distinguishability, per role - see tests/contrast.
+
+   The water failed the first measurement against its own bowl, at 1.47:1, and was
+   darkened while the bowl was lightened. Blue water in a pale bowl, brown kibble in an
+   amber one: the two sit apart on the blue-yellow axis as well as by shape. */
+export const PETS_COLORS = {
+    wall: '#f1ead6',
+    floor: '#d9c9a5',
+    skirting: '#b9a67f',
+    tray: '#e6dcc2',
+    outline: '#3b2a1a',
+    fur: '#e6be72',
+    furShade: '#c4914a',
+    furLight: '#f6e2b0',
+    nose: '#17120d',        // also the eye, and the open mouth
+    collar: '#2b62a8',
+    foodBowl: '#d98c3f',
+    waterBowl: '#c9d7e4',
+    kibble: '#6b3f1d',
+    water: '#1b5aa6',
+    waterHighlight: '#cfe6fb',
+    bag: '#a8683a',
+    bagLabel: '#f3e3bf',
+    bagCrimp: '#7a4a28',
+};
+
 /* --- CONTROL BAR THEMES --- */
 /* The row of selects, buttons and readouts above each board. These were browser
    defaults until now: identical grey chrome above five games that otherwise look
@@ -771,6 +801,16 @@ export const CONTROL_THEMES = {
         readout: '#f1ead6',
         activeSurface: '#e8c872',// Pencil yellow
         activeText: '#1c1a17',   // Graphite - TICTACTOE_COLORS.strike
+    },
+
+    // Pets: leather and fur, from the dog's own palette.
+    pets: {
+        surface: '#5a3d24',      // Leather
+        text: '#f6e2b0',         // Light fur - PETS_COLORS.furLight
+        border: '#c4914a',       // Fur shade - PETS_COLORS.furShade
+        readout: '#f6e2b0',
+        activeSurface: '#e6be72',// Fur - PETS_COLORS.fur
+        activeText: '#3b2a1a',   // PETS_COLORS.outline
     },
 };
 

@@ -42,6 +42,8 @@ Player"), including the one in the end-of-game dialog.
 
 **The Toys card opens Finger Paint directly** - the owner's call. With one toy a Toys hub
 would be a screen with a single card on it. It gets a hub when the second toy arrives.
+**It did, 2026-09-12:** Pets was the second toy, so Toys is now a hub (`#toys`) holding
+Finger Paint and Pets.
 
 ## Manual cache-busting (`LAST_UPDATED` in `scripts/footer.js`)
 
@@ -1422,6 +1424,84 @@ used in pass the phone, so it does not change.
 the board one way up. The owner chose to leave it until play-testing says otherwise; a
 button that flips the board is the fallback.
 
+## Pets
+
+Built 2026-09-12 as the site's second toy: a pixel-art pet in a small room. The first
+animal is a yellow Labrador retriever, and the animal select is there for the ones to
+come, which is why the toy is called Pets. Rules and sprites are in `js/pets.js`, the
+clock and input in `entertainment.js`, and the colours in `PETS_COLORS`.
+
+**The owner's brief:**
+
+- Minimal detail with the pixels clearly visible, but still recognisably a Labrador.
+- Petting - touch and stroke on a phone, click and stroke on a desktop - makes the dog rub
+  into the hand, then give a gentle, appreciative bark.
+- Food and water are given by dragging an icon to the matching bowl.
+
+**Sprites are data.** They are rows of palette keys in `js/pets.js`, drawn as SVG rects
+with `shape-rendering="crispEdges"`. Horizontal runs are merged, so a frame is tens of
+rects rather than hundreds. The room is 52 × 26 pixels, making each pixel six to nine
+screen pixels across: visible, as asked. The dog is two layers, head and body, so a pose
+moves the head without redrawing the dog - raised toward the hand while petted, lowered
+into the bowl while eating.
+
+**The art was looked at before it was built on.** The drafts were rendered to PNG during
+the build, and that caught four things no test could:
+
+- a two-pixel nose that read as a beak;
+- a collar that read as a square badge;
+- an eating pose whose neck stuck up out of the back once the head went down;
+- a petting pose that lifted the whole dog, which read as jumping.
+
+Eating now has its own body with the neck sloping down, petting moves only the head, and
+the bowls are drawn in front of the dog so a lowered head looks like it is in the bowl.
+
+**Petting.** A stroke is travel, not a tap: 24px of movement over the dog while pressed.
+The dog stops rubbing once the hand has been still for 450ms. It barks once per stroke:
+when the hand lifts after at least 600ms of rubbing, or while still stroking at 2.2s. It
+never barks within 2.5s of the last bark, so it cannot be made to yap, and a tap never
+barks. All of that is pure and tested (`moveStroke`, `isRubbing`, `barkDue`). While
+walking, eating or drinking the dog ignores petting, and the status line says why.
+
+**The bark is synthesised, not recorded.** The site loads nothing from anywhere else, and
+a recording would be the first binary asset in the precache. It is a sawtooth that jumps
+up and falls away, rolled off by a low-pass - which is most of what makes it gentle - with
+a short breath of band-passed noise so it is a bark and not a note. `BARK` in
+`js/pets.js` holds the numbers.
+
+Pets has its own Sound switch, remembered separately from Sequence's, and both share the
+page's one audio context. The context is started on `pointerdown` on the dog, because the
+long-pet bark arrives from a `pointermove`, which is not a gesture a browser will start
+audio from.
+
+**Dragging.** Pointer events, with `touch-action: none` on the two items and the dog only,
+so a swipe anywhere else still scrolls the page.
+
+- **The copy that follows the finger is appended to `<body>`, not the view.** Each
+  `.game-view` is a size container, and that confines `position: fixed` inside it.
+- **The drop target** is the bowl whose box the pointer is in, with 24px of slack; where
+  the slack around the two bowls overlaps, the nearer centre wins. Only the right bowl
+  is highlighted, with a dashed outline - a shape, not a colour.
+- **Wrong moves get a hint.** A drop on the wrong bowl, or a tap without a drag, says what
+  to do in the status line.
+- **From a keyboard,** activating an item fills its bowl directly (a click with
+  `detail === 0`, as in Sequence).
+
+**Eating.** A filled bowl sends the dog over a pixel at a time. It eats head down, chomping,
+while the bowl empties through three levels, then goes on to the other bowl if that has
+anything in it, or home. It all runs on timers, so `stopAllGames` resets it, including
+removing any copy left mid-drag.
+
+**Colour.** One value failed the first measurement: the water against its own bowl at
+1.47:1, under the 3:1 floor for a graphic. The water was darkened and the bowl lightened,
+and it now reaches 4.58:1. The outline clears 4.5:1 on the wall, the floor, the tray and
+the water bowl; the eye and nose clear it on the fur. Food and water, and their two bowls,
+are distinguishable under both simulations.
+
+**Reduced motion.** No walking steps (the dog is simply at the bowl), no chomping, no
+swinging tail and no lean. The eyes still close when petted, the tail still goes up, and
+the bark still sounds - those carry the response, not the movement.
+
 ## Rule: in-game readouts are one or two lines
 
 **The status line and readouts around a board carry short messages only - one or two
@@ -1444,7 +1524,7 @@ when.
 
 ### Suggested 2026-09-11, by the project owner
 
-**A dog toy** - a cute dog you can feed, pet and play with. The likely next toy after
+**A dog toy — BUILT 2026-09-12, on screen as Pets.** A cute dog you can feed, pet and play with. The likely next toy after
 Finger Paint, and the point at which the dashboard's Toys card gets a hub instead of
 opening Finger Paint directly. Not a current priority.
 

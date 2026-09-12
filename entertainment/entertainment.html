@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260911-1202" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260911-1202" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260912-0023" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260912-0023" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -26,11 +26,9 @@
                     <span class="card-title">Multiplayer</span>
                     <span class="card-subtitle">Two players, one phone</span>
                 </button>
-                <!-- Opens Finger Paint directly while it is the only toy; a Toys hub
-                     arrives with the second one. -->
-                <button class="entry-card dashboard-card" data-route="toy">
+                <button class="entry-card dashboard-card" data-route="toys">
                     <span class="card-title">Toys</span>
-                    <span class="card-subtitle">Finger Paint</span>
+                    <span class="card-subtitle">Finger Paint and Pets</span>
                 </button>
             </div>
         </section>
@@ -100,6 +98,31 @@
                         <span></span><span></span><span></span><span></span>
                     </div>
                     <span class="card-title">Tic-Tac-Toe</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="toys-hub" class="hub" hidden>
+            <button class="back-btn" data-back>&larr; Back to Entertainment</button>
+            <h2>Toys</h2>
+            <div class="card-grid">
+                <button class="entry-card" data-route="toy">
+                    <div class="thumb thumb-toy" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Finger Paint</span>
+                </button>
+                <button class="entry-card" data-route="pets">
+                    <div class="thumb thumb-pets" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <span class="card-title">Pets</span>
                 </button>
             </div>
         </section>
@@ -268,6 +291,36 @@
             </div>
         </div>
 
+        <div id="pets-system" class="game-view" hidden>
+            <button class="back-btn" data-back>&larr; Back to Toys</button>
+            <h2>Pets</h2>
+            <div id="pets-controls">
+                <!-- One animal so far; the list is where the others will go. -->
+                <select id="petsSpeciesSelect" aria-label="Animal">
+                    <option value="dog">Dog</option>
+                </select>
+                <button type="button" id="petsSoundToggle" aria-pressed="true">
+                    <span class="sound-glyph" aria-hidden="true">&#9834;</span> Sound
+                </button>
+            </div>
+            <p id="pets-status" role="status">Stroke the dog to pet it. Drag food or water to its bowl.</p>
+
+            <!-- The room is drawn by entertainment.js from the sprites in js/pets.js. The
+                 overlays sit on top of it: where a stroke lands, and where a dragged item
+                 can drop. -->
+            <div id="pets-scene" class="pets-scene">
+                <svg id="pets-svg" viewBox="0 0 52 26" shape-rendering="crispEdges" aria-hidden="true" focusable="false"></svg>
+                <div class="pets-bowl-slot" data-bowl="food"></div>
+                <div class="pets-bowl-slot" data-bowl="water"></div>
+                <div id="pets-dog-hit" class="pets-hit" role="img" aria-label="A yellow Labrador retriever. Stroke it to pet it."></div>
+            </div>
+
+            <div class="pets-tray" role="group" aria-label="Food and water">
+                <button type="button" class="pets-item" data-item="food" aria-label="Food. Drag it to the food bowl."></button>
+                <button type="button" class="pets-item" data-item="water" aria-label="Water. Drag it to the water bowl."></button>
+            </div>
+        </div>
+
         <!-- Shown instead of a native alert() when a game ends. A browser dialog forces
              the mobile toolbar back on screen and resets the scroll position, which
              drags the nav bar into view and leaves the pad out of reach on the way back
@@ -297,9 +350,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260911-1202"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260911-1202"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260911-1202"></script>
-    <script type="module" src="./entertainment.js?v=20260911-1202"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260912-0023"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260912-0023"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260912-0023"></script>
+    <script type="module" src="./entertainment.js?v=20260912-0023"></script>
 </body>
 </html>

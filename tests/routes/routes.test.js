@@ -34,7 +34,9 @@ describe('Routes', () => {
         ['sequence', 'single'],
         ['tictactoe', 'single'],
         ['tictactoe-pass', 'multi'],
-        ['toy', DASHBOARD],
+        ['toy', 'toys'],
+        ['pets', 'toys'],
+        ['toys', DASHBOARD],
         ['single', DASHBOARD],
         ['multi', DASHBOARD],
         [DASHBOARD, DASHBOARD],
@@ -56,7 +58,8 @@ describe('Routes', () => {
     test('Back names where it goes', () => {
         expect(backTitleFor('tetris')).toBe('Single Player');
         expect(backTitleFor('tictactoe-pass')).toBe('Multiplayer');
-        expect(backTitleFor('toy')).toBe('Entertainment');
+        expect(backTitleFor('toy')).toBe('Toys');
+        expect(backTitleFor('pets')).toBe('Toys');
     });
 
     test('pass the phone is the Tic-Tac-Toe view, for two', () => {
@@ -89,7 +92,7 @@ describe('The markup matches the routes', () => {
             html.indexOf('id="entertainment-dashboard"'),
             html.indexOf('id="entertainment-hub"'),
         );
-        ['single', 'multi', 'toy'].forEach((key) => {
+        ['single', 'multi', 'toys'].forEach((key) => {
             expect(dashboard).toContain(`data-route="${key}"`);
         });
     });

@@ -1175,7 +1175,8 @@ a:active  {color: #002e2c;}
     font-variant-numeric: tabular-nums;
 }
 
-#sequenceSoundToggle.is-muted .sound-glyph {
+#sequenceSoundToggle.is-muted .sound-glyph,
+#petsSoundToggle.is-muted .sound-glyph {
     opacity: 0.45;
     text-decoration: line-through;
 }
@@ -1486,6 +1487,134 @@ a:active  {color: #002e2c;}
 /* The other seven cells of the shared 4x4 markup. */
 .thumb-tictactoe span:nth-child(n+10) { display: none; }
 
+/* --- PETS --- */
+/* A room drawn in pixels - see js/pets.js. Colours are PETS_COLORS in js/logic.js,
+   asserted in tests/contrast; keep these in step. */
+
+.pets-scene {
+    position: relative;
+    box-sizing: border-box;
+    width: min(100%, 30rem);
+    margin: 12px auto 0;
+    background: #f1ead6;                    /* .wall */
+    border: 3px solid #3b2a1a;              /* .outline */
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#pets-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 52 / 26;
+}
+
+/* Where a stroke lands. This and the two items are the only things that refuse to
+   scroll the page, so a swipe that starts anywhere else still scrolls. */
+.pets-hit {
+    position: absolute;
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pets-hit.is-petting {
+    cursor: grabbing;
+}
+
+.pets-bowl-slot {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 4px;
+}
+
+/* Where a dragged item will land: a dashed outline, a shape rather than a colour. */
+.pets-bowl-slot.is-drop-target {
+    outline: 3px dashed #3b2a1a;            /* .outline */
+    outline-offset: 2px;
+}
+
+.pets-tray {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    box-sizing: border-box;
+    width: min(100%, 30rem);
+    margin: 14px auto 0;
+    padding: 10px;
+    background: #e6dcc2;                    /* .tray */
+    border: 3px solid #3b2a1a;              /* .outline */
+    border-radius: 8px;
+}
+
+.pets-item {
+    width: 64px;
+    height: 76px;
+    padding: 6px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pets-item svg,
+.pets-ghost svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* The item left behind while its copy is dragged is framed, not faded: opacity would take
+   the icon's contrast with it (see "Never dim a control with opacity" in NOTES.md). */
+.pets-item.is-dragging {
+    border-color: #3b2a1a;                  /* .outline */
+    border-style: dashed;
+}
+
+.pets-item:focus-visible {
+    outline: 3px solid #3b2a1a;             /* .outline */
+    outline-offset: 2px;
+}
+
+/* The copy that follows the finger. It lives on the body, outside the view: a .game-view
+   is a size container, which would confine a fixed-position element to it. */
+.pets-ghost {
+    position: fixed;
+    z-index: 20;
+    width: 52px;
+    height: 64px;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+}
+
+#pets-status {
+    min-height: 1.4em;
+    margin: 8px 0 0;
+}
+
+/* Hub thumbnail: the dog's head and back against the wall, legs on the floor. */
+.thumb-pets { background: #b9a67f; }                          /* Skirting */
+.thumb-pets span { background: #f1ead6; }                     /* Wall */
+.thumb-pets span:nth-child(2),
+.thumb-pets span:nth-child(3),
+.thumb-pets span:nth-child(6),
+.thumb-pets span:nth-child(7),
+.thumb-pets span:nth-child(8),
+.thumb-pets span:nth-child(10),
+.thumb-pets span:nth-child(11),
+.thumb-pets span:nth-child(12) { background: #e6be72; }      /* Fur */
+.thumb-pets span:nth-child(5) { background: #17120d; }       /* Nose */
+.thumb-pets span:nth-child(13),
+.thumb-pets span:nth-child(15) { background: #d9c9a5; }      /* Floor */
+.thumb-pets span:nth-child(14),
+.thumb-pets span:nth-child(16) { background: #3b2a1a; }      /* Legs */
+
 /* --- GAME CONTROL BARS --- */
 /* The row of selects, buttons and readouts above each board.
  *
@@ -1546,12 +1675,23 @@ a:active  {color: #002e2c;}
     --control-on-text: #1c1a17;
 }
 
+/* Keep in step with CONTROL_THEMES.pets in js/logic.js. */
+#pets-system {
+    --control-surface: #5a3d24; /* Leather */
+    --control-text: #f6e2b0;    /* Light fur */
+    --control-border: #c4914a;  /* Fur shade */
+    --control-readout: #f6e2b0;
+    --control-on: #e6be72;      /* Fur */
+    --control-on-text: #3b2a1a;
+}
+
 /* Every control bar is the same shape; only the colours differ. */
 #game-controls,
 #tetris-controls,
 #mine-controls,
 #sequence-controls,
 #tictactoe-controls,
+#pets-controls,
 #arrayForm,
 #toyColorPicker {
     display: flex;
@@ -1574,6 +1714,8 @@ a:active  {color: #002e2c;}
 #sequence-controls select,
 #tictactoe-controls button,
 #tictactoe-controls select,
+#pets-controls button,
+#pets-controls select,
 #arrayForm button,
 #arrayForm input,
 #toyColorPicker select,
@@ -1605,6 +1747,7 @@ a:active  {color: #002e2c;}
 #mine-controls select,
 #sequence-controls select,
 #tictactoe-controls select,
+#pets-controls select,
 #toyColorPicker select {
     appearance: none;
     -webkit-appearance: none;
@@ -1624,7 +1767,8 @@ a:active  {color: #002e2c;}
 #tetris-controls select option,
 #mine-controls select option,
 #sequence-controls select option,
-#tictactoe-controls select option {
+#tictactoe-controls select option,
+#pets-controls select option {
     background-color: var(--control-surface);
     color: var(--control-text);
 }
@@ -1644,7 +1788,8 @@ a:active  {color: #002e2c;}
 
 #mine-status,
 #sequence-status,
-#tictactoe-status {
+#tictactoe-status,
+#pets-status {
     color: var(--control-readout);
 }
 
@@ -1659,6 +1804,7 @@ a:active  {color: #002e2c;}
     #mine-controls button:hover:not(:disabled),
     #sequence-controls button:hover:not(:disabled),
     #tictactoe-controls button:hover:not(:disabled),
+    #pets-controls button:hover:not(:disabled),
     #arrayForm button:hover:not(:disabled),
     .game-view .back-btn:hover {
         border-color: var(--control-text);
@@ -1675,6 +1821,8 @@ a:active  {color: #002e2c;}
 #sequence-controls select:focus-visible,
 #tictactoe-controls button:focus-visible,
 #tictactoe-controls select:focus-visible,
+#pets-controls button:focus-visible,
+#pets-controls select:focus-visible,
 #arrayForm button:focus-visible,
 #arrayForm input:focus-visible,
 .game-view .back-btn:focus-visible {
@@ -1687,7 +1835,8 @@ a:active  {color: #002e2c;}
    their on state by tests/contrast - a control is least useful when it is least
    readable in the state that matters. */
 #flagToggle.is-active,
-#sequenceSoundToggle.is-active {
+#sequenceSoundToggle.is-active,
+#petsSoundToggle.is-active {
     background-color: var(--control-on);
     color: var(--control-on-text);
     -webkit-text-fill-color: var(--control-on-text);
@@ -1721,7 +1870,9 @@ a:active  {color: #002e2c;}
 #sequence-controls button:disabled,
 #sequence-controls select:disabled,
 #tictactoe-controls button:disabled,
-#tictactoe-controls select:disabled {
+#tictactoe-controls select:disabled,
+#pets-controls button:disabled,
+#pets-controls select:disabled {
     background-color: #b9bba4;
     color: #2f2a1f;
     -webkit-text-fill-color: #2f2a1f;

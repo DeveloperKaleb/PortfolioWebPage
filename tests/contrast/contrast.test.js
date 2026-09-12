@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -304,6 +304,46 @@ describe('Tic-Tac-Toe palette', () => {
        it too, but the colour has to hold up as a second cue. */
     test('a point you can move to is tellable from one you cannot', () => {
         expect(areDistinguishable(strike, grid)).toBe(true);
+    });
+});
+
+describe('Pets palette', () => {
+    const P = PETS_COLORS;
+
+    /* The dog is read by its silhouette, so the outline carries the text floor on every
+       surface the dog or an icon is drawn on. */
+    test.each([
+        ['the wall', P.wall],
+        ['the floor', P.floor],
+        ['the tray', P.tray],
+        ['the water bowl', P.waterBowl],
+    ])('the outline is legible on %s', (_label, background) => {
+        expect(worstCaseContrast(P.outline, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test.each([['the fur', P.fur], ['the light fur', P.furLight]])('the eye and nose are legible on %s', (_label, background) => {
+        expect(worstCaseContrast(P.nose, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* What is in a bowl is a graphic rather than something read, so 3:1. The water failed
+       this at 1.47:1 before it was darkened and its bowl lightened. */
+    test('kibble shows in its bowl, and water in its', () => {
+        expect(worstCaseContrast(P.kibble, P.foodBowl)).toBeGreaterThanOrEqual(3);
+        expect(worstCaseContrast(P.water, P.waterBowl)).toBeGreaterThanOrEqual(3);
+    });
+
+    test('the collar shows on the fur', () => {
+        expect(worstCaseContrast(P.collar, P.fur)).toBeGreaterThanOrEqual(3);
+    });
+
+    test('food and water are tellable apart, and so are their bowls', () => {
+        expect(areDistinguishable(P.kibble, P.water)).toBe(true);
+        expect(areDistinguishable(P.foodBowl, P.waterBowl)).toBe(true);
+    });
+
+    test('the fur is tellable from its outline, and the water from its highlight', () => {
+        expect(areDistinguishable(P.fur, P.outline)).toBe(true);
+        expect(areDistinguishable(P.water, P.waterHighlight)).toBe(true);
     });
 });
 
