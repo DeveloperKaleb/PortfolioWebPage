@@ -1473,6 +1473,23 @@ never barks within 2.5s of the last bark, so it cannot be made to yap, and a tap
 barks. All of that is pure and tested (`moveStroke`, `isRubbing`, `barkDue`). While
 walking, eating or drinking the dog ignores petting, and the status line says why.
 
+**The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
+neck, and when the owner circled it and asked what it was meant to be, the honest answer
+was that it did not read as anything.
+
+Seen from the side, a collar is a band slanting across the neck from the nape down to the
+throat. It is now drawn that way:
+
+- two pixels deep, with a darker lower edge to show it curving round;
+- a small pale tag at the throat;
+- with the head lowered the neck runs the other way, so the band crosses it at the other
+  slant.
+
+It is a separate patch over the body (`COLLAR_UPRIGHT`, `COLLAR_LOWERED`) rather than
+pixels mixed into each body. Four drafts were rendered and compared: a one-pixel slant
+looked broken, and a steeper band read as a sash. A test checks that the collar spans
+several rows and columns in every posture, so it cannot shrink back into a strip.
+
 **The petting face is its own head sprite**, added 2026-09-12 when the owner asked for more
 detail than a closed-eye line. The eyes squint shut in upturned arcs, the mouth hangs open,
 and a two-pixel tongue shows over the jaw: a panting smile. Three drafts were rendered and
@@ -1485,30 +1502,41 @@ simulations, not to a contrast floor.
 **The bark is synthesised, not recorded.** The site loads nothing from anywhere else, and
 a recording would be the first binary asset in the precache.
 
-The first version was a sawtooth swept through a low-pass, and the owner found it not
-bark-like enough: it was a toot, a note rather than a dog. It is now built sample by sample
-in `barkSamples`:
+**It was chosen by ear, over four rounds of listening** (2026-09-12). Two attempts in code
+came first:
 
-- a sawtooth whose pitch jumps to a peak in the first 24ms, then falls well below where it
-  began;
-- a burst of noise at the onset that decays fast, for the rasp;
-- both driven through a soft clipper for growl;
-- three band-pass formants to give it a throat;
-- a fast attack, a short hold and an exponential release.
+- **A toot.** A sawtooth swept through a low-pass: a note, not a dog.
+- **A big dog's bark.** Built sample by sample, with a hard onset, a pitch that jumps and
+  falls, noise for rasp, a soft clipper for growl and band-pass formants for a throat. A
+  bark, but the wrong dog. The owner pointed out that online pet dogs almost all have
+  high, raspy barks that echo very slightly.
 
-The gentleness is in the playback level and the length, not in leaving out the rasp -
-without it the bark stops being a bark.
+From there, drafts were rendered to WAV files for the owner to audition, ten at a time,
+each changing one thing from a starting point:
 
-Being pure, it is tested for what can be tested: a hard start that dies away fast, a pitch
-that jumps and falls, silent ends so it never clicks, and the same bark for the same noise.
-Whether it sounds like a dog is for a listener. The DOM layer plays it from a buffer made
-once per sample rate, at a slightly random speed each time so two barks in a row are not
-identical. `BARK` holds the numbers.
+1. Ten high, raspy barks with a slight echo. **Picked: a very short, high yip.**
+2. Ten double yips built on it. **Picked: both yips higher, with the second rising.**
+3. Ten experiments on that. **Picked: the second yip clipped short.**
+4. Ten experiments on the clip. **Picked: the harder clip, 75ms.**
 
-Pets has its own Sound switch, remembered separately from Sequence's, and both share the
-page's one audio context. The context is started on `pointerdown` on the dog, because the
-long-pet bark arrives from a `pointermove`, which is not a gesture a browser will start
-audio from.
+So a bark is now a call: `YIP` played twice, the second 60ms after the first, 8% faster
+(and so higher) and clipped to 75ms, with a slight echo over the whole call - a repeat
+every 70ms, each a fifth as loud and a little duller. Clipping shortens a yip's release
+along with its length, which is why the second yip snaps off. `BARK` holds all of it.
+
+**The page plays exactly what was picked.** The noise is seeded with the values the pick
+was auditioned with. The small random change of speed each bark used to have was removed,
+because it shifted the pitch away from what was chosen. The echo's damping is set as a
+frequency rather than a per-sample constant, so it sounds the same at a browser's sample
+rate as in the 44.1kHz audition files.
+
+Being pure, it is tested for its shape: two yips you can hear apart with a dip between
+them, a second yip higher and shorter than the first, an echo that trails off into silence,
+silent ends, and the same samples every time. Whether it sounds right is for a listener,
+which is what the audition was.
+
+The scripts that rendered each round of drafts are not in the repo. If the bark is
+revisited, the quickest route is the same one: render options to WAV and pick by ear.
 
 **Dragging.** Pointer events, with `touch-action: none` on the two items and the dog only,
 so a swipe anywhere else still scrolls the page.

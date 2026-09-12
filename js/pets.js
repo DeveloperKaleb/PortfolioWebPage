@@ -25,6 +25,8 @@ export const SPRITE_KEYS = {
     l: 'furLight',
     n: 'nose',
     c: 'collar',
+    d: 'collarShade',
+    t: 'collarTag',
     p: 'tongue',
     a: 'foodBowl',
     q: 'waterBowl',
@@ -59,8 +61,8 @@ const DOG_HEAD = [
 ];
 
 /* The body: a thick neck behind the head (so the head can move without leaving a gap), a
-   one-pixel collar - a two-pixel one read as a square badge - a straight topline, a deep
-   chest, four legs, and the thick "otter" tail a Labrador is known by. */
+   straight topline, a deep chest, four legs, and the thick "otter" tail a Labrador is known
+   by. The collar is drawn over it - see COLLAR_UPRIGHT. */
 const DOG_BODY = [
     '............................',
     '............................',
@@ -68,10 +70,10 @@ const DOG_BODY = [
     '............................',
     '..........ffo...............',
     '..........fffo..............',
-    '..........fcffooooooooo.....',
-    '......olfffcfffffffffffoooo.',
-    '......ollffcfffffffffffffffo',
-    '......olllfcfffffffffffoooo.',
+    '..........ffffooooooooo.....',
+    '......olfffffffffffffffoooo.',
+    '......ollffffffffffffffffffo',
+    '......olllfffffffffffffoooo.',
     '......olllfffffffffffffo....',
     '......ollssssssssssssso.....',
     '.......offsooooooooffso.....',
@@ -92,8 +94,8 @@ const DOG_BODY_DOWN = patchRows(DOG_BODY, [
     [4, 10, '...'],
     [5, 10, '....'],
     [6, 10, '.oooo'],
-    [7, 6, '....oc'],
-    [8, 6, '...ofc'],
+    [7, 6, '....of'],
+    [8, 6, '...off'],
 ]);
 
 /* Sitting, the resting pose: front legs straight under the chest, the back sloping down to
@@ -106,10 +108,10 @@ const DOG_SIT = [
     '............................',
     '..........ffo...............',
     '..........fffo..............',
-    '..........fcffo.............',
-    '......olfffcfffo............',
-    '......ollffcffffo...........',
-    '......olllfcfffffo..........',
+    '..........ffffo.............',
+    '......olfffffffo............',
+    '......ollfffffffo...........',
+    '......olllfffffffo..........',
     '......olllffffffffo.........',
     '......ollssfffffffso........',
     '.......ofsoffffffssso.......',
@@ -122,6 +124,16 @@ const DOG_SIT = [
 
 // The tip of the tail lifting off the floor, for the wag while sitting.
 const TAIL_SWISH = [[14, 22, '..oo'], [15, 21, 'ooofo.'], [16, 24, 'fo..'], [17, 24, 'oo..']];
+
+/* The collar. It was a one-pixel strip standing up the neck, and the owner could not tell
+   what it was meant to be - rightly: a collar seen from the side is a band slanting across
+   the neck, from the nape down to the throat. So that is what is drawn, two pixels deep
+   with a darker lower edge for the curve round the neck, and a small pale tag at the
+   throat. Of four drafts, a one-pixel slant looked broken and a steeper band read as a
+   sash. With the head lowered the neck runs the other way, so there the band crosses it
+   at the other slant. */
+const COLLAR_UPRIGHT = [[6, 12, 'cc'], [7, 10, 'ccd'], [8, 8, 'ccd'], [9, 7, 'cd'], [10, 7, 't']];
+const COLLAR_LOWERED = [[7, 12, 'c'], [8, 11, 'cd'], [9, 10, 'cd'], [10, 10, 't']];
 
 export const SPECIES = {
     dog: {
@@ -141,12 +153,12 @@ export const SPECIES = {
             bark: patchRows(DOG_HEAD, [[5, 1, 'nnnn']]),
         },
         body: {
-            sit: DOG_SIT,
-            sitWag: patchRows(DOG_SIT, TAIL_SWISH),
-            stand: DOG_BODY,
-            wag: patchRows(DOG_BODY, TAIL_UP),
-            down: DOG_BODY_DOWN,
-            downWag: patchRows(DOG_BODY_DOWN, TAIL_UP),
+            sit: patchRows(DOG_SIT, COLLAR_UPRIGHT),
+            sitWag: patchRows(DOG_SIT, [...COLLAR_UPRIGHT, ...TAIL_SWISH]),
+            stand: patchRows(DOG_BODY, COLLAR_UPRIGHT),
+            wag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...TAIL_UP]),
+            down: patchRows(DOG_BODY_DOWN, COLLAR_LOWERED),
+            downWag: patchRows(DOG_BODY_DOWN, [...COLLAR_LOWERED, ...TAIL_UP]),
         },
     },
 };
@@ -293,44 +305,73 @@ export function barkDue(stroke, { now, ending = false, lastBarkAt = -Infinity },
 // Which way the head leans: toward the hand.
 export const leanToward = (pointerX, headCentreX) => (pointerX < headCentreX ? -1 : 1);
 
-/* The bark: a single "ruff" - gentle, but a bark.
+/* The bark: a clipped, rising double yip - picked by ear by the owner.
  *
- * The first version was a sawtooth swept through a low-pass, and it came out as a toot: a
- * note rather than a dog. What makes a bark a bark is roughness and shape - a hard onset,
- * a pitch that jumps and then drops away, a rasp of breath at the start, and resonances
- * that give it a throat. So the sound is built sample by sample here, where it can be
- * tested, and the DOM layer only plays the result:
+ * It took two tries in code and four rounds of listening. The first bark was a sawtooth
+ * swept through a low-pass and came out as a toot. The second was built sample by sample
+ * - a hard onset, a pitch that jumps and falls, a rasp of noise, growl from a soft clipper,
+ * band-pass formants for a throat - and was a bark, but a big dog's. Online pet dogs almost
+ * all have high, raspy barks with a slight echo, so drafts along those lines were rendered
+ * to WAV files and auditioned ten at a time, and narrowed round by round: the highest short
+ * yip; that yip doubled; the double higher, with a rising second; the second clipped
+ * short; and, of the clips, the harder one. See NOTES.md.
  *
- *   - a sawtooth whose pitch rises to a peak in the first few tens of milliseconds and
- *     then falls away (barkPitchAt);
- *   - a burst of noise at the onset that decays fast - the rasp;
- *   - both driven through a soft clipper, which adds the growl;
- *   - then three band-pass formants, the resonances of a throat and mouth;
- *   - under a fast attack, a short hold and an exponential release.
+ * So a bark is a call of yips, each a copy of YIP played at its own speed, length and
+ * level, with a slight echo over the whole call. The noise is seeded with the values the
+ * pick was auditioned with, so the page plays the sound that was chosen rather than a
+ * near relation of it.
  *
- * The gentleness is in the playback level and the short length, not in leaving the rasp
- * out - without the rasp it stops being a bark. */
-export const BARK = {
-    durationMs: 260,
-    pitch: { startHz: 380, peakHz: 620, peakMs: 24, endHz: 230 },
-    attackMs: 4,
-    holdMs: 30,
-    drive: 3,
-    noise: { level: 0.45, decayMs: 60 },
+ * The gentleness is in the playback level and the brevity, not in leaving out the rasp -
+ * without the rasp it stops being a bark. */
+
+// One yip: high, short and raspy. Every yip in the call is this, at its own speed and length.
+export const YIP = {
+    durationMs: 140,
+    pitch: { startHz: 1008, peakHz: 1568, peakMs: 20, endHz: 784 },
+    attackMs: 3,
+    holdMs: 20,
+    drive: 4,
+    noise: { level: 0.6, decayMs: 40 },
     formants: [
-        { hz: 600, q: 3.5, level: 1 },
-        { hz: 1400, q: 4.5, level: 0.55 },
-        { hz: 2700, q: 6, level: 0.2 },
+        { hz: 1456, q: 4, level: 1 },
+        { hz: 3136, q: 5, level: 0.6 },
+        { hz: 4704, q: 6, level: 0.3 },
     ],
+    peak: 0.9,
+};
+
+/* The call. The second yip comes 60ms after the first, a touch higher - played 8% faster -
+   and clipped to 75ms. Clipping shortens a yip's release along with its length, which is
+   why the second one snaps off. */
+export const BARK = {
+    yips: [
+        { speed: 1, level: 1, gapMs: 0, durationMs: 140, holdMs: 20 },
+        { speed: 1.08, level: 1, gapMs: 60, durationMs: 75, holdMs: 6 },
+    ],
+    // A slight room echo: a repeat every 70ms, each a fifth as loud and a little duller.
+    echo: { delayMs: 70, feedback: 0.2, mix: 0.25, dampHz: 4200 },
+    // The noise each yip was auditioned with.
+    noiseSeeds: [200, 201],
     peak: 0.9,           // the loudest sample, before the playback level
     playbackGain: 0.3,   // how loud it is played
 };
 
-// The pitch a moment into the bark: rising to the peak, then falling away to the end.
-export function barkPitchAt(ms, bark = BARK) {
-    const { startHz, peakHz, peakMs, endHz } = bark.pitch;
+// A small seeded random source (mulberry32): a given seed always makes the same noise.
+export function seededRandom(seed) {
+    let state = seed | 0;
+    return () => {
+        state = (state + 0x6d2b79f5) | 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+// The pitch a moment into a yip: rising to the peak, then falling away to the end.
+export function barkPitchAt(ms, yip = YIP) {
+    const { startHz, peakHz, peakMs, endHz } = yip.pitch;
     if (ms <= peakMs) return startHz * Math.pow(peakHz / startHz, Math.max(0, ms) / peakMs);
-    const progress = Math.min(1, (ms - peakMs) / (bark.durationMs - peakMs));
+    const progress = Math.min(1, (ms - peakMs) / (yip.durationMs - peakMs));
     return peakHz * Math.pow(endHz / peakHz, progress);
 }
 
@@ -357,31 +398,31 @@ function bandPass(hz, q, sampleRate) {
     };
 }
 
-/* The bark as samples at a sample rate, scaled so the loudest is `peak`. `random` is the
-   noise source; seeding it gives the same bark every time, which is what makes it
-   testable. */
-export function barkSamples(sampleRate, bark = BARK, random = Math.random) {
-    const length = Math.round((sampleRate * bark.durationMs) / 1000);
+/* One yip as samples, scaled so the loudest is yip.peak: a sawtooth following
+   barkPitchAt, plus a burst of noise at the onset, through a soft clipper and the
+   formants, under a fast attack, a short hold and an exponential release. */
+export function yipSamples(sampleRate, yip = YIP, random = Math.random) {
+    const length = Math.round((sampleRate * yip.durationMs) / 1000);
     const out = new Float32Array(length);
-    const formants = bark.formants.map(({ hz, q, level }) => ({ filter: bandPass(hz, q, sampleRate), level }));
+    const formants = yip.formants.map(({ hz, q, level }) => ({ filter: bandPass(hz, q, sampleRate), level }));
     const fadeSamples = Math.max(1, Math.round(sampleRate * 0.005));
-    const releaseMs = bark.durationMs - bark.attackMs - bark.holdMs;
-    const driveScale = Math.tanh(bark.drive);
+    const releaseMs = yip.durationMs - yip.attackMs - yip.holdMs;
+    const driveScale = Math.tanh(yip.drive);
     let phase = 0;
     let loudest = 0;
 
     for (let i = 0; i < length; i++) {
         const ms = (i * 1000) / sampleRate;
-        phase = (phase + barkPitchAt(ms, bark) / sampleRate) % 1;
+        phase = (phase + barkPitchAt(ms, yip) / sampleRate) % 1;
         const saw = 2 * phase - 1;
-        const noise = (random() * 2 - 1) * bark.noise.level * Math.exp(-ms / bark.noise.decayMs);
-        const driven = Math.tanh(bark.drive * (saw + noise)) / driveScale;
+        const noise = (random() * 2 - 1) * yip.noise.level * Math.exp(-ms / yip.noise.decayMs);
+        const driven = Math.tanh(yip.drive * (saw + noise)) / driveScale;
         const voiced = formants.reduce((sum, { filter, level }) => sum + filter(driven) * level, 0);
 
         let envelope;
-        if (ms < bark.attackMs) envelope = ms / bark.attackMs;
-        else if (ms < bark.attackMs + bark.holdMs) envelope = 1;
-        else envelope = Math.exp((-5 * (ms - bark.attackMs - bark.holdMs)) / releaseMs);
+        if (ms < yip.attackMs) envelope = ms / yip.attackMs;
+        else if (ms < yip.attackMs + yip.holdMs) envelope = 1;
+        else envelope = Math.exp((-5 * (ms - yip.attackMs - yip.holdMs)) / releaseMs);
 
         // A few milliseconds of fade at the very end, so the last sample is silence rather
         // than a click.
@@ -390,8 +431,72 @@ export function barkSamples(sampleRate, bark = BARK, random = Math.random) {
         loudest = Math.max(loudest, Math.abs(out[i]));
     }
 
-    const scale = loudest > 0 ? bark.peak / loudest : 0;
+    const scale = loudest > 0 ? yip.peak / loudest : 0;
     for (let i = 0; i < length; i++) out[i] *= scale;
+    return out;
+}
+
+// Play samples at a speed, by linear interpolation: faster is higher, and shorter.
+export function resample(samples, speed) {
+    const out = new Float32Array(Math.floor(samples.length / speed));
+    for (let i = 0; i < out.length; i++) {
+        const position = i * speed;
+        const j = Math.floor(position);
+        const fraction = position - j;
+        out[i] = (samples[j] ?? 0) * (1 - fraction) + (samples[j + 1] ?? 0) * fraction;
+    }
+    return out;
+}
+
+/* The slight echo: a feedback delay whose repeats a one-pole low-pass softens, the way a
+   room dulls each reflection. It runs on until the repeats are inaudible. The damping is
+   set as a frequency rather than a per-sample constant, so it sounds the same at the
+   browser's sample rate as it did in the 44.1kHz audition files. */
+export function withEcho(samples, { delayMs, feedback, mix, dampHz }, sampleRate) {
+    const delay = Math.round((sampleRate * delayMs) / 1000);
+    const repeats = Math.ceil(Math.log(0.001) / Math.log(feedback));
+    const out = new Float32Array(samples.length + delay * repeats);
+    const echo = new Float32Array(out.length);
+    const damping = 1 - Math.exp((-2 * Math.PI * dampHz) / sampleRate);
+    let damped = 0;
+    for (let n = 0; n < out.length; n++) {
+        const input = n >= delay ? (samples[n - delay] ?? 0) + feedback * echo[n - delay] : 0;
+        damped += damping * (input - damped);
+        echo[n] = damped;
+        out[n] = (samples[n] ?? 0) + mix * echo[n];
+    }
+    return out;
+}
+
+/* The whole bark as samples: the yips in order with their gaps, the echo over them, the
+   last few milliseconds faded so it ends in silence, and the loudest sample scaled to
+   bark.peak. `randomFor(i)` is the noise for yip i - seeded, by default, as auditioned. */
+export function barkSamples(sampleRate, bark = BARK, randomFor = (i) => seededRandom(bark.noiseSeeds[i] ?? i)) {
+    const pieces = bark.yips.map((step, i) => {
+        const yip = { ...YIP, durationMs: step.durationMs, holdMs: step.holdMs };
+        return {
+            samples: resample(yipSamples(sampleRate, yip, randomFor(i)), step.speed),
+            level: step.level,
+            gap: Math.round((sampleRate * step.gapMs) / 1000),
+        };
+    });
+
+    const dry = new Float32Array(pieces.reduce((total, piece) => total + piece.gap + piece.samples.length, 0));
+    let at = 0;
+    for (const piece of pieces) {
+        at += piece.gap;
+        piece.samples.forEach((sample, i) => { dry[at + i] = sample * piece.level; });
+        at += piece.samples.length;
+    }
+
+    const out = withEcho(dry, bark.echo, sampleRate);
+    const fade = Math.max(1, Math.round(sampleRate * 0.005));
+    for (let i = 0; i < fade; i++) out[out.length - 1 - i] *= i / fade;
+
+    let loudest = 0;
+    for (const sample of out) loudest = Math.max(loudest, Math.abs(sample));
+    const scale = loudest > 0 ? bark.peak / loudest : 0;
+    for (let i = 0; i < out.length; i++) out[i] *= scale;
     return out;
 }
 

@@ -1825,10 +1825,9 @@ function settlePet() {
 }
 
 /* The bark is built as samples by barkSamples in js/pets.js - pure, and so tested for its
-   shape - and played from a buffer here. The first version was an oscillator swept through
-   a low-pass, and it sounded like a toot rather than a dog. The buffer is made once for
-   the audio context's sample rate and reused, and each bark plays at a slightly random
-   speed so two in a row are not identical. */
+   shape - and played from a buffer here, made once for the audio context's sample rate and
+   reused. It plays the picked sound exactly: an earlier version varied each bark's speed
+   a little, but that moved the pitch away from what was chosen by ear. */
 let petsBarkBuffer = null;
 
 function playBark() {
@@ -1844,7 +1843,6 @@ function playBark() {
 
     const source = ctx.createBufferSource();
     source.buffer = petsBarkBuffer;
-    source.playbackRate.value = 0.95 + Math.random() * 0.1;
 
     const level = ctx.createGain();
     level.gain.value = Pets.BARK.playbackGain;

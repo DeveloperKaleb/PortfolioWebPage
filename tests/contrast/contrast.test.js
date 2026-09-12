@@ -344,6 +344,16 @@ describe('Pets palette', () => {
     /* The tongue is a detail of the happy face rather than something to find, so it is not
        held to a contrast floor - but it has to stay tellable from everything it touches,
        or under simulation it simply is not there. */
+    /* The collar's darker lower edge is what shows it curving round the neck, and the tag
+       hangs against the fur, so each has to stay tellable from what it sits against. */
+    test('the collar, its shaded edge and its tag are tellable from each other and the fur', () => {
+        expect(areDistinguishable(P.collarShade, P.collar)).toBe(true);
+        expect(areDistinguishable(P.collarShade, P.fur)).toBe(true);
+        [P.collar, P.fur, P.furLight].forEach((neighbour) => {
+            expect(areDistinguishable(P.collarTag, neighbour)).toBe(true);
+        });
+    });
+
     test('the tongue is tellable from the fur, the open mouth and the outline', () => {
         [P.fur, P.furLight, P.nose, P.outline].forEach((neighbour) => {
             expect(areDistinguishable(P.tongue, neighbour)).toBe(true);

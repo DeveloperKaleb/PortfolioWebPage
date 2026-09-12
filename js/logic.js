@@ -717,6 +717,8 @@ export const PETS_COLORS = {
     furLight: '#f6e2b0',
     nose: '#17120d',        // also the eye, and the open mouth
     collar: '#2b62a8',
+    collarShade: '#1c4378', // the collar's lower edge, curving round the neck
+    collarTag: '#cfd8e0',   // the small metal tag at the throat
     tongue: '#d9707c',      // the happy face's tongue - decoration, held apart from its neighbours
     foodBowl: '#d98c3f',
     waterBowl: '#c9d7e4',
