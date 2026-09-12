@@ -1527,6 +1527,11 @@ a:active  {color: #002e2c;}
     cursor: grabbing;
 }
 
+/* Over the fish's tank the gesture is a tap on the glass, not a stroke. */
+.pets-hit.is-glass {
+    cursor: pointer;
+}
+
 .pets-bowl-slot {
     position: absolute;
     pointer-events: none;

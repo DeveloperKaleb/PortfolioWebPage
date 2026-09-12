@@ -50,6 +50,21 @@ export const SPRITE_KEYS = {
     // The night sky.
     M: 'moon',
     K: 'star',
+    // The fish and its tank.
+    y: 'fishBody',
+    j: 'fishShade',
+    i: 'fishFin',
+    U: 'tankWater',
+    V: 'tankSurface',
+    A: 'tankAir',
+    N: 'tankLid',
+    X: 'gravel',
+    Y: 'gravelShade',
+    C: 'flake',
+    H: 'bubble',
+    D: 'stand',
+    E: 'standShade',
+    J: 'shaker',
 };
 
 // Overwrite runs of pixels: each edit is [row, column, text].
@@ -198,6 +213,21 @@ const DOG_SLEEP = [
 // Breathing in, the back rises a pixel: rows 8 to 11 take the rows below them.
 const DOG_SLEEP_BREATH = DOG_SLEEP.map((row, y) => (y >= 8 && y <= 11 ? DOG_SLEEP[y + 1] : row));
 
+/* The goldfish, the second animal (2026-09-12), facing left like the dog: the mouth at the
+   left, an eye, a dorsal fin, a side fin, and a fanned tail. It is one layer - nothing on a
+   fish moves separately enough to need a head of its own. Swimming, the tail folds and
+   fans; eating, the mouth opens; asleep, the eye shuts to a line. */
+const FISH = [
+    '....oooo.....',
+    '..ooyyyyoo.oo',
+    '.oynyyyyyyoio',
+    'oyyyyyyyyyiio',
+    '.ojjyiiyyjoio',
+    '..oojjjjoo.oo',
+    '....oooo.....',
+];
+const FISH_TAIL_FOLDED = [[1, 10, '...'], [2, 10, 'ooo'], [4, 10, 'ooo'], [5, 10, '...']];
+
 export const SPECIES = {
     dog: {
         name: 'Dog',
@@ -205,6 +235,9 @@ export const SPECIES = {
         size: { width: 28, height: 18 },
         // Where the head is across the sprite, for leaning toward the hand.
         headCentreX: 6,
+        habitat: 'room',
+        // Where the Z's start while it sleeps, relative to the sprite: just above the head.
+        zzzOrigin: { x: 10, y: 6 },
         head: {
             open: DOG_HEAD,
             /* Being petted: the eyes squinted shut in upturned arcs, the mouth hanging open,
@@ -230,6 +263,21 @@ export const SPECIES = {
             walkBWag: patchRows(DOG_BODY, [...COLLAR_UPRIGHT, ...STRIDE_B, ...TAIL_UP]),
             sleep: DOG_SLEEP,
             sleepBreath: DOG_SLEEP_BREATH,
+        },
+    },
+    fish: {
+        name: 'Fish',
+        description: 'A goldfish',
+        habitat: 'tank',
+        size: { width: 13, height: 7 },
+        zzzOrigin: { x: 3, y: -3 },
+        // The mouth, in the sprite as drawn facing left.
+        mouth: { x: 0, y: 3 },
+        frames: {
+            swimA: FISH,
+            swimB: patchRows(FISH, FISH_TAIL_FOLDED),
+            eat: patchRows(FISH, [[3, 0, '.n']]),
+            asleep: patchRows(FISH, [[2, 2, 'jj']]),
         },
     },
 };
@@ -392,6 +440,186 @@ export const PLANT = {
     ],
 };
 
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+/* --- The fish's tank ---
+ *
+ * The fish lives in a tank on a low wooden stand in the middle of the room: below the
+ * window, so the sky and the time of day stay in view, and clear of the plant. Inside, from
+ * the top: a light lid, a strip of air, the surface, ten rows of water with two weeds in
+ * each corner, and gravel. The lid is light so the Z's of a sleeping fish still show as
+ * they rise past it. */
+export const TANK = {
+    x: 26,
+    y: 26,
+    rows: [
+        'oooooooooooooooooooooooooooooooooooooooooooooooo',
+        'oNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNo',
+        'oooooooooooooooooooooooooooooooooooooooooooooooo',
+        'oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAo',
+        'oVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVo',
+        'oUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUo',
+        'oUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUo',
+        'oUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUgGUUo',
+        'oUUUUGGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUGGUUUo',
+        'oUUUUUgGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUgGUgGUUo',
+        'oUUUUgGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUgGUgGUUUo',
+        'oUUUUUGGUGGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUGGUGGUUo',
+        'oUUUUgGUgGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUgGUgGUUUo',
+        'oUUUUUgGUgGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUgGUgGUUo',
+        'oUUUUGGUGGUUUUUUUUUUUUUUUUUUUUUUUUUUUUUGGUGGUUUo',
+        'oXYXXXXYXXXXYXXXXYXXXXYXXXXYXXXXYXXXXYXXXXYXXXXo',
+        'oXYXXXYXXXYXXXYXXXYXXXYXXXYXXXYXXXYXXXYXXXYXXXYo',
+        'oooooooooooooooooooooooooooooooooooooooooooooooo',
+    ],
+};
+const TANK_WIDTH = TANK.rows[0].length;
+export const TANK_SURFACE_Y = TANK.y + 4;
+
+export const STAND = {
+    x: 24,
+    y: 44,
+    rows: [
+        'oooooooooooooooooooooooooooooooooooooooooooooooooooo',
+        'oDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDo',
+        'oEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEo',
+        '.oDo............................................oDo.',
+        '.ooo............................................ooo.',
+    ],
+};
+
+/* Where the fish can be - the top-left of its sprite. Its top fin keeps below the surface
+   and its sides inside the glass. At maxY its belly rests on the gravel, which is where it
+   sleeps; awake it keeps a little higher (see FISH_FIDGET). */
+export const FISH_SWIM = {
+    minX: TANK.x + 1,
+    maxX: TANK.x + TANK_WIDTH - 1 - SPECIES.fish.size.width,
+    minY: TANK.y + 5,
+    maxY: TANK.y + TANK.rows.length - 1 - SPECIES.fish.size.height,
+};
+export const FISH_HOME = {
+    x: Math.floor((FISH_SWIM.minX + FISH_SWIM.maxX) / 2),
+    y: FISH_SWIM.minY + 2,
+};
+
+// One pixel of swimming toward a target: across and up or down together.
+export const swimStep = (pos, target) => ({ x: stepToward(pos.x, target.x), y: stepToward(pos.y, target.y) });
+
+// The swimming, eating or sleeping frame. The tail flicks every second step.
+export function fishFrame({ asleep = false, eating = false, finStep = 0 } = {}) {
+    if (asleep) return 'asleep';
+    if (eating) return 'eat';
+    return Math.floor(finStep / 2) % 2 === 1 ? 'swimB' : 'swimA';
+}
+
+// Where the mouth is, in the room, for a fish at pos facing either way.
+export function fishMouth(pos, facing, species = SPECIES.fish) {
+    const { mouth, size } = species;
+    return {
+        x: pos.x + (facing === 'right' ? size.width - 1 - mouth.x : mouth.x),
+        y: pos.y + mouth.y,
+    };
+}
+
+// Where the fish goes to put its mouth at a point - a tap on the glass - kept in the water.
+export function fishPositionFor(point, facing, bounds = FISH_SWIM, species = SPECIES.fish) {
+    const { mouth, size } = species;
+    return {
+        x: clamp(point.x - (facing === 'right' ? size.width - 1 - mouth.x : mouth.x), bounds.minX, bounds.maxX),
+        y: clamp(point.y - mouth.y, bounds.minY, bounds.maxY),
+    };
+}
+
+/* --- Flakes ---
+ *
+ * The fish's food: a shake drops three flakes on the water around where the shaker was
+ * dropped, and they sink. Never more than six in the tank at once. A flake stops sinking
+ * where the fish's mouth can reach it at its lowest, a pixel above the gravel. */
+export const FLAKE = ['CC'];
+export const FLAKES = { perShake: 3, most: 6, spread: 8 };
+export const FLAKE_FLOOR_Y = FISH_SWIM.maxY + SPECIES.fish.mouth.y;
+const FLAKE_MIN_X = TANK.x + 3;
+const FLAKE_MAX_X = TANK.x + TANK_WIDTH - 4;
+
+export function dropFlakes(flakes, x, random = Math.random, rules = FLAKES) {
+    const room = rules.most - flakes.length;
+    if (room <= 0) return { flakes, added: 0 };
+    const count = Math.min(rules.perShake, room);
+    const added = Array.from({ length: count }, () => ({
+        x: clamp(Math.round(x - rules.spread + random() * rules.spread * 2), FLAKE_MIN_X, FLAKE_MAX_X),
+        y: TANK.y + 5,
+    }));
+    return { flakes: [...flakes, ...added], added: count };
+}
+
+export const sinkFlakes = (flakes) => flakes.map((flake) => ({ ...flake, y: Math.min(FLAKE_FLOOR_Y, flake.y + 1) }));
+
+// The index of the flake nearest a point - the fish's mouth.
+export function nearestFlake(point, flakes) {
+    let best = -1;
+    let bestDistance = Infinity;
+    flakes.forEach((flake, i) => {
+        const distance = Math.hypot(point.x - (flake.x + 0.5), point.y - flake.y);
+        if (distance < bestDistance) {
+            best = i;
+            bestDistance = distance;
+        }
+    });
+    return best;
+}
+
+// Where the fish must be to take a flake: its mouth a pixel beside it, on its level.
+function eatingPosition(flake, facing, species = SPECIES.fish) {
+    const { mouth, size } = species;
+    return {
+        x: facing === 'right' ? flake.x - 1 - (size.width - 1 - mouth.x) : flake.x + FLAKE[0].length - mouth.x,
+        y: flake.y - mouth.y,
+    };
+}
+
+export function canEat(pos, facing, flake) {
+    const at = eatingPosition(flake, facing);
+    return pos.x === at.x && pos.y === at.y;
+}
+
+/* How the fish goes for a flake: from the side it is already on, mouth first - so it never
+   has to swim through the flake to turn round - unless the glass is in the way on that
+   side, when it comes from the other. The target is kept in the water; a flake still too
+   high to reach is waited for beneath it. */
+export function fishApproach(pos, flake, bounds = FISH_SWIM, species = SPECIES.fish) {
+    const fits = (facing) => {
+        const { x } = eatingPosition(flake, facing, species);
+        return x >= bounds.minX && x <= bounds.maxX;
+    };
+    const fromRight = pos.x + species.size.width / 2 >= flake.x + 1;
+    const preferred = fromRight ? 'left' : 'right';
+    const facing = fits(preferred) ? preferred : (preferred === 'left' ? 'right' : 'left');
+    const at = eatingPosition(flake, facing, species);
+    return {
+        facing,
+        target: { x: clamp(at.x, bounds.minX, bounds.maxX), y: clamp(at.y, bounds.minY, bounds.maxY) },
+    };
+}
+
+/* --- Bubbles ---
+ *
+ * The fish's voice: two when it comes to the glass to say hello, three to say thank you
+ * after eating. They start in front of the mouth, one above another, rise a pixel a step,
+ * and pop when they reach the surface. */
+export const BUBBLE = ['.e.', 'eHe', '.e.'];
+const BUBBLE_LOWEST_Y = TANK_SURFACE_Y + 2; // a bubble's centre; its ring stays under the surface
+
+export function bubblesFrom(mouth, count, facing = 'left') {
+    return Array.from({ length: count }, (_, i) => ({
+        x: clamp(mouth.x + (facing === 'right' ? 2 : -2) + (i % 2), TANK.x + 2, TANK.x + TANK_WIDTH - 3),
+        y: Math.max(BUBBLE_LOWEST_Y, mouth.y - 1 - i * 3),
+    }));
+}
+
+export const riseBubbles = (bubbles) => bubbles
+    .map((bubble) => ({ ...bubble, y: bubble.y - 1 }))
+    .filter((bubble) => bubble.y >= BUBBLE_LOWEST_Y);
+
 const BOWL_FILL = ['.........', '...xxx...', '..xxxxx..', '.xxxxxxx.'];
 const BOWL_BASE = ['ooooooooo', 'oBBBBBBBo', '.oBBBBBo.', '..ooooo..'];
 
@@ -413,7 +641,17 @@ export const ITEM_ICONS = {
         '...oo...', '...oo...', '..owwo..', '..owwo..', '.owwwwo.',
         '.owhwwo.', 'owwhwwwo', 'owwwwwwo', '.owwwwo.', '..oooo..',
     ],
+    // The fish's: a shaker of flakes, with a picture of the flakes on its label.
+    flakes: [
+        '..oooo..', '.oNNNNo.', '.oooooo.', 'oJJJJJJo', 'oJLLLLJo',
+        'oJLCCLJo', 'oJLCCLJo', 'oJLLLLJo', 'oJJJJJJo', 'oooooooo',
+    ],
 };
+
+// What each animal is given, and where each thing goes.
+export const SPECIES_ITEMS = { dog: ['food', 'water'], fish: ['flakes'] };
+export const SPECIES_TARGETS = { dog: ['food', 'water'], fish: ['tank'] };
+export const ITEM_TARGETS = { food: 'food', water: 'water', flakes: 'tank' };
 
 /* Where the dog stands to eat from a bowl. With the head down, the muzzle is two pixels in
    front of the dog's own position, so standing at the bowl's centre column puts it over
@@ -461,6 +699,27 @@ export const FIDGET = {
     maxX: SCENE.width - SPECIES.dog.size.width - 2,
 };
 
+/* The fish is restless - the owner asked for its fidgets to be "even more heavily biased
+ * towards shorter" than the dog's. 70% of its waits are 2 to 4 seconds, 20% 5 to 9, and
+ * 10% 10 to 15, never longer; the dog's shortest wait is 5. It swims 6 to 20 pixels across
+ * and to any height in its water, short of the gravel it sleeps on. Dusk and night work on
+ * it exactly as on the dog. */
+export const FISH_FIDGET = {
+    waitBands: [
+        { fromSeconds: 2, toSeconds: 4, share: 0.7 },
+        { fromSeconds: 5, toSeconds: 9, share: 0.2 },
+        { fromSeconds: 10, toSeconds: 15, share: 0.1 },
+    ],
+    minStep: 6,
+    maxStep: 20,
+    minX: FISH_SWIM.minX,
+    maxX: FISH_SWIM.maxX,
+    minY: FISH_SWIM.minY,
+    maxY: FISH_SWIM.maxY - 2,
+};
+
+export const FIDGET_RULES = { dog: FIDGET, fish: FISH_FIDGET };
+
 /* A wait in milliseconds: the first draw picks a band by its share, the second a whole
    second within that band. */
 export function fidgetDelayMs(random = Math.random, rules = FIDGET) {
@@ -500,10 +759,11 @@ export const DUSK_WAIT_SCALE = 2;
  * back rises and falls, and Z's drift up from its head, a step every zzzStepMs. */
 export const SLEEP = { dozeAfterMs: 20000, zzzStepMs: 350, stepsPerBreath: 4 };
 
-// How long the dog rests before its next move: a fidget by day, dozing off at night.
-export function restDelayMs(period, random = Math.random) {
+/* How long a pet rests before its next move: a fidget by day, by its own rules - see
+   FIDGET_RULES - and dozing off at night. Dusk and night are the same for every animal. */
+export function restDelayMs(period, random = Math.random, rules = FIDGET) {
     if (period === 'night') return SLEEP.dozeAfterMs;
-    return fidgetDelayMs(random) * (period === 'dusk' ? DUSK_WAIT_SCALE : 1);
+    return fidgetDelayMs(random, rules) * (period === 'dusk' ? DUSK_WAIT_SCALE : 1);
 }
 
 /* The Z's: two at a time, each rising a pixel a step from just above the head and drifting
@@ -514,12 +774,13 @@ const Z_SMALL = ['oo.', '.o.', '.oo'];
 const Z_BIG = ['oooo', '..o.', '.o..', 'oooo'];
 export const Z_RISE = 8;
 
-export function zzzFrame(step) {
+// `origin` is where the Z's start for this animal - its species' zzzOrigin.
+export function zzzFrame(step, origin = SPECIES.dog.zzzOrigin) {
     return [0, Z_RISE / 2].map((lag) => {
         const k = (((step - lag) % Z_RISE) + Z_RISE) % Z_RISE;
         return {
-            x: 10 + Math.floor(k / 2),
-            y: SLEEP_HEAD_DY - 3 - k,
+            x: origin.x + Math.floor(k / 2),
+            y: origin.y - k,
             rows: k < Z_RISE / 2 ? Z_SMALL : Z_BIG,
         };
     });
@@ -544,6 +805,14 @@ export function fidgetTarget(x, random = Math.random, rules = FIDGET) {
     if (fits(x + direction * step)) return x + direction * step;
     if (fits(x - direction * step)) return x - direction * step;
     return x - minX >= maxX - x ? minX : maxX;
+}
+
+// Where one fidget takes the fish: across by the same rules as the dog, and to any height.
+export function fishSwimTarget(pos, random = Math.random, rules = FISH_FIDGET) {
+    return {
+        x: fidgetTarget(pos.x, random, rules),
+        y: rules.minY + Math.floor(random() * (rules.maxY - rules.minY + 1)),
+    };
 }
 
 /* --- Petting --- */
@@ -815,7 +1084,7 @@ export function fillBowl(bowls, kind) {
 
 export const takeBite = (bowls, kind) => ({ ...bowls, [kind]: Math.max(0, bowls[kind] - 1) });
 
-export const acceptsItem = (bowlKind, item) => bowlKind === item;
+export const acceptsItem = (target, item) => ITEM_TARGETS[item] === target;
 
 // The bowl to go to next: the preferred one if it has anything in it, else the other.
 export function bowlToVisit(bowls, preferred = 'food') {

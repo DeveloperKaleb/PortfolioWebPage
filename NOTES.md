@@ -1606,6 +1606,53 @@ player's choice anyway.
   lower. The small z began with a straight middle stroke and read as an I.
 - **Reduced motion.** No breathing and no drifting: it lies still with its Z's in place.
 
+**The fish** (2026-09-12). The second animal, from an idea of the owner's wife, chosen in
+the animal select. The owner asked for it built and pushed, liked the flakes, wanted its
+fidgets more heavily biased toward short than the dog's, and wanted it to follow the dog's
+day and night - and suggested this was the moment to make Pets DRY. What it is:
+
+- **A goldfish in a tank** on a low wooden stand in the middle of the room, below the
+  window so the sky stays in view. Lid, air, surface, ten rows of water with weeds, gravel.
+  The fish is one sprite of 13 × 7 with four frames: tail fanned, tail folded, mouth open,
+  eye shut. It flicks its tail as it swims, and now and then while resting.
+- **A tap on the glass** is its petting: it swims over mouth-first to where the tap landed
+  and blows two bubbles - no more often than the dog barks. It wakes it at night.
+- **Flakes.** The tray shows a flake shaker in place of the dog's food and water. Dropped on
+  the tank, three flakes land on the water around the drop and sink; never more than six.
+  The fish goes for the nearest, from the side it is already on, and waits beneath a flake
+  still too high to reach. After the last, the thank-you: the same half-second and second
+  pauses as the dog's, with three bubbles instead of a bark.
+- **Restless.** `FISH_FIDGET`: 70% of waits 2-4 seconds, 20% 5-9, 10% 10-15, never longer.
+  It swims 6-20 pixels across, at any height short of the gravel.
+- **Day and night as the dog.** Waits double at dusk. At night it sleeps on the gravel, eye
+  shut, Z's rising past the tank's lid - which is light for that reason. A tap wakes it;
+  flakes do not, and wait for it. It dozes again 20 seconds after settling.
+- **No sound.** The sound switch does nothing for the fish yet; a bubble "blub" was left
+  out rather than guessed at.
+
+**What is shared, and how.** In `js/pets.js`: each species says its `habitat` (room or
+tank) and where its Z's start; `FIDGET_RULES` gives each its waits and bounds, and
+`restDelayMs`, `fidgetTarget` and `zzzFrame` take them as arguments; `SPECIES_ITEMS`,
+`SPECIES_TARGETS` and `ITEM_TARGETS` say what each animal is given and where it goes. In
+`entertainment.js` the room, the clock, falling asleep and waking, the Z's, the rest timer,
+dragging, and the thank-you (`thankThenCarryOn`) are written once; each animal brings its
+own drawing, moving, eating and greeting. `petIsFish()` picks between them at the few
+places that differ. Changing the animal restarts the view's clock and rests - before the
+fish, a change stopped the dog fidgeting until the view was reopened, unnoticed because
+there was nothing to change to.
+
+**Colours.** The outline clears the text floor on water, surface, air, lid and both gravel
+colours, the eye on the body, and flakes and bubble rings clear 3:1 on the water. The
+gravel's shade was lightened from `#a9906a`, a hair under. Exempt, as shading or because
+an outline stands between: fins against body, a bubble's shine, the outlined lid against
+the wall, and the fish against the weeds.
+
+**Checked without a browser.** There is no DOM library in the project, so the Pets section
+of `entertainment.js` was run in Node against a small fake DOM and a fake clock, driving
+the fish and the dog through fidgeting, feeding, tapping, stroking, and a night of sleeping,
+feeding and waking, and asserting the fish never left its water. The harness lives in the
+session scratchpad, not the repo.
+
 **The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
 neck, and when the owner circled it and asked what it was meant to be, the honest answer
 was that it did not read as anything.
@@ -1718,6 +1765,14 @@ readout, not about whether a game ends in place.
 Kept with dates and attribution so they can be prioritised later rather than
 rediscovered. Nothing here is committed to; it is a record of what was suggested and
 when.
+
+### Suggested 2026-09-12, by the project owner's wife
+
+**A fish, as a second animal in Pets — BUILT 2026-09-12, see "The fish" under Pets.** The animal select in the Pets
+view was built for exactly this, but a fish would not fit the dog's mould as-is: it would
+live in a tank rather than walk the room, petting has no obvious fish equivalent (a tap on
+the glass, perhaps), and feeding would be flakes dropped in rather than a bowl. Worth
+designing as its own thing rather than a reskin of the dog.
 
 ### Suggested 2026-09-11, by the project owner
 

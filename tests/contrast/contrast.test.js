@@ -367,6 +367,41 @@ describe('Pets palette', () => {
         expect(worstCaseContrast(P.star, PETS_SKIES.night.sky)).toBeGreaterThanOrEqual(3);
     });
 
+    /* The fish is read by its outline like the dog, so the outline carries the text floor on
+       everything inside the tank it swims over, the gravel it sleeps on, and the lid and air
+       its Z's rise past. The gravel's shade began at #a9906a, a hair under the floor. */
+    test.each([
+        ['the water', P.tankWater],
+        ['the surface', P.tankSurface],
+        ['the air under the lid', P.tankAir],
+        ['the lid', P.tankLid],
+        ['the gravel', P.gravel],
+        ['the shaded gravel', P.gravelShade],
+    ])('the outline is legible on %s in the tank', (_label, background) => {
+        expect(worstCaseContrast(P.outline, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test("the fish's eye is legible on its body", () => {
+        expect(worstCaseContrast(P.nose, P.fishBody)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    // Flakes and a bubble's ring are small graphics on the water: 3:1.
+    test('the flakes and the bubbles show on the water', () => {
+        expect(worstCaseContrast(P.flake, P.tankWater)).toBeGreaterThanOrEqual(3);
+        expect(worstCaseContrast(P.sceneLine, P.tankWater)).toBeGreaterThanOrEqual(3);
+    });
+
+    /* Each is told apart from what it sits against. Exempt, as shading or because an outline
+       stands between them: the fins against the body, a bubble's shine against the water
+       (its ring carries it), the outlined lid against the wall, and the fish against the
+       weeds it swims in front of. */
+    test.each([
+        ['fishBody', 'tankWater'], ['fishShade', 'fishBody'], ['leaf', 'tankWater'], ['leafShade', 'tankWater'],
+        ['gravel', 'tankWater'], ['stand', 'floor'], ['stand', 'trim'], ['shaker', 'bagLabel'], ['flake', 'bagLabel'],
+    ])('in the tank and the tray, %s is tellable from %s', (a, b) => {
+        expect(areDistinguishable(P[a], P[b])).toBe(true);
+    });
+
     test.each([['the fur', P.fur], ['the light fur', P.furLight]])('the eye and nose are legible on %s', (_label, background) => {
         expect(worstCaseContrast(P.nose, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });

@@ -742,6 +742,21 @@ export const PETS_COLORS = {
     potShade: '#86a0bb',
     moon: '#f2edd0',        // the night sky's moon and stars, drawn only at night
     star: '#dfe5f5',
+    // The fish, its tank on a wooden stand, its flakes and its bubbles.
+    fishBody: '#f2a33a',
+    fishShade: '#d9812a',   // belly and the shut eye - shading on the body
+    fishFin: '#f7c77a',     // fins and tail - shading again
+    tankWater: '#cfeaf0',
+    tankSurface: '#a9d8e3',
+    tankAir: '#eef6f4',
+    tankLid: '#d5dade',     // light, so the Z's of a sleeping fish still show rising past it
+    gravel: '#c9b28a',
+    gravelShade: '#b49b75', // lightened from #a9906a, which missed the text floor for the outline
+    flake: '#b5482a',
+    bubble: '#ffffff',      // the shine inside a bubble's ring
+    stand: '#9a6b43',
+    standShade: '#7d5434',
+    shaker: '#3f7fb5',      // the flake shaker in the tray
 };
 
 /* The sky through the Pets window at each time of day - overrides of PETS_COLORS for the

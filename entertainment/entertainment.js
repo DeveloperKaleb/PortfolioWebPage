@@ -1639,9 +1639,12 @@ const petsStatusEl = document.getElementById('pets-status');
 const petsSpeciesSelect = document.getElementById('petsSpeciesSelect');
 const petsSoundToggle = document.getElementById('petsSoundToggle');
 const petsItems = document.querySelectorAll('.pets-item');
+const petsTray = document.querySelector('.pets-tray');
+// Where a dragged item can land: the dog's two bowls, and the fish's tank.
 const petsBowlSlots = {
     food: petsScene.querySelector('.pets-bowl-slot[data-bowl="food"]'),
     water: petsScene.querySelector('.pets-bowl-slot[data-bowl="water"]'),
+    tank: petsScene.querySelector('.pets-bowl-slot[data-bowl="tank"]'),
 };
 
 const PETS_STEP_MS = 70;          // one pixel of walking
@@ -1652,6 +1655,11 @@ const PETS_TICK_MS = 100;         // how often a held stroke is checked
 const PETS_HINT_MS = 2800;        // how long a hint stays before the usual line returns
 const PETS_DROP_PAD = 24;         // slack around a bowl for a finger
 const PETS_DRAG_START_PX = 8;     // movement before a press on an item is a drag, not a tap
+const PETS_SWIM_MS = 90;          // one pixel of swimming
+const PETS_FLAKE_SINK_MS = 260;   // a flake sinking a pixel
+const PETS_BUBBLE_MS = 150;       // a bubble rising a pixel
+const PETS_FIN_MS = 450;          // a resting fish flicking its tail
+const PETS_NIBBLE_MS = 240;       // the fish's mouth open on a flake
 
 const petsReduceMotion = window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -1667,15 +1675,25 @@ try {
 } catch { /* no storage - stay with the default */ }
 
 const petSpecies = () => Pets.SPECIES[pets.species];
+// The fish lives in a tank; everything the dog does in the room, it does its own way.
+const petIsFish = () => petSpecies().habitat === 'tank';
 const petsDefaultMessage = () => {
     const name = petSpecies().name.toLowerCase();
-    return pets?.asleep
+    if (petIsFish()) {
+        return pets.asleep
+            ? `The ${name} is asleep. Tap the glass to wake it up.`
+            : 'Tap the glass to say hello. Drag flakes to the tank.';
+    }
+    return pets.asleep
         ? `The ${name} is asleep. Stroke it to wake it up.`
         : `Stroke the ${name} to pet it. Drag food or water to its bowl.`;
 };
-const petsDogLabel = () => (pets.asleep
-    ? `${petSpecies().description}, asleep. Stroke it to wake it up.`
-    : `${petSpecies().description}. Stroke it to pet it.`);
+const petsDogLabel = () => {
+    const { description } = petSpecies();
+    const wake = petIsFish() ? 'Tap the glass to wake it up.' : 'Stroke it to wake it up.';
+    const greet = petIsFish() ? 'Tap the glass to say hello.' : 'Stroke it to pet it.';
+    return pets.asleep ? `${description}, asleep. ${wake}` : `${description}. ${greet}`;
+};
 
 // A sprite as SVG rects, one per run of a colour, offset into place. The window passes the
 // sky's colours for the time of day.
@@ -1712,6 +1730,8 @@ function buildPetsScene() {
         + Pets.FLOOR_SEAMS.map((y) => band(y, 1, PETS_COLORS.floorShade)).join('')
         + '<g class="pets-window"></g>'   // drawn by drawPetsWindow, for the time of day
         + furnishing(Pets.PLANT)
+        // The fish's tank and stand, its flakes, the fish and its bubbles - empty for the dog.
+        + '<g class="pets-habitat"></g><g class="pets-flakes"></g><g class="pets-fish"></g><g class="pets-bubbles"></g>'
         + '<g class="pets-dog"><g class="pets-body"></g><g class="pets-head"></g></g>'
         + '<g class="pets-zzz"></g>'
         + Pets.ITEMS.map((kind) => `<g class="pets-bowl" data-bowl="${kind}"></g>`).join('');
@@ -1720,6 +1740,8 @@ function buildPetsScene() {
         const { x, y } = Pets.BOWLS[kind];
         placePetsOverlay(petsBowlSlots[kind], x, y, Pets.BOWL_SIZE.width, Pets.BOWL_SIZE.height);
     });
+    const { TANK } = Pets;
+    placePetsOverlay(petsBowlSlots.tank, TANK.x, TANK.y, TANK.rows[0].length, TANK.rows.length);
 
     petsItems.forEach((item) => {
         const rows = Pets.ITEM_ICONS[item.dataset.item];
@@ -1728,6 +1750,11 @@ function buildPetsScene() {
 }
 
 function drawPet() {
+    if (petIsFish()) {
+        drawFish();
+        drawPetZzz();
+        return;
+    }
     const species = petSpecies();
     const body = species.body[Pets.bodyFrame(pets.posture, pets.wag, pets.stepsWalked, pets.breath)];
     const offset = Pets.headOffset(pets.posture, {
@@ -1745,18 +1772,66 @@ function drawPet() {
         : `translate(${pets.x} ${Pets.DOG_Y})`);
     dog.querySelector('.pets-body').innerHTML = petRects(body);
     dog.querySelector('.pets-head').innerHTML = petRects(species.head[pets.eyes], offset.dx, offset.dy);
-    // The Z's are outside the dog's group, so a mirrored dog could never mirror the letters.
-    petsSvg.querySelector('.pets-zzz').innerHTML = pets.asleep
-        ? Pets.zzzFrame(pets.zzzStep).map(({ x, y, rows }) => petRects(rows, pets.x + x, Pets.DOG_Y + y)).join('')
-        : '';
+    drawPetZzz();
     placePetsOverlay(petsDogHit, pets.x, Pets.DOG_Y, species.size.width, species.size.height);
 }
 
 function drawPetBowls() {
     Pets.ITEMS.forEach((kind) => {
         const { x, y } = Pets.BOWLS[kind];
-        petsSvg.querySelector(`.pets-bowl[data-bowl="${kind}"]`).innerHTML = petRects(Pets.bowlRows(kind, pets.bowls[kind]), x, y);
+        petsSvg.querySelector(`.pets-bowl[data-bowl="${kind}"]`).innerHTML =
+            petIsFish() ? '' : petRects(Pets.bowlRows(kind, pets.bowls[kind]), x, y);
     });
+}
+
+// The Z's are outside the pet's own group, so a mirrored pet could never mirror the letters.
+function drawPetZzz() {
+    const top = petIsFish() ? pets.y : Pets.DOG_Y;
+    petsSvg.querySelector('.pets-zzz').innerHTML = pets.asleep
+        ? Pets.zzzFrame(pets.zzzStep, petSpecies().zzzOrigin)
+            .map(({ x, y, rows }) => petRects(rows, pets.x + x, top + y)).join('')
+        : '';
+}
+
+/* Which animal's things are in the room: the tank on its stand for the fish, the bowls for
+   the dog, and in the tray only that animal's food. Drawn on reset; whatever belongs to
+   the other animal is emptied. */
+function drawPetsHabitat() {
+    const fish = petIsFish();
+    const { TANK, STAND } = Pets;
+    petsSvg.querySelector('.pets-habitat').innerHTML = fish
+        ? petRects(STAND.rows, STAND.x, STAND.y) + petRects(TANK.rows, TANK.x, TANK.y)
+        : '';
+    if (fish) {
+        petsSvg.querySelector('.pets-body').innerHTML = '';
+        petsSvg.querySelector('.pets-head').innerHTML = '';
+        // The whole of the glass is where a tap lands.
+        placePetsOverlay(petsDogHit, TANK.x, TANK.y, TANK.rows[0].length, TANK.rows.length);
+    } else {
+        ['.pets-flakes', '.pets-fish', '.pets-bubbles'].forEach((group) => {
+            petsSvg.querySelector(group).innerHTML = '';
+        });
+    }
+    petsDogHit.classList.toggle('is-glass', fish);
+
+    const items = Pets.SPECIES_ITEMS[pets.species];
+    petsItems.forEach((item) => { item.hidden = !items.includes(item.dataset.item); });
+    petsTray.setAttribute('aria-label', fish ? 'Food' : 'Food and water');
+    drawPetBowls();
+}
+
+function drawFish() {
+    const species = petSpecies();
+    const fish = petsSvg.querySelector('.pets-fish');
+    // Facing right is the same drawing mirrored within its own box, as for the dog.
+    fish.setAttribute('transform', pets.facing === 'right'
+        ? `translate(${pets.x + species.size.width} ${pets.y}) scale(-1 1)`
+        : `translate(${pets.x} ${pets.y})`);
+    fish.innerHTML = petRects(species.frames[Pets.fishFrame(pets)]);
+    petsSvg.querySelector('.pets-flakes').innerHTML =
+        pets.flakes.map(({ x, y }) => petRects(Pets.FLAKE, x, y)).join('');
+    petsSvg.querySelector('.pets-bubbles').innerHTML =
+        pets.bubbles.map(({ x, y }) => petRects(Pets.BUBBLE, x - 1, y - 1)).join('');
 }
 
 // A hint in the status line, which goes back to the usual line after a moment.
@@ -1767,10 +1842,15 @@ function petsHint(message) {
 }
 
 function clearPetsTimers() {
-    const { walk, chomp, wag, tick, barkSteps, thank, hint, fidget, sleep, clock } = pets.timers;
+    const { walk, chomp, wag, tick, barkSteps, thank, hint, fidget, sleep, clock, swim, sink, bubbles, fin, nibble } = pets.timers;
     clearTimeout(fidget);
     clearInterval(sleep);
     clearInterval(clock);
+    clearInterval(swim);
+    clearInterval(sink);
+    clearInterval(bubbles);
+    clearInterval(fin);
+    clearTimeout(nibble);
     clearInterval(walk);
     clearInterval(chomp);
     clearInterval(wag);
@@ -1788,10 +1868,14 @@ function resetPets() {
     petsDogHit.classList.remove('is-petting');
 
     const period = petsTimeOfDay();
-    const asleep = period === 'night'; // opened at night, the dog is already asleep
+    const asleep = period === 'night'; // opened at night, the pet is already asleep
+    const species = Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog';
+    const fish = Pets.SPECIES[species].habitat === 'tank';
     pets = {
-        species: Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog',
-        x: Pets.HOME_X,
+        species,
+        x: fish ? Pets.FISH_HOME.x : Pets.HOME_X,
+        // The fish's height in its tank - asleep, it rests on the bottom. The dog's is DOG_Y.
+        y: fish && asleep ? Pets.FISH_SWIM.maxY : Pets.FISH_HOME.y,
         homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
         facing: 'left',     // left | right - right only while walking right
         activity: 'idle',   // idle | walking | eating | drinking | thanking | fidgeting
@@ -1807,16 +1891,23 @@ function resetPets() {
         asleep,
         breath: false,      // the half of a sleeping breath where the back is up
         zzzStep: 0,         // how far the Z's have drifted
+        flakes: [],         // the fish's food, sinking: [{ x, y }]
+        bubbles: [],        // the fish's bubbles, rising: [{ x, y }]
+        finStep: 0,         // the fish's tail, flicking as it swims
+        eating: false,      // the fish's mouth open on a flake
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
-        timers: { walk: null, chomp: null, wag: null, tick: null, barkSteps: [], thank: null, hint: null, fidget: null, sleep: null, clock: null },
+        timers: {
+            walk: null, chomp: null, wag: null, tick: null, barkSteps: [], thank: null, hint: null, fidget: null,
+            sleep: null, clock: null, swim: null, sink: null, bubbles: null, fin: null, nibble: null,
+        },
     };
 
     petsDogHit.setAttribute('aria-label', petsDogLabel());
     petsStatusEl.textContent = petsDefaultMessage();
     drawPetsWindow();
-    drawPetBowls();
+    drawPetsHabitat();
     drawPet();
 }
 
@@ -1869,7 +1960,7 @@ function showPetRubbing(leanDx) {
 function settlePet() {
     if (pets.asleep) return; // a tap that never became a stroke leaves it sleeping
     pets.leaning = false;
-    if (pets.activity === 'idle') {
+    if (pets.activity === 'idle' && !petIsFish()) {
         pets.posture = Pets.RESTING_POSTURE;
         // It turns back to face the bowls when it sits, whichever way it walked.
         pets.facing = 'left';
@@ -1982,6 +2073,11 @@ function endPetStroke() {
 }
 
 petsDogHit.addEventListener('pointerdown', (event) => {
+    if (petIsFish()) {
+        event.preventDefault();
+        tapTank(event);
+        return;
+    }
     if (pets.activity !== 'idle') {
         petsHint(petsBusyMessage());
         return;
@@ -2016,6 +2112,10 @@ petsDogHit.addEventListener('pointermove', (event) => {
 
 function maybeVisitBowl() {
     if (pets.activity !== 'idle' || pets.stroke || pets.asleep) return;
+    if (petIsFish()) {
+        if (pets.flakes.length) chaseFlakes();
+        return;
+    }
     const next = Pets.bowlToVisit(pets.bowls);
     if (next) visitBowl(next);
 }
@@ -2095,6 +2195,23 @@ function startEating(kind) {
 const PETS_THANK_WAIT_BEFORE_MS = 500;
 const PETS_THANK_WAIT_AFTER_MS = 1000;
 
+/* The thank-you after a meal is the same for every animal: a pause, the animal's own
+   thanks - the dog's bark, the fish's bubbles - a longer pause, then whatever comes next.
+   `sayThanks(done)` calls done when the thanks are over. */
+function thankThenCarryOn(sayThanks, carryOn) {
+    pets.activity = 'thanking';
+    drawPet();
+    pets.timers.thank = setTimeout(() => {
+        pets.timers.thank = null;
+        sayThanks(() => {
+            pets.timers.thank = setTimeout(() => {
+                pets.timers.thank = null;
+                carryOn();
+            }, PETS_THANK_WAIT_AFTER_MS);
+        });
+    }, PETS_THANK_WAIT_BEFORE_MS);
+}
+
 function finishEating(kind) {
     pets.posture = 'stand';
     pets.chompUp = false;
@@ -2104,33 +2221,35 @@ function finishEating(kind) {
         visitBowl(next);
         return;
     }
-    pets.activity = 'thanking';
-    drawPet();
-    pets.timers.thank = setTimeout(() => {
-        pets.timers.thank = null;
-        barkPet(() => {
+    thankThenCarryOn(
+        (done) => barkPet(() => {
             pets.eyes = 'open';
             drawPet();
-            pets.timers.thank = setTimeout(() => {
-                pets.timers.thank = null;
-                // A bowl filled meanwhile is still visited before going home, and thanked for.
-                const refilled = Pets.bowlToVisit(pets.bowls, other);
-                if (refilled) {
-                    visitBowl(refilled);
-                    return;
-                }
-                pets.activity = 'walking';
-                // Back to wherever it last settled, which fidgeting moves about.
-                walkPetTo(pets.homeX, () => {
-                    pets.activity = 'idle';
-                    settlePet();
-                });
-            }, PETS_THANK_WAIT_AFTER_MS);
-        });
-    }, PETS_THANK_WAIT_BEFORE_MS);
+            done();
+        }),
+        () => {
+            // A bowl filled meanwhile is still visited before going home, and thanked for.
+            const refilled = Pets.bowlToVisit(pets.bowls, other);
+            if (refilled) {
+                visitBowl(refilled);
+                return;
+            }
+            pets.activity = 'walking';
+            // Back to wherever it last settled, which fidgeting moves about.
+            walkPetTo(pets.homeX, () => {
+                pets.activity = 'idle';
+                settlePet();
+            });
+        },
+    );
 }
 
-function givePetItem(kind) {
+// `clientX` is where on screen the item was dropped, for the fish's flakes; none from a keyboard.
+function givePetItem(kind, clientX = null) {
+    if (kind === 'flakes') {
+        giveFlakes(clientX);
+        return;
+    }
     const { bowls, filled } = Pets.fillBowl(pets.bowls, kind);
     if (!filled) {
         petsHint(`The ${kind} bowl is already full.`);
@@ -2146,7 +2265,7 @@ function givePetItem(kind) {
 /* --- Dragging --- */
 
 function petsBowlTargets() {
-    return Pets.ITEMS.map((kind) => {
+    return Pets.SPECIES_TARGETS[pets.species].map((kind) => {
         const { left, top, right, bottom } = petsBowlSlots[kind].getBoundingClientRect();
         return { kind, rect: { left, top, right, bottom } };
     });
@@ -2158,9 +2277,9 @@ function movePetsDrag(event) {
     drag.ghost.style.top = `${event.clientY}px`;
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > PETS_DRAG_START_PX) drag.moved = true;
     drag.target = Pets.dropTarget({ x: event.clientX, y: event.clientY }, petsBowlTargets(), PETS_DROP_PAD);
-    // Only the bowl the item belongs in lights up, so the outline never invites a wrong drop.
-    Pets.ITEMS.forEach((kind) => {
-        petsBowlSlots[kind].classList.toggle('is-drop-target', kind === drag.target && kind === drag.item.dataset.item);
+    // Only the place the item belongs lights up, so the outline never invites a wrong drop.
+    Object.entries(petsBowlSlots).forEach(([kind, slot]) => {
+        slot.classList.toggle('is-drop-target', kind === drag.target && Pets.acceptsItem(kind, drag.item.dataset.item));
     });
 }
 
@@ -2168,7 +2287,7 @@ function endPetsDrag() {
     if (!petsDrag) return;
     petsDrag.ghost.remove();
     petsDrag.item.classList.remove('is-dragging');
-    Pets.ITEMS.forEach((kind) => petsBowlSlots[kind].classList.remove('is-drop-target'));
+    Object.values(petsBowlSlots).forEach((slot) => slot.classList.remove('is-drop-target'));
     petsDrag = null;
 }
 
@@ -2178,9 +2297,9 @@ function dropPetsItem(event) {
     const { target, moved } = petsDrag;
     endPetsDrag();
 
-    if (target && Pets.acceptsItem(target, item)) givePetItem(item);
+    if (target && Pets.acceptsItem(target, item)) givePetItem(item, event.clientX);
     else if (target) petsHint(`That goes in the ${item} bowl.`);
-    else if (!moved) petsHint(`Drag the ${item} to its bowl.`);
+    else if (!moved) petsHint(item === 'flakes' ? 'Drag the flakes to the tank.' : `Drag the ${item} to its bowl.`);
 }
 
 petsItems.forEach((item) => {
@@ -2226,7 +2345,11 @@ function setPetsSoundOn(on) {
 }
 
 petsSoundToggle.addEventListener('click', () => setPetsSoundOn(!petsSoundOn));
-petsSpeciesSelect.addEventListener('change', resetPets);
+// A new animal is a fresh room; the view is still open, so its clock and its rests start again.
+petsSpeciesSelect.addEventListener('change', () => {
+    resetPets();
+    startPetsView();
+});
 
 /* --- Fidgeting --- */
 /* Left alone, the dog gets up every so often and resettles nearby - the owner's brief: wait
@@ -2239,7 +2362,7 @@ petsSpeciesSelect.addEventListener('change', resetPets);
    petted, mid-drag, walking or eating - is skipped, and a fresh wait begins. */
 function scheduleFidget() {
     clearTimeout(pets.timers.fidget);
-    pets.timers.fidget = setTimeout(fidget, Pets.restDelayMs(pets.period));
+    pets.timers.fidget = setTimeout(fidget, Pets.restDelayMs(pets.period, Math.random, Pets.FIDGET_RULES[pets.species]));
 }
 
 function fidget() {
@@ -2255,6 +2378,10 @@ function fidget() {
         return;
     }
 
+    if (petIsFish()) {
+        fishFidget();
+        return;
+    }
     const target = Pets.fidgetTarget(pets.x);
     pets.activity = 'fidgeting';
     pets.posture = 'stand';
@@ -2267,6 +2394,207 @@ function fidget() {
         settlePet();
         scheduleFidget();
     });
+}
+
+/* --- The fish --- */
+/* A goldfish in a tank: the second animal (2026-09-12), from an idea of the owner's wife.
+   It shares the room, the clock, the dozing and the thank-you with the dog, and has its own
+   ways: it swims rather than walks, a tap on the glass rather than a stroke brings it over
+   to say hello with a couple of bubbles, and it eats flakes sprinkled on the water rather
+   than from a bowl. The tank, the flakes and the rules are in js/pets.js. */
+
+function petRoomPoint(event) {
+    const rect = petsScene.getBoundingClientRect();
+    return {
+        x: Math.round(((event.clientX - rect.left) / rect.width) * Pets.SCENE.width),
+        y: Math.round(((event.clientY - rect.top) / rect.height) * Pets.SCENE.height),
+    };
+}
+
+// Swim a pixel at a time, across and up or down together. With reduced motion it is simply there.
+function swimFishTo(target, arrived) {
+    clearInterval(pets.timers.swim);
+    pets.timers.swim = null;
+    pets.facing = Pets.facingFor(pets.x, target.x, pets.facing);
+    if (petsReduceMotion.matches || (pets.x === target.x && pets.y === target.y)) {
+        pets.x = target.x;
+        pets.y = target.y;
+        drawPet();
+        arrived();
+        return;
+    }
+    pets.timers.swim = setInterval(() => {
+        const next = Pets.swimStep(pets, target);
+        pets.x = next.x;
+        pets.y = next.y;
+        pets.finStep += 1;
+        drawPet();
+        if (pets.x === target.x && pets.y === target.y) {
+            clearInterval(pets.timers.swim);
+            pets.timers.swim = null;
+            arrived();
+        }
+    }, PETS_SWIM_MS);
+}
+
+function fishFidget() {
+    pets.activity = 'fidgeting';
+    swimFishTo(Pets.fishSwimTarget(pets), () => {
+        pets.activity = 'idle';
+        settlePet();
+        scheduleFidget();
+    });
+}
+
+// A resting fish is never quite still: its tail flicks now and then.
+function startFishFins() {
+    clearInterval(pets.timers.fin);
+    pets.timers.fin = null;
+    if (!petIsFish() || petsReduceMotion.matches || views.pets.hidden) return;
+    pets.timers.fin = setInterval(() => {
+        if (pets.asleep || pets.activity !== 'idle') return;
+        pets.finStep += 2; // a whole flick each time: fishFrame changes every second step
+        drawPet();
+    }, PETS_FIN_MS);
+}
+
+/* Bubbles from the mouth, rising to pop at the surface. With reduced motion they stay where
+   they are for a moment instead - they are what the fish is saying, like the dog's bark. */
+function blowBubbles(count) {
+    pets.bubbles = [...pets.bubbles, ...Pets.bubblesFrom(Pets.fishMouth(pets, pets.facing), count, pets.facing)];
+    drawPet();
+    if (pets.timers.bubbles) return;
+    if (petsReduceMotion.matches) {
+        pets.timers.bubbles = setTimeout(() => {
+            pets.timers.bubbles = null;
+            pets.bubbles = [];
+            drawPet();
+        }, PETS_THANK_WAIT_AFTER_MS);
+        return;
+    }
+    pets.timers.bubbles = setInterval(() => {
+        pets.bubbles = Pets.riseBubbles(pets.bubbles);
+        if (!pets.bubbles.length) {
+            clearInterval(pets.timers.bubbles);
+            pets.timers.bubbles = null;
+        }
+        drawPet();
+    }, PETS_BUBBLE_MS);
+}
+
+/* A tap on the glass: the fish swims over to where it landed, turns to face it, and - no
+   more often than the dog barks - blows a couple of bubbles. It is the fish's petting, and
+   likewise the one thing that wakes it at night. A tap while it is eating or thanking gets
+   the busy line instead; a tap while it wanders or is already coming over redirects it. */
+function tapTank(event) {
+    if (!['idle', 'fidgeting', 'greeting'].includes(pets.activity)) {
+        petsHint(petsBusyMessage());
+        return;
+    }
+    if (pets.asleep) wakePet();
+    const point = petRoomPoint(event);
+    const facing = point.x < pets.x + petSpecies().size.width / 2 ? 'left' : 'right';
+    pets.activity = 'greeting';
+    swimFishTo(Pets.fishPositionFor(point, facing), () => {
+        pets.facing = facing;
+        const now = performance.now();
+        if (now - pets.lastBarkAt >= Pets.PETTING.barkCooldownMs) {
+            pets.lastBarkAt = now;
+            blowBubbles(2);
+        }
+        pets.activity = 'idle';
+        settlePet();
+    });
+}
+
+/* Flakes land on the water around where they were dropped - the middle of the tank from a
+   keyboard - and sink. Like the dog's food, they don't wake a sleeping fish. */
+function giveFlakes(clientX) {
+    const x = clientX === null
+        ? Pets.TANK.x + Math.floor(Pets.TANK.rows[0].length / 2)
+        : petRoomPoint({ clientX, clientY: 0 }).x;
+    const { flakes, added } = Pets.dropFlakes(pets.flakes, x);
+    if (!added) {
+        petsHint('There is plenty of food in the tank already.');
+        return;
+    }
+    // With reduced motion the flakes don't drift down; they are simply where the fish can reach.
+    pets.flakes = petsReduceMotion.matches ? flakes.map((flake) => ({ ...flake, y: Pets.FLAKE_FLOOR_Y })) : flakes;
+    drawPet();
+    startFlakesSinking();
+    if (pets.asleep) petsHint(`The ${petSpecies().name.toLowerCase()} is asleep. It will find this when it wakes.`);
+    maybeVisitBowl();
+}
+
+function startFlakesSinking() {
+    if (pets.timers.sink) return;
+    pets.timers.sink = setInterval(() => {
+        pets.flakes = Pets.sinkFlakes(pets.flakes);
+        drawPet();
+        if (pets.flakes.every(({ y }) => y >= Pets.FLAKE_FLOOR_Y)) {
+            clearInterval(pets.timers.sink);
+            pets.timers.sink = null;
+        }
+    }, PETS_FLAKE_SINK_MS);
+}
+
+/* Eating: swim to the nearest flake, mouth first, and take it. A flake still too high to
+   reach is waited for below it as it sinks. After the last one, the thank-you: bubbles. */
+function chaseFlakes() {
+    pets.activity = 'eating';
+    clearInterval(pets.timers.swim);
+    pets.timers.swim = setInterval(() => {
+        if (!pets.flakes.length) {
+            clearInterval(pets.timers.swim);
+            pets.timers.swim = null;
+            finishFlakes();
+            return;
+        }
+        const flake = pets.flakes[Pets.nearestFlake(Pets.fishMouth(pets, pets.facing), pets.flakes)];
+        const { target, facing } = Pets.fishApproach(pets, flake);
+        pets.facing = facing;
+        if (Pets.canEat(pets, facing, flake)) {
+            clearInterval(pets.timers.swim);
+            pets.timers.swim = null;
+            nibbleFlake(flake);
+            return;
+        }
+        const next = petsReduceMotion.matches ? target : Pets.swimStep(pets, target);
+        if (next.x !== pets.x || next.y !== pets.y) pets.finStep += 1;
+        pets.x = next.x;
+        pets.y = next.y;
+        drawPet();
+    }, PETS_SWIM_MS);
+}
+
+function nibbleFlake(flake) {
+    pets.eating = true;
+    pets.flakes = pets.flakes.filter((other) => other !== flake);
+    drawPet();
+    pets.timers.nibble = setTimeout(() => {
+        pets.timers.nibble = null;
+        pets.eating = false;
+        drawPet();
+        chaseFlakes();
+    }, PETS_NIBBLE_MS);
+}
+
+function finishFlakes() {
+    thankThenCarryOn(
+        (done) => {
+            blowBubbles(3);
+            done();
+        },
+        () => {
+            // Flakes dropped in meanwhile are eaten too, and thanked for.
+            if (pets.flakes.length) {
+                chaseFlakes();
+                return;
+            }
+            pets.activity = 'idle';
+            settlePet();
+        },
+    );
 }
 
 /* --- Time of day --- */
@@ -2308,6 +2636,8 @@ function startPetSleepAnimation() {
     if (!pets.asleep || petsReduceMotion.matches || views.pets.hidden) return;
     pets.timers.sleep = setInterval(() => {
         pets.zzzStep += 1;
+        // A sleeping fish drifts down to rest on the bottom.
+        if (petIsFish() && pets.y < Pets.FISH_SWIM.maxY) pets.y += 1;
         pets.breath = Math.floor(pets.zzzStep / Pets.SLEEP.stepsPerBreath) % 2 === 1;
         drawPet();
     }, Pets.SLEEP.zzzStepMs);
@@ -2322,6 +2652,8 @@ function fallAsleep() {
     pets.leaning = false;
     pets.breath = false;
     pets.zzzStep = 0;
+    // With reduced motion there is no drifting down: the fish is simply resting on the bottom.
+    if (petIsFish() && petsReduceMotion.matches) pets.y = Pets.FISH_SWIM.maxY;
     setPetWagging(false);
     petsStatusEl.textContent = petsDefaultMessage();
     petsDogHit.setAttribute('aria-label', petsDogLabel());
@@ -2360,6 +2692,7 @@ function applyPetsTimeOfDay() {
 function startPetsView() {
     applyPetsTimeOfDay();
     startPetSleepAnimation();
+    startFishFins();
     scheduleFidget();
     clearInterval(pets.timers.clock);
     pets.timers.clock = setInterval(applyPetsTimeOfDay, PETS_CLOCK_MS);

@@ -24,6 +24,31 @@ import {
     Z_RISE,
     zzzFrame,
     NIGHT_SKY,
+    TANK,
+    TANK_SURFACE_Y,
+    STAND,
+    FISH_SWIM,
+    FISH_HOME,
+    FISH_FIDGET,
+    FIDGET_RULES,
+    swimStep,
+    fishFrame,
+    fishMouth,
+    fishPositionFor,
+    fishSwimTarget,
+    FLAKE,
+    FLAKES,
+    FLAKE_FLOOR_Y,
+    dropFlakes,
+    sinkFlakes,
+    nearestFlake,
+    canEat,
+    fishApproach,
+    BUBBLE,
+    bubblesFrom,
+    riseBubbles,
+    SPECIES_ITEMS,
+    SPECIES_TARGETS,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -62,11 +87,17 @@ import {
 } from '../../js/pets.js';
 
 const dog = SPECIES.dog;
+const fish = SPECIES.fish;
 
 // Every sprite in the toy, by name.
 const allSprites = () => [
     ...Object.entries(dog.head).map(([name, rows]) => [`head ${name}`, rows]),
     ...Object.entries(dog.body).map(([name, rows]) => [`body ${name}`, rows]),
+    ...Object.entries(fish.frames).map(([name, rows]) => [`fish ${name}`, rows]),
+    ['the tank', TANK.rows],
+    ['the stand', STAND.rows],
+    ['a bubble', BUBBLE],
+    ['a flake', FLAKE],
     ...Object.entries(ITEM_ICONS).map(([name, rows]) => [`${name} icon`, rows]),
     ...ITEMS.flatMap((kind) => [0, 1, 2, 3].map((level) => [`${kind} bowl at ${level}`, bowlRows(kind, level)])),
 ];
@@ -369,6 +400,211 @@ describe('Time of day', () => {
                 expect(['S', 'M', 'K']).toContain(key);
             });
         });
+    });
+});
+
+describe('The fish', () => {
+    const scripted = (...values) => {
+        let i = 0;
+        return () => values[i++];
+    };
+    const tankKeyAt = (x, y) => TANK.rows[y - TANK.y]?.[x - TANK.x];
+    const pixelsOf = (rows, x0, y0) => rows.flatMap((row, y) => [...row].map((key, x) => [x0 + x, y0 + y, key]))
+        .filter(([, , key]) => key !== '.');
+
+    test('every frame of the fish is its size, and swimming, eating and sleeping each look different', () => {
+        Object.values(fish.frames).forEach((rows) => {
+            expect([rows[0].length, rows.length]).toEqual([fish.size.width, fish.size.height]);
+        });
+        expect(fish.frames.swimB).not.toEqual(fish.frames.swimA);
+        expect(fish.frames.asleep).not.toEqual(fish.frames.swimA);
+        // Eating, the mouth is open: no pixel where it is shut.
+        expect(fish.frames.eat[fish.mouth.y][fish.mouth.x]).toBe('.');
+        expect(fish.frames.swimA[fish.mouth.y][fish.mouth.x]).not.toBe('.');
+        expect(fish.habitat).toBe('tank');
+        expect(dog.habitat).toBe('room');
+    });
+
+    test('fishFrame picks sleeping, then eating, then the tail flick every second step', () => {
+        expect(fishFrame({ asleep: true, eating: true })).toBe('asleep');
+        expect(fishFrame({ eating: true })).toBe('eat');
+        expect([0, 1, 2, 3, 4].map((finStep) => fishFrame({ finStep }))).toEqual(['swimA', 'swimA', 'swimB', 'swimB', 'swimA']);
+    });
+
+    // The tank sits below the window, so the sky stays in view, and clear of the plant.
+    test('the tank stands on its stand, in the room, below the window and clear of the plant', () => {
+        const tankBottom = TANK.y + TANK.rows.length - 1;
+        expect(TANK.y).toBeGreaterThan(WINDOW.y + WINDOW.rows.length - 1);
+        expect(STAND.y).toBe(tankBottom + 1);
+        expect(STAND.x).toBeLessThanOrEqual(TANK.x);
+        expect(STAND.x + STAND.rows[0].length).toBeGreaterThanOrEqual(TANK.x + TANK.rows[0].length);
+        expect(STAND.y + STAND.rows.length).toBeLessThanOrEqual(SCENE.height);
+        expect(STAND.x + STAND.rows[0].length - 1).toBeLessThan(PLANT.x);
+        expect(TANK_SURFACE_Y).toBe(TANK.y + 4);
+        expect(TANK.rows[4]).toMatch(/^oV+o$/);
+    });
+
+    test('wherever the fish swims, every pixel of it is inside the tank, in water, weeds or gravel', () => {
+        for (const x of [FISH_SWIM.minX, FISH_SWIM.maxX]) {
+            for (const y of [FISH_SWIM.minY, FISH_SWIM.maxY]) {
+                pixelsOf(fish.frames.swimA, x, y).forEach(([px, py]) => {
+                    expect(['U', 'g', 'G', 'X', 'Y']).toContain(tankKeyAt(px, py));
+                });
+            }
+        }
+        // At its lowest, where it sleeps, its belly is on the gravel.
+        const belly = FISH_SWIM.maxY + fish.size.height - 1;
+        expect(['X', 'Y']).toContain(tankKeyAt(FISH_SWIM.minX + 5, belly));
+        expect(FISH_HOME.x).toBeGreaterThanOrEqual(FISH_SWIM.minX);
+        expect(FISH_HOME.x).toBeLessThanOrEqual(FISH_SWIM.maxX);
+    });
+
+    /* The owner's ask: fidgets "even more heavily biased towards shorter" than the dog's. */
+    test('its waits are shorter than the dog\'s, and more heavily weighted to the short end', () => {
+        expect(FISH_FIDGET.waitBands).toEqual([
+            { fromSeconds: 2, toSeconds: 4, share: 0.7 },
+            { fromSeconds: 5, toSeconds: 9, share: 0.2 },
+            { fromSeconds: 10, toSeconds: 15, share: 0.1 },
+        ]);
+        expect(FISH_FIDGET.waitBands.reduce((sum, band) => sum + band.share, 0)).toBeCloseTo(1, 10);
+        const random = seededRandom(5);
+        const waits = Array.from({ length: 20000 }, () => fidgetDelayMs(random, FISH_FIDGET) / 1000);
+        expect(Math.max(...waits)).toBe(15);
+        expect(Math.min(...waits)).toBe(2);
+        const short = waits.filter((s) => s < 5).length / waits.length;
+        expect(short).toBeGreaterThan(0.68);
+        expect(short).toBeLessThan(0.72);
+        expect(FIDGET_RULES).toEqual({ dog: FIDGET, fish: FISH_FIDGET });
+    });
+
+    test('dusk and night work on the fish as on the dog', () => {
+        const day = restDelayMs('day', scripted(0.1, 0.5), FISH_FIDGET);
+        expect(day).toBe(3000);
+        expect(restDelayMs('dusk', scripted(0.1, 0.5), FISH_FIDGET)).toBe(day * 2);
+        expect(restDelayMs('night', Math.random, FISH_FIDGET)).toBe(SLEEP.dozeAfterMs);
+    });
+
+    test('a fidget swims somewhere new across, at a height inside the water', () => {
+        const random = seededRandom(9);
+        let pos = FISH_HOME;
+        for (let i = 0; i < 200; i++) {
+            const next = fishSwimTarget(pos, random);
+            expect(next.x).not.toBe(pos.x);
+            expect(next.x).toBeGreaterThanOrEqual(FISH_SWIM.minX);
+            expect(next.x).toBeLessThanOrEqual(FISH_SWIM.maxX);
+            expect(next.y).toBeGreaterThanOrEqual(FISH_SWIM.minY);
+            expect(next.y).toBeLessThanOrEqual(FISH_SWIM.maxY - 2);
+            pos = next;
+        }
+        expect(swimStep({ x: 5, y: 5 }, { x: 9, y: 2 })).toEqual({ x: 6, y: 4 });
+    });
+
+    test('its mouth is at the front whichever way it faces, and a tap brings the mouth to it', () => {
+        const pos = { x: 40, y: 32 };
+        expect(fishMouth(pos, 'left')).toEqual({ x: 40, y: 35 });
+        expect(fishMouth(pos, 'right')).toEqual({ x: 52, y: 35 });
+        const point = { x: 50, y: 35 };
+        expect(fishMouth(fishPositionFor(point, 'left'), 'left')).toEqual(point);
+        expect(fishMouth(fishPositionFor(point, 'right'), 'right')).toEqual(point);
+        // A tap on the lid or the glass edge still keeps it in the water.
+        const far = fishPositionFor({ x: 0, y: 0 }, 'left');
+        expect(far).toEqual({ x: FISH_SWIM.minX, y: FISH_SWIM.minY });
+    });
+
+    test('a shake drops three flakes on the water, never more than six in the tank', () => {
+        const random = seededRandom(1);
+        let { flakes, added } = dropFlakes([], 50, random);
+        expect(added).toBe(FLAKES.perShake);
+        flakes.forEach((flake) => {
+            expect(flake.y).toBe(TANK.y + 5);
+            expect(Math.abs(flake.x - 50)).toBeLessThanOrEqual(FLAKES.spread);
+        });
+        ({ flakes, added } = dropFlakes(flakes, 30, random));
+        expect(flakes).toHaveLength(FLAKES.most);
+        const full = dropFlakes(flakes, 30, random);
+        expect(full.added).toBe(0);
+        expect(full.flakes).toBe(flakes);
+        // Dropped at the very edge, they still land inside the glass.
+        dropFlakes([], 0, () => 0).flakes.forEach((flake) => expect(tankKeyAt(flake.x, flake.y)).toBe('U'));
+        dropFlakes([], 999, () => 0.999).flakes.forEach((flake) => expect(tankKeyAt(flake.x + 1, flake.y)).toBe('U'));
+    });
+
+    test('flakes sink to where the fish can reach them, and stop there', () => {
+        let flakes = [{ x: 40, y: TANK.y + 5 }];
+        for (let i = 0; i < 30; i++) flakes = sinkFlakes(flakes);
+        expect(flakes[0].y).toBe(FLAKE_FLOOR_Y);
+        expect(['U', 'g', 'G']).toContain(tankKeyAt(40, FLAKE_FLOOR_Y));
+        expect(FLAKE_FLOOR_Y).toBe(FISH_SWIM.maxY + fish.mouth.y);
+    });
+
+    test('the nearest flake is the one it goes for', () => {
+        const flakes = [{ x: 60, y: 38 }, { x: 35, y: 33 }, { x: 45, y: 39 }];
+        expect(nearestFlake({ x: 36, y: 34 }, flakes)).toBe(1);
+        expect(nearestFlake({ x: 58, y: 38 }, flakes)).toBe(0);
+        expect(nearestFlake({ x: 0, y: 0 }, [])).toBe(-1);
+    });
+
+    // Every flake, wherever it can land, can be eaten from one side or the other.
+    test('every flake that has sunk can be reached, mouth first', () => {
+        const xs = dropFlakes([], 0, () => 0).flakes[0].x;
+        const xe = dropFlakes([], 999, () => 0.999).flakes[0].x;
+        for (let x = xs; x <= xe; x++) {
+            for (const from of [FISH_SWIM.minX, FISH_SWIM.maxX]) {
+                const flake = { x, y: FLAKE_FLOOR_Y };
+                const { target, facing } = fishApproach({ x: from, y: FISH_HOME.y }, flake);
+                expect(canEat(target, facing, flake)).toBe(true);
+            }
+        }
+    });
+
+    test('it comes at a flake from the side it is on, and waits beneath one too high to reach', () => {
+        const flake = { x: 45, y: TANK.y + 5 };
+        const fromRight = fishApproach({ x: 58, y: 33 }, flake);
+        expect(fromRight.facing).toBe('left');
+        const fromLeft = fishApproach({ x: 27, y: 33 }, flake);
+        expect(fromLeft.facing).toBe('right');
+        // Still at the top, the flake is out of reach: the target is as high as the fish can go.
+        expect(fromRight.target.y).toBe(FISH_SWIM.minY);
+        expect(canEat(fromRight.target, 'left', flake)).toBe(false);
+    });
+
+    test('bubbles start in front of the mouth, rise, and pop at the surface', () => {
+        const mouth = { x: 40, y: 38 };
+        const bubbles = bubblesFrom(mouth, 3, 'left');
+        expect(bubbles).toHaveLength(3);
+        bubbles.forEach((bubble) => expect(bubble.x).toBeLessThan(mouth.x));
+        expect(bubblesFrom(mouth, 1, 'right')[0].x).toBeGreaterThan(mouth.x);
+        let rising = bubbles;
+        for (let step = 0; step < 20; step++) {
+            rising.forEach(({ x, y }) => pixelsOf(BUBBLE, x - 1, y - 1).forEach(([px, py]) => {
+                expect(['U', 'g', 'G']).toContain(tankKeyAt(px, py));
+            }));
+            rising = riseBubbles(rising);
+        }
+        expect(rising).toEqual([]);
+    });
+
+    // The Z's of a sleeping fish rise out of the tank past its lid, and must stay below the window.
+    test('a sleeping fish\'s Z\'s stay in the room and below the window', () => {
+        const windowBottom = WINDOW.y + WINDOW.rows.length - 1;
+        for (const x of [FISH_SWIM.minX, FISH_SWIM.maxX]) {
+            for (let step = 0; step < Z_RISE; step++) {
+                zzzFrame(step, fish.zzzOrigin).forEach(({ x: zx, y: zy, rows }) => {
+                    expect(FISH_SWIM.maxY + zy).toBeGreaterThan(windowBottom);
+                    expect(x + zx + rows[0].length).toBeLessThanOrEqual(SCENE.width);
+                });
+            }
+        }
+        expect(zzzFrame(0)).toEqual(zzzFrame(0, dog.zzzOrigin));
+    });
+
+    test('the fish is given flakes, in the tank; the dog food and water, in its bowls', () => {
+        expect(SPECIES_ITEMS).toEqual({ dog: ['food', 'water'], fish: ['flakes'] });
+        expect(SPECIES_TARGETS).toEqual({ dog: ['food', 'water'], fish: ['tank'] });
+        expect(acceptsItem('tank', 'flakes')).toBe(true);
+        expect(acceptsItem('food', 'flakes')).toBe(false);
+        expect(acceptsItem('tank', 'food')).toBe(false);
+        Object.values(SPECIES_ITEMS).flat().forEach((item) => expect(ITEM_ICONS).toHaveProperty(item));
     });
 });
 

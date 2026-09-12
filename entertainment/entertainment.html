@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260912-1708" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260912-1708" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260912-1735" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260912-1735" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -295,9 +295,9 @@
             <button class="back-btn" data-back>&larr; Back to Toys</button>
             <h2>Pets</h2>
             <div id="pets-controls">
-                <!-- One animal so far; the list is where the others will go. -->
                 <select id="petsSpeciesSelect" aria-label="Animal">
                     <option value="dog">Dog</option>
+                    <option value="fish">Fish</option>
                 </select>
                 <button type="button" id="petsSoundToggle" aria-pressed="true">
                     <span class="sound-glyph" aria-hidden="true">&#9834;</span> Sound
@@ -312,12 +312,15 @@
                 <svg id="pets-svg" viewBox="0 0 100 50" shape-rendering="crispEdges" aria-hidden="true" focusable="false"></svg>
                 <div class="pets-bowl-slot" data-bowl="food"></div>
                 <div class="pets-bowl-slot" data-bowl="water"></div>
+                <div class="pets-bowl-slot" data-bowl="tank"></div>
                 <div id="pets-dog-hit" class="pets-hit" role="img" aria-label="A yellow Labrador retriever. Stroke it to pet it."></div>
             </div>
 
             <div class="pets-tray" role="group" aria-label="Food and water">
                 <button type="button" class="pets-item" data-item="food" aria-label="Food. Drag it to the food bowl."></button>
                 <button type="button" class="pets-item" data-item="water" aria-label="Water. Drag it to the water bowl."></button>
+                <!-- The fish's food; shown in place of the dog's while the fish is chosen. -->
+                <button type="button" class="pets-item" data-item="flakes" aria-label="Fish flakes. Drag them to the tank." hidden></button>
             </div>
         </div>
 
@@ -350,9 +353,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260912-1708"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260912-1708"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260912-1708"></script>
-    <script type="module" src="./entertainment.js?v=20260912-1708"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260912-1735"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260912-1735"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260912-1735"></script>
+    <script type="module" src="./entertainment.js?v=20260912-1735"></script>
 </body>
 </html>
