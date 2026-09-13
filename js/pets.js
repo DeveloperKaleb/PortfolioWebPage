@@ -65,6 +65,10 @@ export const SPRITE_KEYS = {
     D: 'stand',
     E: 'standShade',
     J: 'shaker',
+    // The dog's bed.
+    b: 'bedFabric',
+    r: 'bedShade',
+    u: 'bedCushion',
 };
 
 // Overwrite runs of pixels: each edit is [row, column, text].
@@ -187,9 +191,9 @@ const COLLAR_LOWERED = [[7, 12, 'c'], [8, 11, 'cd'], [9, 10, 'cd'], [10, 10, 't'
 
 /* Asleep: lying down, the body low along the floor, the front paws reaching out under the
    chin and the tail lying behind with its tip curled. The head is the usual one with its eye
-   shut, lowered onto the paws (see headOffset); it covers the front of the neck, so the
-   collar shows as a band behind it. Collar and tail are drawn in. */
-const DOG_SLEEP = [
+   shut, lowered onto the paws (see headOffset). The tail is drawn in; the collar is laid over
+   it, as for every other pose - see COLLAR_ASLEEP. */
+const DOG_SLEEP_BARE = [
     '............................',
     '............................',
     '............................',
@@ -200,15 +204,24 @@ const DOG_SLEEP = [
     '............................',
     '............................',
     '...........ooooooooooo......',
-    '..........ofcfffffffffoo....',
-    '.........offcdfffffffffffo..',
-    '.........offcdffffffffffffo.',
-    '.........offdffffffffffsffo.',
+    '..........offfffffffffoo....',
+    '.........offfffffffffffffo..',
+    '.........offffffffffffffffo.',
+    '.........offfffffffffffsffo.',
     '.........offffffffffffsssfo.',
     '.........ossfffffffffsssssoo',
     '..offffffosssssssssssssssffo',
     '..oooooooooooooooooooooooooo',
 ];
+
+/* The collar asleep. The first sleeping collar was a strip two pixels wide standing upright
+   behind the head - the shape the awake collar was once, and it read as a tag again (the
+   owner's catch). So it follows the same rule as awake: a band two pixels deep with its
+   darker lower edge, slanting across the neck from the nape behind the head down toward
+   the throat. The lowered head covers its middle, so it wraps behind the jaw, and the tag
+   hangs just below the jaw. */
+const COLLAR_ASLEEP = [[10, 14, 'cc'], [11, 13, 'ccd'], [12, 12, 'ccd'], [13, 12, 'cd'], [14, 12, 'd'], [15, 11, 't']];
+const DOG_SLEEP = patchRows(DOG_SLEEP_BARE, COLLAR_ASLEEP);
 
 // Breathing in, the back rises a pixel: rows 8 to 11 take the rows below them.
 const DOG_SLEEP_BREATH = DOG_SLEEP.map((row, y) => (y >= 8 && y <= 11 ? DOG_SLEEP[y + 1] : row));
@@ -371,6 +384,34 @@ export const BOWLS = {
     water: { x: 16, y: 40 },
 };
 export const ITEMS = ['food', 'water'];
+
+/* The dog's bed (2026-09-12, the owner's ask): behind the food, against the back wall - the
+ * first time an animal walks away from the player rather than across. The bed's spot is
+ * nine pixels further back than where the dog stands. The owner left it open whether the
+ * dog should shrink there; it doesn't. True perspective across nine pixels of a fourteen-
+ * pixel floor would shrink a 28-pixel dog by about a pixel, and a pixel sprite cannot be
+ * scaled that little without its pixels going uneven. The depth is carried instead by the
+ * dog standing higher up the floor and the bowls being drawn in front of it.
+ *
+ * A round bed seen from the side: the bolster behind, the cushion, the front rim. Its
+ * bottom edge ends above the bowls, so the bowls stand clear in front of it - a first draft
+ * two rows deeper ran its rim into them, and they read as the bed's feet. */
+export const BED = {
+    x: 0,
+    y: 30,
+    rows: [
+        '...oooooooooooooooooooooooooooo...',
+        '.oobbbbbbbbbbbbbbbbbbbbbbbbbbbboo.',
+        'obbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbo',
+        'obbboooooooooooooooooooooooooobbbo',
+        'obbouuuuuuuuuuuuuuuuuuuuuuuuuuobbo',
+        'obbboooooooooooooooooooooooooobbbo',
+        'orrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrro',
+        '.oooooooooooooooooooooooooooooooo.',
+    ],
+};
+// Where the dog is on its bed: centred along it, its floor line on the cushion's front edge.
+export const BED_SPOT = { x: 3, y: BED.y + 5 - (SPECIES.dog.size.height - 1) };
 
 /* The furnishings, so the room looks lived in (2026-09-12): a skirting board where the
  * wall meets the floor, floorboard seams, a window onto the yard and a plant in the back
@@ -620,6 +661,38 @@ export const riseBubbles = (bubbles) => bubbles
     .map((bubble) => ({ ...bubble, y: bubble.y - 1 }))
     .filter((bubble) => bubble.y >= BUBBLE_LOWEST_Y);
 
+/* --- The glass ---
+ *
+ * The toy keeps to good aquarium manners (2026-09-12, the owner's ask): tapping on the glass
+ * frightens fish. A tap is a press shorter than tapMaxMs; two taps in quick succession - the
+ * second starting within betweenTapsMs of the first ending - scare the fish, and Pets closes
+ * for a time out. One tap on its own is forgiven, as a slip. A long press is not a tap at
+ * all: holding a finger on the glass is how to play with the fish, which follows it. */
+export const GLASS = { tapMaxMs: 1000, betweenTapsMs: 1000, tapsToScare: 2, timeOutMs: 60000 };
+export const NO_TAPS = { count: 0, lastUpAt: null };
+
+// Record a press on the glass. `taps` is the run of taps so far; a long press ends the run.
+export function noteGlassPress(taps, { downAt, upAt }, rules = GLASS) {
+    if (upAt - downAt >= rules.tapMaxMs) return { taps: NO_TAPS, scared: false };
+    const quick = taps.lastUpAt !== null && downAt - taps.lastUpAt <= rules.betweenTapsMs;
+    const count = quick ? taps.count + 1 : 1;
+    return { taps: { count, lastUpAt: upAt }, scared: count >= rules.tapsToScare };
+}
+
+// The time out, as a wall-clock time, so it can be remembered across a reload.
+export const timeOutUntil = (now, rules = GLASS) => now + rules.timeOutMs;
+export const timeOutLeftMs = (until, now) => Math.max(0, (Number(until) || 0) - now);
+export const timeOutSeconds = (ms) => Math.ceil(ms / 1000);
+
+/* Which way a fish following a finger faces: toward it, once the finger is beyond its body
+   on that side. Over the body itself it keeps facing as it was, so it doesn't flip back and
+   forth with every pixel the finger moves - and once its mouth is at the finger, it stays. */
+export function facingTowardPoint(pos, point, current, species = SPECIES.fish) {
+    if (point.x < pos.x) return 'left';
+    if (point.x > pos.x + species.size.width - 1) return 'right';
+    return current;
+}
+
 const BOWL_FILL = ['.........', '...xxx...', '..xxxxx..', '.xxxxxxx.'];
 const BOWL_BASE = ['ooooooooo', 'oBBBBBBBo', '.oBBBBBo.', '..ooooo..'];
 
@@ -660,6 +733,26 @@ export const dogXForBowl = (kind) => BOWLS[kind].x + Math.floor(BOWL_SIZE.width 
 
 // One pixel of walking toward a target.
 export const stepToward = (x, target) => x + Math.sign(target - x);
+
+/* One step of walking toward a point anywhere on the floor - across, and toward or away
+   from the front of the room. A pixel along whichever way is further to go, and the other
+   way kept on the straight line from `from`, where the walk set off, so going back to its
+   bed the dog drifts up the floor evenly. A first version measured the line from wherever
+   the dog was at each step instead; rounding then held it on its starting row until the
+   last few pixels, and it stepped back in a lump at the end. */
+export function walkStep(pos, target, from = pos) {
+    const dx = target.x - pos.x;
+    const dy = target.y - pos.y;
+    if (!dx && !dy) return { x: pos.x, y: pos.y };
+    const spanX = target.x - from.x;
+    const spanY = target.y - from.y;
+    if (Math.abs(spanX) >= Math.abs(spanY)) {
+        const x = pos.x + Math.sign(dx);
+        return { x, y: spanX ? from.y + Math.round(((x - from.x) * spanY) / spanX) : pos.y + Math.sign(dy) };
+    }
+    const y = pos.y + Math.sign(dy);
+    return { x: from.x + Math.round(((y - from.y) * spanX) / spanY), y };
+}
 
 /* Which way the dog faces while walking: the way it is going. The sprites face left, so
    facing right is the same drawing mirrored. It turns back to face left when it sits, so
@@ -800,6 +893,9 @@ export function fidgetTarget(x, random = Math.random, rules = FIDGET) {
     const { minStep, maxStep, minX, maxX } = rules;
     const step = minStep + Math.floor(random() * (maxStep - minStep + 1));
     const direction = random() < 0.5 ? -1 : 1;
+    // From outside its bounds - the dog getting up from its bed - it comes in by the step.
+    if (x < minX) return Math.min(maxX, minX + step - minStep);
+    if (x > maxX) return Math.max(minX, maxX - step + minStep);
     const fits = (target) => target >= minX && target <= maxX;
 
     if (fits(x + direction * step)) return x + direction * step;

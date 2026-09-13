@@ -757,6 +757,10 @@ export const PETS_COLORS = {
     stand: '#9a6b43',
     standShade: '#7d5434',
     shaker: '#3f7fb5',      // the flake shaker in the tray
+    // The dog's bed - teal, of four fabrics tried; see the contrast tests.
+    bedFabric: '#86b5b1',
+    bedShade: '#78a7a3',
+    bedCushion: '#dcefec',
 };
 
 /* The sky through the Pets window at each time of day - overrides of PETS_COLORS for the

@@ -402,6 +402,24 @@ describe('Pets palette', () => {
         expect(areDistinguishable(P[a], P[b])).toBe(true);
     });
 
+    /* The dog's bed. The dog sits and sleeps on it, so the outline carries the text floor on
+       all three of its colours. Four fabrics were tried: slate's shade fell a little under
+       that floor, and rose could not be told from the floorboards under simulation. Teal
+       and lavender both passed, and teal was used. */
+    test.each([
+        ['the bed', P.bedFabric],
+        ["the bed's shaded rim", P.bedShade],
+        ['the cushion', P.bedCushion],
+    ])('the outline is legible on %s', (_label, background) => {
+        expect(worstCaseContrast(P.outline, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test.each([
+        ['bedFabric', 'floor'], ['bedShade', 'floor'], ['bedFabric', 'wall'], ['bedFabric', 'trim'], ['bedFabric', 'bedCushion'],
+    ])('the bed: %s is tellable from %s', (a, b) => {
+        expect(areDistinguishable(P[a], P[b])).toBe(true);
+    });
+
     test.each([['the fur', P.fur], ['the light fur', P.furLight]])('the eye and nose are legible on %s', (_label, background) => {
         expect(worstCaseContrast(P.nose, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });

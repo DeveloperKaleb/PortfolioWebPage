@@ -108,6 +108,13 @@ const screens = Object.fromEntries(
 let currentRoute = routeFor(window.location.hash);
 
 function showRoute(route) {
+    /* Pets is closed for a minute after the fish is scared (see scareFish in Part 7): a link,
+       a reload or a Back into it lands on Toys instead, where its card is disabled. The
+       history entry is replaced rather than added, so Back doesn't bounce off it. */
+    if (route.key === 'pets' && petsTimeOutLeft() > 0) {
+        window.history.replaceState(null, '', '#toys');
+        route = routeFor('toys');
+    }
     currentRoute = route;
     /* Single player and pass the phone share the Tic-Tac-Toe view, and the route says
        which this is. It has to be known before stopAllGames, which is what starts the
@@ -1681,8 +1688,8 @@ const petsDefaultMessage = () => {
     const name = petSpecies().name.toLowerCase();
     if (petIsFish()) {
         return pets.asleep
-            ? `The ${name} is asleep. Tap the glass to wake it up.`
-            : 'Tap the glass to say hello. Drag flakes to the tank.';
+            ? `The ${name} is asleep until morning. Let it rest.`
+            : 'Drag flakes to the tank. Hold a finger on the glass to play - never tap it.';
     }
     return pets.asleep
         ? `The ${name} is asleep. Stroke it to wake it up.`
@@ -1690,9 +1697,12 @@ const petsDefaultMessage = () => {
 };
 const petsDogLabel = () => {
     const { description } = petSpecies();
-    const wake = petIsFish() ? 'Tap the glass to wake it up.' : 'Stroke it to wake it up.';
-    const greet = petIsFish() ? 'Tap the glass to say hello.' : 'Stroke it to pet it.';
-    return pets.asleep ? `${description}, asleep. ${wake}` : `${description}. ${greet}`;
+    if (petIsFish()) {
+        return pets.asleep
+            ? `${description}, asleep until morning.`
+            : `${description}. Hold a finger on the glass and it comes over; tapping the glass scares it.`;
+    }
+    return pets.asleep ? `${description}, asleep. Stroke it to wake it up.` : `${description}. Stroke it to pet it.`;
 };
 
 // A sprite as SVG rects, one per run of a colour, offset into place. The window passes the
@@ -1768,12 +1778,12 @@ function drawPet() {
     /* Facing right is the same drawing mirrored within its own box, so the dog stays in the
        same place and the stroke overlay still covers it. */
     dog.setAttribute('transform', pets.facing === 'right'
-        ? `translate(${pets.x + species.size.width} ${Pets.DOG_Y}) scale(-1 1)`
-        : `translate(${pets.x} ${Pets.DOG_Y})`);
+        ? `translate(${pets.x + species.size.width} ${pets.y}) scale(-1 1)`
+        : `translate(${pets.x} ${pets.y})`);
     dog.querySelector('.pets-body').innerHTML = petRects(body);
     dog.querySelector('.pets-head').innerHTML = petRects(species.head[pets.eyes], offset.dx, offset.dy);
     drawPetZzz();
-    placePetsOverlay(petsDogHit, pets.x, Pets.DOG_Y, species.size.width, species.size.height);
+    placePetsOverlay(petsDogHit, pets.x, pets.y, species.size.width, species.size.height);
 }
 
 function drawPetBowls() {
@@ -1786,22 +1796,22 @@ function drawPetBowls() {
 
 // The Z's are outside the pet's own group, so a mirrored pet could never mirror the letters.
 function drawPetZzz() {
-    const top = petIsFish() ? pets.y : Pets.DOG_Y;
     petsSvg.querySelector('.pets-zzz').innerHTML = pets.asleep
         ? Pets.zzzFrame(pets.zzzStep, petSpecies().zzzOrigin)
-            .map(({ x, y, rows }) => petRects(rows, pets.x + x, top + y)).join('')
+            .map(({ x, y, rows }) => petRects(rows, pets.x + x, pets.y + y)).join('')
         : '';
 }
 
 /* Which animal's things are in the room: the tank on its stand for the fish, the bowls for
    the dog, and in the tray only that animal's food. Drawn on reset; whatever belongs to
-   the other animal is emptied. */
+   the other animal is emptied. The dog's bed is drawn here too, behind the dog, as the tank
+   is behind the fish. */
 function drawPetsHabitat() {
     const fish = petIsFish();
-    const { TANK, STAND } = Pets;
+    const { TANK, STAND, BED } = Pets;
     petsSvg.querySelector('.pets-habitat').innerHTML = fish
         ? petRects(STAND.rows, STAND.x, STAND.y) + petRects(TANK.rows, TANK.x, TANK.y)
-        : '';
+        : petRects(BED.rows, BED.x, BED.y);
     if (fish) {
         petsSvg.querySelector('.pets-body').innerHTML = '';
         petsSvg.querySelector('.pets-head').innerHTML = '';
@@ -1871,12 +1881,17 @@ function resetPets() {
     const asleep = period === 'night'; // opened at night, the pet is already asleep
     const species = Pets.SPECIES[petsSpeciesSelect.value] ? petsSpeciesSelect.value : 'dog';
     const fish = Pets.SPECIES[species].habitat === 'tank';
+    // Where it starts: asleep, the fish on the gravel and the dog on its bed.
+    let startAt = { x: Pets.HOME_X, y: Pets.DOG_Y };
+    if (fish) startAt = { x: Pets.FISH_HOME.x, y: asleep ? Pets.FISH_SWIM.maxY : Pets.FISH_HOME.y };
+    else if (asleep) startAt = { ...Pets.BED_SPOT };
     pets = {
         species,
-        x: fish ? Pets.FISH_HOME.x : Pets.HOME_X,
-        // The fish's height in its tank - asleep, it rests on the bottom. The dog's is DOG_Y.
-        y: fish && asleep ? Pets.FISH_SWIM.maxY : Pets.FISH_HOME.y,
-        homeX: Pets.HOME_X, // where it last settled, and goes back to after eating
+        x: startAt.x,
+        // How far down the scene: the fish's height in its tank; for the dog, how far back it is -
+        // DOG_Y standing at the front, higher up the floor on its bed at the back.
+        y: startAt.y,
+        home: { ...startAt }, // where the dog last settled, and goes back to after eating
         facing: 'left',     // left | right - right only while walking right
         activity: 'idle',   // idle | walking | eating | drinking | thanking | fidgeting
         posture: asleep ? 'sleep' : Pets.RESTING_POSTURE, // sit | stand | down | walk | sleep
@@ -1895,6 +1910,9 @@ function resetPets() {
         bubbles: [],        // the fish's bubbles, rising: [{ x, y }]
         finStep: 0,         // the fish's tail, flicking as it swims
         eating: false,      // the fish's mouth open on a flake
+        glassTaps: Pets.NO_TAPS, // the run of taps on the fish's glass - see Pets.GLASS
+        glassPress: null,   // a press on the glass still held: { downAt }
+        glassPoint: null,   // where a finger or pointer is over the glass, in room pixels
         bowls: Pets.emptyBowls(),
         stroke: null,
         lastBarkAt: -Infinity,
@@ -1940,6 +1958,7 @@ function petsBusyMessage() {
     if (pets.activity === 'drinking') return `Let the ${name} finish drinking first.`;
     if (pets.activity === 'fidgeting') return `The ${name} is finding a new spot.`;
     if (pets.activity === 'thanking') return `The ${name} is saying thank you.`;
+    if (pets.activity === 'bedtime') return `The ${name} is going to bed.`;
     return `The ${name} is on its way to its bowl.`;
 }
 
@@ -2075,7 +2094,7 @@ function endPetStroke() {
 petsDogHit.addEventListener('pointerdown', (event) => {
     if (petIsFish()) {
         event.preventDefault();
-        tapTank(event);
+        pressGlass(event);
         return;
     }
     if (pets.activity !== 'idle') {
@@ -2095,6 +2114,10 @@ petsDogHit.addEventListener('pointerdown', (event) => {
 });
 
 petsDogHit.addEventListener('pointermove', (event) => {
+    if (petIsFish()) {
+        moveOverGlass(event);
+        return;
+    }
     if (!pets.stroke) return;
     pets.stroke = Pets.moveStroke(pets.stroke, petsPoint(event));
     if (!Pets.isRubbing(pets.stroke, performance.now())) return;
@@ -2106,6 +2129,19 @@ petsDogHit.addEventListener('pointermove', (event) => {
 
 ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((type) => {
     petsDogHit.addEventListener(type, endPetStroke);
+});
+
+// The fish's glass: a press ending is when a tap is counted; leaving it ends the following.
+petsDogHit.addEventListener('pointerup', (event) => {
+    if (petIsFish()) releaseGlass(event);
+});
+petsDogHit.addEventListener('pointercancel', () => {
+    if (!petIsFish()) return;
+    pets.glassPress = null; // a cancelled press is not a tap
+    leaveGlass();
+});
+petsDogHit.addEventListener('pointerleave', () => {
+    if (petIsFish() && !pets.glassPress) leaveGlass();
 });
 
 /* --- Food and water --- */
@@ -2120,14 +2156,18 @@ function maybeVisitBowl() {
     if (next) visitBowl(next);
 }
 
-/* Walk a pixel at a time. With reduced motion the pet is simply there - where it is going
+/* Walk a pixel at a time, to a point on the floor - across, and to and from the bed at the
+   back (see Pets.walkStep). With reduced motion the pet is simply there - where it is going
    is the information, not the walk. */
-function walkPetTo(targetX, arrived) {
+function walkPetTo(target, arrived) {
     clearInterval(pets.timers.walk);
     pets.timers.walk = null;
-    pets.facing = Pets.facingFor(pets.x, targetX, pets.facing);
-    if (petsReduceMotion.matches || pets.x === targetX) {
-        pets.x = targetX;
+    pets.facing = Pets.facingFor(pets.x, target.x, pets.facing);
+    const there = () => pets.x === target.x && pets.y === target.y;
+    const from = { x: pets.x, y: pets.y };
+    if (petsReduceMotion.matches || there()) {
+        pets.x = target.x;
+        pets.y = target.y;
         drawPet();
         arrived();
         return;
@@ -2139,9 +2179,11 @@ function walkPetTo(targetX, arrived) {
     pets.stepsWalked = 0;
     drawPet();
     pets.timers.walk = setInterval(() => {
-        pets.x = Pets.stepToward(pets.x, targetX);
+        const next = Pets.walkStep(pets, target, from);
+        pets.x = next.x;
+        pets.y = next.y;
         pets.stepsWalked += 1;
-        if (pets.x === targetX) {
+        if (there()) {
             clearInterval(pets.timers.walk);
             pets.timers.walk = null;
             pets.posture = 'stand';
@@ -2160,11 +2202,15 @@ function visitBowl(kind) {
     pets.leaning = false;
     pets.eyes = 'open';
     setPetWagging(true);
-    walkPetTo(Pets.dogXForBowl(kind), () => startEating(kind));
+    walkPetTo({ x: Pets.dogXForBowl(kind), y: Pets.DOG_Y }, () => startEating(kind));
 }
 
 function startEating(kind) {
     pets.activity = kind === 'food' ? 'eating' : 'drinking';
+    /* Turn to the bowl. Eating is drawn facing left, and dogXForBowl puts the muzzle over
+       the bowl only that way round. From the food bowl the dog walks right to the water, so
+       it used to arrive facing right and drink from thin air - the owner's catch. */
+    pets.facing = 'left';
     pets.posture = 'down';
     pets.chompUp = false;
     drawPet();
@@ -2236,7 +2282,7 @@ function finishEating(kind) {
             }
             pets.activity = 'walking';
             // Back to wherever it last settled, which fidgeting moves about.
-            walkPetTo(pets.homeX, () => {
+            walkPetTo(pets.home, () => {
                 pets.activity = 'idle';
                 settlePet();
             });
@@ -2374,7 +2420,8 @@ function fidget() {
         return;
     }
     if (pets.period === 'night') {
-        fallAsleep();
+        if (petIsFish()) fallAsleep();
+        else goToBed();
         return;
     }
 
@@ -2388,8 +2435,8 @@ function fidget() {
     pets.leaning = false;
     pets.eyes = 'open';
     setPetWagging(false);
-    walkPetTo(target, () => {
-        pets.homeX = target;
+    walkPetTo({ x: target, y: Pets.DOG_Y }, () => {
+        pets.home = { x: target, y: Pets.DOG_Y };
         pets.activity = 'idle';
         settlePet();
         scheduleFidget();
@@ -2482,30 +2529,139 @@ function blowBubbles(count) {
     }, PETS_BUBBLE_MS);
 }
 
-/* A tap on the glass: the fish swims over to where it landed, turns to face it, and - no
-   more often than the dog barks - blows a couple of bubbles. It is the fish's petting, and
-   likewise the one thing that wakes it at night. A tap while it is eating or thanking gets
-   the busy line instead; a tap while it wanders or is already coming over redirects it. */
-function tapTank(event) {
-    if (!['idle', 'fidgeting', 'greeting'].includes(pets.activity)) {
-        petsHint(petsBusyMessage());
+/* --- The glass --- */
+/* Good aquarium manners (2026-09-12, the owner's ask). Holding a finger on the glass - or
+   resting a mouse pointer over it - is how to play with the fish: it swims over, mouth
+   first, and blows a couple of bubbles, no more often than the dog barks. Tapping the glass
+   frightens fish: two quick taps (see Pets.GLASS) and the player is sent back to the
+   Entertainment dashboard with a time out, and Pets stays closed for a minute. Nothing on
+   the glass wakes a sleeping fish; it sleeps until morning, and taps on its glass count all
+   the same. A finger is only followed while the fish is resting or wandering - not while it
+   eats or says thank you. */
+
+function pressGlass(event) {
+    try { petsDogHit.setPointerCapture(event.pointerId); } catch { /* keep going without capture */ }
+    pets.glassPress = { downAt: performance.now() };
+    followOverGlass(event);
+}
+
+// A mouse is followed as it hovers; a finger only while it is down.
+function moveOverGlass(event) {
+    if (!pets.glassPress && event.pointerType !== 'mouse') return;
+    followOverGlass(event);
+}
+
+function releaseGlass(event) {
+    if (!pets.glassPress) return;
+    const { taps, scared } = Pets.noteGlassPress(pets.glassTaps, { downAt: pets.glassPress.downAt, upAt: performance.now() });
+    pets.glassPress = null;
+    pets.glassTaps = taps;
+    if (scared) {
+        scareFish();
         return;
     }
-    if (pets.asleep) wakePet();
-    const point = petRoomPoint(event);
-    const facing = point.x < pets.x + petSpecies().size.width / 2 ? 'left' : 'right';
-    pets.activity = 'greeting';
-    swimFishTo(Pets.fishPositionFor(point, facing), () => {
-        pets.facing = facing;
+    if (event.pointerType !== 'mouse') leaveGlass();
+}
+
+function followOverGlass(event) {
+    pets.glassPoint = petRoomPoint(event);
+    if (pets.asleep || pets.activity === 'following') return;
+    if (pets.activity !== 'idle' && pets.activity !== 'fidgeting') return;
+    pets.activity = 'following';
+    clearInterval(pets.timers.swim);
+    pets.timers.swim = setInterval(followGlassStep, PETS_SWIM_MS);
+}
+
+function followGlassStep() {
+    const point = pets.glassPoint;
+    if (!point) return;
+    pets.facing = Pets.facingTowardPoint(pets, point, pets.facing);
+    const target = Pets.fishPositionFor(point, pets.facing);
+    if (pets.x === target.x && pets.y === target.y) {
         const now = performance.now();
         if (now - pets.lastBarkAt >= Pets.PETTING.barkCooldownMs) {
             pets.lastBarkAt = now;
             blowBubbles(2);
+        } else {
+            drawPet();
         }
-        pets.activity = 'idle';
-        settlePet();
-    });
+        return;
+    }
+    const next = petsReduceMotion.matches ? target : Pets.swimStep(pets, target);
+    pets.x = next.x;
+    pets.y = next.y;
+    pets.finStep += 1;
+    drawPet();
 }
+
+/* The finger lifted or the pointer left: back to resting. Following may have cut a wander
+   short before it could line up the next one, so the rests start over. */
+function leaveGlass() {
+    pets.glassPoint = null;
+    if (pets.activity !== 'following') return;
+    clearInterval(pets.timers.swim);
+    pets.timers.swim = null;
+    pets.activity = 'idle';
+    settlePet();
+    scheduleFidget();
+}
+
+/* The time out. It is remembered in the browser as the moment it ends, so a reload or a
+   link straight to Pets doesn't skip it; if storage is unavailable, it lasts as long as the
+   page does. The message is a native dialog over the dashboard, like Tic-Tac-Toe's results,
+   and the Pets card on Toys is disabled with the seconds left until the minute is up. */
+const PETS_TIME_OUT_KEY = 'pets-time-out-until';
+const petsTimeOutDialog = document.getElementById('pets-time-out');
+const petsCard = document.querySelector('.entry-card[data-route="pets"]');
+const petsCardTimeOut = document.getElementById('pets-time-out-left');
+let petsTimeOutFallback = 0;
+let petsTimeOutTicker = null;
+
+function petsTimeOutLeft() {
+    let until = petsTimeOutFallback;
+    try {
+        until = Math.max(until, Number(window.localStorage.getItem(PETS_TIME_OUT_KEY)) || 0);
+    } catch { /* no storage - the fallback is all there is */ }
+    return Pets.timeOutLeftMs(until, Date.now());
+}
+
+function updatePetsTimeOut() {
+    const left = petsTimeOutLeft();
+    petsCard.disabled = left > 0;
+    petsCardTimeOut.hidden = left === 0;
+    petsCardTimeOut.textContent = left > 0 ? `Time out: ${Pets.timeOutSeconds(left)}s` : '';
+    if (left > 0 && !petsTimeOutTicker) petsTimeOutTicker = setInterval(updatePetsTimeOut, 1000);
+    if (left === 0 && petsTimeOutTicker) {
+        clearInterval(petsTimeOutTicker);
+        petsTimeOutTicker = null;
+    }
+}
+
+function scareFish() {
+    const until = Pets.timeOutUntil(Date.now());
+    petsTimeOutFallback = until;
+    try {
+        window.localStorage.setItem(PETS_TIME_OUT_KEY, String(until));
+    } catch { /* the fallback holds it for this page */ }
+    updatePetsTimeOut();
+    window.location.hash = '';
+    if (typeof petsTimeOutDialog.showModal === 'function') {
+        if (!petsTimeOutDialog.open) petsTimeOutDialog.showModal();
+    } else {
+        petsTimeOutDialog.setAttribute('open', '');
+    }
+}
+
+function closePetsTimeOut() {
+    if (typeof petsTimeOutDialog.close === 'function') petsTimeOutDialog.close();
+    else petsTimeOutDialog.removeAttribute('open');
+}
+
+document.getElementById('petsTimeOutClose').addEventListener('click', closePetsTimeOut);
+// A tap on the backdrop closes it too, as for the results: only a click outside the panel lands on the dialog itself.
+petsTimeOutDialog.addEventListener('click', (event) => {
+    if (event.target === petsTimeOutDialog) closePetsTimeOut();
+});
 
 /* Flakes land on the water around where they were dropped - the middle of the tank from a
    keyboard - and sink. Like the dog's food, they don't wake a sleeping fish. */
@@ -2643,6 +2799,31 @@ function startPetSleepAnimation() {
     }, Pets.SLEEP.zzzStepMs);
 }
 
+/* Bedtime for the dog: it walks back to its bed, behind the food, and lies down there. Its
+   bed becomes home, so if petting wakes it and it goes to eat, it comes back afterwards and
+   dozes off in its bed again. Food put out while it was on its way is eaten first. */
+function goToBed() {
+    const bed = Pets.BED_SPOT;
+    if (pets.x === bed.x && pets.y === bed.y) {
+        fallAsleep();
+        return;
+    }
+    pets.activity = 'bedtime';
+    pets.posture = 'stand';
+    pets.leaning = false;
+    pets.eyes = 'open';
+    setPetWagging(false);
+    walkPetTo(bed, () => {
+        pets.activity = 'idle';
+        pets.home = { ...bed };
+        if (Pets.bowlToVisit(pets.bowls)) {
+            settlePet();
+            return;
+        }
+        fallAsleep();
+    });
+}
+
 // Lying down where it is, facing the bowls.
 function fallAsleep() {
     pets.asleep = true;
@@ -2701,6 +2882,7 @@ function startPetsView() {
 setPetsSoundOn(petsSoundOn);
 buildPetsScene();
 resetPets();
+updatePetsTimeOut(); // a time out from before a reload is still running
 
 /* --- Input Listeners --- */
 document.getElementById('arrayForm').addEventListener('submit', displayArray); // Toy Event Listener

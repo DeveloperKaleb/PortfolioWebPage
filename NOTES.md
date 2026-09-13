@@ -1615,8 +1615,9 @@ day and night - and suggested this was the moment to make Pets DRY. What it is:
   window so the sky stays in view. Lid, air, surface, ten rows of water with weeds, gravel.
   The fish is one sprite of 13 × 7 with four frames: tail fanned, tail folded, mouth open,
   eye shut. It flicks its tail as it swims, and now and then while resting.
-- **A tap on the glass** is its petting: it swims over mouth-first to where the tap landed
-  and blows two bubbles - no more often than the dog barks. It wakes it at night.
+- **Holding a finger on the glass** is how to play with it: it swims over mouth-first and
+  blows two bubbles, no more often than the dog barks. A mouse pointer resting over the
+  tank counts too. (It began as a tap on the glass - see "Tapping the glass" below.)
 - **Flakes.** The tray shows a flake shaker in place of the dog's food and water. Dropped on
   the tank, three flakes land on the water around the drop and sink; never more than six.
   The fish goes for the nearest, from the side it is already on, and waits beneath a flake
@@ -1625,8 +1626,9 @@ day and night - and suggested this was the moment to make Pets DRY. What it is:
 - **Restless.** `FISH_FIDGET`: 70% of waits 2-4 seconds, 20% 5-9, 10% 10-15, never longer.
   It swims 6-20 pixels across, at any height short of the gravel.
 - **Day and night as the dog.** Waits double at dusk. At night it sleeps on the gravel, eye
-  shut, Z's rising past the tank's lid - which is light for that reason. A tap wakes it;
-  flakes do not, and wait for it. It dozes again 20 seconds after settling.
+  shut, Z's rising past the tank's lid - which is light for that reason. Nothing wakes it
+  until dawn: flakes wait on the bottom and are eaten in the morning, and a finger on the
+  glass is not followed. It dozes again 20 seconds after settling.
 - **No sound.** The sound switch does nothing for the fish yet; a bubble "blub" was left
   out rather than guessed at.
 
@@ -1652,6 +1654,14 @@ of `entertainment.js` was run in Node against a small fake DOM and a fake clock,
 the fish and the dog through fidgeting, feeding, tapping, stroking, and a night of sleeping,
 feeding and waking, and asserting the fish never left its water. The harness lives in the
 session scratchpad, not the repo.
+
+**The sleeping collar slants too** (2026-09-12, the owner's catch). When the sleeping pose
+was added its collar was drawn as a strip two pixels wide standing upright behind the
+lowered head - the shape the awake collar was before it was fixed, and it read as a tag
+again. It now follows the awake rule: a two-pixel band with its darker lower edge, slanting
+from the nape down toward the throat, the head covering its middle so it wraps behind the
+jaw, and the tag hanging below the jaw (`COLLAR_ASLEEP`). The collar test now covers the
+sleeping body, and a second test checks what is left showing once the head is drawn over it.
 
 **The collar wraps the neck** (2026-09-12). It began as a one-pixel strip standing up the
 neck, and when the owner circled it and asked what it was meant to be, the honest answer
@@ -1730,6 +1740,64 @@ so a swipe anywhere else still scrolls the page.
   to do in the status line.
 - **From a keyboard,** activating an item fills its bowl directly (a click with
   `detail === 0`, as in Sequence).
+
+**Tapping the glass** (2026-09-12). The owner wants the toy to keep to good aquarium
+manners: tapping on a tank frightens fish. Tapping the glass therefore gets the player a
+time out, and the fish's greeting moved from a tap to a held finger.
+
+- **What counts, the owner's definition.** A tap is a touch or click of under a second.
+  Two in quick succession - the second starting within a second of the first ending - scare
+  the fish. One on its own is forgiven. A long press is never a tap, and ends a run of taps:
+  long presses are for playing. `GLASS` and `noteGlassPress` in `js/pets.js`, tested.
+- **The time out.** The player is sent to the Entertainment dashboard, and a native dialog
+  says "You scared the fish. Irresponsible owners get a time out." For a minute the Pets
+  card on Toys is disabled, in the disabled control colours with a dashed edge - never
+  opacity - showing the seconds left. It locks Pets as a whole, the dog included.
+- **It can't be skipped.** The end of the time out is stored in the browser, so a reload
+  doesn't clear it (the owner's pick), and `showRoute` sends any route into Pets - a link,
+  a reload, Back - to Toys instead, replacing the history entry so Back doesn't loop. If
+  storage is unavailable, it lasts as long as the page.
+- **Playing instead.** Holding a finger on the glass, or resting a mouse pointer over it,
+  brings the fish over, mouth first; it turns toward the finger only once the finger is
+  beyond its body, so it doesn't flip with every pixel. Two bubbles, on the bark's cooldown.
+  It follows only while resting or wandering, not while it eats or says thank you.
+- **Night.** Nothing wakes the fish now - the owner chose dawn only over letting flakes
+  wake it. Taps on a sleeping fish's glass count all the same.
+- **The cursor** over the tank is the default arrow; a pointing hand invited tapping.
+
+**The dog has a bed** (2026-09-12). The owner's ask: a bed behind the food; the dog walks
+back to it to sleep, and forward from it to the bowls when woken and fed. The first time an
+animal walks away from the player rather than across.
+
+- **No shrinking.** The owner left it open whether the dog should get smaller at the back.
+  It doesn't: the bed spot is nine pixels further back on a fourteen-pixel floor, which in
+  true perspective is about a pixel off a 28-pixel dog, and a pixel sprite can't be scaled
+  that little without its pixels going uneven. Depth comes from the dog standing higher up
+  the floor and the bowls being drawn in front of it.
+- **Where.** Against the back wall behind the bowls, drawn behind the dog as the fish's tank
+  is behind the fish. A first draft two rows deeper ran its front rim into the bowls, which
+  then read as the bed's feet; the bed now ends above them with floor between.
+- **Walking in depth.** `walkStep` moves a pixel along whichever way is further and keeps
+  the other on the straight line from where the walk set off, so the dog drifts back evenly
+  as it goes. The first version measured that line from wherever the dog was at each step:
+  rounding held it on the front row until the last few pixels, and it stepped back in a
+  lump. Each step was still one pixel and it still arrived, so the tests passed; a render
+  partway along caught it, and the test now checks every step against the line.
+  The dog now has a `y` of its own, like the fish, and a `home` point instead of an x.
+- **Night.** When it dozes off, it walks to its bed first (busy: "The dog is going to bed.")
+  and lies down there; opened at night, it is already asleep on it. Petting wakes it on the
+  bed; food put out then sends it forward to eat, and it comes back to its bed and dozes off
+  again. By day it gets up and fidgets forward into its usual bounds, and never goes back to
+  bed. Food put out while it is on its way to bed is eaten first.
+- **Fabric.** Teal, of four tried against the rules: slate's shade fell under the text floor
+  for the outline, rose could not be told from the floorboards under simulation, and teal
+  and lavender both passed.
+
+**It turns to face the bowl before eating** (2026-09-12, the owner's catch). The dog faces
+the way it walks, and after the food bowl it walks right to the water - so it arrived
+facing right and drank from thin air beside the bowl. Eating is drawn facing left, and
+`dogXForBowl` puts the muzzle over the bowl only that way round, so `startEating` now turns
+it left first. The smoke harness checks the food-then-water order for exactly this.
 
 **Eating.** A filled bowl sends the dog over a pixel at a time. It eats head down, chomping,
 while the bowl empties through three levels, then goes on to the other bowl if that has

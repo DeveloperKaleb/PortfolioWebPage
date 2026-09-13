@@ -49,6 +49,16 @@ import {
     riseBubbles,
     SPECIES_ITEMS,
     SPECIES_TARGETS,
+    BED,
+    BED_SPOT,
+    walkStep,
+    GLASS,
+    NO_TAPS,
+    noteGlassPress,
+    timeOutUntil,
+    timeOutLeftMs,
+    timeOutSeconds,
+    facingTowardPoint,
     spriteRuns,
     SCENE,
     DOG_Y,
@@ -98,6 +108,7 @@ const allSprites = () => [
     ['the stand', STAND.rows],
     ['a bubble', BUBBLE],
     ['a flake', FLAKE],
+    ["the dog's bed", BED.rows],
     ...Object.entries(ITEM_ICONS).map(([name, rows]) => [`${name} icon`, rows]),
     ...ITEMS.flatMap((kind) => [0, 1, 2, 3].map((level) => [`${kind} bowl at ${level}`, bowlRows(kind, level)])),
 ];
@@ -138,7 +149,29 @@ describe('The sprites', () => {
     /* The collar was once a one-pixel strip standing up the neck, and did not read as a
        collar at all. A collar from the side is a band slanting across the neck, so in every
        posture it has to span several rows and several columns - never a single column. */
-    test.each(['sit', 'stand', 'down'])('the collar slants across the neck when the dog is %s', (posture) => {
+    /* Asleep, the lowered head covers part of the collar, so what matters is what is left
+       showing. The first sleeping collar showed as a strip two columns wide - a tag again. */
+    test('asleep, the collar that shows past the head still slants across the neck, with its tag', () => {
+        const { dx, dy } = headOffset('sleep');
+        const underHead = (x, y) => {
+            const row = dog.head.asleep[y - dy];
+            return row !== undefined && row[x - dx] !== undefined && row[x - dx] !== '.';
+        };
+        const shown = [];
+        dog.body.sleep.forEach((row, y) => [...row].forEach((key, x) => {
+            if ((key === 'c' || key === 'd' || key === 't') && !underHead(x, y)) shown.push({ x, y, key });
+        }));
+        expect(new Set(shown.map((cell) => cell.y)).size).toBeGreaterThanOrEqual(4);
+        expect(new Set(shown.map((cell) => cell.x)).size).toBeGreaterThanOrEqual(4);
+        expect(shown.some((cell) => cell.key === 't')).toBe(true);
+        // It slants: the lower it is, the further forward (left), never back.
+        const leftmostByRow = [...new Set(shown.map((cell) => cell.y))].sort((a, b) => a - b)
+            .map((y) => Math.min(...shown.filter((cell) => cell.y === y).map((cell) => cell.x)));
+        leftmostByRow.slice(1).forEach((x, i) => expect(x).toBeLessThanOrEqual(leftmostByRow[i]));
+        expect(leftmostByRow[leftmostByRow.length - 1]).toBeLessThan(leftmostByRow[0]);
+    });
+
+    test.each(['sit', 'stand', 'down', 'sleep'])('the collar slants across the neck when the dog is %s', (posture) => {
         const cells = [];
         dog.body[posture].forEach((row, y) => [...row].forEach((key, x) => {
             if (key === 'c' || key === 'd' || key === 't') cells.push({ x, y });
@@ -276,6 +309,81 @@ describe('The room', () => {
         const filled = (level) => bowlRows('food', level)[0].replace(/\./g, '').length;
         expect([0, 1, 2, 3].map(filled)).toEqual([0, 3, 5, 7]);
         expect(bowlRows('water', 9)).toEqual(bowlRows('water', BOWL_LEVELS));
+    });
+});
+
+describe("The dog's bed", () => {
+    const front = { x: HOME_X, y: DOG_Y };
+    const atBowl = (kind) => ({ x: BOWLS[kind].x + Math.floor(BOWL_SIZE.width / 2), y: DOG_Y });
+
+    // The owner's placement: behind the food.
+    test('it is behind the food: further back than the dog stands, clear above the bowls', () => {
+        expect(BED_SPOT.y).toBeLessThan(DOG_Y);
+        expect(BED.y + BED.rows.length - 1).toBeLessThan(Math.min(BOWLS.food.y, BOWLS.water.y));
+        expect(BED.x).toBeGreaterThanOrEqual(0);
+        expect(BED.x).toBeLessThanOrEqual(BOWLS.food.x);
+        expect(BED.x + BED.rows[0].length).toBeGreaterThanOrEqual(BOWLS.food.x + BOWL_SIZE.width);
+    });
+
+    test('the dog lies on it: all of it over the bed, its floor line on the cushion', () => {
+        const columns = dog.body.sleep.flatMap((row) => [...row].flatMap((key, x) => (key === '.' ? [] : [x])));
+        expect(BED_SPOT.x + Math.min(...columns)).toBeGreaterThanOrEqual(BED.x);
+        expect(BED_SPOT.x + Math.max(...columns)).toBeLessThanOrEqual(BED.x + BED.rows[0].length - 1);
+        const floorLine = BED_SPOT.y + dog.size.height - 1;
+        expect(floorLine).toBeGreaterThan(BED.y + 2);
+        expect(floorLine).toBeLessThan(BED.y + BED.rows.length - 1);
+    });
+
+    // The window's colours are only held apart from each other, so nothing of the dog may cross it.
+    test('on its bed the dog, its raised head and its Z\'s all stay clear of the window', () => {
+        expect(BED_SPOT.x + dog.size.width).toBeLessThanOrEqual(WINDOW.x);
+        expect(BED_SPOT.y + headOffset('sit', { leaning: true }).dy).toBeGreaterThanOrEqual(0);
+        for (let step = 0; step < Z_RISE; step++) {
+            zzzFrame(step, dog.zzzOrigin).forEach(({ x, y, rows }) => {
+                expect(BED_SPOT.x + x + rows[0].length).toBeLessThanOrEqual(WINDOW.x);
+                expect(BED_SPOT.y + y).toBeGreaterThanOrEqual(0);
+            });
+        }
+    });
+
+    /* The straight line is measured from where the walk set off. Measured from wherever the
+       dog was at each step, rounding held it on its starting row until the last few pixels -
+       every step was still a single pixel and it still arrived, so only the line catches it. */
+    test('walking to and from it goes a pixel at a time in a straight line, and arrives', () => {
+        const trips = [[front, BED_SPOT], [BED_SPOT, atBowl('food')], [BED_SPOT, atBowl('water')], [atBowl('water'), BED_SPOT], [{ x: 5, y: 5 }, { x: 5, y: 9 }]];
+        trips.forEach(([from, to]) => {
+            const spanX = to.x - from.x;
+            const spanY = to.y - from.y;
+            let pos = from;
+            let steps = 0;
+            while ((pos.x !== to.x || pos.y !== to.y) && steps < 500) {
+                const next = walkStep(pos, to, from);
+                if (Math.abs(spanX) >= Math.abs(spanY)) {
+                    expect(Math.abs(next.y - (from.y + ((next.x - from.x) * spanY) / spanX))).toBeLessThanOrEqual(0.5);
+                } else {
+                    expect(Math.abs(next.x - (from.x + ((next.y - from.y) * spanX) / spanY))).toBeLessThanOrEqual(0.5);
+                }
+                expect(Math.abs(next.x - pos.x)).toBeLessThanOrEqual(1);
+                expect(Math.abs(next.y - pos.y)).toBeLessThanOrEqual(1);
+                expect(Math.abs(to.x - next.x)).toBeLessThanOrEqual(Math.abs(to.x - pos.x));
+                expect(Math.abs(to.y - next.y)).toBeLessThanOrEqual(Math.abs(to.y - pos.y));
+                pos = next;
+                steps += 1;
+            }
+            expect(pos).toEqual(to);
+            expect(steps).toBe(Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y)));
+        });
+        expect(walkStep({ x: 3, y: 4 }, { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
+    });
+
+    test('getting up from its bed by day, it fidgets forward into its usual bounds', () => {
+        for (let i = 0; i < 40; i++) {
+            const values = [i / 40, (i * 7 % 40) / 40];
+            let n = 0;
+            const target = fidgetTarget(BED_SPOT.x, () => values[n++]);
+            expect(target).toBeGreaterThanOrEqual(FIDGET.minX);
+            expect(target).toBeLessThanOrEqual(FIDGET.minX + FIDGET.maxStep - FIDGET.minStep);
+        }
     });
 });
 
@@ -605,6 +713,69 @@ describe('The fish', () => {
         expect(acceptsItem('food', 'flakes')).toBe(false);
         expect(acceptsItem('tank', 'food')).toBe(false);
         Object.values(SPECIES_ITEMS).flat().forEach((item) => expect(ITEM_ICONS).toHaveProperty(item));
+    });
+});
+
+describe('The glass', () => {
+    // A press from `at` lasting `ms`.
+    const press = (at, ms) => ({ downAt: at, upAt: at + ms });
+    const run = (...presses) => presses.reduce(({ taps, scared }, p) => {
+        const next = noteGlassPress(taps, p);
+        return { taps: next.taps, scared: scared || next.scared };
+    }, { taps: NO_TAPS, scared: false });
+
+    // The owner's definition: a touch or click of under a second; two in quick succession.
+    test('a tap is under a second, two quick ones scare the fish, and the time out is a minute', () => {
+        expect(GLASS).toEqual({ tapMaxMs: 1000, betweenTapsMs: 1000, tapsToScare: 2, timeOutMs: 60000 });
+    });
+
+    test('one tap on its own is forgiven', () => {
+        expect(run(press(0, 150)).scared).toBe(false);
+    });
+
+    test('two quick taps scare the fish', () => {
+        expect(run(press(0, 150), press(400, 150)).scared).toBe(true);
+        // Right on the limits: a 999ms press, and the second starting 1000ms after the first ended.
+        expect(run(press(0, 999), press(1999, 999)).scared).toBe(true);
+    });
+
+    test('two taps a while apart do not', () => {
+        expect(run(press(0, 150), press(1151, 150)).scared).toBe(false);
+        expect(run(press(0, 150), press(5000, 150), press(9000, 150)).scared).toBe(false);
+    });
+
+    // The owner's other half: long presses are for playing with the fish.
+    test('a long press is not a tap, and ends a run of taps', () => {
+        expect(run(press(0, 1000)).scared).toBe(false);
+        expect(run(press(0, 1500), press(1600, 150)).scared).toBe(false);
+        expect(run(press(0, 150), press(300, 2000), press(2400, 150)).scared).toBe(false);
+        expect(run(press(0, 2000), press(2100, 2000), press(4200, 2000)).scared).toBe(false);
+    });
+
+    test('the time out runs a minute from the scare, counted in whole seconds left', () => {
+        const until = timeOutUntil(1000000);
+        expect(until).toBe(1060000);
+        expect(timeOutLeftMs(until, 1000000)).toBe(60000);
+        expect(timeOutSeconds(timeOutLeftMs(until, 1000001))).toBe(60);
+        expect(timeOutSeconds(timeOutLeftMs(until, 1059001))).toBe(1);
+        expect(timeOutLeftMs(until, 1060000)).toBe(0);
+        expect(timeOutLeftMs(until, 2000000)).toBe(0);
+        // Nothing remembered, or something unreadable, is no time out.
+        expect(timeOutLeftMs(null, 5)).toBe(0);
+        expect(timeOutLeftMs('garbage', 5)).toBe(0);
+    });
+
+    test('a fish following a finger turns toward it, but not while the finger is over its body', () => {
+        const pos = { x: 40, y: 32 };
+        expect(facingTowardPoint(pos, { x: 30, y: 35 }, 'right')).toBe('left');
+        expect(facingTowardPoint(pos, { x: 60, y: 35 }, 'left')).toBe('right');
+        expect(facingTowardPoint(pos, { x: 45, y: 35 }, 'right')).toBe('right');
+        expect(facingTowardPoint(pos, { x: 45, y: 35 }, 'left')).toBe('left');
+        // With its mouth at the finger, whichever way it faces, it stays facing that way.
+        const point = { x: 50, y: 35 };
+        ['left', 'right'].forEach((facing) => {
+            expect(facingTowardPoint(fishPositionFor(point, facing), point, facing)).toBe(facing);
+        });
     });
 });
 

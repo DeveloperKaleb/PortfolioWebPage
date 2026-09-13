@@ -203,7 +203,7 @@ footer li + li {
 /* Guarded on (hover: hover): a tap on a touchscreen leaves :hover latched on the
    last element touched, so unguarded hover styles read as a stuck selection. */
 @media (hover: hover) {
-    .entry-card:hover {
+    .entry-card:hover:not(:disabled) {
         border-color: #035e7b;
         background: #003b38;
     }
@@ -211,6 +211,21 @@ footer li + li {
 
 .card-title {
     font-weight: bold;
+}
+
+/* A card that can't be opened right now: Pets, during a time out. It takes the disabled
+   control colours (UI_COLORS.disabled*, contrast-checked) and a dashed edge - never
+   opacity, which would take the words' contrast with it. */
+.entry-card:disabled {
+    background: #b9bba4;                    /* UI_COLORS.disabledBackground */
+    color: #2f2a1f;                         /* UI_COLORS.disabledText */
+    border-color: #2f2a1f;
+    border-style: dashed;
+    cursor: not-allowed;
+}
+
+.card-subtitle[hidden] {
+    display: none;
 }
 
 /* The dashboard: larger cards with no thumbnail. Single Player, Multiplayer and Toys are
@@ -1395,7 +1410,8 @@ a:active  {color: #002e2c;}
    end-of-game panel: the same UI_COLORS.dialog* colours, which are contrast-checked, and
    the same scrim. It sits in the top layer, so the view's size containment does not
    confine it the way it would a fixed overlay. */
-#tictactoe-results {
+#tictactoe-results,
+#pets-time-out {
     box-sizing: border-box;
     width: min(92vw, 26rem);
     max-height: 90vh;
@@ -1407,13 +1423,15 @@ a:active  {color: #002e2c;}
 }
 
 /* ::backdrop inherits from nothing, so the scrim is written out rather than borrowed. */
-#tictactoe-results::backdrop {
+#tictactoe-results::backdrop,
+#pets-time-out::backdrop {
     background: rgba(0, 0, 0, 0.6);
 }
 
 /* The content fills this inner panel, which is what lets a click on the dialog element
    itself be read as a tap on the backdrop. */
-.tictactoe-results-panel {
+.tictactoe-results-panel,
+.pets-time-out-panel {
     padding: 20px;
     text-align: left;
 }
@@ -1451,7 +1469,8 @@ a:active  {color: #002e2c;}
 }
 
 /* Matches Play Again on the end-of-game panel. */
-#tictactoeResultsClose {
+#tictactoeResultsClose,
+#petsTimeOutClose {
     display: block;
     width: 100%;
     min-height: 44px;
@@ -1527,9 +1546,14 @@ a:active  {color: #002e2c;}
     cursor: grabbing;
 }
 
-/* Over the fish's tank the gesture is a tap on the glass, not a stroke. */
+/* Over the fish's tank there is nothing to click - a pointing hand would invite tapping the
+   glass, which scares the fish. Resting the pointer there is how to play. */
 .pets-hit.is-glass {
-    cursor: pointer;
+    cursor: default;
+}
+
+#pets-time-out-message {
+    margin: 0 0 16px;
 }
 
 .pets-bowl-slot {
