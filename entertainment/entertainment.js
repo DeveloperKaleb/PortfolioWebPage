@@ -55,6 +55,8 @@ import {
     misplacedFlagCount,
     isOver,
     isOpeningMove,
+    inBounds as isOnBoard,
+    createShapeGame,
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
@@ -74,6 +76,7 @@ import {
     cellAtMinimap,
     DRAG_THRESHOLD_PX
 } from '../js/boardzoom.js';
+import { SHAPE_BOARDS } from '../js/mineshapes.js';
 // Classic and Terni Lapilli share one view and answer the same questions, so they are
 // taken whole and the view picks between them - see PART 6.
 import * as TicTacToe from '../js/tictactoe.js';
@@ -819,6 +822,15 @@ const mineZoomLabelEl = document.getElementById('mine-zoom-label');
 const mineZoomHintEl = document.getElementById('mine-zoom-hint');
 const mineMinimap = document.getElementById('mineMinimap');
 const mineZoomBar = document.getElementById('mine-zoom');
+const mineStartBtn = document.getElementById('mineStartBtn');
+
+// The last shape dealt, so Mine A Shape! does not hand out the same picture twice running.
+let lastMineShape = null;
+function pickMineShape() {
+    const choices = SHAPE_BOARDS.length > 1 ? SHAPE_BOARDS.filter((shape) => shape !== lastMineShape) : SHAPE_BOARDS;
+    lastMineShape = choices[Math.floor(Math.random() * choices.length)];
+    return lastMineShape;
+}
 
 let mineGame = createMinesweeper();
 let flagMode = false;
@@ -927,7 +939,8 @@ function drawMineMinimap() {
     for (let y = 1; y <= mineGame.height; y++) {
         for (let x = 1; x <= mineGame.width; x++) {
             let fill = null;
-            if (isRevealed(mineGame, x, y)) fill = MINE_MINIMAP.revealed;
+            if (!isOnBoard(mineGame, x, y)) fill = MINE_MINIMAP.gap;
+            else if (isRevealed(mineGame, x, y)) fill = MINE_MINIMAP.revealed;
             else if (isFlagged(mineGame, x, y)) fill = MINE_MINIMAP.flag;
             if (!fill) continue;
             ctx.fillStyle = fill;
@@ -949,6 +962,23 @@ function drawMineMinimap() {
 function paintMineCell(cell) {
     const x = Number(cell.dataset.x);
     const y = Number(cell.dataset.y);
+
+    /* A button stands for whichever square the zoom window puts under it, so it sheds the
+       last square's marks first. Without this, panning a lost board carried its mine and
+       cross markers onto squares that never had them. */
+    cell.classList.remove('is-mine', 'is-detonated', 'is-wrong-flag');
+
+    // A shaped board's holes are not squares: nothing to show and nothing to press.
+    const onBoard = isOnBoard(mineGame, x, y);
+    cell.classList.toggle('is-gap', !onBoard);
+    cell.disabled = !onBoard;
+    if (!onBoard) {
+        cell.classList.remove('is-revealed', 'is-flagged');
+        cell.textContent = '';
+        cell.style.color = '';
+        return;
+    }
+
     const revealed = isRevealed(mineGame, x, y);
     const flagged = isFlagged(mineGame, x, y);
     const mined = isMine(mineGame, x, y);
@@ -1018,16 +1048,18 @@ function drawMineBoard() {
        The result line is the score, which is why it names the flags rather than the
        squares - see correctFlagCount in js/minesweeper.js. */
     const wrongFlags = misplacedFlagCount(mineGame);
+    // A Mine A Shape! picture is named only once the game is over, won or lost.
+    const shapeName = mineGame.shape ? ` It was ${mineGame.shape.article} ${mineGame.shape.name}!` : '';
     const messages = {
         [MINE_STATUS.READY]: 'Tap any square to begin.',
         [MINE_STATUS.PLAYING]: flagMode
             ? 'Flag mode: tap to mark a suspected mine.'
             : 'Clear every square that is not a mine.',
-        [MINE_STATUS.WON]: `Swept. All ${mineGame.mineCount} mines correctly flagged.`,
+        [MINE_STATUS.WON]: `Swept. All ${mineGame.mineCount} mines correctly flagged.${shapeName}`,
         /* The legend is only mentioned when there is something for it to explain -
            a board lost with no misplaced flags has no crosses on it. */
         [MINE_STATUS.LOST]: `Detonated. ${correctFlagCount(mineGame)} of ${mineGame.mineCount} mines correctly flagged.`
-            + (wrongFlags > 0 ? ` ✗ marks a flag that was wrong.` : ''),
+            + (wrongFlags > 0 ? ` ✗ marks a flag that was wrong.` : '') + shapeName,
     };
     mineStatusEl.textContent = messages[mineGame.status];
     // Only a finished game gets the banner treatment; in play this is a quiet hint line.
@@ -1045,8 +1077,12 @@ function setFlagMode(on) {
 }
 
 function initMinesweeper() {
-    const preset = MINE_PRESETS[mineModeSelect ? mineModeSelect.value : 'standard'] || MINE_PRESETS.standard;
-    mineGame = createMinesweeper(preset);
+    const mode = mineModeSelect ? mineModeSelect.value : 'standard';
+    // Mine A Shape! deals its own mines and opens its own start (createShapeGame).
+    mineGame = mode === 'shape'
+        ? createShapeGame(pickMineShape(), Math.random)
+        : createMinesweeper(MINE_PRESETS[mode] || MINE_PRESETS.standard);
+    mineStartBtn.textContent = mode === 'shape' ? 'Mine A Shape!' : 'New Game';
     // A chosen zoom level carries over to the next game, if the new board offers it.
     mineView = viewForBoard(mineGame, mineView);
     setFlagMode(false);
@@ -1189,7 +1225,7 @@ flagToggleEl.addEventListener('click', () => setFlagMode(!flagMode));
 
 // Changing the size starts a fresh board of that size; there is nothing to preserve.
 mineModeSelect.addEventListener('change', initMinesweeper);
-document.getElementById('mineStartBtn').addEventListener('click', initMinesweeper);
+mineStartBtn.addEventListener('click', initMinesweeper);
 
 /* --- PART 5: SEQUENCE --- */
 /* The Simon-style memory game. The machine plays a growing run of pads; the player

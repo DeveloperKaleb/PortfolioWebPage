@@ -71,6 +71,9 @@ function readBoard(game) {
     const W = game.width, H = game.height, N = W * H;
     const revealed = new Uint8Array(N);
     for (const key of game.revealed) revealed[toIndex(key, W)] = 1;
+    // A Mine A Shape! board has holes: squares that are not on the board at all.
+    const onBoard = new Uint8Array(N).fill(game.shape ? 0 : 1);
+    if (game.shape) for (const key of game.shape.cells) onBoard[toIndex(key, W)] = 1;
 
     const cons = [];
     const cellCons = new Map();
@@ -81,7 +84,8 @@ function readBoard(game) {
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
                     const nx = x + dx, ny = y + dy;
-                    if ((dx || dy) && nx >= 0 && ny >= 0 && nx < W && ny < H && !revealed[ny * W + nx]) cells.push(ny * W + nx);
+                    const j = ny * W + nx;
+                    if ((dx || dy) && nx >= 0 && ny >= 0 && nx < W && ny < H && onBoard[j] && !revealed[j]) cells.push(j);
                 }
             }
             if (!cells.length) continue;
@@ -119,8 +123,8 @@ function readBoard(game) {
     }
 
     const interior = [];
-    for (let i = 0; i < N; i++) if (!revealed[i] && !cellCons.has(i)) interior.push(i);
-    return { W, N, M: game.mineCount, revealed, cons, comps, boxOf, interior };
+    for (let i = 0; i < N; i++) if (onBoard[i] && !revealed[i] && !cellCons.has(i)) interior.push(i);
+    return { W, N, M: game.mineCount, revealed, onBoard, cons, comps, boxOf, interior };
 }
 
 /* The forward sweep of one component. `lim[bi]` is the most mines box bi may hold - its
@@ -325,7 +329,7 @@ export function relocateMines(game, x, y, { random = Math.random, budgetMs = Inf
         clock.check();
         const { W, M, comps, interior } = board;
         const spot = (y - 1) * W + (x - 1);
-        if (board.revealed[spot]) return null;
+        if (board.revealed[spot] || !board.onBoard[spot]) return null;
 
         const mine = new Uint8Array(board.N);
         for (const key of game.mines) mine[toIndex(key, W)] = 1;

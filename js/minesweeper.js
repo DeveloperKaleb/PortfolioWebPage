@@ -6,7 +6,7 @@
  * write and miserable to find; returning a fresh object makes that impossible.
  */
 
-import { resolveForcedGuess } from './minesolver.js';
+import { resolveForcedGuess, findSafeSquare, relocateMines } from './minesolver.js';
 
 export const STATUS = { READY: 'ready', PLAYING: 'playing', WON: 'won', LOST: 'lost' };
 
@@ -14,12 +14,16 @@ export const DEFAULTS = { width: 10, height: 10, mineCount: 12 };
 
 const key = (x, y) => `${x},${y}`;
 
+/* `shape` is a Mine A Shape! board from js/mineshapes.js, or absent for a rectangle. The
+   width and height are then the shape's bounding box, and only its squares are on the
+   board. */
 export function createGame(options = {}) {
-    const { width, height, mineCount } = { ...DEFAULTS, ...options };
+    const { width, height, mineCount, shape } = { ...DEFAULTS, ...options };
     return {
         width,
         height,
         mineCount,
+        shape: shape || null,
         mines: new Set(),
         counts: null,      // filled in once the mines are placed
         revealed: new Set(),
@@ -36,7 +40,11 @@ const copy = (game, changes) => ({
     ...changes,
 });
 
-export const inBounds = (game, x, y) => x >= 1 && y >= 1 && x <= game.width && y <= game.height;
+/* On the board: inside the rectangle and, for a shape, one of its squares. Everything that
+   walks the board - neighbours, counts, cascades, mine placement - goes through here, which
+   is what lets a shape have holes. */
+export const inBounds = (game, x, y) => x >= 1 && y >= 1 && x <= game.width && y <= game.height
+    && (!game.shape || game.shape.cells.has(key(x, y)));
 
 export function neighbours(game, x, y) {
     const found = [];
@@ -60,11 +68,14 @@ export const isFlagged = (game, x, y) => game.flagged.has(key(x, y));
 export function placeMines(game, safeX, safeY, random = Math.random) {
     const forbidden = new Set([key(safeX, safeY)]);
     neighbours(game, safeX, safeY).forEach((n) => forbidden.add(key(n.x, n.y)));
+    return layMines(game, forbidden, random);
+}
 
+function layMines(game, forbidden, random) {
     const candidates = [];
     for (let y = 1; y <= game.height; y++) {
         for (let x = 1; x <= game.width; x++) {
-            if (!forbidden.has(key(x, y))) candidates.push(key(x, y));
+            if (inBounds(game, x, y) && !forbidden.has(key(x, y))) candidates.push(key(x, y));
         }
     }
 
@@ -117,7 +128,58 @@ function cascade(game, x, y) {
     return revealed;
 }
 
-export const safeCellCount = (game) => game.width * game.height - game.mineCount;
+export const safeCellCount = (game) =>
+    (game.shape ? game.shape.area : game.width * game.height) - game.mineCount;
+
+/* Whether the numbers on show prove any mine: one beside a revealed number that no layout
+   fitting them could move. Flagging it is a move made by reasoning, and a win needs every
+   mine flagged, so Mine A Shape! counts it as a way forward just as it does a proven safe
+   square - the project owner's call, once their heart outline showed that a proven safe
+   square is often impossible. Only mines beside a number are asked about: asking about
+   every mine on a 40x40 board would cost too much, and the rest can only be decided by the
+   count. */
+export const hasProvenMine = (game) => [...game.mines].some((id) => {
+    const [x, y] = id.split(',').map(Number);
+    return neighbours(game, x, y).some((n) => isRevealed(game, n.x, n.y)) && relocateMines(game, x, y) === null;
+});
+
+/* Mine A Shape!: a board that is a picture (js/mineshapes.js). Unlike the rectangles, the
+   mines are laid before anything is opened, and the game opens itself - on a square that
+   touches no mine, and only where the numbers then prove something: a square safe to open,
+   or a mine to flag (hasProvenMine). However the picture falls, the player can reason
+   onwards from the start.
+
+   Where the shape has room, the start has all eight neighbours on the board, so the
+   opening shows at least nine squares. A shape without room - a one-square-wide outline,
+   like the project owner's heart - cannot offer that, so there the start is any such
+   square that opens more than just itself. If a deal offers no start, it is dealt again. */
+export function createShapeGame(shape, random = Math.random) {
+    const game = createGame({ width: shape.width, height: shape.height, mineCount: shape.mineCount, shape });
+    const squares = [];
+    for (let y = 1; y <= game.height; y++) {
+        for (let x = 1; x <= game.width; x++) if (inBounds(game, x, y)) squares.push({ x, y });
+    }
+    const roomy = squares.filter(({ x, y }) => neighbours(game, x, y).length === 8);
+    const candidates = roomy.length ? roomy : squares;
+    const smallest = roomy.length ? 9 : 2;
+
+    for (let deal = 0; deal < 50; deal++) {
+        const dealt = layMines(game, new Set(), random);
+        const starts = candidates.filter(({ x, y }) => !isMine(dealt, x, y) && countAt(dealt, x, y) === 0);
+        // A few starts per deal, chosen at random, before dealing again.
+        for (let tried = 0; tried < Math.min(8, starts.length); tried++) {
+            const pick = tried + Math.floor(random() * (starts.length - tried));
+            [starts[tried], starts[pick]] = [starts[pick], starts[tried]];
+            const { x, y } = starts[tried];
+            const opened = settle(copy(dealt, { revealed: cascade(dealt, x, y) }));
+            if (opened.revealed.size < smallest) continue;
+            if (opened.revealed.size === safeCellCount(opened)
+                || findSafeSquare(opened).result === 'safe'
+                || hasProvenMine(opened)) return opened;
+        }
+    }
+    throw new Error(`no playable opening could be dealt for the ${shape.name}`);
+}
 
 /* Winning means the board is finished, not merely survived: every safe square opened
    AND every mine flagged. Ending on the last safe square instead would call it a win

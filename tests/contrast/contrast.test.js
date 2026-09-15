@@ -243,6 +243,32 @@ describe('Minesweeper overview', () => {
     });
 });
 
+/* A Mine A Shape! board's holes show the frame, so the picture's outline is read against
+   it: every square has to be tellable from every stop of it, at both ends of both grounds. */
+describe('Mine A Shape! holes', () => {
+    test.each([['unopened', MINE_GRADIENTS.hidden], ['cleared', MINE_GRADIENTS.revealed]])(
+        '%s ground can be told from the frame showing through a hole',
+        (_label, ground) => {
+            MINE_GRADIENTS.frame.forEach((frame) => ground.forEach((stop) => {
+                expect(areDistinguishable(frame, stop)).toBe(true);
+            }));
+        },
+    );
+
+    test('the overview draws holes that can be told from both grounds', () => {
+        expect(areDistinguishable(MINE_MINIMAP.gap, MINE_MINIMAP.hidden)).toBe(true);
+        expect(areDistinguishable(MINE_MINIMAP.gap, MINE_MINIMAP.revealed)).toBe(true);
+    });
+
+    test('the overview window outline shows over a hole', () => {
+        const best = Math.max(
+            worstCaseContrast(MINE_MINIMAP.windowLight, MINE_MINIMAP.gap),
+            worstCaseContrast(MINE_MINIMAP.windowDark, MINE_MINIMAP.gap),
+        );
+        expect(best).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+});
+
 describe('Sequence palette', () => {
     const { panel } = SEQUENCE_COLORS;
 

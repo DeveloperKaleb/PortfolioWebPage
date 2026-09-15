@@ -3,9 +3,10 @@ import {
     createGame, reveal, toggleFlag, chord, placeMines, neighbours,
     countAt, isMine, isRevealed, isFlagged, flagsRemaining,
     safeCellCount, isOver, isWon, isOpeningMove, STATUS, PRESETS, mineDensity,
-    correctFlagCount, misplacedFlagCount, isCorrectlyFlagged,
+    correctFlagCount, misplacedFlagCount, isCorrectlyFlagged, createShapeGame, inBounds, hasProvenMine,
 } from '../../js/minesweeper.js';
 import { findSafeSquare } from '../../js/minesolver.js';
+import { parseShape } from '../../js/mineshapes.js';
 
 // Reveal everything that is not a mine, which is what winning requires.
 const clearBoard = (game) => {
@@ -485,5 +486,69 @@ describe('Accounting for the flags at the end', () => {
         const mine = everyCell(game).find(({ x, y }) => isMine(game, x, y) && !isRevealed(game, x, y));
         expect(flagsRemaining(toggleFlag(game, safe.x, safe.y)))
             .toBe(flagsRemaining(toggleFlag(game, mine.x, mine.y)));
+    });
+});
+
+describe('Mine A Shape!', () => {
+    // An octagon local to these tests - the dealt shapes are the project owner's to change.
+    const shape = parseShape({
+        name: 'octagon',
+        rows: [
+            '..######..',
+            '.########.',
+            '##########',
+            '##########',
+            '##########',
+            '##########',
+            '##########',
+            '##########',
+            '.########.',
+            '..######..',
+        ],
+    });
+
+    test('squares outside the shape are not on the board', () => {
+        const game = createGame({ width: 10, height: 10, mineCount: shape.mineCount, shape });
+        expect(inBounds(game, 1, 1)).toBe(false);
+        expect(inBounds(game, 5, 5)).toBe(true);
+        expect(neighbours(game, 2, 2).some(({ x, y }) => x === 1 && y === 1)).toBe(false);
+    });
+
+    test('mines are laid on the shape only, all of them', () => {
+        for (let deal = 0; deal < 20; deal++) {
+            const game = createShapeGame(shape, Math.random);
+            expect(game.mines.size).toBe(shape.mineCount);
+            [...game.mines].forEach((key) => expect(shape.cells.has(key)).toBe(true));
+        }
+    });
+
+    test('safe squares are counted on the shape, not the rectangle around it', () => {
+        expect(safeCellCount(createShapeGame(shape, Math.random))).toBe(shape.area - shape.mineCount);
+    });
+
+    // Dealt before anything opens, and opened by the game itself.
+    test('it starts under way rather than waiting for a first tap', () => {
+        const game = createShapeGame(shape, Math.random);
+        expect(game.status).toBe(STATUS.PLAYING);
+        expect(isOpeningMove(game)).toBe(false);
+        expect(game.revealed.size).toBeGreaterThanOrEqual(9);
+    });
+
+    test('a shaped board can be played to a win', () => {
+        const game = flagAllMines(clearBoard(createShapeGame(shape, Math.random)));
+        expect(game.status).toBe(STATUS.WON);
+    });
+
+    /* A shape with no square whose eight neighbours are all on the board - a one-square-wide
+       line, like the project owner's heart - cannot open on nine. It still opens itself, on
+       more than one square, and still with a proven safe square or a proven mine after. */
+    test('a one-square-wide shape still opens itself, just smaller', () => {
+        const thin = parseShape({ name: 'loop', rows: ['.######.', '#......#', '#......#', '#......#', '.######.'] });
+        for (let deal = 0; deal < 20; deal++) {
+            const game = createShapeGame(thin, Math.random);
+            expect(game.revealed.size).toBeGreaterThanOrEqual(2);
+            const cleared = game.revealed.size === safeCellCount(game);
+            expect(cleared || findSafeSquare(game).result === 'safe' || hasProvenMine(game)).toBe(true);
+        }
     });
 });
