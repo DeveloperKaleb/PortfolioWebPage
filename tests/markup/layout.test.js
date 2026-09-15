@@ -2,6 +2,9 @@ import { describe, test, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import {
+    BOARD_GAP_PX, BOARD_FRAME_PX, BOARD_HEIGHT_VH, CELL_FLOOR_PX, WHOLE_CELL_CAP_PX, ZOOM_CELL_CAP_PX,
+} from '../../js/boardzoom.js';
 
 /* The overflow rules, pinned.
  *
@@ -80,6 +83,67 @@ describe('Boards are measured against the column they sit in', () => {
     ])('%s subtracts its gaps before dividing', (name, cols) => {
         const declaration = declarations.match(new RegExp(`${name}:[^;]*;`, 's'))[0];
         expect(declaration).toMatch(new RegExp(`\\(var\\(${cols}\\) - 1\\)`));
+    });
+});
+
+/* js/boardzoom.js predicts the Minesweeper cell size so the phone pass mark can be
+   tested without a browser. A prediction is only worth anything while it matches what
+   the stylesheet does, so the numbers are held against each other here. */
+describe('The zoom maths and the stylesheet agree on cell size', () => {
+    const fit = declarations.match(/--mine-fit:[^;]*;/s)[0];
+
+    test('the floor, the whole-board cap, the gaps and the height budget', () => {
+        expect(fit).toContain(`max(${CELL_FLOOR_PX}px,`);
+        expect(fit).toContain(`var(--mine-cap, ${WHOLE_CELL_CAP_PX}px)`);
+        expect(fit).toContain(`* ${BOARD_GAP_PX}px - ${BOARD_FRAME_PX}px)`);
+        expect(fit).toContain(`calc((${BOARD_HEIGHT_VH}vh - (var(--mine-rows) - 1) * ${BOARD_GAP_PX}px)`);
+    });
+
+    test('the gap and the frame the board is drawn with', () => {
+        const board = ruleFor('#mineDisplay');
+        expect(board).toContain(`gap: ${BOARD_GAP_PX}px;`);
+        expect(board).toContain('padding: 6px;');
+        expect(board).toContain('border: 2px solid');
+        expect(BOARD_FRAME_PX).toBe(2 * 6 + 2 * 2);
+    });
+
+    test('a zoomed window lifts the cap', () => {
+        expect(ruleFor('#mineDisplay\\.is-zoomed')).toContain(`--mine-cap: ${ZOOM_CELL_CAP_PX}px;`);
+    });
+});
+
+/* A zoomed board is dragged, so it has to stop the page scrolling under the finger. The
+   whole board is only ever tapped, and taking scrolling away there would trap a phone's
+   page behind it. */
+describe('Only a zoomed board takes over dragging', () => {
+    test('touch-action: none while zoomed, on the board and on the cells', () => {
+        expect(ruleFor('#mineDisplay\\.is-zoomed')).toContain('touch-action: none');
+        expect(ruleFor('#mineDisplay\\.is-zoomed \\.mine-cell')).toContain('touch-action: none');
+    });
+
+    test('the whole board still lets the page scroll', () => {
+        expect(ruleFor('#mineDisplay')).toContain('touch-action: manipulation');
+    });
+});
+
+/* The rounding block was once pasted into the middle of the .mine-cell.is-revealed rule.
+   Nothing broke visibly and no test failed: under CSS nesting it became a rule for
+   `.mine-cell.is-revealed #mineDisplay`, which matches nothing, so the rounding simply
+   stopped. Nesting depth is the shape that mistake leaves behind. */
+describe('Whole-pixel rounding', () => {
+    const at = declarations.indexOf('@supports (width: round(');
+
+    test('the feature query sits at the top level, not inside another rule', () => {
+        expect(at).toBeGreaterThan(-1);
+        const before = declarations.slice(0, at);
+        const depth = (before.match(/\{/g) || []).length - (before.match(/\}/g) || []).length;
+        expect(depth).toBe(0);
+    });
+
+    test('it rounds the board cell down', () => {
+        expect(declarations.slice(at)).toMatch(
+            /^@supports \(width: round\(down, 1\.5px, 1px\)\)\s*\{\s*#mineDisplay\s*\{\s*--mine-cell: round\(down, var\(--mine-fit\), 1px\);/,
+        );
     });
 });
 

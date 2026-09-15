@@ -1092,6 +1092,77 @@ written down here than left as code nobody calls.
 was: every cell ignores a tap once the game is over, and the state is immutable. Worth
 checking before letting another game end this way.
 
+## Zooming the Minesweeper board
+
+Built 2026-09-15, after the project owner's sister found the 20x20 cells too small to
+tap. Three designs were weighed - a press-and-hold magnifier, a zoomed window with an
+overview, and tap to zoom then tap to play - and what was built is the second, with one
+rule taken from the third.
+
+**The goals it was held to**, set by the project owner: tapping a cell is measurably
+easier on a phone; there is more than one zoom level; a zoomed view never shows fewer
+than 21 cells (5x5, or 25 less its corners if the window were round); and it has to
+carry a bigger board, so a 40x40 preset came with it.
+
+**The magnifier was turned down** because it makes a cell bigger to see, not to hit. The
+finger still moves across a 14px grid - 6px on the 40x40 board - and a lens only shows
+what is under it. It also needed a press-and-hold nobody would know about, which is the
+same reason Flag mode is a toggle and not a long press.
+
+**Levels count cells across, not magnification**: 10, 7 and 5. "2x" is a different window
+on every board and every phone; "5 across" is the same window everywhere, and the
+closest level is what guarantees the 25 cells. A level is only offered when it shows
+less than the board, so the 10x10 board gets 7 and 5.
+
+**The rule from the third design: a finger's tap on a cell under 24px zooms in on that
+spot instead of playing it.** 24px is the WCAG 2.2 minimum target size. On a phone this
+makes the 20x20 and 40x40 boards, seen whole, a map: the first tap picks the
+neighbourhood, the next plays. The closest level always plays, whatever its size. A
+mouse and a keyboard are never redirected - both are precise at any size - so on a
+desktop the 20x20 board still plays straight from the whole view. Some phones raise a
+context menu on a long press; that is held to the same rule, so it cannot flag blind.
+
+**The pass mark is predicted, and asserted.** `predictCellSize` in `js/boardzoom.js`
+mirrors the stylesheet's sizing, and `tests/markup/layout.test.js` fails if the two
+drift. `tests/boardzoom` then checks, on 320, 375 and 412px portrait phones: the closest
+level is at least 44px a cell; no tap ever plays a cell under 24px; the whole board still
+fits the column. For scale, the 20x20 board seen whole is 14px a cell on a 375px phone,
+and 62px at 5 across. Whether it *feels* easier is still a play test; the numbers are
+the part a test can hold.
+
+Not covered: a phone on its side. The board budgets 52vh of height, so in landscape the
+closest level comes out around 30-40px - above the tap floor, short of 44.
+
+**Only the window's cells exist.** A pan tells the buttons which squares they now stand
+for rather than rebuilding them, for the reason the board was never rebuilt per move:
+replacing the element under a finger cancels the gesture. They are rebuilt only when a
+zoom changes how many there are.
+
+**A drag moves whole cells**, never part of one, so the window is always exactly its
+level's size. `touch-action: none` is set only while zoomed - the whole board is never
+dragged, and there the page has to scroll as usual. Pointer capture is taken only once a
+press has moved 8px: taking it on the way down retargets the click to the board, and no
+tap would ever land on a cell.
+
+**The overview** is a canvas of the board in flat colours - `MINE_MINIMAP` in
+`js/logic.js`, asserted in `tests/contrast` - with the window outlined in two rings,
+lantern and canopy, because lantern alone nearly vanishes over cleared ground (1.2:1).
+It shows only what the board already shows, so it stays inside "the game must not do
+the player's thinking". It keeps its space while hidden, so zooming in does not push the
+board down.
+
+**40x40 has 288 mines, 18%**, continuing the climb: 12%, 15%, 18%, short of the classic
+expert board's 20.6%. Seen whole on a 320px phone it needs 4.85px a cell, so the cell
+floor came down from 10px to 4px. The earlier reasoning still holds - a floor above what
+fits only guarantees an overflow - and no finger is asked to hit a cell that small now.
+
+**Fixed with it: the whole-pixel rounding had stopped applying.** The `@supports` block
+from "Whole-pixel cell sizes" had been pasted into the middle of the
+`.mine-cell.is-revealed` rule. Under CSS nesting a browser reads that as a rule for
+`.mine-cell.is-revealed #mineDisplay`, which matches nothing, so cells had quietly gone
+back to fractional widths. It is at the top level again, and a layout test fails if it
+is ever nested inside a rule.
+
 **Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
 to show every flag identically, so the player could see where the mines had been but not
 which of their own marks had been wrong - which is the half worth learning from. A flag

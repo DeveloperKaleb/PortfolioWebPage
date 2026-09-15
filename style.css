@@ -931,10 +931,15 @@ a:active  {color: #002e2c;}
        the board is measured against the column rather than the screen, 12px was itself
        such a floor: on a 320px phone the 20x20 board needs 11.7px cells to fit the
        288px column, so a 12px floor put it back over the edge by 6px. */
-    --mine-fit: max(10px, min(
+    /* And now 4px, for the 40x40 board, which seen whole on a 320px phone needs 4.85px
+       a cell. Nobody is asked to hit one that small: a finger's tap on anything under
+       24px zooms in instead (NOTES.md, "Zooming the Minesweeper board"). The cap is a
+       variable so a zoomed window can grow past 40px. js/boardzoom.js predicts these
+       same sizes for the tests - keep the two in step. */
+    --mine-fit: max(4px, min(
         calc((var(--board-space) - (var(--mine-cols) - 1) * 2px - 16px) / var(--mine-cols)),
         calc((52vh - (var(--mine-rows) - 1) * 2px) / var(--mine-rows)),
-        40px
+        var(--mine-cap, 40px)
     ));
 
     /* Whole pixels, because a fractional track size makes the columns visibly
@@ -1015,15 +1020,18 @@ a:active  {color: #002e2c;}
     /* Mirrors MINE_GRADIENTS.revealed. The numbers are read against this, so both
        stops are checked - the lowest tier still manages 4.56:1 at the dark end. */
     background: linear-gradient(#e6e9dc, #d3d8c6);
-    /* Whole-pixel cells, where the browser can do the arithmetic. */
+    /* Cleared ground sits back; unopened ground keeps its raised edge. */
+    box-shadow: none;
+}
+
+/* Whole-pixel cells, where the browser can do the arithmetic. This has to sit at the
+   top level. It was once pasted into the middle of the rule above, where CSS nesting
+   read it as `.mine-cell.is-revealed #mineDisplay` - a selector that matches nothing -
+   and the rounding silently stopped. tests/markup/layout.test.js now checks. */
 @supports (width: round(down, 1.5px, 1px)) {
     #mineDisplay {
         --mine-cell: round(down, var(--mine-fit), 1px);
     }
-}
-
-/* Cleared ground sits back; unopened ground keeps its raised edge. */
-    box-shadow: none;
 }
 
 .mine-cell:not(.is-revealed) {
@@ -1052,6 +1060,24 @@ a:active  {color: #002e2c;}
 
 #mineDisplay.is-over .mine-cell {
     cursor: default;
+}
+
+/* Zoomed in, the board is a window onto a larger one and a drag moves it, so the page
+   must not scroll or zoom under that drag. Set on the cells as well, since that is where
+   the gesture starts. Only while zoomed: the whole board is never dragged, and there
+   the page should scroll as it always has. */
+#mineDisplay.is-zoomed {
+    --mine-cap: 96px;
+    touch-action: none;
+}
+
+#mineDisplay.is-zoomed .mine-cell {
+    touch-action: none;
+}
+
+#mineDisplay.is-panning,
+#mineDisplay.is-panning .mine-cell {
+    cursor: grabbing;
 }
 
 #mine-status {
@@ -1742,6 +1768,7 @@ a:active  {color: #002e2c;}
 #tetris-controls select,
 #mine-controls button,
 #mine-controls select,
+#mine-zoom button,
 #sequence-controls button,
 #sequence-controls select,
 #tictactoe-controls button,
@@ -1812,6 +1839,7 @@ a:active  {color: #002e2c;}
 #game-controls p,
 #tetris-controls p,
 #mine-controls p,
+#mine-zoom p,
 #sequence-controls p,
 #tictactoe-controls p {
     margin: 0;
@@ -1834,6 +1862,7 @@ a:active  {color: #002e2c;}
     #game-controls button:hover:not(:disabled),
     #tetris-controls button:hover:not(:disabled),
     #mine-controls button:hover:not(:disabled),
+    #mine-zoom button:hover:not(:disabled),
     #sequence-controls button:hover:not(:disabled),
     #tictactoe-controls button:hover:not(:disabled),
     #pets-controls button:hover:not(:disabled),
@@ -1849,6 +1878,7 @@ a:active  {color: #002e2c;}
 #tetris-controls select:focus-visible,
 #mine-controls button:focus-visible,
 #mine-controls select:focus-visible,
+#mine-zoom button:focus-visible,
 #sequence-controls button:focus-visible,
 #sequence-controls select:focus-visible,
 #tictactoe-controls button:focus-visible,
@@ -1876,6 +1906,51 @@ a:active  {color: #002e2c;}
     font-weight: bold;
 }
 
+/* Minesweeper's zoom bar: out, the level, in, and the overview of where the window is.
+   The overview keeps its space while the whole board is shown, only invisible, so that
+   zooming in does not push the board down under the player's thumb. */
+#mine-zoom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+#mine-zoom button {
+    min-width: 48px;
+    font-size: 22px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+#mine-zoom-level {
+    min-width: 8em;
+    text-align: center;
+    line-height: 1.3;
+}
+
+#mine-zoom-hint {
+    display: block;
+    min-height: 1.3em;
+    font-size: 0.85em;
+}
+
+#mineMinimap {
+    width: 80px;
+    height: 80px;
+    border: 2px solid var(--control-border);
+    border-radius: 4px;
+    background-color: #141f18; /* MINE_COLORS.frame */
+    /* Pressed and slid, never scrolled: the page must not move under it. */
+    touch-action: none;
+    cursor: pointer;
+}
+
+#mineMinimap.is-idle {
+    visibility: hidden;
+}
+
 /* Falling Polyominos gets the piece colours themselves along its controls - one each,
    alternating across the blue-yellow axis so neighbours stay apart. They are the same
    seven already proved distinguishable as pieces, so the party cannot introduce a
@@ -1899,6 +1974,7 @@ a:active  {color: #002e2c;}
 #tetris-controls select:disabled,
 #mine-controls button:disabled,
 #mine-controls select:disabled,
+#mine-zoom button:disabled,
 #sequence-controls button:disabled,
 #sequence-controls select:disabled,
 #tictactoe-controls button:disabled,

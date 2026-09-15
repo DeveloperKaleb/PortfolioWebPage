@@ -19,6 +19,7 @@ import {
     TOY_COLORS,
     toHex,
     MINE_COLORS,
+    MINE_MINIMAP,
     numberColor,
     SEQUENCE_PADS,
     PETS_COLORS,
@@ -56,6 +57,20 @@ import {
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
+import {
+    wholeView,
+    windowSize,
+    centreOn,
+    canZoomIn,
+    zoomIn,
+    zoomOut,
+    dragView,
+    viewForBoard,
+    tapZooms,
+    minimapScale,
+    cellAtMinimap,
+    DRAG_THRESHOLD_PX
+} from '../js/boardzoom.js';
 // Classic and Terni Lapilli share one view and answer the same questions, so they are
 // taken whole and the view picks between them - see PART 6.
 import * as TicTacToe from '../js/tictactoe.js';
@@ -795,23 +810,125 @@ const mineCountEl = document.getElementById('mine-count');
 const mineStatusEl = document.getElementById('mine-status');
 const flagToggleEl = document.getElementById('flagToggle');
 const mineModeSelect = document.getElementById('mineModeSelect');
+const mineZoomInBtn = document.getElementById('mineZoomIn');
+const mineZoomOutBtn = document.getElementById('mineZoomOut');
+const mineZoomLabelEl = document.getElementById('mine-zoom-label');
+const mineZoomHintEl = document.getElementById('mine-zoom-hint');
+const mineMinimap = document.getElementById('mineMinimap');
 
 let mineGame = createMinesweeper();
 let flagMode = false;
 
+/* Which part of the board is on screen: all of it, or a window some number of cells
+   across. The maths is in js/boardzoom.js; NOTES.md, "Zooming the Minesweeper board",
+   has why the levels count cells rather than magnification. */
+let mineView = wholeView();
+
+// The overview's longer side, in CSS pixels.
+const MINE_MINIMAP_PX = 80;
+
+/* What kind of pointer pressed last - the tap-to-zoom rule is for fingers only. Noted on
+   the way down because the click that follows does not carry it in every browser. */
+let mineLastPointerType = 'mouse';
+const coarsePointer = window.matchMedia('(pointer: coarse)');
+
 /* The board is built once and then repainted, rather than rebuilt on every move. A
    fresh innerHTML would drop the element the player just pressed, which on touch
-   cancels the gesture mid-tap. */
+   cancels the gesture mid-tap.
+
+   Only the window's cells exist. They are rebuilt when a zoom changes how many there
+   are, and otherwise just told which square they now stand for - so a pan moves the
+   board under the buttons rather than replacing the buttons. */
 function createMineBoard() {
-    let html = '';
+    const { cols, rows } = windowSize(mineGame, mineView.across);
+    mineBoard.innerHTML = '<button class="mine-cell"></button>'.repeat(cols * rows);
+    mineBoard.style.setProperty('--mine-cols', cols);
+    mineBoard.style.setProperty('--mine-rows', rows);
+    mineBoard.classList.toggle('is-zoomed', mineView.across !== null);
+    placeMineWindow();
+}
+
+function placeMineWindow() {
+    const { cols } = windowSize(mineGame, mineView.across);
+    mineBoard.querySelectorAll('.mine-cell').forEach((cell, i) => {
+        cell.dataset.x = mineView.left + (i % cols);
+        cell.dataset.y = mineView.top + Math.floor(i / cols);
+    });
+}
+
+function setMineView(next) {
+    const resized = next.across !== mineView.across;
+    mineView = next;
+    if (resized) createMineBoard();
+    else placeMineWindow();
+    drawMineBoard();
+}
+
+/* How wide a cell is on screen right now, or null while the view is hidden and there is
+   nothing to measure. Measured rather than predicted: the stylesheet decides the size,
+   and asking the page is the one answer that cannot drift from it. */
+function mineCellWidth() {
+    const cell = mineBoard.querySelector('.mine-cell');
+    const width = cell ? cell.getBoundingClientRect().width : 0;
+    return width > 0 ? width : null;
+}
+
+function updateMineZoomControls() {
+    const zoomed = mineView.across !== null;
+    mineZoomOutBtn.disabled = !zoomed;
+    mineZoomInBtn.disabled = !canZoomIn(mineGame, mineView);
+    mineMinimap.classList.toggle('is-idle', !zoomed);
+    mineZoomLabelEl.textContent = zoomed ? `${mineView.across} across` : 'Whole board';
+
+    /* The hint says what a tap or a drag will do - the player's controls, never the
+       board, the same line the status message keeps. */
+    const width = mineCellWidth();
+    let hint = '';
+    if (coarsePointer.matches && width !== null && tapZooms(mineGame, mineView, width)) hint = 'Tap to zoom in';
+    else if (zoomed) hint = 'Drag to move';
+    mineZoomHintEl.textContent = hint;
+}
+
+/* The overview: the board in flat colours, and the window outlined in two rings so it
+   shows over either ground - see MINE_MINIMAP in js/logic.js. Hidden while the whole
+   board is on screen, since it would only repeat it. */
+function drawMineMinimap() {
+    if (mineView.across === null) return;
+    const scale = minimapScale(mineGame, MINE_MINIMAP_PX);
+    const width = mineGame.width * scale;
+    const height = mineGame.height * scale;
+    const ratio = window.devicePixelRatio || 1;
+    if (mineMinimap.width !== Math.round(width * ratio) || mineMinimap.height !== Math.round(height * ratio)) {
+        mineMinimap.width = Math.round(width * ratio);
+        mineMinimap.height = Math.round(height * ratio);
+        mineMinimap.style.width = `${width}px`;
+        mineMinimap.style.height = `${height}px`;
+    }
+
+    const ctx = mineMinimap.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.fillStyle = MINE_MINIMAP.hidden;
+    ctx.fillRect(0, 0, width, height);
     for (let y = 1; y <= mineGame.height; y++) {
         for (let x = 1; x <= mineGame.width; x++) {
-            html += `<button class="mine-cell" data-x="${x}" data-y="${y}"></button>`;
+            let fill = null;
+            if (isRevealed(mineGame, x, y)) fill = MINE_MINIMAP.revealed;
+            else if (isFlagged(mineGame, x, y)) fill = MINE_MINIMAP.flag;
+            if (!fill) continue;
+            ctx.fillStyle = fill;
+            ctx.fillRect((x - 1) * scale, (y - 1) * scale, scale, scale);
         }
     }
-    mineBoard.innerHTML = html;
-    mineBoard.style.setProperty('--mine-cols', mineGame.width);
-    mineBoard.style.setProperty('--mine-rows', mineGame.height);
+
+    const { cols, rows } = windowSize(mineGame, mineView.across);
+    const left = (mineView.left - 1) * scale;
+    const top = (mineView.top - 1) * scale;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = MINE_MINIMAP.windowDark;
+    ctx.strokeRect(left + 0.5, top + 0.5, cols * scale - 1, rows * scale - 1);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = MINE_MINIMAP.windowLight;
+    ctx.strokeRect(left + 2, top + 2, cols * scale - 4, rows * scale - 4);
 }
 
 function paintMineCell(cell) {
@@ -901,6 +1018,8 @@ function drawMineBoard() {
     // Only a finished game gets the banner treatment; in play this is a quiet hint line.
     mineStatusEl.classList.toggle('is-result', isOver(mineGame));
     mineBoard.classList.toggle('is-over', isOver(mineGame));
+    updateMineZoomControls();
+    drawMineMinimap();
 }
 
 function setFlagMode(on) {
@@ -913,6 +1032,8 @@ function setFlagMode(on) {
 function initMinesweeper() {
     const preset = MINE_PRESETS[mineModeSelect ? mineModeSelect.value : 'standard'] || MINE_PRESETS.standard;
     mineGame = createMinesweeper(preset);
+    // A chosen zoom level carries over to the next game, if the new board offers it.
+    mineView = viewForBoard(mineGame, mineView);
     setFlagMode(false);
     createMineBoard();
     drawMineBoard();
@@ -935,19 +1056,117 @@ function playMineCell(x, y, { flag = false } = {}) {
     drawMineBoard();
 }
 
-mineBoard.addEventListener('click', (event) => {
-    const cell = event.target.closest('.mine-cell');
-    if (!cell) return;
-    playMineCell(Number(cell.dataset.x), Number(cell.dataset.y), { flag: flagMode });
+/* Dragging a zoomed board. A press only becomes a drag once it has moved
+   DRAG_THRESHOLD_PX, and only then takes pointer capture: capturing on the way down
+   would retarget the click to the board, and no tap would ever land on a cell. */
+let minePress = null;
+let mineDragged = false;
+
+mineBoard.addEventListener('pointerdown', (event) => {
+    mineLastPointerType = event.pointerType;
+    mineDragged = false;
+    if (mineView.across === null || !event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const width = mineCellWidth();
+    if (width === null) return;
+    minePress = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        view: mineView,
+        pitch: width + 2, // a cell and the 2px gap after it
+        dragging: false,
+    };
 });
 
-// Right-click flags on a mouse; the toggle is what a touchscreen uses instead.
+mineBoard.addEventListener('pointermove', (event) => {
+    if (!minePress || event.pointerId !== minePress.id) return;
+    const dx = event.clientX - minePress.x;
+    const dy = event.clientY - minePress.y;
+    if (!minePress.dragging) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+        minePress.dragging = true;
+        mineDragged = true;
+        mineBoard.setPointerCapture(event.pointerId);
+        mineBoard.classList.add('is-panning');
+    }
+    const next = dragView(mineGame, minePress.view, dx, dy, minePress.pitch);
+    if (next.left !== mineView.left || next.top !== mineView.top) setMineView(next);
+});
+
+const endMinePress = (event) => {
+    if (!minePress || event.pointerId !== minePress.id) return;
+    minePress = null;
+    mineBoard.classList.remove('is-panning');
+};
+window.addEventListener('pointerup', endMinePress);
+window.addEventListener('pointercancel', endMinePress);
+
+mineBoard.addEventListener('click', (event) => {
+    // Some browsers still send a click at the end of a drag; the drag was the gesture.
+    if (mineDragged && event.detail !== 0) {
+        mineDragged = false;
+        return;
+    }
+    const cell = event.target.closest('.mine-cell');
+    if (!cell) return;
+    const x = Number(cell.dataset.x);
+    const y = Number(cell.dataset.y);
+
+    /* A finger on a cell too small to hit reliably zooms in on that spot instead of
+       playing it. A mouse is precise at any size, and a keyboard press (detail 0) names
+       its cell exactly, so neither is redirected. See NOTES.md. */
+    if (event.detail !== 0 && mineLastPointerType !== 'mouse'
+        && tapZooms(mineGame, mineView, cell.getBoundingClientRect().width)) {
+        setMineView(zoomIn(mineGame, mineView, { x, y }));
+        return;
+    }
+    playMineCell(x, y, { flag: flagMode });
+});
+
+// Right-click flags on a mouse; the toggle is what a touchscreen uses instead. Some
+// phones raise this on a long press, which must not flag a cell too small to see.
 mineBoard.addEventListener('contextmenu', (event) => {
     const cell = event.target.closest('.mine-cell');
     if (!cell) return;
     event.preventDefault();
+    if (mineDragged) return;
+    if (mineLastPointerType !== 'mouse'
+        && tapZooms(mineGame, mineView, cell.getBoundingClientRect().width)) return;
     playMineCell(Number(cell.dataset.x), Number(cell.dataset.y), { flag: true });
 });
+
+mineZoomInBtn.addEventListener('click', () => setMineView(zoomIn(mineGame, mineView)));
+mineZoomOutBtn.addEventListener('click', () => setMineView(zoomOut(mineGame, mineView)));
+
+/* The overview moves the window: press to centre it there, and keep pressing to slide
+   it along. Offsets are taken inside the border, which is what clientLeft is for. */
+function moveMineWindowTo(event) {
+    const rect = mineMinimap.getBoundingClientRect();
+    const scale = mineMinimap.clientWidth / mineGame.width;
+    const { x, y } = cellAtMinimap(
+        mineGame,
+        event.clientX - rect.left - mineMinimap.clientLeft,
+        event.clientY - rect.top - mineMinimap.clientTop,
+        scale,
+    );
+    setMineView(centreOn(mineGame, mineView.across, x, y));
+}
+
+mineMinimap.addEventListener('pointerdown', (event) => {
+    if (mineView.across === null || !event.isPrimary) return;
+    mineMinimap.setPointerCapture(event.pointerId);
+    moveMineWindowTo(event);
+});
+
+mineMinimap.addEventListener('pointermove', (event) => {
+    if (mineView.across !== null && mineMinimap.hasPointerCapture(event.pointerId)) moveMineWindowTo(event);
+});
+
+/* A turned phone or a resized window changes the cell size without a move being made,
+   and with it whether a tap zooms. This also catches the view first being shown: a
+   hidden board has no size to measure. */
+if ('ResizeObserver' in window) new ResizeObserver(updateMineZoomControls).observe(mineBoard);
 
 flagToggleEl.addEventListener('click', () => setFlagMode(!flagMode));
 

@@ -8,7 +8,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
+import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, MINE_MINIMAP, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -221,6 +221,25 @@ describe('Minesweeper palette', () => {
         }
         expect(numberColor(1)).toBe(numberColor(2));
         expect(numberColor(1)).not.toBe(numberColor(8));
+    });
+});
+
+describe('Minesweeper overview', () => {
+    const { hidden, revealed, flag, windowLight, windowDark } = MINE_MINIMAP;
+
+    test('opened and unopened ground stay obviously different at two pixels a cell', () => {
+        expect(worstCaseContrast(hidden, revealed)).toBeGreaterThan(4);
+    });
+
+    test.each([['unopened', hidden], ['cleared', revealed]])('a flag can be told from %s ground', (_label, ground) => {
+        expect(areDistinguishable(flag, ground)).toBe(true);
+    });
+
+    /* Two rings rather than one: whichever ground the outline crosses, one of its two
+       colours has to clear the floor against it. */
+    test.each([['unopened', hidden], ['cleared', revealed]])('the window outline shows over %s ground', (_label, ground) => {
+        const best = Math.max(worstCaseContrast(windowLight, ground), worstCaseContrast(windowDark, ground));
+        expect(best).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 });
 

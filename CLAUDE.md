@@ -55,7 +55,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is nine modules, all free of `document`/DOM calls so they stay testable
+The pure layer is ten modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -84,6 +84,10 @@ under Vitest without a browser:
 - `js/pets.js` — Pets: the pixel sprites as data, the room's layout, what counts as a
   stroke and when a bark is due, and the bowls. No timers: the walk, the chomp, the wag
   and the synthesised bark live in `entertainment.js`. See NOTES.md.
+- `js/boardzoom.js` — zooming a board too fine to tap: levels counted in cells across,
+  where the window sits, the tap-to-zoom rule, and a prediction of cell sizes that
+  mirrors the stylesheet so the phone pass mark can be tested. Board-agnostic;
+  Minesweeper is its only user. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

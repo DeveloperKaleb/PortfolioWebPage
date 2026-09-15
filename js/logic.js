@@ -463,6 +463,18 @@ export const MINE_COLORS = {
    js/contrast.js), but anything drawn ON one still has to clear the floor at every
    stop, because the background beneath it changes. These stops are what the flag and
    the numbers are checked against. */
+/* The overview beside a zoomed board. At two pixels a cell a gradient is invisible, so
+   cells are flat palette colours. The window is outlined twice, because no single
+   colour stands out from both grounds: lantern is 5.5:1 over unopened ground but 1.2:1
+   over cleared, canopy the reverse. One ring of each means one of them always shows. */
+export const MINE_MINIMAP = {
+    hidden: MINE_COLORS.hidden,
+    revealed: MINE_COLORS.revealed,
+    flag: MINE_COLORS.flag,
+    windowLight: MINE_COLORS.flag,
+    windowDark: MINE_COLORS.frame,
+};
+
 export const MINE_GRADIENTS = {
     hidden: ['#35543f', '#2a4232'],   // canopy, lit above and shaded below
     revealed: ['#e6e9dc', '#d3d8c6'], // lichen, brighter where the light falls

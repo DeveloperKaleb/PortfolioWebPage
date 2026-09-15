@@ -337,9 +337,11 @@ describe('Board presets', () => {
 
     /* Density climbs with size on purpose. A bigger board at the same density is only
        longer, not harder - the interesting part of a large board is that the deductions
-       get denser too. 12% is near the classic beginner ratio, 15% near intermediate. */
-    test('the larger board is denser, not just longer', () => {
+       get denser too. 12% is near the classic beginner ratio, 15% near intermediate,
+       18% just short of expert. */
+    test('each larger board is denser, not just longer', () => {
         expect(mineDensity(PRESETS.large)).toBeGreaterThan(mineDensity(PRESETS.standard));
+        expect(mineDensity(PRESETS.huge)).toBeGreaterThan(mineDensity(PRESETS.large));
     });
 
     test.each(presets)('%s stays inside a sane density', (_name, preset) => {
@@ -363,6 +365,12 @@ describe('Board presets', () => {
 
     test('a large board can be played to a win', () => {
         const game = flagAllMines(clearBoard(reveal(createGame(PRESETS.large), 10, 10, Math.random)));
+        expect(game.status).toBe(STATUS.WON);
+        expect(flagsRemaining(game)).toBe(0);
+    });
+
+    test('a huge board can be played to a win', () => {
+        const game = flagAllMines(clearBoard(reveal(createGame(PRESETS.huge), 20, 20, Math.random)));
         expect(game.status).toBe(STATUS.WON);
         expect(flagsRemaining(game)).toBe(0);
     });

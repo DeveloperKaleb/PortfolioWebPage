@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Entertainment - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260912-2031" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20260912-2031" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260915-0809" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20260915-0809" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -193,6 +193,7 @@
                 <select id="mineModeSelect" aria-label="Board size">
                     <option value="standard">Standard (10x10)</option>
                     <option value="large">Large (20x20)</option>
+                    <option value="huge">Huge (40x40)</option>
                 </select>
                 <!-- Flagging needs a second gesture. Right-click covers a mouse, but a
                      touchscreen has no equivalent, so this toggle is the way in on a
@@ -204,6 +205,20 @@
                 <button type="button" id="mineStartBtn">New Game</button>
             </div>
             <p id="mine-status" role="status">Tap any square to begin.</p>
+
+            <!-- Zoom, for boards too fine to tap: out, the level, in, and an overview of
+                 where the zoomed window sits. Levels count cells across rather than a
+                 magnification, so the closest still shows 5x5. See NOTES.md. -->
+            <div id="mine-zoom">
+                <button type="button" id="mineZoomOut" aria-label="Zoom out">&minus;</button>
+                <p id="mine-zoom-level" aria-live="polite">
+                    <span id="mine-zoom-label">Whole board</span>
+                    <span id="mine-zoom-hint"></span>
+                </p>
+                <button type="button" id="mineZoomIn" aria-label="Zoom in">+</button>
+                <canvas id="mineMinimap" class="is-idle" width="80" height="80" role="img"
+                        aria-label="Overview of the board. Press it to move the zoomed window."></canvas>
+            </div>
 
             <!-- Deliberately not .butMania: that class brings a rule for 30px
                  cells which out-specifies this board's own sizing. -->
@@ -364,9 +379,9 @@
       <p id="last-updated"></p>
     </footer>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260912-2031"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260912-2031"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260912-2031"></script>
-    <script type="module" src="./entertainment.js?v=20260912-2031"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260915-0809"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260915-0809"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260915-0809"></script>
+    <script type="module" src="./entertainment.js?v=20260915-0809"></script>
 </body>
 </html>

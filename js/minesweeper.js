@@ -207,10 +207,12 @@ export const isCorrectlyFlagged = (game, x, y) =>
 /* Board sizes offered in the UI. Density climbs with size deliberately: a bigger board
    at the same density is only longer, not harder, and the interesting part of a large
    board is that the deductions get denser too. 12% is close to the classic beginner
-   ratio, 15% to intermediate. */
+   ratio, 15% to intermediate, and 18% sits below expert's 20.6%. The 40x40 board is
+   only playable on a phone through the zoom - see js/boardzoom.js. */
 export const PRESETS = {
     standard: { label: 'Standard (10x10)', width: 10, height: 10, mineCount: 12 },
     large: { label: 'Large (20x20)', width: 20, height: 20, mineCount: 60 },
+    huge: { label: 'Huge (40x40)', width: 40, height: 40, mineCount: 288 },
 };
 
 export const mineDensity = (preset) => preset.mineCount / (preset.width * preset.height);
