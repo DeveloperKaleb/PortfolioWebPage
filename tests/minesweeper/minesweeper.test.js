@@ -5,6 +5,7 @@ import {
     safeCellCount, isOver, isWon, isOpeningMove, STATUS, PRESETS, mineDensity,
     correctFlagCount, misplacedFlagCount, isCorrectlyFlagged,
 } from '../../js/minesweeper.js';
+import { findSafeSquare } from '../../js/minesolver.js';
 
 // Reveal everything that is not a mine, which is what winning requires.
 const clearBoard = (game) => {
@@ -111,12 +112,20 @@ describe('Revealing', () => {
         expect(game.revealed.size).toBeGreaterThan(1);
     });
 
-    test('revealing a mine ends the game', () => {
-        let game = reveal(createGame(), 1, 1, Math.random);
-        const [mx, my] = [...game.mines][0].split(',').map(Number);
-        game = reveal(game, mx, my, Math.random);
-        expect(game.status).toBe(STATUS.LOST);
-        expect(isOver(game)).toBe(true);
+    /* Only while a safe square could have been proven: otherwise the guess was forced and
+       is forgiven, which tests/minesolver covers. So this waits for an opening that
+       leaves a provable move, which almost every one does. */
+    test('revealing a mine ends the game when a safe square was provable', () => {
+        for (let attempt = 0; attempt < 50; attempt++) {
+            let game = reveal(createGame(), 1, 1, Math.random);
+            if (findSafeSquare(game).result !== 'safe') continue;
+            const [mx, my] = [...game.mines][0].split(',').map(Number);
+            game = reveal(game, mx, my, Math.random);
+            expect(game.status).toBe(STATUS.LOST);
+            expect(isOver(game)).toBe(true);
+            return;
+        }
+        throw new Error('no opening left a provable move in 50 tries');
     });
 
     test('a flagged cell is protected from being revealed', () => {

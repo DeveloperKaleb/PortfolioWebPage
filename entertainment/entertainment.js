@@ -1128,8 +1128,8 @@ mineBoard.addEventListener('click', (event) => {
     const x = Number(cell.dataset.x);
     const y = Number(cell.dataset.y);
 
-    /* A finger on a cell too small to hit reliably zooms in on that spot instead of
-       playing it. A mouse is precise at any size, and a keyboard press (detail 0) names
+    /* On the whole board, a finger on a cell too small to hit reliably zooms in on that
+       spot instead of playing it; once zoomed, every tap plays (tapZooms). A mouse is precise at any size, and a keyboard press (detail 0) names
        its cell exactly, so neither is redirected. See NOTES.md. */
     const width = cell.getBoundingClientRect().width;
     if (event.detail !== 0 && mineLastPointerType !== 'mouse' && mineTapZooms(width)) {
@@ -1141,14 +1141,15 @@ mineBoard.addEventListener('click', (event) => {
 });
 
 // Right-click flags on a mouse; the toggle is what a touchscreen uses instead. Some
-// phones raise this on a long press, which must not flag a cell too small to see.
+// phones raise this on a long press. On the whole board that must not flag a cell too
+// small to see; zoomed in, a long press is the start of moving the view, never a flag.
 mineBoard.addEventListener('contextmenu', (event) => {
     const cell = event.target.closest('.mine-cell');
     if (!cell) return;
     event.preventDefault();
     if (mineDragged) return;
     if (mineLastPointerType !== 'mouse'
-        && tapZooms(mineGame, mineView, cell.getBoundingClientRect().width)) return;
+        && (mineView.across !== null || tapZooms(mineGame, mineView, cell.getBoundingClientRect().width))) return;
     playMineCell(Number(cell.dataset.x), Number(cell.dataset.y), { flag: true });
 });
 

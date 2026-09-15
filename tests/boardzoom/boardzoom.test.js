@@ -122,8 +122,12 @@ describe('A tap on a cell too small to hit zooms in instead', () => {
         expect(zoomForTap(board, wholeView(), 14, { x: 10, y: 10 })).toEqual(centreOn(board, 12, 10, 10));
     });
 
-    test('from a zoomed view it only ever goes closer', () => {
-        expect(zoomForTap(board, centreOn(board, 15, 10, 10), 19, { x: 10, y: 10 }).across).toBe(12);
+    /* The project owner's call: a second zoom from a zoomed view was jarring, so once
+       zoomed a tap only ever clears or flags, however small the cells. */
+    test('once zoomed, a tap never zooms again, whatever the size', () => {
+        [15, 12, 10].forEach((across) => {
+            expect(tapZooms(board, centreOn(board, across, 10, 10), 8)).toBe(false);
+        });
     });
 
     test('when no level would clear the floor, it goes to the closest', () => {
@@ -145,8 +149,8 @@ describe('The overview', () => {
 });
 
 /* The pass mark: on a phone, the closest level is as easy to tap as the Standard board
-   - which the project owner judged by playing it - and nothing smaller than 24px is
-   ever played by a tap. Sizes come from predictCellSize, which mirrors the stylesheet;
+   - which the project owner judged by playing it - and a tap on the whole board never
+   plays anything under 24px, zooming to a level that clears it instead. Sizes come from predictCellSize, which mirrors the stylesheet;
    tests/markup/layout.test.js holds the two together. Whether it feels easier is still
    a play test; this is the part a test can hold. */
 describe('The pass mark: tapping is measurably easier on a phone', () => {
@@ -172,11 +176,11 @@ describe('The pass mark: tapping is measurably easier on a phone', () => {
                 .toBeGreaterThanOrEqual(sizeOn(PRESETS.standard, wholeView(), width, height));
         });
 
-        test.each(boards)('%s: a tap never plays a cell under 24px', (_name, board) => {
-            viewsOf(board).forEach((view) => {
-                const size = sizeOn(board, view, width, height);
-                expect(size >= TAP_FLOOR_PX || tapZooms(board, view, size)).toBe(true);
-            });
+        /* The whole board only: once zoomed every tap plays, and the tap that zoomed in
+           is held to landing on a playable level by the next test. */
+        test.each(boards)('%s: on the whole board, a tap never plays a cell under 24px', (_name, board) => {
+            const size = sizeOn(board, wholeView(), width, height);
+            expect(size >= TAP_FLOOR_PX || tapZooms(board, wholeView(), size)).toBe(true);
         });
 
         test.each(zoomable)('%s: one tap on the whole board reaches a level that plays', (_name, board) => {

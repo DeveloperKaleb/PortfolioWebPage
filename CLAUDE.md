@@ -55,7 +55,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is ten modules, all free of `document`/DOM calls so they stay testable
+The pure layer is eleven modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -67,7 +67,11 @@ under Vitest without a browser:
 - `js/strands.js` — boards whose cells can hold more than one piece of track, for maps
   that cross over themselves. Map-agnostic; the Infinity Snake board is its first user.
 - `js/minesweeper.js` — Minesweeper rules: mine placement, cascades, flags, chording,
-  win/lose. Immutable, so every function returns a new game.
+  win/lose. Immutable, so every function returns a new game. A tap on a mine asks
+  `js/minesolver.js` whether the guess was forced before it loses.
+- `js/minesolver.js` — exact Minesweeper deductions: whether any square is provably
+  safe, and the nearest mine layout that spares a forced guess. Held to a size budget by
+  its tests. See NOTES.md before touching it.
 - `js/sequence.js` — Sequence rules: the run, the player's answer, the difficulty ramp,
   and one tone per pad. Immutable like Minesweeper, and deliberately free of timers —
   playback timing belongs to the DOM layer, which is what keeps this testable. Sequence

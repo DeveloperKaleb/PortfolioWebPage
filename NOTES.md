@@ -1130,10 +1130,14 @@ every level.
 **The rule from the third design: a finger's tap on a cell under 24px zooms in on that
 spot instead of playing it.** 24px is the WCAG 2.2 minimum target size. On a phone this
 makes the 20x20 and 40x40 boards, seen whole, a map: the first tap picks the
-neighbourhood, the next plays. The closest level always plays, whatever its size. A
+neighbourhood, the next plays. Once zoomed in, every tap plays, whatever the cell size:
+the project owner found a second zoom from a zoomed view jarring, so there a tap only
+ever clears or flags, and a press that slides moves the view. A
 mouse and a keyboard are never redirected - both are precise at any size - so on a
 desktop the 20x20 board still plays straight from the whole view. Some phones raise a
-context menu on a long press; that is held to the same rule, so it cannot flag blind.
+context menu on a long press. On the whole board that is held to the same rule, so it
+cannot flag blind; zoomed in it never flags at all - a long press there is the start of
+moving the view.
 
 **Except the opening tap, which plays at any size.** Asked for by the project owner the
 same day, on first trying the 40x40 board. Mines are laid after the first square is
@@ -1148,14 +1152,14 @@ already right.
 **The pass mark is predicted, and asserted.** `predictCellSize` in `js/boardzoom.js`
 mirrors the stylesheet's sizing, and `tests/markup/layout.test.js` fails if the two
 drift. `tests/boardzoom` then checks, on 320, 375 and 412px portrait phones: the closest
-level is at least as large as the Standard board's cells; no tap ever plays a cell under
-24px; one tap on the whole board reaches a level that plays; the whole board still fits
+level is at least as large as the Standard board's cells; a tap on the whole board never
+plays a cell under 24px; one tap on the whole board reaches a level that plays; the whole board still fits
 the column. For scale, on a 375px phone the 20x20 board is 14px a cell seen whole, 24px
 at 12 across and 30px at 10. Whether it *feels* easier is still a play test; the numbers
 are the part a test can hold.
 
 Not covered: a phone on its side. The board budgets 52vh of height, so in landscape even
-10 across can come out under 24px - and the closest level plays anyway.
+10 across can come out under 24px - and a zoomed tap plays anyway.
 
 **Only the window's cells exist.** A pan tells the buttons which squares they now stand
 for rather than rebuilding them, for the reason the board was never rebuilt per move:
@@ -1186,6 +1190,75 @@ from "Whole-pixel cell sizes" had been pasted into the middle of the
 `.mine-cell.is-revealed #mineDisplay`, which matches nothing, so cells had quietly gone
 back to fractional widths. It is at the top level again, and a layout test fails if it
 is ever nested inside a rule.
+
+## Forgiving forced guesses
+
+Built 2026-09-15. The project owner's point: the bigger the board, the bigger the
+disappointment of losing to a guess nothing could have avoided - and on 40x40 that is the
+norm rather than bad luck.
+
+**The rule.** A tap on a mine loses if any square could have been proven safe from the
+revealed numbers and the mine count. If none could, the guess was forced: the mines move to
+the nearest layout that fits every number on screen with that square safe, and the tap
+opens as normal. A square that was itself provably a mine has no such layout and still
+loses. Nothing on screen says it happened - that would be describing the board.
+
+**It expects every deduction, and only deductions.** `js/minesolver.js` is exact: a square
+counts as proven only if it is the same in every layout that fits, which covers every
+chain of reasoning a player could use, counting the mines left included. Flags are ignored
+- they are claims, not facts. What it does not hold the player to is probability: choosing
+the 10% square over the 50% one when nothing is provable is not required. On a big board
+the best odds depend on arithmetic nobody does in their head, and losing for that would be
+the board's fault again. Decided with the project owner.
+
+**Why not the alternatives.** A hint button breaks "the game must not do the player's
+thinking". Dealing only boards that never need a guess works, but is heavy at 40x40 and
+changes what boards feel like.
+
+**Measured before building** (Node on a desktop - a phone is slower by a factor nobody has
+measured). Positions came from a simulated player that uses only single-number rules,
+saved wherever it got stuck: where a person would guess and the rule would run.
+
+| slowest check | 20x20 (337 positions) | 40x40 (1,556 positions) |
+|---|---|---|
+| as built | 8ms | 57ms, a timer blip - the full analysis took 21ms |
+
+A naive first prototype took 8 seconds, and over 20, on the worst positions of an earlier
+batch; grouping squares into boxes and sweeping instead of searching brought both to about
+7ms. A stress test of scattered openings, which nobody plays, still reaches seconds - that
+is what the time limit is for. Stopping at the first safe square instead of analysing the
+whole board saved only about 1.2x: every stretch of frontier has to be swept forwards
+either way, because the mine counts it can hold feed the total.
+
+With perfect logic a 20x20 game has 0.3 forced guesses on average (80 of 100 games none)
+and a 40x40 game 2.1 (31 of 100 none). Where the single-rule player got stuck, though, a
+provable move existed 95% of the time: the rule rarely rescues a player who stopped
+reasoning early.
+
+**The time limit is 250ms**: up to 200 for the check, and whatever is left - never under
+50 - for moving the mines. If the check runs out, the game still tries to forgive, siding
+with the player; decided with the project owner. The accepted cost is that a timed-out
+check forgives even where a safe square existed. If moving the mines runs out too, the tap
+loses. A background worker was considered and left out until play-testing on a phone shows
+a pause.
+
+**Nearest layout, not a fresh one.** Every other stretch of frontier keeps its mine count if
+the total allows; the tapped square's own stretch gives way, and the squares touching no
+number change by as few mines as the total needs. Inside the re-solved stretch each group
+takes the count nearest what it holds now that can still be completed, and existing mines
+are kept first. Greedy rather than a guaranteed minimum, which nobody could tell apart -
+the point is that flags placed by lucky guesses mostly stay right. A mine the numbers prove
+never moves, since no layout that fits could move it.
+
+**Chording is never forgiven.** `chord` opens squares through `reveal` with
+`forgive: false`: a chord only reaches a mine through a wrong flag, the player's mistake.
+
+**Pure, with an injected clock.** The module reads `performance.now()` unless given a `now`,
+which is how the tests drive the time limit without waiting for it.
+
+**Size.** 17.1KB, 5.9KB compressed when built - about 4% of the site. The project owner wants
+the site kept small, so tests/minesolver holds it under 20KB and 7KB compressed. Raising
+those should be a decision, not a side effect.
 
 **Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
 to show every flag identically, so the player could see where the mines had been but not

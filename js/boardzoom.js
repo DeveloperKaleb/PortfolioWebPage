@@ -122,18 +122,19 @@ export function viewForBoard(board, previous) {
     return centreOn(board, across, Math.ceil(board.width / 2), Math.ceil(board.height / 2));
 }
 
-/* The rule taken from tap-to-zoom: a finger's tap on a cell under the floor zooms in on
-   it instead of playing it. The closest level always plays, whatever its size - there is
-   nothing left to zoom to. Whether the press came from a finger is the caller's call. */
+/* The rule taken from tap-to-zoom: on the whole board, a finger's tap on a cell under the
+   floor zooms in on it instead of playing it. Once zoomed, every tap plays, whatever the
+   size - the project owner found a second zoom from a zoomed view jarring. Whether the
+   press came from a finger is the caller's call. */
 export const tapZooms = (board, view, cellPx) =>
-    cellPx < TAP_FLOOR_PX && canZoomIn(board, view);
+    view.across === null && cellPx < TAP_FLOOR_PX && canZoomIn(board, view);
 
-/* Where a tap that zooms goes: straight to the widest level whose cells will clear the
-   floor, not one step closer. At 15 and 12 across a phone's cells are often still under
-   it, and stepping would make a player tap two or three times before one played. Each
-   level's size is estimated from the cells' size now - the window's span shared among
-   fewer cells - which is close enough: if it falls short, the next tap zooms again. If
-   no level clears the floor, the closest. */
+/* Where a tap on the whole board goes when it zooms: straight to the widest level whose
+   cells will clear the floor. It is the only zoom a tap ever makes - once zoomed, taps
+   play - so it has to land somewhere playable in one go. Each level's size is estimated
+   from the cells' size now, the window's span shared among fewer cells; tests/boardzoom
+   checks the estimate lands on 24px or more at real phone sizes. If no level clears the
+   floor, the closest. */
 export function zoomForTap(board, view, cellPx, focus) {
     const levels = zoomLevels(board);
     const closer = view.across === null ? levels : levels.slice(levels.indexOf(view.across) + 1);

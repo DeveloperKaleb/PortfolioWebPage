@@ -6,6 +6,8 @@
  * write and miserable to find; returning a fresh object makes that impossible.
  */
 
+import { resolveForcedGuess } from './minesolver.js';
+
 export const STATUS = { READY: 'ready', PLAYING: 'playing', WON: 'won', LOST: 'lost' };
 
 export const DEFAULTS = { width: 10, height: 10, mineCount: 12 };
@@ -130,17 +132,31 @@ export const isWon = (game) =>
 // Work out where a move leaves the game. A loss is already decided by the time this runs.
 const settle = (game) => (isWon(game) ? { ...game, status: STATUS.WON } : game);
 
-export function reveal(game, x, y, random = Math.random) {
+/* A tap on a mine loses - unless nothing could have been proven safe, in which case the
+   guess was forced and is forgiven: the mines move to the nearest layout that fits every
+   number on screen with this square safe, and it opens as normal (js/minesolver.js). A
+   square that was itself provably a mine has no such layout, and still loses.
+
+   `forgive: false` is for chording, which only opens a mine when one of the player's own
+   flags is wrong - their mistake, never the board's. `now` and `budgetMs` are the solver's
+   clock and time limit, injectable for tests. */
+export function reveal(game, x, y, random = Math.random, { forgive = true, now, budgetMs } = {}) {
     if (game.status === STATUS.WON || game.status === STATUS.LOST) return game;
     if (!inBounds(game, x, y)) return game;
     if (isFlagged(game, x, y) || isRevealed(game, x, y)) return game;
 
-    const started = game.status === STATUS.READY ? placeMines(game, x, y, random) : game;
+    let started = game.status === STATUS.READY ? placeMines(game, x, y, random) : game;
 
     if (isMine(started, x, y)) {
-        const revealed = new Set(started.revealed);
-        revealed.add(key(x, y));
-        return copy(started, { revealed, status: STATUS.LOST });
+        const mines = forgive && game.status === STATUS.PLAYING
+            ? resolveForcedGuess(started, x, y, { random, now, budgetMs })
+            : null;
+        if (!mines) {
+            const revealed = new Set(started.revealed);
+            revealed.add(key(x, y));
+            return copy(started, { revealed, status: STATUS.LOST });
+        }
+        started = withCounts(copy(started, { mines }));
     }
 
     const revealed = cascade(started, x, y);
@@ -162,7 +178,8 @@ export function toggleFlag(game, x, y) {
 /* Clicking a satisfied number opens its remaining neighbours in one go. Standard
  * minesweeper, and the difference between playing the game and clicking every cell of
  * it by hand. Wrong flags make this lose, which is the point - it acts on what you
- * claimed, not on what is true. */
+ * claimed, not on what is true. So it never asks for forgiveness: the only way a chord
+ * opens a mine is a wrong flag. */
 export function chord(game, x, y, random = Math.random) {
     if (game.status !== STATUS.PLAYING || !isRevealed(game, x, y)) return game;
 
@@ -173,7 +190,7 @@ export function chord(game, x, y, random = Math.random) {
     return around.reduce(
         (current, n) => (isFlagged(current, n.x, n.y) || isRevealed(current, n.x, n.y)
             ? current
-            : reveal(current, n.x, n.y, random)),
+            : reveal(current, n.x, n.y, random, { forgive: false })),
         game
     );
 }
