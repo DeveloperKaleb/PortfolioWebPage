@@ -192,7 +192,7 @@ describe('Things that hide stay hideable', () => {
         expect(declarations).not.toMatch(/(^|\})\s*\.game-view\s*\{[^}]*display:/m);
     });
 
-    test.each(['#game-over', '#game-over-mode'])(
+    test.each(['#game-over', '#game-over-mode', '#mine-zoom'])(
         '%s gives itself display only when not hidden',
         (selector) => {
             const escaped = selector.replace(/[.#]/g, (char) => '\\' + char);

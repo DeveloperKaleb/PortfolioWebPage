@@ -1909,7 +1909,9 @@ a:active  {color: #002e2c;}
 /* Minesweeper's zoom bar: out, the level, in, and the overview of where the window is.
    The overview keeps its space while the whole board is shown, only invisible, so that
    zooming in does not push the board down under the player's thumb. */
-#mine-zoom {
+/* Hidden for a board with no levels to offer - the Standard one - so its display waits
+   behind :not([hidden]), or the id would out-rank the attribute and it would never hide. */
+#mine-zoom:not([hidden]) {
     display: flex;
     align-items: center;
     justify-content: center;

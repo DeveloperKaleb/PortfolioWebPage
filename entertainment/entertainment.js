@@ -67,7 +67,9 @@ import {
     zoomOut,
     dragView,
     viewForBoard,
+    zoomLevels,
     tapZooms,
+    zoomForTap,
     minimapScale,
     cellAtMinimap,
     DRAG_THRESHOLD_PX
@@ -816,6 +818,7 @@ const mineZoomOutBtn = document.getElementById('mineZoomOut');
 const mineZoomLabelEl = document.getElementById('mine-zoom-label');
 const mineZoomHintEl = document.getElementById('mine-zoom-hint');
 const mineMinimap = document.getElementById('mineMinimap');
+const mineZoomBar = document.getElementById('mine-zoom');
 
 let mineGame = createMinesweeper();
 let flagMode = false;
@@ -884,6 +887,8 @@ function mineTapZooms(cellPx) {
 }
 
 function updateMineZoomControls() {
+    // The Standard board is as close as the zoom goes, so it has no levels and no bar.
+    mineZoomBar.hidden = zoomLevels(mineGame).length === 0;
     const zoomed = mineView.across !== null;
     mineZoomOutBtn.disabled = !zoomed;
     mineZoomInBtn.disabled = !canZoomIn(mineGame, mineView);
@@ -1126,9 +1131,10 @@ mineBoard.addEventListener('click', (event) => {
     /* A finger on a cell too small to hit reliably zooms in on that spot instead of
        playing it. A mouse is precise at any size, and a keyboard press (detail 0) names
        its cell exactly, so neither is redirected. See NOTES.md. */
-    if (event.detail !== 0 && mineLastPointerType !== 'mouse'
-        && mineTapZooms(cell.getBoundingClientRect().width)) {
-        setMineView(zoomIn(mineGame, mineView, { x, y }));
+    const width = cell.getBoundingClientRect().width;
+    if (event.detail !== 0 && mineLastPointerType !== 'mouse' && mineTapZooms(width)) {
+        // Straight to the widest level that will play, rather than one step closer.
+        setMineView(zoomForTap(mineGame, mineView, width, { x, y }));
         return;
     }
     playMineCell(x, y, { flag: flagMode });

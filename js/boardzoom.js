@@ -10,21 +10,22 @@
  */
 
 /* Zoom levels are counted in cells across the window, not as a magnification. "2x" is a
-   different window on every board and every phone; "5 across" is the same window
-   everywhere, and the closest level is what guarantees a view never shows too little of
-   the board. Widest first. */
-export const ZOOM_STEPS = [10, 7, 5];
+   different window on every board and every phone; "10 across" is the same window
+   everywhere. Widest first.
 
-/* The fewest cells a view may show: a 5x5 window is 25, and a round one of that size
-   less its four corners would be 21. Set by the project owner, so a zoomed player always
-   has enough of the neighbourhood to reason about. */
+   The closest is 10 across, the Standard board's width. The first levels were 10, 7 and
+   5; the project owner found 5 across dwarfed by the map, and the Standard board already
+   very easy to tap, so nothing closer than it is offered. */
+export const ZOOM_STEPS = [15, 12, 10];
+
+/* The fewest cells a view may show: set by the project owner as 21 - a 5x5 window, or a
+   round one less its four corners. The closest level now shows 100, so this is the
+   floor any future level is held to rather than a limit anything is near. */
 export const MIN_WINDOW_CELLS = 21;
 
-/* Target sizes, in CSS pixels. 24 is the WCAG 2.2 minimum target size (2.5.8, AA): a
-   finger's tap on anything smaller zooms in rather than playing. 44 is Apple's
-   recommended touch target, and the pass mark for the closest level on a phone. */
+/* 24px is the WCAG 2.2 minimum target size (2.5.8, AA): a finger's tap on anything
+   smaller zooms in rather than playing. */
 export const TAP_FLOOR_PX = 24;
-export const COMFORT_PX = 44;
 
 // How far a press has to travel before it is a drag rather than a tap.
 export const DRAG_THRESHOLD_PX = 8;
@@ -85,9 +86,9 @@ export function canZoomIn(board, view) {
     return levels.indexOf(view.across) < levels.length - 1;
 }
 
-/* One step closer, centred on `focus` - the tapped cell for a tap-to-zoom, otherwise
-   the middle of the current window, so the buttons zoom about what is on screen. Hands
-   back the same view when there is nowhere closer to go. */
+/* One step closer, centred on `focus` - by default the middle of the current window, so
+   the buttons zoom about what is on screen. Hands back the same view when there is
+   nowhere closer to go. */
 export function zoomIn(board, view, focus = viewCentre(board, view)) {
     if (!canZoomIn(board, view)) return view;
     const levels = zoomLevels(board);
@@ -126,6 +127,23 @@ export function viewForBoard(board, previous) {
    nothing left to zoom to. Whether the press came from a finger is the caller's call. */
 export const tapZooms = (board, view, cellPx) =>
     cellPx < TAP_FLOOR_PX && canZoomIn(board, view);
+
+/* Where a tap that zooms goes: straight to the widest level whose cells will clear the
+   floor, not one step closer. At 15 and 12 across a phone's cells are often still under
+   it, and stepping would make a player tap two or three times before one played. Each
+   level's size is estimated from the cells' size now - the window's span shared among
+   fewer cells - which is close enough: if it falls short, the next tap zooms again. If
+   no level clears the floor, the closest. */
+export function zoomForTap(board, view, cellPx, focus) {
+    const levels = zoomLevels(board);
+    const closer = view.across === null ? levels : levels.slice(levels.indexOf(view.across) + 1);
+    if (closer.length === 0) return view;
+    const { cols } = windowSize(board, view.across);
+    const span = (cellPx + BOARD_GAP_PX) * cols;
+    const target = closer.find((across) => span / across - BOARD_GAP_PX >= TAP_FLOOR_PX)
+        ?? closer[closer.length - 1];
+    return centreOn(board, target, focus.x, focus.y);
+}
 
 // The overview: whole pixels a cell, as large as fits in maxPx.
 export const minimapScale = (board, maxPx) =>

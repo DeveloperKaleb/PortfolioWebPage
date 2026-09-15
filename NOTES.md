@@ -1109,10 +1109,23 @@ finger still moves across a 14px grid - 6px on the 40x40 board - and a lens only
 what is under it. It also needed a press-and-hold nobody would know about, which is the
 same reason Flag mode is a toggle and not a long press.
 
-**Levels count cells across, not magnification**: 10, 7 and 5. "2x" is a different window
-on every board and every phone; "5 across" is the same window everywhere, and the
-closest level is what guarantees the 25 cells. A level is only offered when it shows
-less than the board, so the 10x10 board gets 7 and 5.
+**Levels count cells across, not magnification**: 15, 12 and 10. "2x" is a different
+window on every board and every phone; "10 across" is the same window everywhere. A
+level is only offered when it shows less than the board, so the 10x10 board has none,
+and its zoom bar is hidden rather than left sitting there with both buttons disabled.
+
+**They were 10, 7 and 5 for the first day.** Changed by the project owner after playing
+with them: 5 across felt dwarfed by the overall map, and the Standard board, 10 across,
+is already very easy to tap - so that became the closest level. What it gave up is the
+original 44px pass mark: on a 375px phone 10 across is 30px a cell, where 5 across was
+62px. The pass mark is now that the closest level is as easy to tap as the Standard
+board, which is the judgement the owner made by playing.
+
+Because 15 and 12 across are often still under 24px on a phone, **a tap that zooms goes
+straight to the widest level whose cells will clear 24px** (`zoomForTap`, estimated from
+the size the cells are now) rather than one step closer. Stepping would have made a tap
+on the whole board take two more before one played. The buttons still step through
+every level.
 
 **The rule from the third design: a finger's tap on a cell under 24px zooms in on that
 spot instead of playing it.** 24px is the WCAG 2.2 minimum target size. On a phone this
@@ -1135,13 +1148,14 @@ already right.
 **The pass mark is predicted, and asserted.** `predictCellSize` in `js/boardzoom.js`
 mirrors the stylesheet's sizing, and `tests/markup/layout.test.js` fails if the two
 drift. `tests/boardzoom` then checks, on 320, 375 and 412px portrait phones: the closest
-level is at least 44px a cell; no tap ever plays a cell under 24px; the whole board still
-fits the column. For scale, the 20x20 board seen whole is 14px a cell on a 375px phone,
-and 62px at 5 across. Whether it *feels* easier is still a play test; the numbers are
-the part a test can hold.
+level is at least as large as the Standard board's cells; no tap ever plays a cell under
+24px; one tap on the whole board reaches a level that plays; the whole board still fits
+the column. For scale, on a 375px phone the 20x20 board is 14px a cell seen whole, 24px
+at 12 across and 30px at 10. Whether it *feels* easier is still a play test; the numbers
+are the part a test can hold.
 
-Not covered: a phone on its side. The board budgets 52vh of height, so in landscape the
-closest level comes out around 30-40px - above the tap floor, short of 44.
+Not covered: a phone on its side. The board budgets 52vh of height, so in landscape even
+10 across can come out under 24px - and the closest level plays anyway.
 
 **Only the window's cells exist.** A pan tells the buttons which squares they now stand
 for rather than rebuilding them, for the reason the board was never rebuilt per move:
