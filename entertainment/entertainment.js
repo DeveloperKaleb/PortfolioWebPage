@@ -55,7 +55,6 @@ import {
     misplacedFlagCount,
     isOver,
     isOpeningMove,
-    inBounds as isOnBoard,
     createShapeGame,
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
@@ -939,8 +938,7 @@ function drawMineMinimap() {
     for (let y = 1; y <= mineGame.height; y++) {
         for (let x = 1; x <= mineGame.width; x++) {
             let fill = null;
-            if (!isOnBoard(mineGame, x, y)) fill = MINE_MINIMAP.gap;
-            else if (isRevealed(mineGame, x, y)) fill = MINE_MINIMAP.revealed;
+            if (isRevealed(mineGame, x, y)) fill = MINE_MINIMAP.revealed;
             else if (isFlagged(mineGame, x, y)) fill = MINE_MINIMAP.flag;
             if (!fill) continue;
             ctx.fillStyle = fill;
@@ -967,17 +965,6 @@ function paintMineCell(cell) {
        last square's marks first. Without this, panning a lost board carried its mine and
        cross markers onto squares that never had them. */
     cell.classList.remove('is-mine', 'is-detonated', 'is-wrong-flag');
-
-    // A shaped board's holes are not squares: nothing to show and nothing to press.
-    const onBoard = isOnBoard(mineGame, x, y);
-    cell.classList.toggle('is-gap', !onBoard);
-    cell.disabled = !onBoard;
-    if (!onBoard) {
-        cell.classList.remove('is-revealed', 'is-flagged');
-        cell.textContent = '';
-        cell.style.color = '';
-        return;
-    }
 
     const revealed = isRevealed(mineGame, x, y);
     const flagged = isFlagged(mineGame, x, y);
@@ -1078,7 +1065,7 @@ function setFlagMode(on) {
 
 function initMinesweeper() {
     const mode = mineModeSelect ? mineModeSelect.value : 'standard';
-    // Mine A Shape! deals its own mines and opens its own start (createShapeGame).
+    // Mine A Shape! lays the picture's mines and opens its own start (createShapeGame).
     mineGame = mode === 'shape'
         ? createShapeGame(pickMineShape(), Math.random)
         : createMinesweeper(MINE_PRESETS[mode] || MINE_PRESETS.standard);

@@ -72,9 +72,10 @@ under Vitest without a browser:
 - `js/minesolver.js` — exact Minesweeper deductions: whether any square is provably
   safe, and the nearest mine layout that spares a forced guess. Held to a size budget by
   its tests. See NOTES.md before touching it.
-- `js/mineshapes.js` — Mine A Shape!: the shaped boards as rows of `#` and `.`, drawn by
-  the project owner in Finger Paint, with each shape's size, mine count and name.
-  `createShapeGame` in `js/minesweeper.js` deals them.
+- `js/mineshapes.js` — Mine A Shape!: pictures whose black squares are the mines, as rows
+  of `#` (mine) and `.` (safe), painted by the project owner in Finger Paint.
+  `createShapeGame` in `js/minesweeper.js` lays them and opens only where the board can be
+  solved without guessing; tests/mineshapes fails any picture that cannot be.
 - `js/sequence.js` — Sequence rules: the run, the player's answer, the difficulty ramp,
   and one tone per pad. Immutable like Minesweeper, and deliberately free of timers —
   playback timing belongs to the DOM layer, which is what keeps this testable. Sequence

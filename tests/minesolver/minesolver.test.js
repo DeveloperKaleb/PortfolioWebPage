@@ -8,9 +8,8 @@ import {
 } from '../../js/minesolver.js';
 import {
     createGame, reveal, chord, toggleFlag, countAt, isMine, isRevealed, neighbours,
-    safeCellCount, STATUS, PRESETS, inBounds, hasProvenMine,
+    safeCellCount, STATUS, PRESETS,
 } from '../../js/minesweeper.js';
-import { parseShape } from '../../js/mineshapes.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -24,10 +23,9 @@ function seeded(seed) {
     };
 }
 
-// Every square on the board - for a Mine A Shape! board, the shape's squares only.
 const cellsOf = (game) => {
     const out = [];
-    for (let y = 1; y <= game.height; y++) for (let x = 1; x <= game.width; x++) if (inBounds(game, x, y)) out.push({ x, y });
+    for (let y = 1; y <= game.height; y++) for (let x = 1; x <= game.width; x++) out.push({ x, y });
     return out;
 };
 const hidden = (game) => cellsOf(game).filter(({ x, y }) => !isRevealed(game, x, y));
@@ -42,15 +40,6 @@ const SMALL = [
     { width: 6, height: 6, mineCount: 9 },
     { width: 7, height: 5, mineCount: 8 },
     { width: 8, height: 6, mineCount: 12 },
-    // Shaped boards, with holes the solver must never treat as squares.
-    {
-        width: 6, height: 6, mineCount: 5,
-        shape: parseShape({ name: 'ring', rows: ['.####.', '######', '##..##', '##..##', '######', '.####.'] }),
-    },
-    {
-        width: 7, height: 7, mineCount: 6,
-        shape: parseShape({ name: 'cross', rows: ['..###..', '..###..', '#######', '#######', '#######', '..###..', '..###..'] }),
-    },
 ];
 
 /* Positions part-way through small games, with few enough hidden squares to check by brute
@@ -60,10 +49,7 @@ function smallPositions(count, seed) {
     const out = [];
     for (let attempt = 0; out.length < count && attempt < count * 40; attempt++) {
         const size = SMALL[attempt % SMALL.length];
-        const fresh = createGame(size);
-        const squares = cellsOf(fresh);
-        const first = squares[Math.floor(random() * squares.length)];
-        let game = reveal(fresh, first.x, first.y, random);
+        let game = reveal(createGame(size), 1 + Math.floor(random() * size.width), 1 + Math.floor(random() * size.height), random);
         const moves = Math.floor(random() * size.width * size.height);
         for (let i = 0; i < moves && !cleared(game); i++) {
             const safe = hidden(game).filter(({ x, y }) => !isMine(game, x, y));
@@ -158,11 +144,6 @@ describe('Moving the mines to spare a square', () => {
                 expect(mines.has(keyOf(square))).toBe(false);
                 expect(mines.size).toBe(game.mineCount);
                 expect(fitsEveryNumber(game, mines)).toBe(true);
-                // Never into a hole in a shaped board.
-                [...mines].forEach((key) => {
-                    const [mx, my] = key.split(',').map(Number);
-                    expect(inBounds(game, mx, my)).toBe(true);
-                });
                 // Any layout that fits keeps these, but it is the promise, so it is checked.
                 truth.forEach((verdict, key) => { if (verdict === 'mine') expect(mines.has(key)).toBe(true); });
             });
@@ -185,22 +166,6 @@ describe('Moving the mines to spare a square', () => {
             checked++;
         });
         expect(checked).toBeGreaterThan(0);
-    });
-});
-
-/* hasProvenMine (js/minesweeper.js) lets Mine A Shape! count a proven mine as a way
-   forward. It asks the solver whether a mine beside a number could be moved; brute force
-   says whether the numbers prove it. They have to agree. */
-describe('Proving a mine beside a number', () => {
-    test('hasProvenMine agrees with brute force', () => {
-        let proven = 0;
-        smallPositions(200, 13).forEach((game) => {
-            const truth = verdicts(game);
-            const expected = hidden(game).some((square) => touchesNumber(game, square) && truth.get(keyOf(square)) === 'mine');
-            expect(hasProvenMine(game)).toBe(expected);
-            if (expected) proven++;
-        });
-        expect(proven).toBeGreaterThan(0);
     });
 });
 
@@ -244,6 +209,17 @@ describe('Tapping a mine', () => {
         }
         return null;
     };
+
+    /* A Mine A Shape! board's mines are its picture, so they never move: the same forced
+       guess that is forgiven on an ordinary board loses on one. */
+    test('a forced guess loses on a Mine A Shape! board, and the mines stay put', () => {
+        const { game, mine } = forcedSetup(14);
+        expect(reveal(game, mine.x, mine.y, Math.random).status).not.toBe(STATUS.LOST);
+        const picture = { ...game, shape: { name: 'test', article: 'a' } };
+        const after = reveal(picture, mine.x, mine.y, Math.random);
+        expect(after.status).toBe(STATUS.LOST);
+        expect([...after.mines].sort()).toEqual([...game.mines].sort());
+    });
 
     test('a forgiven tap leaves the flags exactly where the player put them', () => {
         const { game, mine } = forcedSetup(12);

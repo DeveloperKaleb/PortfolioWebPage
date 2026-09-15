@@ -471,7 +471,6 @@ export const MINE_MINIMAP = {
     hidden: MINE_COLORS.hidden,
     revealed: MINE_COLORS.revealed,
     flag: MINE_COLORS.flag,
-    gap: MINE_COLORS.frame,   // a Mine A Shape! hole: the board's frame, as on the board itself
     windowLight: MINE_COLORS.flag,
     windowDark: MINE_COLORS.frame,
 };
@@ -479,11 +478,6 @@ export const MINE_MINIMAP = {
 export const MINE_GRADIENTS = {
     hidden: ['#35543f', '#2a4232'],   // canopy, lit above and shaded below
     revealed: ['#e6e9dc', '#d3d8c6'], // lichen, brighter where the light falls
-    /* The board's frame. A Mine A Shape! board's holes show it, so squares are told from it.
-       The top stop was #1b2a20 until then, and fell just short of the distinguishability rule
-       against the shaded end of unopened ground (1.347 against 1.35) - darkened only as far
-       as it took to clear it with some margin. */
-    frame: ['#17241b', '#101913'],
 };
 
 /* Which tier a number falls in. Below the first threshold is "quiet", above the last

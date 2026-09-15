@@ -966,11 +966,9 @@ a:active  {color: #002e2c;}
     width: calc(var(--mine-cols) * var(--mine-cell) + (var(--mine-cols) - 1) * 2px);
     margin: 20px auto 30px;
     padding: 6px;
-    /* Mirrors MINE_GRADIENTS.frame. It used to be free to be as decorative as it liked,
-       with nothing read against it. A Mine A Shape! board's holes show it, though, so the
-       picture's outline is read against it now: tests/contrast checks both grounds can be
-       told from both of its stops. */
-    background: linear-gradient(#17241b, #101913);
+    /* Nothing is read against the frame - the cells sit on top with their own
+       backgrounds - so this one is free to be as decorative as it likes. */
+    background: linear-gradient(#1b2a20, #101913);
     border: 2px solid #2f4a38;
     border-radius: 6px;
     /* The board is tapped, never dragged - no reason to let a stray drag pan it. */
@@ -1063,14 +1061,6 @@ a:active  {color: #002e2c;}
 #mineDisplay.is-over .mine-cell {
     cursor: default;
 }
-
-/* A Mine A Shape! board's holes. Kept in the grid so the squares around them stay where
-   they belong, but not drawn: the frame shows through, and the picture is the outline of
-   what is left. */
-.mine-cell.is-gap {
-    visibility: hidden;
-}
-
 /* Zoomed in, the board is a window onto a larger one and a drag moves it, so the page
    must not scroll or zoom under that drag. Set on the cells as well, since that is where
    the gesture starts. Only while zoomed: the whole board is never dragged, and there

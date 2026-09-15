@@ -1092,6 +1092,31 @@ written down here than left as code nobody calls.
 was: every cell ignores a tap once the game is over, and the state is immutable. Worth
 checking before letting another game end this way.
 
+**Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
+to show every flag identically, so the player could see where the mines had been but not
+which of their own marks had been wrong - which is the half worth learning from. A flag
+that was not on a mine is now a cross in the detonated colours; a flag that was on one
+stays a plain flag on unopened ground, since it was right and needs no comment. The mine
+that went off and a mistaken flag share those colours deliberately, both being the board
+saying where it went against the player: the glyph separates them, a disc against a
+cross. Colour is never the difference.
+
+The result line mentions the cross only when there is one on the board. A legend for a
+marker that is not there is noise, and on a clean loss there are no misplaced flags to
+explain.
+
+**The banner takes the control theme's colours, not a win-green and a lose-red.** Those
+are already contrast-checked, and the outcome is carried by the words - putting it on
+colour would be putting it on the one channel this site never trusts.
+
+**Nothing steals focus any more.** The status line carries `role="status"`, so the result
+is announced when it changes without moving the player anywhere. The `tabindex="-1"` it
+briefly needed is gone with the dialog: there is no hidden element left holding focus to
+rescue it from.
+
+(These four paragraphs belong to "Minesweeper ends in place". The zoom section below was
+once inserted into the middle of it, which carried them further down the file.)
+
 ## Zooming the Minesweeper board
 
 Built 2026-09-15, after the project owner's sister found the 20x20 cells too small to
@@ -1253,6 +1278,10 @@ never moves, since no layout that fits could move it.
 **Chording is never forgiven.** `chord` opens squares through `reveal` with
 `forgive: false`: a chord only reaches a mine through a wrong flag, the player's mistake.
 
+**Nor is anything on a Mine A Shape! board.** Its mines are the picture, and moving them
+would break it, so a forced guess there loses. Every picture is required to be solvable
+without guessing instead - see "Mine A Shape!".
+
 **Pure, with an injected clock.** The module reads `performance.now()` unless given a `now`,
 which is how the tests drive the time limit without waiting for it.
 
@@ -1262,91 +1291,52 @@ those should be a decision, not a side effect.
 
 ## Mine A Shape!
 
-Built 2026-09-15, the project owner's idea: a Mine Sweeper board that is a picture. The
-decisions, all theirs:
+Built 2026-09-15, the project owner's idea: a Mine Sweeper board whose mines draw a
+picture. Flag every mine and the flags draw it; lose and the revealed mines show it.
+
+**The decisions, all the owner's:**
 
 - **"Shape" is a choice in the board-size menu**, and choosing it renames New Game to
   "Mine A Shape!". No new control, because the control row already wraps on a phone.
-- **The pictures are drawn in Finger Paint**, at the size the board should be, and shared.
-  They are transcribed into `js/mineshapes.js` as rows of `#` (a square) and `.` (a hole).
-  Only the rows ship, never the pictures.
-- **Only shape boards deal their mines up front.** The rectangles keep the first tap.
-- **The game opens itself**, rather than marking a square for the player to tap.
-- **The picture's name is revealed at the end**, won or lost, in the result banner: "It
-  was a heart!". Never during play.
-- **The board is exactly the painted squares.** The first drawing, a 10x10 heart, is a
-  one-square-wide outline with a lone square in each corner. Offered a filled heart
-  instead, with the corners as size marks, the owner chose the painted squares knowing
-  that no nine-square opening fits them and the corners are islands.
+- **Pictures are painted in Finger Paint** at the board's size, and shared. The whole
+  picture is the board: black squares are mines, white squares are safe. They go into
+  `js/mineshapes.js` as rows of `#` (mine) and `.` (safe); only the rows ship.
+- **The picture places the mines, so the game opens itself**, rather than the first tap
+  placing them: on a random square with no mine on or around it, showing at least nine
+  squares.
+- **Every picture has to be solvable without guessing from where it opens.** A forced guess
+  on a picture board loses - its mines cannot move without breaking the picture, so the
+  forgiveness rule is off there - and a picture that cannot be solved is sent back to be
+  reworked rather than shipped. That is why the rule is strict instead of forgiving.
+- **The picture's name is revealed at the end**, won or lost: "It was a heart!". Never
+  during play.
+- **No flipping or mirroring.** Tens of pictures are planned, so variety comes from them. A
+  picture played before is known, and that is accepted.
 
-**The guaranteed start.** `createShapeGame` deals the mines across the shape, then looks for
-a square that touches no mine and has all eight neighbours on the board - so the opening
-shows at least nine squares - and opens it only if the numbers then prove something: a
-square safe to open, or a mine to flag. It tries a few such squares per deal and deals
-again if none works. What is
-guaranteed is a next move, not a game without guessing: that would cost far more, and a
-forced guess later on is forgiven anyway.
+**Solvability is checked, not hoped for.** `solvesWithoutGuessing` plays a position to the
+end by opening only squares `js/minesolver.js` proves safe; mines need no move of their
+own, since the count settles them once every safe square is open. `solvableStarts` lists
+every opening from which that succeeds, and tests/mineshapes fails any picture with none,
+saying it needs reworking. `createShapeGame` tries openings in random order and uses the
+first that solves.
 
-A shape with no square whose eight neighbours are all on the board - the heart - cannot
-open on nine. There the start is any mine-free square with no mine beside it that opens
-more than just itself, still only where a provable move follows. Shapes with room keep the
-nine. Islands like the heart's corners are never opened by a cascade and can only ever be
-decided by the mine count; a forced guess on one is forgiven like any other.
-
-**A proven mine counts as a way forward.** At first only a proven safe square did, and the
-heart often could not be dealt: once its opening ran round most of the outline, what was
-left was the mines beside the numbers - provable mines - and the corner islands, which no
-number touches, so no square could be proven safe. In 300 simulated games, 39 failed to deal
-at all. Flagging a proven mine is a move made by reasoning, and a win needs every flag, so
-the project owner chose to count it (`hasProvenMine`): 0 of 300 failed, and a deal took about
-0.2ms. The alternative - keeping the safe-square rule and trying up to 500 deals and every
-start - also dealt every game, but took up to 80ms and could still fail on an unlucky shape.
-
-**Holes are not squares.** `inBounds` knows the shape, and everything that walks the board
-goes through it - neighbours, counts, cascades, mine placement, the win count - so a hole is
-simply off the board. The solver keeps its own `onBoard` map for the same reason. On screen
-a hole is a button kept in the grid for layout, `visibility: hidden` and disabled, so the
-frame shows through and the picture is the outline of what is left.
-
-**The frame had to be darkened for it.** Nothing used to be read against the board's frame,
-so it was free to be decorative. Holes changed that: the outline is now read against it.
-Its top stop, `#1b2a20`, fell just short of the distinguishability rule against the shaded
-end of unopened ground (1.347 against 1.35), so it is `#17241b` now - darkened only as far as
-it took to clear the rule with margin. `MINE_GRADIENTS.frame` holds both stops, and
-tests/contrast checks every stop of both grounds against every stop of the frame.
+**Built wrong first.** The first version read the heart as the board's outline - the painted
+squares were the board, the rest were holes - with random mines on it, and it shipped
+(commit 512bc56). The owner had meant the mines. Everything that version needed was taken
+out again: holes in `inBounds` and in the solver, invisible grid spaces, and a frame
+darkened so the outline read against it. The lesson: ask what each part of a drawing stands
+for, in the owner's words, before offering readings of it.
 
 **Fixed along the way: panning a lost board carried its markers.** The zoom reuses buttons
 for whichever squares the window shows, and `paintMineCell` set the mine, detonated and
 wrong-flag classes but never cleared them. After a loss, panning a zoomed board moved those
 marks onto squares that never had them. It clears them first now.
 
-**Adding a shape.** Paint it in Finger Paint at the board's size, share the picture, and it
-goes into `SHAPES` as rows. tests/mineshapes checks every shape as it is added: rows of `#`
-and `.` of equal length, no bigger than 40x40, and twenty seeded deals that all open with a
-provable move - on at least nine squares where the shape has room. A filled placeholder
-heart stood in while the mode was built, and was replaced by the owner's drawing.
-
-**Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
-to show every flag identically, so the player could see where the mines had been but not
-which of their own marks had been wrong - which is the half worth learning from. A flag
-that was not on a mine is now a cross in the detonated colours; a flag that was on one
-stays a plain flag on unopened ground, since it was right and needs no comment. The mine
-that went off and a mistaken flag share those colours deliberately, both being the board
-saying where it went against the player: the glyph separates them, a disc against a
-cross. Colour is never the difference.
-
-The result line mentions the cross only when there is one on the board. A legend for a
-marker that is not there is noise, and on a clean loss there are no misplaced flags to
-explain.
-
-**The banner takes the control theme's colours, not a win-green and a lose-red.** Those
-are already contrast-checked, and the outcome is carried by the words - putting it on
-colour would be putting it on the one channel this site never trusts.
-
-**Nothing steals focus any more.** The status line carries `role="status"`, so the result
-is announced when it changes without moving the player anywhere. The `tabindex="-1"` it
-briefly needed is gone with the dialog: there is no hidden element left holding focus to
-rescue it from.
+**Adding a picture.** Paint it in Finger Paint at the board's size, black for mines, and
+share it. It is read square for square and shown back as a grid before it goes into
+`SHAPES`. tests/mineshapes then checks it: rows of `#` and `.` of equal length, no bigger
+than 40x40, at least one solvable opening, and twenty games that each lay exactly the
+picture and open somewhere it solves from.
 
 ## Sequence: two corrections from play
 
