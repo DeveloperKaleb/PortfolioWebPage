@@ -24,6 +24,35 @@ export const SHAPES = [
             '#........#',
         ],
     },
+    /* Painted 20x20 by the project owner to put every number the game can show on one board.
+       The painting first failed the solvability test; this is the version agreed with the
+       owner: the 8's ring moved down a row, off the top edge, where some of its mines touched
+       only squares logic could never reach, and the mines at (6,4) and (14,4) removed. */
+    {
+        name: 'Mine Nonsense V1',
+        rows: [
+            '....................',
+            '.....###...###.###..',
+            '.###.#.......#.#....',
+            '.#.#..##...##..###..',
+            '.###................',
+            '....#.........#.....',
+            '.##....##.###....#..',
+            '....#...#.#...#.....',
+            '.##...##...##...##..',
+            '....#.........#.....',
+            '###...##...##...###.',
+            '....#.........#.....',
+            '...#.#.......#.#....',
+            '....#.........#.....',
+            '..#...#.....#...#...',
+            '....................',
+            '.###..###..###..###.',
+            '....................',
+            '....................',
+            '....................',
+        ],
+    },
 ];
 
 // The largest board the zoom is built for.
