@@ -54,6 +54,7 @@ import {
     correctFlagCount,
     misplacedFlagCount,
     isOver,
+    isOpeningMove,
     PRESETS as MINE_PRESETS,
     STATUS as MINE_STATUS
 } from '../js/minesweeper.js';
@@ -873,6 +874,15 @@ function mineCellWidth() {
     return width > 0 ? width : null;
 }
 
+/* Whether a finger's tap on a cell this size zooms in rather than playing. The opening
+   tap is the exception and plays at any size, the whole 40x40 board included: it only
+   has to land somewhere on the board, since mines are laid after it and never on or
+   beside it. Flag mode keeps the rule - a flag belongs on one particular square. */
+function mineTapZooms(cellPx) {
+    const opening = isOpeningMove(mineGame) && !flagMode;
+    return !opening && tapZooms(mineGame, mineView, cellPx);
+}
+
 function updateMineZoomControls() {
     const zoomed = mineView.across !== null;
     mineZoomOutBtn.disabled = !zoomed;
@@ -884,7 +894,7 @@ function updateMineZoomControls() {
        board, the same line the status message keeps. */
     const width = mineCellWidth();
     let hint = '';
-    if (coarsePointer.matches && width !== null && tapZooms(mineGame, mineView, width)) hint = 'Tap to zoom in';
+    if (coarsePointer.matches && width !== null && mineTapZooms(width)) hint = 'Tap to zoom in';
     else if (zoomed) hint = 'Drag to move';
     mineZoomHintEl.textContent = hint;
 }
@@ -1117,7 +1127,7 @@ mineBoard.addEventListener('click', (event) => {
        playing it. A mouse is precise at any size, and a keyboard press (detail 0) names
        its cell exactly, so neither is redirected. See NOTES.md. */
     if (event.detail !== 0 && mineLastPointerType !== 'mouse'
-        && tapZooms(mineGame, mineView, cell.getBoundingClientRect().width)) {
+        && mineTapZooms(cell.getBoundingClientRect().width)) {
         setMineView(zoomIn(mineGame, mineView, { x, y }));
         return;
     }

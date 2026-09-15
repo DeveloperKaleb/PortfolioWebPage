@@ -1122,6 +1122,16 @@ mouse and a keyboard are never redirected - both are precise at any size - so on
 desktop the 20x20 board still plays straight from the whole view. Some phones raise a
 context menu on a long press; that is held to the same rule, so it cannot flag blind.
 
+**Except the opening tap, which plays at any size.** Asked for by the project owner the
+same day, on first trying the 40x40 board. Mines are laid after the first square is
+opened and never on or beside it, so that tap cannot be the wrong square - it only has to
+land somewhere on the board, and zooming in first asked for precision it does not need.
+`isOpeningMove` in `js/minesweeper.js` names the moment, and a test opens the huge board
+at its corners and edges to keep it true. Flag mode keeps the zoom rule, because a flag
+belongs on one particular square, and so does the long press. Until that first tap the
+hint does not offer "Tap to zoom in"; the status line's "Tap any square to begin" is
+already right.
+
 **The pass mark is predicted, and asserted.** `predictCellSize` in `js/boardzoom.js`
 mirrors the stylesheet's sizing, and `tests/markup/layout.test.js` fails if the two
 drift. `tests/boardzoom` then checks, on 320, 375 and 412px portrait phones: the closest

@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     createGame, reveal, toggleFlag, chord, placeMines, neighbours,
     countAt, isMine, isRevealed, isFlagged, flagsRemaining,
-    safeCellCount, isOver, isWon, STATUS, PRESETS, mineDensity,
+    safeCellCount, isOver, isWon, isOpeningMove, STATUS, PRESETS, mineDensity,
     correctFlagCount, misplacedFlagCount, isCorrectlyFlagged,
 } from '../../js/minesweeper.js';
 
@@ -374,6 +374,33 @@ describe('Board presets', () => {
         expect(game.status).toBe(STATUS.WON);
         expect(flagsRemaining(game)).toBe(0);
     });
+});
+
+/* The opening tap plays at any cell size, even on the 40x40 board seen whole on a phone,
+   because it cannot be the wrong square. That only holds while the first opening is
+   safe wherever it lands - including the corners and edges a blind tap is likeliest to
+   hit - so that is what is checked here. */
+describe('The opening move', () => {
+    test('is the move before anything has been opened', () => {
+        const game = createGame(PRESETS.huge);
+        expect(isOpeningMove(game)).toBe(true);
+        expect(isOpeningMove(reveal(game, 1, 1, Math.random))).toBe(false);
+    });
+
+    test('a flag placed first does not use it up', () => {
+        expect(isOpeningMove(toggleFlag(createGame(PRESETS.huge), 3, 3))).toBe(true);
+    });
+
+    test.each([[1, 1], [40, 1], [1, 40], [40, 40], [20, 1], [1, 20], [20, 20]])(
+        'opening at (%i, %i) on the huge board is always safe',
+        (x, y) => {
+            for (let run = 0; run < 20; run++) {
+                const game = reveal(createGame(PRESETS.huge), x, y, Math.random);
+                expect(game.status).toBe(STATUS.PLAYING);
+                expect(game.revealed.size).toBeGreaterThan(1);
+            }
+        },
+    );
 });
 
 describe('Accounting for the flags at the end', () => {

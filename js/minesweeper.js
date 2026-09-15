@@ -184,6 +184,11 @@ export const flagsRemaining = (game) => game.mineCount - game.flagged.size;
 
 export const isOver = (game) => game.status === STATUS.WON || game.status === STATUS.LOST;
 
+/* Nothing opened yet. Mines are laid after the first square is opened and never on or
+   beside it, so where that first tap lands needs no precision - the board uses this to
+   let it play without zooming in first. See NOTES.md, "Zooming the Minesweeper board". */
+export const isOpeningMove = (game) => game.status === STATUS.READY;
+
 /* Flags that turned out to be right, and flags that turned out to be wrong.
  *
  * These are the honest account of a finished game, and they are what the end-of-game
