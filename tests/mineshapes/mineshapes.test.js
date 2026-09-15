@@ -1,8 +1,9 @@
 import { describe, test, expect } from 'vitest';
-import { SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor } from '../../js/mineshapes.js';
-import { createShapeGame, solvableStarts, solvesWithoutGuessing, STATUS } from '../../js/minesweeper.js';
+import { SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor, fingerprintRows } from '../../js/mineshapes.js';
+import { MINE_OPENINGS } from '../../js/mineopenings.js';
+import { createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS } from '../../js/minesweeper.js';
 
-// A seeded random source, so every run opens the same starts.
+// A seeded random source, so every run checks the same openings.
 function seeded(seed) {
     return () => {
         seed = (seed + 0x6d2b79f5) | 0;
@@ -14,10 +15,15 @@ function seeded(seed) {
 
 /* Every picture the project owner draws is checked here the moment it is added. The one
    that matters is solvability: a forced guess on a picture board loses, so a picture has to
-   be playable to the end by reasoning alone from where it opens. One that is not is sent
-   back to be reworked - the test failing is the signal, by design. */
-describe.each(SHAPES.map((raw) => [raw.name, raw]))('The %s picture', (_name, raw) => {
-    const shape = parseShape(raw);
+   be playable to the end by reasoning alone from where it opens.
+
+   The openings are worked out by tools/mine-openings.mjs and stored, and the tool proves
+   every one of them when it writes them. Here they are spot-checked rather than all solved
+   again - the project owner's call, so the tests stay fast as pictures are added: the
+   fingerprint catches stale data, every opening is checked to be a real one, and three per
+   picture are solved in full. */
+describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture', (name, shape) => {
+    const raw = SHAPES.find((picture) => picture.name === name);
 
     test('is drawn in # and . only, every row the same length', () => {
         raw.rows.forEach((row) => {
@@ -36,18 +42,39 @@ describe.each(SHAPES.map((raw) => [raw.name, raw]))('The %s picture', (_name, ra
         expect(shape.mineCount).toBeLessThan(shape.width * shape.height);
     });
 
-    test('can be solved without a single guess from at least one opening', () => {
-        expect(solvableStarts(shape).length, 'no opening of nine or more squares solves this picture without guessing - it needs reworking').toBeGreaterThan(0);
+    test('its stored openings were worked out from these rows', () => {
+        expect(MINE_OPENINGS[name]?.fingerprint, 'stored openings are out of date - run npm run openings').toBe(fingerprintRows(raw.rows));
     });
 
-    test('every game lays exactly the picture and opens somewhere it solves from', () => {
+    test('has at least one opening that solves it without guessing', () => {
+        expect(shape.openings.length, 'no opening solves this picture without guessing - it needs reworking').toBeGreaterThan(0);
+    });
+
+    test('every stored opening is a square with no mine on or around it, opening nine or more', () => {
+        shape.openings.forEach(([x, y]) => {
+            const opened = openShapeAt(shape, { x, y });
+            expect(isMine(opened, x, y)).toBe(false);
+            expect(countAt(opened, x, y)).toBe(0);
+            expect(opened.revealed.size).toBeGreaterThanOrEqual(9);
+        });
+    });
+
+    test('three stored openings, chosen at random, solve without a single guess', () => {
         const random = seeded(1);
+        for (let check = 0; check < Math.min(3, shape.openings.length); check++) {
+            const [x, y] = shape.openings[Math.floor(random() * shape.openings.length)];
+            expect(solvesWithoutGuessing(openShapeAt(shape, { x, y })), `opening at (${x},${y})`).toBe(true);
+        }
+    });
+
+    test('every game lays exactly the picture and opens on a stored opening', () => {
+        const random = seeded(2);
         for (let played = 0; played < 20; played++) {
             const opened = createShapeGame(shape, random);
             expect(opened.status).toBe(STATUS.PLAYING);
             expect([...opened.mines].sort()).toEqual([...shape.mines].sort());
+            expect(shape.openings.some(([x, y]) => opened.revealed.has(`${x},${y}`))).toBe(true);
             expect(opened.revealed.size).toBeGreaterThanOrEqual(9);
-            expect(solvesWithoutGuessing(opened)).toBe(true);
         }
     });
 });
@@ -61,11 +88,21 @@ describe('Picture rules', () => {
         expect(new Set(SHAPES.map((shape) => shape.name)).size).toBe(SHAPES.length);
     });
 
+    test('every stored set of openings belongs to a picture', () => {
+        Object.keys(MINE_OPENINGS).forEach((name) => expect(SHAPES.some((shape) => shape.name === name)).toBe(true));
+    });
+
     test('black squares are mines, white squares are not', () => {
         const picture = parseShape({ name: 'dots', rows: ['#..', '...', '..#'] });
         expect([...picture.mines].sort()).toEqual(['1,1', '3,3']);
         expect(picture.mineCount).toBe(2);
         expect([picture.width, picture.height]).toEqual([3, 3]);
+    });
+
+    test('a fingerprint is stable, and changes when any square does', () => {
+        expect(fingerprintRows(['#.', '..'])).toBe(fingerprintRows(['#.', '..']));
+        expect(fingerprintRows(['#.', '..'])).not.toBe(fingerprintRows(['.#', '..']));
+        expect(fingerprintRows(['#.', '..'])).toMatch(/^[0-9a-f]{8}$/);
     });
 
     test('names take the right article, and can be told otherwise', () => {

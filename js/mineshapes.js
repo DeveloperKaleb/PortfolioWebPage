@@ -7,6 +7,8 @@
  * NOTES.md, "Mine A Shape!".
  */
 
+import { MINE_OPENINGS } from './mineopenings.js';
+
 export const SHAPES = [
     // The project owner's first picture, painted 10x10: a heart outline, and a mine in each corner.
     {
@@ -74,4 +76,17 @@ export function parseShape({ name, article, rows }) {
     };
 }
 
-export const SHAPE_BOARDS = SHAPES.map(parseShape);
+/* A short fingerprint of a picture's rows (32-bit FNV-1a). js/mineopenings.js stores the one
+   its openings were worked out from, so a picture changed without re-running the tool is
+   caught by the tests rather than dealt from stale openings. */
+export function fingerprintRows(rows) {
+    let hash = 0x811c9dc5;
+    for (const mark of rows.join('/')) hash = Math.imul(hash ^ mark.charCodeAt(0), 0x01000193) >>> 0;
+    return hash.toString(16).padStart(8, '0');
+}
+
+// Each picture with its stored solvable openings, as [column, row] pairs.
+export const SHAPE_BOARDS = SHAPES.map((raw) => ({
+    ...parseShape(raw),
+    openings: (MINE_OPENINGS[raw.name] || { openings: [] }).openings,
+}));

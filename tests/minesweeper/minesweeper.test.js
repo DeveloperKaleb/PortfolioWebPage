@@ -494,10 +494,12 @@ describe('Mine A Shape!', () => {
     /* A picture local to these tests - the dealt pictures are the project owner's to change.
        Two mines side by side on an 8x8 board: any opening cascades up to them, so it is
        solvable from anywhere. */
-    const picture = parseShape({
+    const drawn = parseShape({
         name: 'pair',
         rows: ['........', '........', '........', '...##...', '........', '........', '........', '........'],
     });
+    // Openings worked out here, as tools/mine-openings.mjs does and stores for the dealt pictures.
+    const picture = { ...drawn, openings: solvableStarts(drawn).map(({ x, y }) => [x, y]) };
 
     test('the mines are exactly the black squares, on the full board', () => {
         const game = createShapeGame(picture, Math.random);

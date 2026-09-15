@@ -163,25 +163,28 @@ export function solvableStarts(shape) {
     return quietSquares(laid).filter((square) => openingFrom(laid, square));
 }
 
+// A picture's game opened at one square: the cascade only, no solving.
+export function openShapeAt(shape, { x, y }) {
+    const laid = layShape(shape);
+    return settle(copy(laid, { revealed: cascade(laid, x, y) }));
+}
+
 /* Mine A Shape!: a board whose mines draw a picture (js/mineshapes.js). The picture decides
    where every mine is, so nothing is dealt at random and the first tap cannot place them.
    Instead the game opens itself, from a random one of the picture's solvable openings.
+
+   Those are worked out ahead of time by tools/mine-openings.mjs and stored in
+   js/mineopenings.js, so dealing is a lookup. Solving them per game took about 60ms for a
+   20x20 picture, and grows with size.
 
    The project owner's rule: every picture has to be solvable without guessing from where
    it opens - a forced guess on a picture board loses, because its mines cannot move - and
    a picture that is not gets reworked, never shipped. tests/mineshapes enforces it. */
 export function createShapeGame(shape, random = Math.random) {
-    const laid = layShape(shape);
-    const starts = quietSquares(laid);
-    for (let i = starts.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [starts[i], starts[j]] = [starts[j], starts[i]];
-    }
-    for (const square of starts) {
-        const opened = openingFrom(laid, square);
-        if (opened) return opened;
-    }
-    throw new Error(`the ${shape.name} cannot be solved without guessing from any opening`);
+    const openings = shape.openings || [];
+    if (!openings.length) throw new Error(`the ${shape.name} has no stored openings - run npm run openings`);
+    const [x, y] = openings[Math.floor(random() * openings.length)];
+    return openShapeAt(shape, { x, y });
 }
 
 /* Winning means the board is finished, not merely survived: every safe square opened

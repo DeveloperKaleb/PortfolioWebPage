@@ -1316,9 +1316,20 @@ picture. Flag every mine and the flags draw it; lose and the revealed mines show
 **Solvability is checked, not hoped for.** `solvesWithoutGuessing` plays a position to the
 end by opening only squares `js/minesolver.js` proves safe; mines need no move of their
 own, since the count settles them once every safe square is open. `solvableStarts` lists
-every opening from which that succeeds, and tests/mineshapes fails any picture with none,
-saying it needs reworking. `createShapeGame` tries openings in random order and uses the
-first that solves.
+every opening from which that succeeds.
+
+**Openings are stored, not worked out per game.** Solving the openings as a game was dealt
+took about 60ms for the 20x20 Mine Nonsense V1, and grows with size, so the project owner
+asked for them to be stored. `tools/mine-openings.mjs` (`npm run openings`) works out every
+picture's solvable openings and rewrites `js/mineopenings.js` whole - never patching it -
+with a fingerprint of each picture's rows. `createShapeGame` picks one at random: a lookup.
+
+The tests guard the stored data rather than recompute it, the owner's call so they stay fast
+as pictures are added. A fingerprint that no longer matches its picture fails, with a
+reminder to re-run the tool; every stored opening is checked to be a quiet square opening
+nine or more; and three per picture, chosen from a fixed seed, are solved in full. The tool
+has already solved every opening when it wrote the file, and exits with an error for a
+picture that has none.
 
 **Built wrong first.** The first version read the heart as the board's outline - the painted
 squares were the board, the rest were holes - with random mines on it, and it shipped
@@ -1334,9 +1345,16 @@ marks onto squares that never had them. It clears them first now.
 
 **Adding a picture.** Paint it in Finger Paint at the board's size, black for mines, and
 share it. It is read square for square and shown back as a grid before it goes into
-`SHAPES`. tests/mineshapes then checks it: rows of `#` and `.` of equal length, no bigger
-than 40x40, at least one solvable opening, and twenty games that each lay exactly the
-picture and open somewhere it solves from.
+`SHAPES`. Then `npm run openings`, which also says if the picture cannot be solved from any
+opening; commit `js/mineshapes.js` and `js/mineopenings.js` together. tests/mineshapes checks
+the rest: rows of `#` and `.` of equal length, no bigger than 40x40, stored openings that
+match the rows, and twenty games that each lay exactly the picture.
+
+A picture that fails can often be rescued with a few changes. Mine Nonsense V1 was: the
+search for single-square changes, and then for moved glyphs, lives in the session scratchpad
+rather than the repo, but the method is simple to redo - flip one square at a time, keep
+the ones that still show every number wanted, and rank them by how many safe squares logic
+still cannot prove.
 
 ## Sequence: two corrections from play
 

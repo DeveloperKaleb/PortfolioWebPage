@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "node tools/dev-server.js",
-    "test": "vitest"
+    "test": "vitest",
+    "openings": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/mine-openings.mjs"
   },
   "repository": {
     "type": "git",
