@@ -85,8 +85,10 @@ export function fingerprintRows(rows) {
     return hash.toString(16).padStart(8, '0');
 }
 
-// Each picture with its stored solvable openings, as [column, row] pairs.
+/* Each picture with its stored solvable openings, as [column, row] pairs, and its stored
+   difficulty profile - which is for choosing and checking pictures, never shown to a player. */
 export const SHAPE_BOARDS = SHAPES.map((raw) => ({
     ...parseShape(raw),
     openings: (MINE_OPENINGS[raw.name] || { openings: [] }).openings,
+    difficulty: (MINE_OPENINGS[raw.name] || {}).difficulty || null,
 }));

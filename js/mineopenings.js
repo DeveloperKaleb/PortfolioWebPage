@@ -2,18 +2,22 @@
  *
  * Every opening from which each Mine A Shape! picture in js/mineshapes.js can be solved
  * without a single guess, as [column, row], with a fingerprint of the rows they were worked
- * out from. createShapeGame picks one at random. tests/mineshapes fails if a fingerprint no
- * longer matches its picture: re-run the tool.
+ * out from and the picture's difficulty profile - how many stalls need two numbers, the mine
+ * count, or deeper reasoning (tools/mine-difficulty.mjs). createShapeGame picks an opening at
+ * random; nothing here reaches the player. tests/mineshapes fails if a fingerprint no longer
+ * matches its picture: re-run the tool.
  */
 export const MINE_OPENINGS = {
     "heart": {
         fingerprint: '8d31a456',
+        difficulty: { simpleRounds: 17, pair: 2, count: 0, deeper: 3, sampled: 2 },
         openings: [
             [5,6], [6,6],
         ],
     },
     "Mine Nonsense V1": {
         fingerprint: 'e4a2129d',
+        difficulty: { simpleRounds: 72, pair: 10, count: 1, deeper: 3, sampled: 5 },
         openings: [
             [10,10], [10,11], [10,12], [8,13], [9,13], [10,13], [11,13], [12,13], [18,13], [19,13],
             [20,13], [9,14], [10,14], [11,14], [19,14], [20,14], [9,15], [10,15], [11,15], [19,15],

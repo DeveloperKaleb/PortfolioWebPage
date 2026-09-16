@@ -1343,6 +1343,21 @@ for whichever squares the window shows, and `paintMineCell` set the mine, detona
 wrong-flag classes but never cleared them. After a loss, panning a zoomed board moved those
 marks onto squares that never had them. It clears them first now.
 
+**Difficulty is measured, not guessed.** The project owner's read of the two pictures - the
+heart hard but straightforward, Mine Nonsense V1 asking for more invention - matches what
+`tools/mine-difficulty.mjs` counts, so it is stored beside the openings and printed by the
+tool. It replays a solve and, wherever the simple rules stall, records the weakest technique
+that gets moving again: **pair** (one number's squares inside another's), **count** (groups
+that cannot overlap using up every mine left), or **deeper** (the solver proves what none of
+those explain). The heart needs 1 pair and 1 deeper; Mine Nonsense V1 needs 6, 1 and 2. The
+counts barely move between openings - a profile is a property of the picture - so five
+openings are sampled, with `--profile-all` when certainty is wanted.
+
+**None of it reaches the player**, the owner's call: a board that announced its difficulty
+would be telling the player something about it before they started, which is the line the
+game keeps. The profile is for choosing pictures and for catching a picture whose character
+changed after an edit. The tool lives in tools/ so it is never shipped or precached.
+
 **Adding a picture.** Paint it in Finger Paint at the board's size, black for mines, and
 share it. It is read square for square and shown back as a grid before it goes into
 `SHAPES`. Then `npm run openings`, which also says if the picture cannot be solved from any

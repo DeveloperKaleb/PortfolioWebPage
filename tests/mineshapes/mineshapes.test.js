@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor, fingerprintRows } from '../../js/mineshapes.js';
 import { MINE_OPENINGS } from '../../js/mineopenings.js';
 import { createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS } from '../../js/minesweeper.js';
+import { profileShape } from '../../tools/mine-difficulty.mjs';
 
 // A seeded random source, so every run checks the same openings.
 function seeded(seed) {
@@ -65,6 +66,26 @@ describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture'
             const [x, y] = shape.openings[Math.floor(random() * shape.openings.length)];
             expect(solvesWithoutGuessing(openShapeAt(shape, { x, y })), `opening at (${x},${y})`).toBe(true);
         }
+    });
+
+    /* The difficulty profile is measured once by the tool and stored - it says which
+       techniques the picture forces, for choosing and checking pictures, never for the
+       player. A small picture is cheap to re-measure, so its stored numbers are held to a
+       fresh run; a big one would slow every test run down for little. */
+    test('its difficulty profile is stored', () => {
+        const profile = shape.difficulty;
+        expect(profile, 'no stored difficulty - run npm run openings').toBeTruthy();
+        [profile.simpleRounds, profile.pair, profile.count, profile.deeper].forEach((value) => {
+            expect(Number.isInteger(value) && value >= 0).toBe(true);
+        });
+        expect(profile.sampled).toBeGreaterThan(0);
+    });
+
+    test('a small picture\'s stored profile still matches a fresh measurement', () => {
+        if (shape.openings.length > 4) return;
+        const fresh = profileShape(shape, { sample: shape.openings.length });
+        expect({ pair: fresh.pair, count: fresh.count, deeper: fresh.deeper })
+            .toEqual({ pair: shape.difficulty.pair, count: shape.difficulty.count, deeper: shape.difficulty.deeper });
     });
 
     test('every game lays exactly the picture and opens on a stored opening', () => {

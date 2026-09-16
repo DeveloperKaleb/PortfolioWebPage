@@ -1,7 +1,11 @@
-/* Works out every solvable opening of every Mine A Shape! picture and writes them to
- * js/mineopenings.js, so a game only has to look one up.
+/* Works out every solvable opening of every Mine A Shape! picture, and what kinds of
+ * reasoning the picture forces, and writes both to js/mineopenings.js - so a game only has
+ * to look an opening up, and a picture's difficulty is measured once rather than replayed.
  *
- * usage: npm run openings   (node tools/mine-openings.mjs)
+ * usage: npm run openings [-- --profile-all]   (node tools/mine-openings.mjs)
+ *
+ * The profile samples five openings by default, which gives the same counts as every one on
+ * the pictures so far; --profile-all measures them all.
  *
  * Needs Node 22 or newer: it imports the site's own ES modules, which are plain .js files in
  * a package with no "type", and older Node reads those as CommonJS and fails. The npm script
@@ -15,24 +19,35 @@
 import { writeFileSync } from 'node:fs';
 import { SHAPES, parseShape, fingerprintRows } from '../js/mineshapes.js';
 import { solvableStarts } from '../js/minesweeper.js';
+import { profileShape } from './mine-difficulty.mjs';
 
+const profileAll = process.argv.includes('--profile-all');
 const entries = [];
 let unsolvable = 0;
 for (const raw of SHAPES) {
     const started = performance.now();
-    const openings = solvableStarts(parseShape(raw)).map(({ x, y }) => [x, y]);
+    const shape = parseShape(raw);
+    const openings = solvableStarts(shape).map(({ x, y }) => [x, y]);
     const ms = Math.round(performance.now() - started);
     console.log(`${raw.name}: ${openings.length} solvable opening(s), ${ms}ms`);
     if (!openings.length) {
         unsolvable++;
         console.log('  no opening of nine or more squares solves it without guessing - it needs reworking');
     }
+
+    const profiled = performance.now();
+    const difficulty = profileShape({ ...shape, openings }, profileAll ? { sample: openings.length } : {});
+    console.log(`  difficulty (${difficulty.sampled} opening(s) sampled, ${Math.round(performance.now() - profiled)}ms): `
+        + `${difficulty.simpleRounds} rounds of simple rules, then ${difficulty.pair} needing two numbers, `
+        + `${difficulty.count} needing the mine count, ${difficulty.deeper} needing deeper reasoning`);
     // Ten pairs a line, so the file stays readable.
     const lines = [];
     for (let i = 0; i < openings.length; i += 10) lines.push(`            ${openings.slice(i, i + 10).map((pair) => JSON.stringify(pair)).join(', ')},`);
     entries.push([
         `    ${JSON.stringify(raw.name)}: {`,
         `        fingerprint: '${fingerprintRows(raw.rows)}',`,
+        `        difficulty: { simpleRounds: ${difficulty.simpleRounds}, pair: ${difficulty.pair}, `
+            + `count: ${difficulty.count}, deeper: ${difficulty.deeper}, sampled: ${difficulty.sampled} },`,
         '        openings: [',
         ...lines,
         '        ],',
@@ -44,8 +59,10 @@ writeFileSync(new URL('../js/mineopenings.js', import.meta.url), `/* Generated b
  *
  * Every opening from which each Mine A Shape! picture in js/mineshapes.js can be solved
  * without a single guess, as [column, row], with a fingerprint of the rows they were worked
- * out from. createShapeGame picks one at random. tests/mineshapes fails if a fingerprint no
- * longer matches its picture: re-run the tool.
+ * out from and the picture's difficulty profile - how many stalls need two numbers, the mine
+ * count, or deeper reasoning (tools/mine-difficulty.mjs). createShapeGame picks an opening at
+ * random; nothing here reaches the player. tests/mineshapes fails if a fingerprint no longer
+ * matches its picture: re-run the tool.
  */
 export const MINE_OPENINGS = {
 ${entries.join('\n')}
