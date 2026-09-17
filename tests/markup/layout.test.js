@@ -101,10 +101,20 @@ describe('The zoom maths and the stylesheet agree on cell size', () => {
 
     test('the gap and the frame the board is drawn with', () => {
         const board = ruleFor('#mineDisplay');
-        expect(board).toContain(`gap: ${BOARD_GAP_PX}px;`);
+        expect(board).toContain(`--mine-gap: ${BOARD_GAP_PX}px;`);
+        expect(board).toContain('gap: var(--mine-gap);');
         expect(board).toContain('padding: 6px;');
         expect(board).toContain('border: 2px solid');
         expect(BOARD_FRAME_PX).toBe(2 * 6 + 2 * 2);
+    });
+
+    /* A finished board closes its gaps so the picture reads as one image. The cell-size
+       budget still counts them, so the cells keep their size and only the board tightens -
+       which is why --mine-fit above subtracts gaps that a finished board no longer draws. */
+    test('a finished board closes the gaps and squares off the cells', () => {
+        expect(ruleFor('#mineDisplay\\.is-over')).toContain('--mine-gap: 0');
+        expect(ruleFor('#mineDisplay\\.is-over \\.mine-cell')).toContain('border-radius: 0');
+        expect(declarations.match(/--mine-fit:[^;]*;/s)[0]).toContain(`* ${BOARD_GAP_PX}px`);
     });
 
     test('a zoomed window lifts the cap', () => {

@@ -958,12 +958,17 @@ a:active  {color: #002e2c;}
        falling back to it. A feature query is the only safe way round. */
     --mine-cell: var(--mine-fit);
 
+    /* The gap is a variable because a finished board closes it - see #mineDisplay.is-over.
+       The cell-size budget above still subtracts 2px a gap either way: cells keep their size
+       when the gaps close, so nothing resizes under the player, the board just tightens. */
+    --mine-gap: 2px;
+
     display: grid;
     grid-template-columns: repeat(var(--mine-cols), var(--mine-cell));
-    gap: 2px;
+    gap: var(--mine-gap);
     /* Stated rather than left to fit-content, so the container is exactly the tracks
        plus the gaps and there is no spare width for a column to absorb. */
-    width: calc(var(--mine-cols) * var(--mine-cell) + (var(--mine-cols) - 1) * 2px);
+    width: calc(var(--mine-cols) * var(--mine-cell) + (var(--mine-cols) - 1) * var(--mine-gap));
     margin: 20px auto 30px;
     padding: 6px;
     /* Nothing is read against the frame - the cells sit on top with their own
@@ -1058,8 +1063,18 @@ a:active  {color: #002e2c;}
     color: #f4d9a8;
 }
 
+/* A finished board is a picture, so it stops looking like a grid: the gaps close and the
+   squares lose their corners, leaving one solid image. On the big boards the gaps were the
+   problem - at 40x40 they take a third of the board's width, and a Mine A Shape! drawing is
+   hard to read through them. The project owner asked for it on every board, picture or
+   rectangle, won or lost. */
+#mineDisplay.is-over {
+    --mine-gap: 0px;
+}
+
 #mineDisplay.is-over .mine-cell {
     cursor: default;
+    border-radius: 0;
 }
 /* Zoomed in, the board is a window onto a larger one and a drag moves it, so the page
    must not scroll or zoom under that drag. Set on the cells as well, since that is where

@@ -1035,18 +1035,21 @@ function drawMineBoard() {
        The result line is the score, which is why it names the flags rather than the
        squares - see correctFlagCount in js/minesweeper.js. */
     const wrongFlags = misplacedFlagCount(mineGame);
-    // A Mine A Shape! picture is named only once the game is over, won or lost.
-    const shapeName = mineGame.shape ? ` It was ${nameWithArticle(mineGame.shape)}!` : '';
+    /* A Mine A Shape! picture is named only when the board is finished: the reveal is the
+       reward for sweeping it, the project owner's call. Lose and the picture keeps its name -
+       the board shows the mines anyway, so there is nothing hidden, only unearned. */
+    const revealName = mineGame.shape ? ` It was ${nameWithArticle(mineGame.shape)}!` : '';
+    const consolation = mineGame.shape ? ' Better luck next time!' : '';
     const messages = {
         [MINE_STATUS.READY]: 'Tap any square to begin.',
         [MINE_STATUS.PLAYING]: flagMode
             ? 'Flag mode: tap to mark a suspected mine.'
             : 'Clear every square that is not a mine.',
-        [MINE_STATUS.WON]: `Swept. All ${mineGame.mineCount} mines correctly flagged.${shapeName}`,
+        [MINE_STATUS.WON]: `Swept. All ${mineGame.mineCount} mines correctly flagged.${revealName}`,
         /* The legend is only mentioned when there is something for it to explain -
            a board lost with no misplaced flags has no crosses on it. */
         [MINE_STATUS.LOST]: `Detonated. ${correctFlagCount(mineGame)} of ${mineGame.mineCount} mines correctly flagged.`
-            + (wrongFlags > 0 ? ` ✗ marks a flag that was wrong.` : '') + shapeName,
+            + (wrongFlags > 0 ? ` ✗ marks a flag that was wrong.` : '') + consolation,
     };
     mineStatusEl.textContent = messages[mineGame.status];
     // Only a finished game gets the banner treatment; in play this is a quiet hint line.
@@ -1112,7 +1115,8 @@ mineBoard.addEventListener('pointerdown', (event) => {
         x: event.clientX,
         y: event.clientY,
         view: mineView,
-        pitch: width + 2, // a cell and the 2px gap after it
+        // A cell and the gap after it - which a finished board closes, so it is read, not assumed.
+        pitch: width + (parseFloat(getComputedStyle(mineBoard).columnGap) || 0),
         dragging: false,
     };
 });

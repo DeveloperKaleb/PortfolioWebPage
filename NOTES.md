@@ -1092,6 +1092,18 @@ written down here than left as code nobody calls.
 was: every cell ignores a tap once the game is over, and the state is immutable. Worth
 checking before letting another game end this way.
 
+**A finished board closes its gaps.** The 2px between squares is a third of a 40x40 board's
+width, and a Mine A Shape! picture is hard to read through that lattice - the project owner
+asked for it on 2026-09-17 after play-testing Octopi. On `is-over` the gap variable goes to
+zero and the cells lose their corner radius, so the revealed board reads as one image. Every
+board does it, picture or rectangle, won or lost: the end of an ordinary game is a pattern
+worth seeing too.
+
+The cell-size budget (`--mine-fit`) still subtracts the gaps it no longer draws. That is
+deliberate: cells keep their size when the gaps close, so nothing resizes under the player
+and the board simply tightens. The zoom's drag reads the gap from the page rather than
+assuming 2px, since a finished board can still be panned.
+
 **Wrong flags are marked, because otherwise there is nothing to read.** A lost board used
 to show every flag identically, so the player could see where the mines had been but not
 which of their own marks had been wrong - which is the half worth learning from. A flag
@@ -1315,8 +1327,10 @@ picture. Flag every mine and the flags draw it; lose and the revealed mines show
   on a picture board loses - its mines cannot move without breaking the picture, so the
   forgiveness rule is off there - and a picture that cannot be solved is sent back to be
   reworked rather than shipped. That is why the rule is strict instead of forgiving.
-- **The picture's name is revealed at the end**, won or lost: "It was a heart!". Never
-  during play.
+- **The picture's name is the reward for finishing it**: "It was a heart!" on a win only.
+  A lost board reads "Better luck next time!" instead - the mines are on show either way, so
+  what is withheld is the naming, not the picture. Never named during play. The owner's call
+  on 2026-09-17, after play-testing Octopi.
 - **No flipping or mirroring.** Tens of pictures are planned, so variety comes from them. A
   picture played before is known, and that is accepted.
 
