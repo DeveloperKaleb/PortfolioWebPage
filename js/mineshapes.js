@@ -61,6 +61,40 @@ export const SHAPES = [
        lean toward comfortable play, not toward boards like Mine Nonsense V1. An earlier
        version at 23% was harder but unsolvable, its mouth drawn as two parallel strokes that
        made a double coin-flip; this one is sparser and the mouth is staggered. */
+    /* Two faces, painted 20x20 by the project owner. It took five passes to make solvable, and
+       what did it was dotting the top bars - '#.#.#' rather than a solid run. A solid bar gave
+       the numbers at the corners nothing asymmetric to see, so each corner became a coin flip
+       no amount of counting could break; the alternating pattern breaks that symmetry all at
+       once, and both corners and both sealed interiors came free together. Earlier passes
+       failed the other way: sealed rings no cascade could get into, and once opened, a
+       background so large the opening cap refused it. Profile 50/8/0/0 - long, with real
+       two-number work, but never a moment that demands counting or a deeper leap. */
+    {
+        name: 'Octopi',
+        article: '',        // already plural: "It was Octopi!"
+        rows: [
+            '....................',
+            '....#.#.#...#....#..',
+            '...#.....#..........',
+            '..#.......#.........',
+            '....#...#.....#.....',
+            '....#...#...........',
+            '..#.......#.........',
+            '...#.....#......#...',
+            '..#..#.#..#....#....',
+            '....#.#.#...........',
+            '....................',
+            '...........#.#.#....',
+            '......#...#.....#...',
+            '..#......#.......#..',
+            '...#.......#...#....',
+            '...........#...#....',
+            '.#.......#.......#..',
+            '..........#.....#...',
+            '.........#..#.#..#..',
+            '..#........#.#.#....',
+        ],
+    },
     {
         name: 'bear',
         rows: [
@@ -93,13 +127,19 @@ export const MAX_SHAPE_SIZE = 40;
 
 export const articleFor = (name) => (/^[aeiou]/i.test(name) ? 'an' : 'a');
 
-// `article` overrides the guess for the names it gets wrong ("a unicorn", "an hour").
+/* How a picture is named once the game is over: "a heart", "an owl", or bare for a plural
+   like Octopi. The one place that phrase is built, so nothing assembles it from the parts. */
+export const nameWithArticle = (shape) => (shape.article ? `${shape.article} ${shape.name}` : shape.name);
+
+/* `article` overrides the guess for the names it gets wrong ("a unicorn", "an hour"), and an
+   empty string means the name takes none at all - a plural like Octopi, which reads "It was
+   Octopi!". Only an absent `article` is guessed from the name. */
 export function parseShape({ name, article, rows }) {
     const mines = new Set();
     rows.forEach((row, y) => [...row].forEach((mark, x) => { if (mark === '#') mines.add(`${x + 1},${y + 1}`); }));
     return {
         name,
-        article: article || articleFor(name),
+        article: article === undefined ? articleFor(name) : article,
         width: Math.max(...rows.map((row) => row.length)),
         height: rows.length,
         mines,

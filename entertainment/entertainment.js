@@ -75,7 +75,7 @@ import {
     cellAtMinimap,
     DRAG_THRESHOLD_PX
 } from '../js/boardzoom.js';
-import { SHAPE_BOARDS } from '../js/mineshapes.js';
+import { SHAPE_BOARDS, nameWithArticle } from '../js/mineshapes.js';
 // Classic and Terni Lapilli share one view and answer the same questions, so they are
 // taken whole and the view picks between them - see PART 6.
 import * as TicTacToe from '../js/tictactoe.js';
@@ -1036,7 +1036,7 @@ function drawMineBoard() {
        squares - see correctFlagCount in js/minesweeper.js. */
     const wrongFlags = misplacedFlagCount(mineGame);
     // A Mine A Shape! picture is named only once the game is over, won or lost.
-    const shapeName = mineGame.shape ? ` It was ${mineGame.shape.article} ${mineGame.shape.name}!` : '';
+    const shapeName = mineGame.shape ? ` It was ${nameWithArticle(mineGame.shape)}!` : '';
     const messages = {
         [MINE_STATUS.READY]: 'Tap any square to begin.',
         [MINE_STATUS.PLAYING]: flagMode

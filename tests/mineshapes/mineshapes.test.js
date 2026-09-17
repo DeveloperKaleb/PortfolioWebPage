@@ -1,5 +1,7 @@
 import { describe, test, expect } from 'vitest';
-import { SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor, fingerprintRows } from '../../js/mineshapes.js';
+import {
+    SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor, fingerprintRows, nameWithArticle,
+} from '../../js/mineshapes.js';
 import { MINE_OPENINGS } from '../../js/mineopenings.js';
 import {
     createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS,
@@ -138,5 +140,22 @@ describe('Picture rules', () => {
         expect(articleFor('heart')).toBe('a');
         expect(articleFor('owl')).toBe('an');
         expect(parseShape({ name: 'unicorn', article: 'a', rows: ['#.'] }).article).toBe('a');
+    });
+
+    /* A plural name takes no article at all: "It was Octopi!", not "an Octopi". An empty
+       string says so; only an absent article is guessed from the name. */
+    test('a plural name is left bare', () => {
+        const plural = parseShape({ name: 'Octopi', article: '', rows: ['#.'] });
+        expect(plural.article).toBe('');
+        expect(nameWithArticle(plural)).toBe('Octopi');
+        expect(nameWithArticle(parseShape({ name: 'heart', rows: ['#.'] }))).toBe('a heart');
+        expect(nameWithArticle(parseShape({ name: 'owl', rows: ['#.'] }))).toBe('an owl');
+    });
+
+    // Whatever each picture declares, the finished sentence has to read properly.
+    test.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('%s reads as a sentence when the game ends', (_name, shape) => {
+        const line = `It was ${nameWithArticle(shape)}!`;
+        expect(line).not.toMatch(/\s{2}/);
+        expect(line).toMatch(/^It was \S.*!$/);
     });
 });
