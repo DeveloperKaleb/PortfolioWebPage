@@ -149,11 +149,21 @@ function quietSquares(game) {
     return out;
 }
 
-/* An opening a picture's game may use: a quiet square whose cascade shows at least nine
-   squares, and from which the whole board can then be solved without a single guess. */
+/* How much of a picture an opening may show. At least nine squares, so the player starts
+   with something to reason from, and at most a fifth of the board, so they are not handed
+   the whole background at once - the project owner's call, for the style of play Mine A
+   Shape! is meant to have. The bear's openings are what this is aimed at: one of its regions
+   showed 166 of 400 squares, 42% of the board. */
+export const OPENING_MINIMUM = 9;
+export const OPENING_SHARE = 0.2;
+
+/* An opening a picture's game may use: a quiet square whose cascade shows a fair amount of
+   the board, and from which the whole of it can then be solved without a single guess. */
 function openingFrom(laid, { x, y }) {
     const opened = settle(copy(laid, { revealed: cascade(laid, x, y) }));
-    return opened.revealed.size >= 9 && solvesWithoutGuessing(opened) ? opened : null;
+    const most = Math.floor(laid.width * laid.height * OPENING_SHARE);
+    if (opened.revealed.size < OPENING_MINIMUM || opened.revealed.size > most) return null;
+    return solvesWithoutGuessing(opened) ? opened : null;
 }
 
 /* Every opening a picture offers - what tests/mineshapes checks each picture against. None
@@ -171,7 +181,8 @@ export function openShapeAt(shape, { x, y }) {
 
 /* Mine A Shape!: a board whose mines draw a picture (js/mineshapes.js). The picture decides
    where every mine is, so nothing is dealt at random and the first tap cannot place them.
-   Instead the game opens itself, from a random one of the picture's solvable openings.
+   Instead the game opens itself, from a random one of the picture's solvable openings -
+   each showing between nine squares and a fifth of the board (openingFrom).
 
    Those are worked out ahead of time by tools/mine-openings.mjs and stored in
    js/mineopenings.js, so dealing is a lookup. Solving them per game took about 60ms for a

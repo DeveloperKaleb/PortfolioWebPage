@@ -4,7 +4,7 @@ import {
     countAt, isMine, isRevealed, isFlagged, flagsRemaining,
     safeCellCount, isOver, isWon, isOpeningMove, STATUS, PRESETS, mineDensity,
     correctFlagCount, misplacedFlagCount, isCorrectlyFlagged, createShapeGame, inBounds,
-    solvableStarts, solvesWithoutGuessing,
+    solvableStarts, solvesWithoutGuessing, openShapeAt, OPENING_MINIMUM, OPENING_SHARE,
 } from '../../js/minesweeper.js';
 import { findSafeSquare } from '../../js/minesolver.js';
 import { parseShape } from '../../js/mineshapes.js';
@@ -492,20 +492,24 @@ describe('Accounting for the flags at the end', () => {
 
 describe('Mine A Shape!', () => {
     /* A picture local to these tests - the dealt pictures are the project owner's to change.
-       Two mines side by side on an 8x8 board: any opening cascades up to them, so it is
-       solvable from anywhere. */
+       Eight mines on a 10x10 board, placed so each corner cascades into a pocket of exactly
+       nine squares that solves, while the middle opens 36 - over the fifth-of-the-board cap,
+       so it is rejected. That exercises both bounds. */
     const drawn = parseShape({
         name: 'pair',
-        rows: ['........', '........', '........', '...##...', '........', '........', '........', '........'],
+        rows: [
+            '..........', '...#..#...', '..........', '.#......#.', '..........',
+            '..........', '.#......#.', '..........', '...#..#...', '..........',
+        ],
     });
     // Openings worked out here, as tools/mine-openings.mjs does and stores for the dealt pictures.
     const picture = { ...drawn, openings: solvableStarts(drawn).map(({ x, y }) => [x, y]) };
 
     test('the mines are exactly the black squares, on the full board', () => {
         const game = createShapeGame(picture, Math.random);
-        expect([...game.mines].sort()).toEqual(['4,4', '5,4']);
+        expect([...game.mines].sort()).toEqual(['2,4', '2,7', '4,2', '4,9', '7,2', '7,9', '9,4', '9,7']);
         expect(inBounds(game, 1, 1)).toBe(true);
-        expect(safeCellCount(game)).toBe(62);
+        expect(safeCellCount(game)).toBe(92);
     });
 
     test('nothing about the mines is random: every game lays the same picture', () => {
@@ -515,12 +519,22 @@ describe('Mine A Shape!', () => {
         }
     });
 
-    // The picture places the mines, so the game opens itself rather than waiting for a tap.
-    test('it starts under way, on at least nine squares', () => {
+    /* The picture places the mines, so the game opens itself rather than waiting for a tap -
+       and never on the region that would show more than a fifth of the board. */
+    test('it starts under way, showing between nine squares and a fifth of the board', () => {
         const game = createShapeGame(picture, Math.random);
         expect(game.status).toBe(STATUS.PLAYING);
         expect(isOpeningMove(game)).toBe(false);
-        expect(game.revealed.size).toBeGreaterThanOrEqual(9);
+        expect(game.revealed.size).toBeGreaterThanOrEqual(OPENING_MINIMUM);
+        expect(game.revealed.size).toBeLessThanOrEqual(Math.floor(100 * OPENING_SHARE));
+    });
+
+    /* The middle of this picture cascades into 36 squares, over the cap, so it is never
+       stored as an opening even though the board solves from it. */
+    test('a region showing more than a fifth of the board is not offered as an opening', () => {
+        expect(openShapeAt(picture, { x: 5, y: 5 }).revealed.size).toBeGreaterThan(Math.floor(100 * OPENING_SHARE));
+        expect(picture.openings.some(([x, y]) => x === 5 && y === 5)).toBe(false);
+        expect(picture.openings.length).toBeGreaterThan(0);
     });
 
     test('a picture board can be played to a win', () => {

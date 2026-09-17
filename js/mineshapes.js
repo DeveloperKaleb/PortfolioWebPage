@@ -55,6 +55,37 @@ export const SHAPES = [
             '....................',
         ],
     },
+    /* A bear, painted 20x20 by the project owner - the shapes at the top are its ears. Its
+       profile is 0/0/0 - the simple rules carry it
+       from the opening to the last square - and that is why it is here: the list is meant to
+       lean toward comfortable play, not toward boards like Mine Nonsense V1. An earlier
+       version at 23% was harder but unsolvable, its mouth drawn as two parallel strokes that
+       made a double coin-flip; this one is sparser and the mouth is staggered. */
+    {
+        name: 'bear',
+        rows: [
+            '....................',
+            '...####......####...',
+            '..#....#....#....#..',
+            '.......#....#.......',
+            '..#.############.#..',
+            '..#..............#..',
+            '..##............##..',
+            '...#...#....#...#...',
+            '...#............#...',
+            '...#............#...',
+            '...#....####....#...',
+            '...#.....##.....#...',
+            '...#............#...',
+            '....#..#....#..#....',
+            '....#...####...#....',
+            '.....#........#.....',
+            '......#..##..#......',
+            '....................',
+            '....................',
+            '....................',
+        ],
+    },
 ];
 
 // The largest board the zoom is built for.

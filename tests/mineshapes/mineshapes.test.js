@@ -1,7 +1,10 @@
 import { describe, test, expect } from 'vitest';
 import { SHAPES, SHAPE_BOARDS, MAX_SHAPE_SIZE, parseShape, articleFor, fingerprintRows } from '../../js/mineshapes.js';
 import { MINE_OPENINGS } from '../../js/mineopenings.js';
-import { createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS } from '../../js/minesweeper.js';
+import {
+    createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS,
+    OPENING_MINIMUM, OPENING_SHARE,
+} from '../../js/minesweeper.js';
 import { profileShape } from '../../tools/mine-difficulty.mjs';
 
 // A seeded random source, so every run checks the same openings.
@@ -51,12 +54,16 @@ describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture'
         expect(shape.openings.length, 'no opening solves this picture without guessing - it needs reworking').toBeGreaterThan(0);
     });
 
-    test('every stored opening is a square with no mine on or around it, opening nine or more', () => {
+    /* An opening shows enough to reason from, but never so much that the board is handed
+       over: at least nine squares and at most a fifth of them. */
+    test('every stored opening shows between nine squares and a fifth of the board', () => {
+        const most = Math.floor(shape.width * shape.height * OPENING_SHARE);
         shape.openings.forEach(([x, y]) => {
             const opened = openShapeAt(shape, { x, y });
             expect(isMine(opened, x, y)).toBe(false);
             expect(countAt(opened, x, y)).toBe(0);
-            expect(opened.revealed.size).toBeGreaterThanOrEqual(9);
+            expect(opened.revealed.size).toBeGreaterThanOrEqual(OPENING_MINIMUM);
+            expect(opened.revealed.size, `opening at (${x},${y})`).toBeLessThanOrEqual(most);
         });
     });
 
@@ -95,7 +102,8 @@ describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture'
             expect(opened.status).toBe(STATUS.PLAYING);
             expect([...opened.mines].sort()).toEqual([...shape.mines].sort());
             expect(shape.openings.some(([x, y]) => opened.revealed.has(`${x},${y}`))).toBe(true);
-            expect(opened.revealed.size).toBeGreaterThanOrEqual(9);
+            expect(opened.revealed.size).toBeGreaterThanOrEqual(OPENING_MINIMUM);
+            expect(opened.revealed.size).toBeLessThanOrEqual(Math.floor(shape.width * shape.height * OPENING_SHARE));
         }
     });
 });

@@ -1302,8 +1302,15 @@ picture. Flag every mine and the flags draw it; lose and the revealed mines show
   picture is the board: black squares are mines, white squares are safe. They go into
   `js/mineshapes.js` as rows of `#` (mine) and `.` (safe); only the rows ship.
 - **The picture places the mines, so the game opens itself**, rather than the first tap
-  placing them: on a random square with no mine on or around it, showing at least nine
-  squares.
+  placing them: on a random square with no mine on or around it, showing **at least nine
+  squares and at most a fifth of the board** (`OPENING_MINIMUM`, `OPENING_SHARE`). The upper
+  bound came later, on 2026-09-17, when the bear turned out to have a region covering 166 of
+  its 400 squares - opening it handed over 42% of the board at once, which is not the style
+  of play this mode is for. It cost no picture: the heart's opening shows 12%, Mine Nonsense
+  V1's largest 15%, and the bear kept 24 of its 136 openings, all in small pockets inside the
+  face and around the ears. It does restrict future ones, though: a sparse picture tends to
+  have one big background region, and if that is its only solvable opening the picture now
+  fails and has to be reworked.
 - **Every picture has to be solvable without guessing from where it opens.** A forced guess
   on a picture board loses - its mines cannot move without breaking the picture, so the
   forgiveness rule is off there - and a picture that cannot be solved is sent back to be
@@ -1352,6 +1359,13 @@ that cannot overlap using up every mine left), or **deeper** (the solver proves 
 those explain). The heart needs 1 pair and 1 deeper; Mine Nonsense V1 needs 6, 1 and 2. The
 counts barely move between openings - a profile is a property of the picture - so five
 openings are sampled, with `--profile-all` when certainty is wanted.
+
+**The mix leans comfortable.** The project owner's call on 2026-09-17, on adding the face:
+the Shape list should be weighted toward pictures that are pleasant to play, with demanding
+ones like Mine Nonsense V1 the exception rather than the rule. The face is 0/0/0 - the simple
+rules carry it start to finish - and was added as it stands for exactly that reason. Density
+is the main lever: 18% plays gently, while 21-24% starts forcing pair work and counting. A new
+picture that profiles high is worth keeping, but not at the cost of the balance.
 
 **None of it reaches the player**, the owner's call: a board that announced its difficulty
 would be telling the player something about it before they started, which is the line the
