@@ -10,7 +10,16 @@
 import { MINE_OPENINGS } from './mineopenings.js';
 
 export const SHAPES = [
-    // The project owner's first picture, painted 10x10: a heart outline, and a mine in each corner.
+    /* The project owner's first picture, painted 10x10: a heart outline, and a mine in each
+       corner. The only 10x10 here. Profile 17/2/0/3 - small, but it asks for the pair rule
+       and three steps the solver has to prove outright.
+
+       Two openings, and not for the usual reason: on a 10x10 the cap is 20 squares and
+       nothing here reaches it. This one fails at the other end. The outline cuts the board
+       into pockets too small to qualify - 68 of its 76 safe squares cascade fewer than the
+       nine needed - and of the eight that do reach the two pockets that qualify, 16 squares
+       and 12, six leave a board that still needs a guess. Hence two, and hence it opens much
+       the same each time. */
     {
         name: 'heart',
         rows: [
@@ -55,14 +64,11 @@ export const SHAPES = [
             '....................',
         ],
     },
-    /* A bear, painted 20x20 by the project owner - the shapes at the top are its ears. Its
-       profile is 0/0/0 - the simple rules carry it
-       from the opening to the last square - and that is why it is here: the list is meant to
-       lean toward comfortable play, not toward boards like Mine Nonsense V1. An earlier
-       version at 23% was harder but unsolvable, its mouth drawn as two parallel strokes that
-       made a double coin-flip; this one is sparser and the mouth is staggered. */
-    /* Two faces, painted 20x20 by the project owner. It took five passes to make solvable, and
-       what did it was dotting the top bars - '#.#.#' rather than a solid run. A solid bar gave
+    /* Octopi, painted 20x20 by the project owner - two of them, one above the other, which is
+       why the name is already plural and takes no article: "It was Octopi!". (Early drafts of
+       it read as two faces, and the name came later; nothing here is a face.) It took five
+       passes to make solvable, and what did it was dotting the top bars - '#.#.#' rather than
+       a solid run. A solid bar gave
        the numbers at the corners nothing asymmetric to see, so each corner became a coin flip
        no amount of counting could break; the alternating pattern breaks that symmetry all at
        once, and both corners and both sealed interiors came free together. Earlier passes
@@ -95,6 +101,12 @@ export const SHAPES = [
             '..#........#.#.#....',
         ],
     },
+    /* A bear, painted 20x20 by the project owner - the shapes at the top are its ears. Its
+       profile is 0/0/0 - the simple rules carry it from the opening to the last square - and
+       that is why it is here: the list is meant to lean toward comfortable play, not toward
+       boards like Mine Nonsense V1. An earlier version at 23% was harder but unsolvable, its
+       mouth drawn as two parallel strokes that made a double coin-flip; this one is sparser
+       and the mouth is staggered. */
     {
         name: 'bear',
         rows: [

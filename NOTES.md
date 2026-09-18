@@ -1370,13 +1370,13 @@ heart hard but straightforward, Mine Nonsense V1 asking for more invention - mat
 tool. It replays a solve and, wherever the simple rules stall, records the weakest technique
 that gets moving again: **pair** (one number's squares inside another's), **count** (groups
 that cannot overlap using up every mine left), or **deeper** (the solver proves what none of
-those explain). The heart needs 1 pair and 1 deeper; Mine Nonsense V1 needs 6, 1 and 2. The
+those explain). The heart needs 2 pair and 3 deeper; Mine Nonsense V1 needs 10, 1 and 3. The
 counts barely move between openings - a profile is a property of the picture - so five
 openings are sampled, with `--profile-all` when certainty is wanted.
 
-**The mix leans comfortable.** The project owner's call on 2026-09-17, on adding the face:
+**The mix leans comfortable.** The project owner's call on 2026-09-17, on adding the bear:
 the Shape list should be weighted toward pictures that are pleasant to play, with demanding
-ones like Mine Nonsense V1 the exception rather than the rule. The face is 0/0/0 - the simple
+ones like Mine Nonsense V1 the exception rather than the rule. The bear is 0/0/0 - the simple
 rules carry it start to finish - and was added as it stands for exactly that reason. Density
 is the main lever: 18% plays gently, while 21-24% starts forcing pair work and counting. A new
 picture that profiles high is worth keeping, but not at the cost of the balance.
