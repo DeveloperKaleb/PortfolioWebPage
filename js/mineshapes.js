@@ -120,6 +120,46 @@ export const SHAPES = [
             '....................',
         ],
     },
+    /* A horse's head, painted 20x20 by the project owner - ears at the top, the eye the
+       small block, the muzzle the run across the middle, and the mane the long stroke down
+       the right edge. Profile 18/0/1/0: the simple rules carry it, bar one step that needs
+       the mine count.
+
+       The drawing alone was solvable but had only six openings, all in the cheek - the one
+       white pocket it left between the nine-square minimum and the twenty-percent cap. The
+       eight mines away from the horse are what fixed that, and the order they arrived in is
+       the lesson. Twelve scattered dots came first and made it unsolvable: a lone mine in
+       open space has no number beside it to pin it, so it can only be settled by counting,
+       and twelve at once turned the finish into a guess. Four, one per corner, were safe
+       again but bought nothing - at the field's extremities they shaved its edges rather
+       than cutting it. What worked was the last four, beside the ears and temples: each
+       bridges the drawing to a corner dot, and together they sever the top band into pockets
+       of 41 and 36. Three legal pockets rather than one, and 39 openings rather than six. */
+    {
+        name: 'horse',
+        rows: [
+            '....................',
+            '.#................#.',
+            '....#...#..#...#....',
+            '........##.##.......',
+            '..#....#.###.#...#..',
+            '......#.#.....#.....',
+            '.......#.......#....',
+            '......#..##.....#...',
+            '.....#...##.....#...',
+            '....#............#..',
+            '...#.............#..',
+            '..#.#.......#....#..',
+            '..#....#####.....#..',
+            '..###.#..........#..',
+            '...###...#.......#..',
+            '........#........#..',
+            '........#........#..',
+            '.......#.........#..',
+            '.#................#.',
+            '....................',
+        ],
+    },
 ];
 
 // The largest board the zoom is built for.
