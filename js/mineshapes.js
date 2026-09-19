@@ -186,6 +186,49 @@ export const SHAPES = [
             '....................',
         ],
     },
+    /* A ghost, painted 20x20 by the project owner. Profile 14/0/0/0 - the simple rules carry
+       it from the opening to the last square, nothing here needing a pair, the mine count or
+       the solver. The gentlest board in the list, and the sparsest at 12.5%.
+
+       Its fifteen openings are all inside the face, which is a property of the drawing rather
+       than an accident. The outline is closed, so the interior is sealed into two pockets of
+       29 and 24 either side of the eyes and mouth, while the background wraps around the
+       outside as a single 255-square ring - three times the cap, so the 153 squares leading
+       into it are all refused. Every game opens within the ghost and works outward.
+
+       The mines away from the outline were aimed at that ring, and they do not divide it,
+       which is worth knowing before anyone adds more of them. A mine only cuts a region where
+       the gap it sits in is narrow enough for its numbers to span the full width - what
+       worked on the horse, whose bottom corridor was one square deep. This ring is five or
+       more squares wide on every side, so a cascade simply walks around a lone mine: the pair
+       added at (3,11) and (18,11) took it from 262 to 255 and bought no opening at all.
+       Cutting it would take about four lines running the whole width from the outline to an
+       edge, which would read as spokes off the ghost, so the picture stands as painted. */
+    {
+        name: 'ghost',
+        rows: [
+            '....................',
+            '.....#........#.....',
+            '....................',
+            '...#............#...',
+            '....................',
+            '.......######.......',
+            '......#......#......',
+            '.....#........#.....',
+            '..............#.....',
+            '.....#...#..#.#.....',
+            '..#......#..#.#..#..',
+            '.....#........#.....',
+            '.......##.....##....',
+            '.....#..#......#....',
+            '.......#......#.....',
+            '....#........#......',
+            '....#########.......',
+            '.#................#.',
+            '..#..............#..',
+            '....................',
+        ],
+    },
 ];
 
 // The largest board the zoom is built for.
