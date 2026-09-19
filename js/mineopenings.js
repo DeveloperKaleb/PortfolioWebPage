@@ -2,8 +2,9 @@
  *
  * Every opening from which each Mine A Shape! picture in js/mineshapes.js can be solved
  * without a single guess, as [column, row], with a fingerprint of the rows they were worked
- * out from and the picture's difficulty profile - how many stalls need two numbers, the mine
- * count, or deeper reasoning (tools/mine-difficulty.mjs). createShapeGame picks an opening at
+ * out from, the picture's difficulty profile - how many stalls need two numbers, the mine
+ * count, or deeper reasoning - and its cascade profile, the biggest a single click can open
+ * anywhere on the board (both tools/mine-difficulty.mjs). createShapeGame picks an opening at
  * random; nothing here reaches the player. tests/mineshapes fails if a fingerprint no longer
  * matches its picture: re-run the tool.
  */
@@ -11,6 +12,7 @@ export const MINE_OPENINGS = {
     "heart": {
         fingerprint: '8d31a456',
         difficulty: { simpleRounds: 17, pair: 2, count: 0, deeper: 3, sampled: 2 },
+        cascade: { biggest: 16, safe: 76, share: 0.211, regions: [16, 12] },
         openings: [
             [5,6], [6,6],
         ],
@@ -18,6 +20,7 @@ export const MINE_OPENINGS = {
     "Mine Nonsense V1": {
         fingerprint: 'e4a2129d',
         difficulty: { simpleRounds: 72, pair: 10, count: 1, deeper: 3, sampled: 5 },
+        cascade: { biggest: 60, safe: 315, share: 0.190, regions: [60, 40, 20, 18, 18, 13, 10] },
         openings: [
             [10,10], [10,11], [10,12], [8,13], [9,13], [10,13], [11,13], [12,13], [18,13], [19,13],
             [20,13], [9,14], [10,14], [11,14], [19,14], [20,14], [9,15], [10,15], [11,15], [19,15],
@@ -31,6 +34,7 @@ export const MINE_OPENINGS = {
     "Octopi": {
         fingerprint: 'a87a780a',
         difficulty: { simpleRounds: 50, pair: 8, count: 0, deeper: 0, sampled: 5 },
+        cascade: { biggest: 77, safe: 346, share: 0.223, regions: [77, 54, 44, 36, 18, 18, 9] },
         openings: [
             [1,1], [2,1], [3,1], [15,1], [16,1], [20,1], [1,2], [2,2], [15,2], [16,2],
             [20,2], [1,3], [15,3], [16,3], [20,3], [1,4], [7,4], [13,4], [17,4], [18,4],
@@ -49,6 +53,7 @@ export const MINE_OPENINGS = {
     "bear": {
         fingerprint: 'eafddeba',
         difficulty: { simpleRounds: 15, pair: 0, count: 0, deeper: 0, sampled: 5 },
+        cascade: { biggest: 166, safe: 330, share: 0.503, regions: [166, 29, 29, 20, 20] },
         openings: [
             [6,7], [10,7], [11,7], [15,7], [6,8], [10,8], [11,8], [15,8], [6,9], [10,9],
             [11,9], [15,9], [6,10], [7,10], [14,10], [15,10], [6,11], [7,11], [14,11], [15,11],
@@ -58,6 +63,7 @@ export const MINE_OPENINGS = {
     "horse": {
         fingerprint: '0e85e199',
         difficulty: { simpleRounds: 18, pair: 0, count: 1, deeper: 0, sampled: 5 },
+        cascade: { biggest: 97, safe: 335, share: 0.290, regions: [97, 80, 41, 36, 24] },
         openings: [
             [4,1], [5,1], [6,1], [7,1], [8,1], [9,1], [10,1], [11,1], [12,1], [13,1],
             [14,1], [15,1], [16,1], [17,1], [7,2], [14,2], [7,3], [1,4], [20,4], [1,5],
@@ -70,11 +76,25 @@ export const MINE_OPENINGS = {
         ],
     },
     "ghost": {
-        fingerprint: 'b71fd6a6',
-        difficulty: { simpleRounds: 14, pair: 0, count: 0, deeper: 0, sampled: 5 },
+        fingerprint: 'f4a6bfee',
+        difficulty: { simpleRounds: 34, pair: 6, count: 0, deeper: 0, sampled: 5 },
+        cascade: { biggest: 77, safe: 346, share: 0.223, regions: [77, 73, 49, 36, 29, 24] },
         openings: [
-            [9,8], [10,8], [11,8], [12,8], [8,9], [8,10], [8,11], [11,13], [12,13], [13,13],
-            [11,14], [12,14], [13,14], [11,15], [12,15],
+            [1,1], [2,1], [3,1], [4,1], [8,1], [9,1], [10,1], [11,1], [12,1], [13,1],
+            [17,1], [18,1], [19,1], [20,1], [1,2], [2,2], [3,2], [4,2], [8,2], [9,2],
+            [10,2], [11,2], [12,2], [13,2], [17,2], [18,2], [19,2], [20,2], [1,3], [2,3],
+            [9,3], [10,3], [11,3], [12,3], [19,3], [20,3], [1,4], [2,4], [9,4], [10,4],
+            [11,4], [12,4], [19,4], [20,4], [1,5], [2,5], [19,5], [20,5], [1,6], [2,6],
+            [3,6], [4,6], [5,6], [16,6], [17,6], [18,6], [19,6], [20,6], [1,7], [2,7],
+            [3,7], [4,7], [17,7], [18,7], [19,7], [20,7], [1,8], [2,8], [3,8], [4,8],
+            [9,8], [10,8], [11,8], [12,8], [17,8], [18,8], [19,8], [20,8], [1,9], [2,9],
+            [3,9], [4,9], [8,9], [17,9], [18,9], [19,9], [20,9], [1,10], [8,10], [20,10],
+            [1,11], [8,11], [20,11], [1,12], [20,12], [1,13], [2,13], [3,13], [4,13], [11,13],
+            [12,13], [13,13], [18,13], [19,13], [20,13], [1,14], [2,14], [3,14], [4,14], [11,14],
+            [12,14], [13,14], [18,14], [19,14], [20,14], [1,15], [11,15], [12,15], [20,15], [1,16],
+            [20,16], [16,17], [15,18], [16,18], [5,19], [6,19], [7,19], [8,19], [9,19], [10,19],
+            [11,19], [12,19], [13,19], [14,19], [15,19], [16,19], [5,20], [6,20], [7,20], [8,20],
+            [9,20], [10,20], [11,20], [12,20], [13,20], [14,20], [15,20], [16,20],
         ],
     },
 };

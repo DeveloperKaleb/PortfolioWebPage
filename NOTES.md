@@ -1381,6 +1381,29 @@ rules carry it start to finish - and was added as it stands for exactly that rea
 is the main lever: 18% plays gently, while 21-24% starts forcing pair work and counting. A new
 picture that profiles high is worth keeping, but not at the cost of the balance.
 
+**The shape has to arrive in pieces, and two fifths is the line.** The project owner's call on
+2026-09-18, and the reason cascades are managed at all: the picture is drawn by what stays
+hidden, so a cascade clearing most of the safe squares silhouettes the whole shape in a single
+click. **This is not what the opening cap does.** The cap governs only the square the game
+starts you on, and says nothing about move twelve, when a click on a zero square out in the
+background floods its entire region. The measure is the biggest cascade anywhere on the board:
+`cascadeProfile` in `tools/mine-difficulty.mjs` collects every distinct region, the tool prints
+and stores it, and `tests/mineshapes` fails any picture whose biggest passes 40% of its safe
+squares.
+
+One picture predates the standard and is listed in `CASCADE_EXEMPT` in that test, with the
+share it sits at - the bear at 50%. The ghost was listed beside it at 73% until the owner
+reworked it the same evening, and that is the list clearing itself as designed: the test fails
+if an exempted picture no longer needs its exemption, so the rework ended by deleting its
+line. Nothing new goes in it.
+
+**It pulls against comfortable play, which is the thing to watch.** Density is what cuts a
+board into small regions, so the sparse, gentle pictures are exactly the ones that flood.
+Mine Nonsense V1 and Octopi are the best-segmented boards here, biggest cascades of 60 and 77
+across seven regions each, precisely because they are busy. The horse is the compromise - five
+regions, biggest 97, 29%. The ghost is the worked example: sparse at 13.5% and flooding at 73%
+until four mines at the ring's narrow points took it to 22%, at the price of six pair steps.
+
 **None of it reaches the player**, the owner's call: a board that announced its difficulty
 would be telling the player something about it before they started, which is the line the
 game keeps. The profile is for choosing pictures and for catching a picture whose character

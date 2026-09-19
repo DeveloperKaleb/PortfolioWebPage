@@ -7,7 +7,7 @@ import {
     createShapeGame, openShapeAt, solvesWithoutGuessing, isMine, countAt, STATUS,
     OPENING_MINIMUM, OPENING_SHARE,
 } from '../../js/minesweeper.js';
-import { profileShape } from '../../tools/mine-difficulty.mjs';
+import { profileShape, CASCADE_SHARE_LIMIT } from '../../tools/mine-difficulty.mjs';
 
 // A seeded random source, so every run checks the same openings.
 function seeded(seed) {
@@ -28,6 +28,14 @@ function seeded(seed) {
    again - the project owner's call, so the tests stay fast as pictures are added: the
    fingerprint catches stale data, every opening is checked to be a real one, and three per
    picture are solved in full. */
+/* Pictures that predate the cascade standard and are allowed to break it for now, with the
+   share each is at. The list clears itself: the test below fails if a picture named here no
+   longer needs its exemption, so a rework ends by deleting the line rather than leaving a
+   grandfather clause to rot. Nothing new belongs here - a new picture is reworked instead. */
+const CASCADE_EXEMPT = {
+    bear: 'at 50%, a single background region covering half the board - reworking is deferred',
+};
+
 describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture', (name, shape) => {
     const raw = SHAPES.find((picture) => picture.name === name);
 
@@ -67,6 +75,24 @@ describe.each(SHAPE_BOARDS.map((shape) => [shape.name, shape]))('The %s picture'
             expect(opened.revealed.size).toBeGreaterThanOrEqual(OPENING_MINIMUM);
             expect(opened.revealed.size, `opening at (${x},${y})`).toBeLessThanOrEqual(most);
         });
+    });
+
+    /* The shape has to arrive in pieces. The picture is drawn by what stays hidden, so a
+       cascade that clears most of the safe squares silhouettes the whole thing in one click -
+       and the opening cap does not prevent that, governing only where the game starts. */
+    test('no single click opens more than two fifths of the safe squares', () => {
+        const cascade = shape.cascade;
+        expect(cascade, 'no stored cascade profile - run npm run openings').toBeTruthy();
+        expect(cascade.biggest).toBeGreaterThan(0);
+
+        const why = CASCADE_EXEMPT[name];
+        if (why) {
+            expect(cascade.share, `${name} is exempt (${why}) but is now within the limit - delete its line from CASCADE_EXEMPT`)
+                .toBeGreaterThan(CASCADE_SHARE_LIMIT);
+            return;
+        }
+        expect(cascade.share, `one click opens ${cascade.biggest} of ${cascade.safe} safe squares - the shape arrives all at once`)
+            .toBeLessThanOrEqual(CASCADE_SHARE_LIMIT);
     });
 
     test('three stored openings, chosen at random, solve without a single guess', () => {

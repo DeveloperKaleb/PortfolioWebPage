@@ -19,7 +19,7 @@
 import { writeFileSync } from 'node:fs';
 import { SHAPES, parseShape, fingerprintRows } from '../js/mineshapes.js';
 import { solvableStarts } from '../js/minesweeper.js';
-import { profileShape } from './mine-difficulty.mjs';
+import { profileShape, cascadeProfile, CASCADE_SHARE_LIMIT } from './mine-difficulty.mjs';
 
 const profileAll = process.argv.includes('--profile-all');
 const entries = [];
@@ -40,6 +40,17 @@ for (const raw of SHAPES) {
     console.log(`  difficulty (${difficulty.sampled} opening(s) sampled, ${Math.round(performance.now() - profiled)}ms): `
         + `${difficulty.simpleRounds} rounds of simple rules, then ${difficulty.pair} needing two numbers, `
         + `${difficulty.count} needing the mine count, ${difficulty.deeper} needing deeper reasoning`);
+
+    /* The biggest single click, which decides whether the picture reveals in pieces. Advisory
+       here: tests/mineshapes is what actually holds a picture to the limit, so that a
+       grandfathered one can be listed there rather than blocking the tool. */
+    const cascade = cascadeProfile(shape);
+    console.log(`  biggest cascade: ${cascade.biggest} of ${cascade.safe} safe squares `
+        + `(${Math.round(cascade.share * 100)}%), regions of nine or more: ${cascade.regions.join(', ')}`);
+    if (cascade.share > CASCADE_SHARE_LIMIT) {
+        console.log(`  over the ${Math.round(CASCADE_SHARE_LIMIT * 100)}% limit - one click reveals most of the picture, `
+            + 'so it has to be reworked or listed as an exemption in tests/mineshapes');
+    }
     // Ten pairs a line, so the file stays readable.
     const lines = [];
     for (let i = 0; i < openings.length; i += 10) lines.push(`            ${openings.slice(i, i + 10).map((pair) => JSON.stringify(pair)).join(', ')},`);
@@ -48,6 +59,8 @@ for (const raw of SHAPES) {
         `        fingerprint: '${fingerprintRows(raw.rows)}',`,
         `        difficulty: { simpleRounds: ${difficulty.simpleRounds}, pair: ${difficulty.pair}, `
             + `count: ${difficulty.count}, deeper: ${difficulty.deeper}, sampled: ${difficulty.sampled} },`,
+        `        cascade: { biggest: ${cascade.biggest}, safe: ${cascade.safe}, `
+            + `share: ${cascade.share.toFixed(3)}, regions: [${cascade.regions.join(', ')}] },`,
         '        openings: [',
         ...lines,
         '        ],',
@@ -59,8 +72,9 @@ writeFileSync(new URL('../js/mineopenings.js', import.meta.url), `/* Generated b
  *
  * Every opening from which each Mine A Shape! picture in js/mineshapes.js can be solved
  * without a single guess, as [column, row], with a fingerprint of the rows they were worked
- * out from and the picture's difficulty profile - how many stalls need two numbers, the mine
- * count, or deeper reasoning (tools/mine-difficulty.mjs). createShapeGame picks an opening at
+ * out from, the picture's difficulty profile - how many stalls need two numbers, the mine
+ * count, or deeper reasoning - and its cascade profile, the biggest a single click can open
+ * anywhere on the board (both tools/mine-difficulty.mjs). createShapeGame picks an opening at
  * random; nothing here reaches the player. tests/mineshapes fails if a fingerprint no longer
  * matches its picture: re-run the tool.
  */

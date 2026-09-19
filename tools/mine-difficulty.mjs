@@ -129,3 +129,32 @@ export function profileShape(shape, { sample = 5 } = {}) {
         stuck: runs.some((r) => r.stuck),
     };
 }
+
+/* How much of a picture one click can open - which decides whether the shape reveals in
+ * pieces or all at once.
+ *
+ * Not the same question as the opening cap, and the difference matters. The cap governs only
+ * the square the game starts you on; it says nothing about move twelve, when a click on a
+ * zero square far from the drawing floods its whole region. The picture is drawn by what
+ * stays hidden, so a cascade that clears most of the safe squares silhouettes the shape in
+ * one go. The project owner's line, set 2026-09-18, is two fifths.
+ *
+ * Every safe square is opened in turn and the resulting cascades collected by identity, so
+ * the same region reached from twenty squares counts once.
+ */
+export const CASCADE_SHARE_LIMIT = 0.4;
+
+export function cascadeProfile(shape) {
+    const regions = new Map();
+    let safe = 0;
+    for (let y = 1; y <= shape.height; y++) for (let x = 1; x <= shape.width; x++) {
+        if (shape.mines.has(`${x},${y}`)) continue;
+        safe++;
+        const set = openShapeAt(shape, { x, y }).revealed;
+        if (set.size < 2) continue;       // a lone numbered square opens nothing but itself
+        regions.set([...set].sort().join('|'), set.size);
+    }
+    const sizes = [...regions.values()].sort((a, b) => b - a);
+    const biggest = sizes[0] || 0;
+    return { safe, biggest, share: safe ? biggest / safe : 0, regions: sizes.filter((size) => size >= 9) };
+}

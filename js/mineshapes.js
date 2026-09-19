@@ -186,31 +186,35 @@ export const SHAPES = [
             '....................',
         ],
     },
-    /* A ghost, painted 20x20 by the project owner. Profile 14/0/0/0 - the simple rules carry
-       it from the opening to the last square, nothing here needing a pair, the mine count or
-       the solver. The gentlest board in the list, and the sparsest at 12.5%.
+    /* A ghost, painted 20x20 by the project owner. Profile 34/6/0/0 - pair work, but never
+       the mine count or the solver - and 148 openings, more than any other picture here.
 
-       Its fifteen openings are all inside the face, which is a property of the drawing rather
-       than an accident. The outline is closed, so the interior is sealed into two pockets of
-       29 and 24 either side of the eyes and mouth, while the background wraps around the
-       outside as a single 255-square ring - three times the cap, so the 153 squares leading
-       into it are all refused. Every game opens within the ghost and works outward.
+       This is the board the cascade standard was written for. As first painted its outline
+       was closed, sealing the interior into two pockets of 29 and 24, while the background
+       wrapped around the outside as a single 255-square ring: one click out there opened 73%
+       of the safe squares and silhouetted the whole ghost at once, which is the one thing
+       this mode is meant not to do. It was solvable throughout - solvability was never the
+       fault.
 
-       The mines away from the outline were aimed at that ring, and they do not divide it,
-       which is worth knowing before anyone adds more of them. A mine only cuts a region where
-       the gap it sits in is narrow enough for its numbers to span the full width - what
-       worked on the horse, whose bottom corridor was one square deep. This ring is five or
-       more squares wide on every side, so a cascade simply walks around a lone mine: the pair
-       added at (3,11) and (18,11) took it from 262 to 255 and bought no opening at all.
-       Cutting it would take about four lines running the whole width from the outline to an
-       edge, which would read as spokes off the ghost, so the picture stands as painted. */
+       Two passes fixed it, and the difference between them is the lesson. A pair of mines out
+       in the middle of the ring, at (3,11) and (18,11), did nothing at all - 262 squares to
+       255 - because five squares of clear ground either side let a cascade walk straight
+       around them. The four that worked, at (7,4), (14,4), (3,16) and (18,16), sit at the
+       ring's narrow points, where the gap between the outline and the board edge is tight
+       enough for one mine's numbers to span the whole width. The same principle as the
+       horse's bottom corridor. The ring broke into six regions, none above 77, and fifteen
+       openings became 148.
+
+       What it cost: as first painted this was the gentlest board in the list at 14/0/0/0, and
+       the mines that cut the ring brought six pair steps with them. Still comfortable, with
+       nothing needing the count or the solver - but the bear is the pure 0/0/0 now. */
     {
         name: 'ghost',
         rows: [
             '....................',
             '.....#........#.....',
             '....................',
-            '...#............#...',
+            '...#..#......#..#...',
             '....................',
             '.......######.......',
             '......#......#......',
@@ -222,7 +226,7 @@ export const SHAPES = [
             '.......##.....##....',
             '.....#..#......#....',
             '.......#......#.....',
-            '....#........#......',
+            '..#.#........#...#..',
             '....#########.......',
             '.#................#.',
             '..#..............#..',
@@ -265,10 +269,12 @@ export function fingerprintRows(rows) {
     return hash.toString(16).padStart(8, '0');
 }
 
-/* Each picture with its stored solvable openings, as [column, row] pairs, and its stored
-   difficulty profile - which is for choosing and checking pictures, never shown to a player. */
+/* Each picture with its stored solvable openings, as [column, row] pairs, its stored
+   difficulty profile, and its cascade profile - the biggest a single click can open. All
+   three are for choosing and checking pictures, and none is ever shown to a player. */
 export const SHAPE_BOARDS = SHAPES.map((raw) => ({
     ...parseShape(raw),
     openings: (MINE_OPENINGS[raw.name] || { openings: [] }).openings,
     difficulty: (MINE_OPENINGS[raw.name] || {}).difficulty || null,
+    cascade: (MINE_OPENINGS[raw.name] || {}).cascade || null,
 }));
