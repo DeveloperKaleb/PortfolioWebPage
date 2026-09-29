@@ -2660,23 +2660,40 @@ very likely more than everything in the table combined. If the page ever feels h
 older phone, look there first, and measure it in a real browser (the DevTools Memory tab)
 before changing anything.
 
-## The homepage stream
+## The homepage stream and forest floor
 
-A pixel-art mountain creek, seen from above, down the homepage's left margin. The layout
-and colours live in `js/stream.js` (pure, tested in `tests/stream`), and the canvas lives
-in `scripts/stream.js`. It is decoration, so its palette is in the "nothing read against
-it" case and the pairwise rules do not apply. It sits in the gutter, never under text.
+The homepage's margins show a pixel-art mountain creek seen from above down the left, and
+forest floor down the right. The layout and colours live in `js/stream.js` (pure, tested
+in `tests/stream`), and the canvases live in `scripts/stream.js`. It is decoration, so
+its palette is in the "nothing read against it" case and the pairwise rules do not
+apply. It sits in the gutters, never under text.
 
+- **One landscape.** The page column hides the ground between the two margins. The
+  right margin shows what lies a page-width away from the stream: the forest floor's
+  density is `forestDensity` of the real distance in pixels from the stream's right
+  bank at that row, counting the hidden column (`FOREST_RAMP`, 1100 to 1500px). Just
+  past the column it is bare, with olive patches showing through. Further out come
+  needles and ferns, then mushrooms, and stumps only near full density. A wider screen
+  reaches further, so it shows more, and the stream's bends shift it as you scroll.
+  The project owner chose this reading over two others (by margin width, or by the
+  stream's bends alone).
+- **As tall as the page, scrolled by the browser.** `#landscape` is absolutely
+  positioned, the height of the body (which is the whole page: no margin, and a
+  min-height of the viewport), so scrolling travels down the stream with no redraw on
+  scroll. It clips the canvases, which round up to whole blocks. Without the clip, that
+  rounding would lengthen the page, which would trigger a refit, which would lengthen
+  it again. A ResizeObserver on the body refits when the page changes height (the photo
+  arriving), which lays the stream out again. The log's row is a fraction of the page
+  height, so it can move when that happens.
+- **Only the rows on screen are redrawn** each frame (`renderFrame`'s from/to band, plus
+  a row either side). The whole stream is drawn once at the start, so rows scrolled in
+  between frames are never blank. The forest floor does not move and is drawn once.
 - **Sizing.** One canvas pixel per cell, scaled up by `BLOCK` (6px) with
-  `image-rendering: pixelated`. Its width is the body's left edge, so the scrollbar is
-  already accounted for. It is a whole number of blocks laid flush against the page
-  column, and any part-block spills off the screen edge rather than being stretched,
-  because uneven scaling makes uneven pixels. Below `MIN_COLS` (12) cells, about 72px,
-  it stays hidden, which covers phones.
-- **Fixed, viewport-tall.** It fills the viewport, not the whole document, so it is
-  always in view. A future fork "3/4 of the way up the page" (to feed a right-hand
-  stream) would therefore sit at a fraction of the viewport height. If it has to be
-  document-relative instead, this is the thing to change first.
+  `image-rendering: pixelated`. Each canvas is a whole number of blocks laid flush
+  against the page column, and any part-block spills off the screen edge rather than
+  being stretched, because uneven scaling makes uneven pixels. The margins are the same
+  width, so both show or neither does: below `MIN_COLS` (12) cells, about 72px, which
+  covers phones.
 - **Why the water is two layers.** Each cell's streak pattern moves at the local speed.
   One pattern moving faster mid-channel than at the edges shears apart over time, so
   two copies run half a cycle (`CYCLE`) apart. Each resets while the other one is
@@ -2686,6 +2703,5 @@ it" case and the pairwise rules do not apply. It sits in the gutter, never under
   frame is a lookup and the pixels stay crisp instead of being smoothly blended. It runs
   at 12fps, stops in a background tab (requestAnimationFrame), and shows a single frame
   under `prefers-reduced-motion`.
-- **A resize redraws the layout from the same seed**, so boulders can move when the
-  window changes size. That was accepted as a trade for simplicity.
-
+- **The planned fork** into the right-hand margin, about 3/4 of the way up the page, is a
+  page-relative position now that the landscape spans the page.

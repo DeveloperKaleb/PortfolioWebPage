@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { createStream, renderFrame, TERRAIN, MIN_COLS } from '../../js/stream.js';
+import { createStream, createForestFloor, forestDensity, renderFrame, TERRAIN, MIN_COLS, BLOCK, FOREST_RAMP } from '../../js/stream.js';
 
 // A wide margin on a tall screen, and the narrowest one the page will draw.
 const sizes = [[68, 180], [MIN_COLS, 150], [30, 120]];
@@ -128,6 +128,22 @@ describe('Rendering', () => {
         expect(waterChanged).toBeGreaterThan(100);
     });
 
+    test('draws only the band of rows it is asked for', () => {
+        const buffer = new Uint8ClampedArray(40 * 160 * 4);
+        renderFrame(stream, 3.0, buffer, 50, 80);
+        for (let y = 0; y < 160; y++) {
+            const row = buffer.subarray(y * 40 * 4, (y + 1) * 40 * 4);
+            if (y >= 50 && y < 80) expect(row).toEqual(a.subarray(y * 40 * 4, (y + 1) * 40 * 4));
+            else expect(row.every((v) => v === 0)).toBe(true);
+        }
+    });
+
+    test('a band running off either end is clipped, not an error', () => {
+        const buffer = new Uint8ClampedArray(40 * 160 * 4);
+        expect(() => renderFrame(stream, 3.0, buffer, -5, 400)).not.toThrow();
+        expect(buffer).toEqual(a);
+    });
+
     test('reuses a buffer it is handed', () => {
         const buffer = new Uint8ClampedArray(40 * 160 * 4);
         expect(renderFrame(stream, 1, buffer)).toBe(buffer);
@@ -136,4 +152,62 @@ describe('Rendering', () => {
 
 test('refuses a margin too narrow for a stream', () => {
     expect(() => createStream({ cols: MIN_COLS - 1, rows: 100 })).toThrow(RangeError);
+});
+
+describe('The forest floor', () => {
+    // A 1920px screen: 410px margins either side of the 1100px column.
+    const stream = createStream({ cols: 69, rows: 300, seed: 7 });
+    const offset = 69 * BLOCK + 1100;
+    const forest = createForestFloor(stream, { cols: 69, offset });
+
+    const covered = (floor, from, to) => {
+        let n = 0, all = 0;
+        for (let y = 0; y < floor.rows; y++) {
+            for (let x = from; x < to; x++) { all++; if (floor.pixels[(y * floor.cols + x) * 4 + 3]) n++; }
+        }
+        return n / all;
+    };
+
+    test('thickens with distance from the stream', () => {
+        expect(forestDensity(FOREST_RAMP.start - 1)).toBe(0);
+        expect(forestDensity(FOREST_RAMP.full + 1)).toBe(1);
+        expect(forestDensity(1300)).toBeGreaterThan(forestDensity(1200));
+    });
+
+    test('is only partly there beside the page, and nearly whole at the far edge', () => {
+        const near = covered(forest, 0, 10);
+        const far = covered(forest, 59, 69);
+        expect(near).toBeLessThan(0.6);
+        expect(far).toBeGreaterThan(0.85);
+        expect(far).toBeGreaterThan(near);
+    });
+
+    test('a narrow margin gets only scattered moss', () => {
+        const narrowStream = createStream({ cols: 17, rows: 300, seed: 7 });
+        const narrow = createForestFloor(narrowStream, { cols: 17, offset: 17 * BLOCK + 1100 });
+        expect(covered(narrow, 0, 17)).toBeLessThan(0.4);
+        expect(covered(narrow, 0, 17)).toBeLessThan(covered(forest, 0, 69));
+    });
+
+    test('changes down the page, so scrolling shows different ground', () => {
+        const rowOf = (y) => forest.pixels.subarray(y * 69 * 4, (y + 1) * 69 * 4);
+        expect(rowOf(40)).not.toEqual(rowOf(200));
+    });
+
+    test('keeps its stumps far from the water', () => {
+        const [er, eg, eb] = [0xb0, 0x8f, 0x5e];
+        let stumps = 0;
+        for (let i = 0; i < forest.density.length; i++) {
+            const o = i * 4;
+            if (forest.pixels[o] === er && forest.pixels[o + 1] === eg && forest.pixels[o + 2] === eb) {
+                stumps++;
+                expect(forest.density[i]).toBeGreaterThan(0.6);
+            }
+        }
+        expect(stumps).toBeGreaterThan(0);
+    });
+
+    test('is the same ground for the same stream', () => {
+        expect(createForestFloor(stream, { cols: 69, offset }).pixels).toEqual(forest.pixels);
+    });
 });

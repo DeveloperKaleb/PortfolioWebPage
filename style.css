@@ -86,14 +86,25 @@ body {
     margin: 0 auto;
 }
 
-/* The homepage's mountain stream (scripts/stream.js). Fixed, so it stays in view as the
-   page scrolls, and out of the flow, so the body's flex column never sees it. The script
-   sets its size and left edge to fill the gutter, and unhides it only when there is one. */
-#stream {
-    position: fixed;
+/* The homepage's margins (scripts/stream.js): the stream down the left, the forest floor
+   down the right. #landscape is as tall as the page and scrolls with it, so scrolling
+   travels down the stream. It is out of the flow, so the body's flex column never sees
+   it, and it clips the canvases, which round up to whole blocks and would otherwise
+   lengthen the page. The script sets the sizes and positions, and unhides it only when
+   the margins are wide enough. */
+#landscape {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#landscape canvas {
+    position: absolute;
     top: 0;
     image-rendering: pixelated;
-    pointer-events: none;
 }
 
 /* --- Typography & Elements --- */

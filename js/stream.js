@@ -39,6 +39,10 @@ export const STREAM_COLORS = {
     rockShadow: '#474a45',
     rockMoss: '#5e7c38',
 
+    needles: '#6b4a2a',
+    mushroomCap: '#c2a878',
+    mushroomStem: '#e0d6bd',
+
     bark: '#5b3d27',
     barkLight: '#7a5536',
     barkDark: '#3b281a',
@@ -49,6 +53,16 @@ export const TERRAIN = { BANK: 0, WATER: 1, BOULDER: 2, LOG: 3, LOG_SUBMERGED: 4
 
 /* Narrower than this there is no room for two banks and a channel with a rock in it. */
 export const MIN_COLS = 12;
+
+/* Screen pixels per cell. The pure layer needs it for one thing: the forest floor's
+   distance from the stream is measured across the page column, which is sized in pixels. */
+export const BLOCK = 6;
+
+/* How far from the stream's near bank, in screen pixels, the forest floor starts to
+   show and where it is complete. The page column is 1100px, so the right-hand margin
+   begins a little past the start: a narrow margin gets scattered moss, and a wide one
+   reaches the full floor at its outer edge. */
+export const FOREST_RAMP = { start: 1100, full: 1500 };
 
 /* Cells per second at full speed, and the length of one flow-map cycle in seconds. */
 const FLOW_RATE = 9;
@@ -293,8 +307,10 @@ export function createStream({ cols, rows, seed = 7 }) {
 }
 
 /* Colours every cell at time t (seconds) into an RGBA buffer the size of the grid,
-   ready for an ImageData. Pass the previous buffer back in to avoid allocating. */
-export function renderFrame(stream, t, out = new Uint8ClampedArray(stream.cols * stream.rows * 4)) {
+   ready for an ImageData. Pass the previous buffer back in to avoid allocating. from and
+   to limit it to a band of rows - the ones on screen - and leave the rest untouched. */
+export function renderFrame(stream, t, out = new Uint8ClampedArray(stream.cols * stream.rows * 4),
+    from = 0, to = stream.rows) {
     const { cols, rows, terrain, speed, foam, still, shades, foamRgb, seed } = stream;
     const phaseA = (t / CYCLE) % 1;
     const phaseB = (phaseA + 0.5) % 1;
@@ -305,7 +321,7 @@ export function renderFrame(stream, t, out = new Uint8ClampedArray(stream.cols *
     const norm = 1 / Math.hypot(weightA, weightB);
     const glintTick = Math.floor(t * 6);
 
-    for (let y = 0; y < rows; y++) {
+    for (let y = Math.max(0, from); y < Math.min(rows, to); y++) {
         for (let x = 0; x < cols; x++) {
             const i = y * cols + x;
             const o = i * 4;
@@ -339,4 +355,89 @@ export function renderFrame(stream, t, out = new Uint8ClampedArray(stream.cols *
         }
     }
     return out;
+}
+
+/* 0 to 1: how much forest floor there is this many pixels from the stream. */
+export function forestDensity(px) {
+    return clamp((px - FOREST_RAMP.start) / (FOREST_RAMP.full - FOREST_RAMP.start), 0, 1);
+}
+
+/* The forest floor in the right-hand margin, as one continuous landscape with the stream:
+   the page column hides the ground in between. offset is the distance in pixels from the
+   left edge of the stream's grid to the left edge of this one, so a cell's distance from
+   the water is measured from the stream's right bank at the same row. Returns an RGBA
+   buffer; cells with no floor are transparent and the page's olive shows through. It
+   does not move, so it is drawn once. */
+export function createForestFloor(stream, { cols, offset }) {
+    const { rows, channel, seed } = stream;
+    const C = Object.fromEntries(Object.entries(STREAM_COLORS).map(([k, v]) =>
+        [k, Array.isArray(v) ? v.map(toRgb) : toRgb(v)]));
+    const pixels = new Uint8ClampedArray(cols * rows * 4);
+    const density = new Float32Array(cols * rows);
+
+    const paint = (x, y, rgb) => {
+        if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+        const o = (y * cols + x) * 4;
+        pixels[o] = rgb[0]; pixels[o + 1] = rgb[1]; pixels[o + 2] = rgb[2]; pixels[o + 3] = 255;
+    };
+
+    /* The ground itself: patches that join up as the density rises. */
+    for (let y = 0; y < rows; y++) {
+        const bank = (channel[y].right + 1) * BLOCK;
+        for (let x = 0; x < cols; x++) {
+            const k = forestDensity(offset + x * BLOCK - bank);
+            density[y * cols + x] = k;
+            if (k <= 0) continue;
+            const patch = noise(x * 0.22, y * 0.22, seed + 11) * 0.7 + noise(x * 0.6, y * 0.6, seed + 12) * 0.3;
+            if (patch > k * 1.15) continue;
+            const n = noise(x * 0.35, y * 0.35, seed + 1);
+            let rgb = n > 0.66 ? C.mossLight : n < 0.3 ? C.forest : C.moss;
+            if (hash(x, y, seed + 13) < 0.1 * k) rgb = C.needles;
+            paint(x, y, rgb);
+        }
+    }
+
+    /* Things lying on it, each only where the floor is thick enough to carry it. Placed
+       on a coarse lattice so they never pile on top of one another. */
+    const at = (x, y) => density[clamp(y, 0, rows - 1) * cols + clamp(x, 0, cols - 1)];
+    const cell = 6;
+    for (let gy = 0; gy < rows; gy += cell) {
+        for (let gx = 0; gx < cols; gx += cell) {
+            const x = gx + Math.floor(hash(gx, gy, seed + 14) * (cell - 2)) + 1;
+            const y = gy + Math.floor(hash(gx, gy, seed + 15) * (cell - 2)) + 1;
+            const k = at(x, y);
+            const roll = hash(gx, gy, seed + 16);
+
+            if (k > 0.75 && roll < 0.05) {
+                /* A stump, seen from above: end grain ringed with bark. */
+                const r = 2 + (roll < 0.02 ? 1 : 0);
+                for (let dy = -r - 1; dy <= r + 1; dy++) {
+                    for (let dx = -r - 1; dx <= r + 1; dx++) {
+                        const d = Math.hypot(dx, dy);
+                        if (d > r + 0.5) continue;
+                        const rgb = d > r - 0.5 ? C.bark : Math.abs(d - r / 2) < 0.5 ? C.barkLight : C.endGrain;
+                        paint(x + dx, y + dy, rgb);
+                    }
+                }
+                paint(x + r, y + 1, C.barkDark);
+            } else if (k > 0.5 && roll < 0.13) {
+                /* Mushrooms: a cap and a stem, sometimes a pair. */
+                paint(x, y, C.mushroomCap);
+                paint(x, y + 1, C.mushroomStem);
+                if (roll < 0.09) { paint(x + 2, y + 1, C.mushroomCap); paint(x + 2, y + 2, C.mushroomStem); }
+            } else if (k > 0.25 && roll < 0.35 + 0.35 * k) {
+                /* A sword fern: a stem with fronds stepping out either side. */
+                const height = 3 + Math.floor(hash(gx, gy, seed + 17) * 3);
+                for (let step = 0; step < height; step++) {
+                    paint(x, y - step, C.fern);
+                    if (step > 0 && step < height - 1) {
+                        paint(x - 1 - (step % 2), y - step, C.mossLight);
+                        paint(x + 1 + ((step + 1) % 2), y - step, C.mossLight);
+                    }
+                }
+            }
+        }
+    }
+
+    return { cols, rows, pixels, density };
 }

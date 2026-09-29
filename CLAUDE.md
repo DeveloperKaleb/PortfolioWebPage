@@ -104,9 +104,10 @@ under Vitest without a browser:
   where the window sits, the tap-to-zoom rule, and a prediction of cell sizes that
   mirrors the stylesheet so the phone pass mark can be tested. Board-agnostic;
   Minesweeper is its only user. See NOTES.md.
-- `js/stream.js` — the homepage's mountain stream: the channel, boulders and log laid
-  out for a grid size, the flow and white water around them, and one frame's colours.
-  `scripts/stream.js` sizes a canvas to the left margin and animates it. See NOTES.md.
+- `js/stream.js` — the homepage's margins: the mountain stream (channel, boulders, log,
+  flow and white water, one frame's colours) and the forest floor beside it, thicker
+  the further from the water. `scripts/stream.js` sizes page-tall canvases to both
+  margins and animates the stream. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports
