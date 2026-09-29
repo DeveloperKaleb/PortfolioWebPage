@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createStream, createForestFloor, forestDensity, renderFrame, TERRAIN, MIN_COLS, BLOCK, FOREST_RAMP } from '../../js/stream.js';
 
 // A wide margin on a tall screen, and the narrowest one the page will draw.
@@ -209,5 +211,50 @@ describe('The forest floor', () => {
 
     test('is the same ground for the same stream', () => {
         expect(createForestFloor(stream, { cols: 69, offset }).pixels).toEqual(forest.pixels);
+    });
+});
+
+/* A row has to look the same whatever the page's length: that is what makes the stream
+   match between Home and Entertainment, and what stops it reshuffling when a page grows
+   (the photo loading, a game view opening). */
+describe('The same stream on every page', () => {
+    const short = createStream({ cols: 69, rows: 120, seed: 7 });
+    const long = createStream({ cols: 69, rows: 400, seed: 7 });
+    const band = 120 * 69;
+
+    test('every row is laid out the same, down to the last', () => {
+        expect(long.terrain.subarray(0, band)).toEqual(short.terrain);
+        expect(long.log).toEqual(short.log);
+    });
+
+    test('and moves the same, so the water matches too', () => {
+        // The last row can see one row further down on a longer page, so it is left out.
+        const upTo = (119 * 69) * 4;
+        expect(renderFrame(long, 12.3).subarray(0, upTo)).toEqual(renderFrame(short, 12.3).subarray(0, upTo));
+    });
+
+    test('the forest floor matches as well', () => {
+        const offset = 69 * BLOCK + 1100;
+        const a = createForestFloor(short, { cols: 69, offset }).pixels;
+        const b = createForestFloor(long, { cols: 69, offset }).pixels;
+        expect(b.subarray(0, a.length)).toEqual(a);
+    });
+
+    test('the log is near the top, where a first screen shows it', () => {
+        [1, 7, 42, 2026, 99991].forEach((seed) => {
+            const { log } = createStream({ cols: 69, rows: 400, seed });
+            expect(log.start.y * BLOCK).toBeLessThanOrEqual(540);
+        });
+    });
+});
+
+describe('Both pages carry the landscape', () => {
+    const read = (page) => readFileSync(resolve(__dirname, '../..', page), 'utf8');
+
+    test.each(['index.html', 'entertainment/entertainment.html'])('%s', (page) => {
+        const html = read(page);
+        expect(html).toMatch(/<div id="landscape"[^>]*>\s*<canvas id="stream"><\/canvas>\s*<canvas id="forest"><\/canvas>/);
+        // Render-blocking, so the landscape is drawn before a view transition captures it.
+        expect(html).toContain('<script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js');
     });
 });

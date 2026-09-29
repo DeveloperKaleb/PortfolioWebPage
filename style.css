@@ -86,7 +86,7 @@ body {
     margin: 0 auto;
 }
 
-/* The homepage's margins (scripts/stream.js): the stream down the left, the forest floor
+/* The page margins on Home and Entertainment (scripts/stream.js): the stream down the left, the forest floor
    down the right. #landscape is as tall as the page and scrolls with it, so scrolling
    travels down the stream. It is out of the flow, so the body's flex column never sees
    it, and it clips the canvases, which round up to whole blocks and would otherwise
@@ -99,6 +99,23 @@ body {
     width: 100%;
     overflow: hidden;
     pointer-events: none;
+}
+
+/* Moving between Home and Entertainment, the landscape stays put and only the page
+   column crossfades, as if one page were swapping its middle. It is a cross-document
+   view transition: two real pages, with the browser matching the landscape on both by
+   name. Browsers without them load the page as before. The stream script is
+   render-blocking on both pages so the landscape is drawn before the new page's first
+   frame is captured; otherwise it would fade out and pop back in. Off under reduced
+   motion, where the crossfade is motion the reader asked not to have. */
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+        navigation: auto;
+    }
+}
+
+#landscape {
+    view-transition-name: landscape;
 }
 
 #landscape canvas {

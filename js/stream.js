@@ -58,6 +58,9 @@ export const MIN_COLS = 12;
    distance from the stream is measured across the page column, which is sized in pixels. */
 export const BLOCK = 6;
 
+/* Rows laid out past the bottom of the page; see createStream. */
+const BEYOND = 24;
+
 /* How far from the stream's near bank, in screen pixels, the forest floor starts to
    show and where it is complete. The page column is 1100px, so the right-hand margin
    begins a little past the start: a narrow margin gets scattered moss, and a wide one
@@ -121,7 +124,9 @@ export function createStream({ cols, rows, seed = 7 }) {
 
     const random = mulberry32(seed);
     const phase = random() * Math.PI * 2;
-    const channel = Array.from({ length: rows }, (_, y) => channelAt(y, cols, phase));
+    /* Laid out a little past the last row, so a boulder or fern just below the bottom
+       edge still reaches up into it exactly as it would on a longer page. */
+    const channel = Array.from({ length: rows + BEYOND }, (_, y) => channelAt(y, cols, phase));
 
     const size = cols * rows;
     const terrain = new Uint8Array(size);
@@ -130,10 +135,17 @@ export function createStream({ cols, rows, seed = 7 }) {
     }
 
     /* The log: one end resting on a bank, angled downstream into the channel, the far
-       end sunk. Placed first so the boulders can keep clear of it. */
-    const logRow = Math.round(rows * (0.5 + random() * 0.2));
+       end sunk. Placed first so the boulders can keep clear of it.
+
+       It sits a set distance down the page (360-540px, beside the top of the column on
+       any desktop screen), never a fraction of the page's height. Nothing in the layout
+       may depend on how many rows there are: then a row looks the same on every page and
+       at every page length, so the stream matches across Home and Entertainment, and a
+       page that grows - the photo loading, a game view opening - only adds stream at the
+       bottom rather than reshuffling it. */
+    const logRow = Math.round(60 + random() * 30);
     const fromLeft = random() < 0.5;
-    const at = channel[clamp(logRow, 0, rows - 1)];
+    const at = channelAt(logRow, cols, phase);
     const reach = at.half * 2 * (0.6 + random() * 0.15);
     const logStart = {
         x: fromLeft ? at.left - 2 : at.right + 2,
@@ -166,7 +178,7 @@ export function createStream({ cols, rows, seed = 7 }) {
        of a bank. Kept off the log and off each other. */
     const boulders = [];
     const spacing = Math.max(9, Math.round(cols * 0.9));
-    for (let y = Math.round(spacing * 0.4); y < rows - 2; y += Math.round(spacing * (0.7 + random() * 0.6))) {
+    for (let y = Math.round(spacing * 0.4); y < rows + BEYOND - 8; y += Math.round(spacing * (0.7 + random() * 0.6))) {
         const count = random() < 0.35 ? 2 : 1;
         for (let n = 0; n < count; n++) {
             const c = channel[y];
@@ -381,11 +393,13 @@ export function createForestFloor(stream, { cols, offset }) {
         pixels[o] = rgb[0]; pixels[o + 1] = rgb[1]; pixels[o + 2] = rgb[2]; pixels[o + 3] = 255;
     };
 
+    const densityAt = (x, y) =>
+        forestDensity(offset + clamp(x, 0, cols - 1) * BLOCK - (channel[y].right + 1) * BLOCK);
+
     /* The ground itself: patches that join up as the density rises. */
     for (let y = 0; y < rows; y++) {
-        const bank = (channel[y].right + 1) * BLOCK;
         for (let x = 0; x < cols; x++) {
-            const k = forestDensity(offset + x * BLOCK - bank);
+            const k = densityAt(x, y);
             density[y * cols + x] = k;
             if (k <= 0) continue;
             const patch = noise(x * 0.22, y * 0.22, seed + 11) * 0.7 + noise(x * 0.6, y * 0.6, seed + 12) * 0.3;
@@ -399,13 +413,13 @@ export function createForestFloor(stream, { cols, offset }) {
 
     /* Things lying on it, each only where the floor is thick enough to carry it. Placed
        on a coarse lattice so they never pile on top of one another. */
-    const at = (x, y) => density[clamp(y, 0, rows - 1) * cols + clamp(x, 0, cols - 1)];
     const cell = 6;
-    for (let gy = 0; gy < rows; gy += cell) {
+    /* Past the last row too, for a fern rooted below the edge that reaches up into it. */
+    for (let gy = 0; gy < rows + 2 * cell; gy += cell) {
         for (let gx = 0; gx < cols; gx += cell) {
             const x = gx + Math.floor(hash(gx, gy, seed + 14) * (cell - 2)) + 1;
             const y = gy + Math.floor(hash(gx, gy, seed + 15) * (cell - 2)) + 1;
-            const k = at(x, y);
+            const k = densityAt(x, y);
             const roll = hash(gx, gy, seed + 16);
 
             if (k > 0.75 && roll < 0.05) {

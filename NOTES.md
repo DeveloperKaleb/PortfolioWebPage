@@ -2660,10 +2660,10 @@ very likely more than everything in the table combined. If the page ever feels h
 older phone, look there first, and measure it in a real browser (the DevTools Memory tab)
 before changing anything.
 
-## The homepage stream and forest floor
+## The stream and forest floor in the margins
 
-The homepage's margins show a pixel-art mountain creek seen from above down the left, and
-forest floor down the right. The layout and colours live in `js/stream.js` (pure, tested
+The margins of both pages, Home and Entertainment, show a pixel-art mountain creek seen
+from above down the left, and forest floor down the right. The layout and colours live in `js/stream.js` (pure, tested
 in `tests/stream`), and the canvases live in `scripts/stream.js`. It is decoration, so
 its palette is in the "nothing read against it" case and the pairwise rules do not
 apply. It sits in the gutters, never under text.
@@ -2683,8 +2683,33 @@ apply. It sits in the gutters, never under text.
   scroll. It clips the canvases, which round up to whole blocks. Without the clip, that
   rounding would lengthen the page, which would trigger a refit, which would lengthen
   it again. A ResizeObserver on the body refits when the page changes height (the photo
-  arriving), which lays the stream out again. The log's row is a fraction of the page
-  height, so it can move when that happens.
+  arriving, or on Entertainment every change of view), which lays the stream out again.
+- **Nothing in the layout depends on the page's length.** A row is the same on every
+  page at every length. The log sits a set distance down (360-540px), not a fraction of
+  the height, and the layout runs `BEYOND` the last row, so a boulder or fern just past
+  the bottom edge still reaches up into it. That is what makes the stream match across
+  the two pages, and what stops it reshuffling when a page grows. It only extends at
+  the bottom. It used to place the log by fraction, and the log jumped when the photo
+  loaded. `tests/stream` compares a short page against a long one row by row.
+- **Kept, not rebuilt, between the pages.** The project owner wanted the landscape to
+  persist while the middle changes. Merging the pages into one was considered and
+  turned down: it would change the URLs, nav, routes, offline cache and path
+  conventions, and put all the game code on the homepage. The stream code is about
+  25KB beside the Entertainment page's 400KB, and it is cached after the first visit.
+  Instead, three things make two pages look like one:
+  - The layout matches on both pages (above).
+  - The water runs on the wall clock (`clock` in `scripts/stream.js`), so the ripples
+    carry on rather than restart. It wraps once a day, a whole number of cycles.
+  - A cross-document view transition (`@view-transition` in style.css) keeps
+    `#landscape` in place while the column crossfades. The stream script is
+    `blocking="render"` so the landscape is drawn before the new page's first frame is
+    captured. Without that it could fade out and pop back in. The project owner checks
+    how it looks in a browser; no test can. Browsers without cross-document
+    transitions (Firefox, when this was written) just load the page as before, and
+    it is off under reduced motion.
+- **It keeps running during games.** The estimate, not measured, is 1-2ms per frame at
+  12fps, well under what Snake or Falling Polyominos would feel. If a game ever
+  stutters on desktop, pausing the stream during play is the first thing to try.
 - **Only the rows on screen are redrawn** each frame (`renderFrame`'s from/to band, plus
   a row either side). The whole stream is drawn once at the start, so rows scrolled in
   between frames are never blank. The forest floor does not move and is drawn once.

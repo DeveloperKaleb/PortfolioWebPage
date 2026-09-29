@@ -1,5 +1,5 @@
-/* Draws the homepage's margins (js/stream.js): the mountain stream down the left and the
- * forest floor down the right.
+/* Draws the page margins (js/stream.js) on Home and Entertainment: the mountain stream
+ * down the left and the forest floor down the right.
  *
  * Both canvases have one pixel per cell and are scaled up by BLOCK with
  * image-rendering: pixelated, which gives the chunky look. They are as tall as the page
@@ -10,6 +10,12 @@
 import { createStream, createForestFloor, renderFrame, MIN_COLS, BLOCK } from '/PortfolioWebPage/js/stream.js';
 
 const FPS = 12;
+
+/* The water runs on the wall clock, not on how long this page has been open, so moving
+   between Home and Entertainment picks the ripples up where they were rather than
+   restarting them. Wrapped daily to keep the numbers small; a day is a whole number of
+   flow cycles, so the wrap is one frame's jump at midnight UTC. */
+const clock = () => (Date.now() % 86400000) / 1000;
 
 const landscape = document.getElementById('landscape');
 const streamCanvas = document.getElementById('stream');
@@ -43,7 +49,7 @@ function tick(now) {
     frameHandle = requestAnimationFrame(tick);
     if (now - lastDraw < 1000 / FPS) return;
     lastDraw = now;
-    draw(now / 1000, visibleRows());
+    draw(clock(), visibleRows());
 }
 
 function stop() {
@@ -56,7 +62,7 @@ function start() {
     if (!stream) return;
     /* The whole stream once, so rows scrolled into view before the next frame are
        never blank; after that only what is on screen. */
-    draw(performance.now() / 1000);
+    draw(clock());
     if (!reducedMotion.matches) frameHandle = requestAnimationFrame(tick);
 }
 
