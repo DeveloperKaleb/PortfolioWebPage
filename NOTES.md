@@ -2659,3 +2659,33 @@ board is made of buttons, and Finger Paint's size fields allow 200 × 200 - 40,0
 very likely more than everything in the table combined. If the page ever feels heavy on an
 older phone, look there first, and measure it in a real browser (the DevTools Memory tab)
 before changing anything.
+
+## The homepage stream
+
+A pixel-art mountain creek, seen from above, down the homepage's left margin. The layout
+and colours live in `js/stream.js` (pure, tested in `tests/stream`), and the canvas lives
+in `scripts/stream.js`. It is decoration, so its palette is in the "nothing read against
+it" case and the pairwise rules do not apply. It sits in the gutter, never under text.
+
+- **Sizing.** One canvas pixel per cell, scaled up by `BLOCK` (6px) with
+  `image-rendering: pixelated`. Its width is the body's left edge, so the scrollbar is
+  already accounted for. It is a whole number of blocks laid flush against the page
+  column, and any part-block spills off the screen edge rather than being stretched,
+  because uneven scaling makes uneven pixels. Below `MIN_COLS` (12) cells, about 72px,
+  it stays hidden, which covers phones.
+- **Fixed, viewport-tall.** It fills the viewport, not the whole document, so it is
+  always in view. A future fork "3/4 of the way up the page" (to feed a right-hand
+  stream) would therefore sit at a fraction of the viewport height. If it has to be
+  document-relative instead, this is the thing to change first.
+- **Why the water is two layers.** Each cell's streak pattern moves at the local speed.
+  One pattern moving faster mid-channel than at the edges shears apart over time, so
+  two copies run half a cycle (`CYCLE`) apart. Each resets while the other one is
+  showing, and they are blended so the contrast does not dip halfway (a flow map, as
+  games do it).
+- **Three shades per water cell plus foam**, all precomputed in `createStream`, so a
+  frame is a lookup and the pixels stay crisp instead of being smoothly blended. It runs
+  at 12fps, stops in a background tab (requestAnimationFrame), and shows a single frame
+  under `prefers-reduced-motion`.
+- **A resize redraws the layout from the same seed**, so boulders can move when the
+  window changes size. That was accepted as a trade for simplicity.
+

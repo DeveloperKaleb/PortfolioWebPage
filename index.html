@@ -9,11 +9,14 @@
          the site would otherwise make, it cannot be integrity-checked without pinning
          a hash, and it would fail with no network - which is the one thing a page of
          offline games should survive. MIT licensed; the header is kept in the file. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260918-2139" rel="stylesheet" type="text/css" />
-    <link href="style.css?v=20260918-2139" rel="stylesheet" type="text/css" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20260928-2015" rel="stylesheet" type="text/css" />
+    <link href="style.css?v=20260928-2015" rel="stylesheet" type="text/css" />
     <!-- The two links above this comment are meant to set browser setting to a consistent standard and link to the style.css file -->
   </head>
   <body>
+    <!-- The mountain stream down the left margin; drawn by scripts/stream.js, and left
+         hidden when the margin is too narrow for it. -->
+    <canvas id="stream" aria-hidden="true" hidden></canvas>
     <header id="global-nav"></header>
     <main id="main">
       <!-- Hides itself rather than showing a broken-image icon. The photo is not
@@ -76,8 +79,9 @@
       </article>
       <p id="last-updated"></p>
     </footer>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20260918-2139"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20260918-2139"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20260918-2139"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20260928-2015"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20260928-2015"></script>
+    <script type="module" src="/PortfolioWebPage/scripts/stream.js?v=20260928-2015"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20260928-2015"></script>
   </body>
 </html>

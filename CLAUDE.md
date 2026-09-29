@@ -59,7 +59,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is thirteen modules, all free of `document`/DOM calls so they stay testable
+The pure layer is fourteen modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -104,6 +104,9 @@ under Vitest without a browser:
   where the window sits, the tap-to-zoom rule, and a prediction of cell sizes that
   mirrors the stylesheet so the phone pass mark can be tested. Board-agnostic;
   Minesweeper is its only user. See NOTES.md.
+- `js/stream.js` — the homepage's mountain stream: the channel, boulders and log laid
+  out for a grid size, the flow and white water around them, and one frame's colours.
+  `scripts/stream.js` sizes a canvas to the left margin and animates it. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

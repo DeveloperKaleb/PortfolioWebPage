@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20260918-2139';
+const VERSION = '20260928-2015';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -27,6 +27,7 @@ const PRECACHE = [
     `${BASE}/vendor/normalize.css?v=${VERSION}`,
     `${BASE}/scripts/nav.js?v=${VERSION}`,
     `${BASE}/scripts/footer.js?v=${VERSION}`,
+    `${BASE}/scripts/stream.js?v=${VERSION}`,
     `${BASE}/entertainment/entertainment.js?v=${VERSION}`,
 
     /* The pure modules are imported by entertainment.js without a stamp - a static
@@ -46,6 +47,7 @@ const PRECACHE = [
     `${BASE}/js/minesolver.js`,
     `${BASE}/js/mineshapes.js`,
     `${BASE}/js/mineopenings.js`,
+    `${BASE}/js/stream.js`,
 ];
 
 /* The family photo is deliberately NOT precached.
