@@ -2696,8 +2696,13 @@ apply. It sits in the gutters, never under text.
   turned down: it would change the URLs, nav, routes, offline cache and path
   conventions, and put all the game code on the homepage. The stream code is about
   25KB beside the Entertainment page's 400KB, and it is cached after the first visit.
-  Instead, three things make two pages look like one:
+  Instead, four things make two pages look like one:
   - The layout matches on both pages (above).
+  - The margins are the same width on both. `scrollbar-gutter: stable` on `html`
+    reserves the scrollbar's room on every page. Before it, Home (which scrolls) was
+    about 15px narrower than the Entertainment dashboard (which does not) on Windows,
+    so the column sat about 8px apart. The stream is laid out to the margin's width, so
+    one block of difference gave a visibly different stream.
   - The water runs on the wall clock (`clock` in `scripts/stream.js`), so the ripples
     carry on rather than restart. It wraps once a day, a whole number of cycles.
   - A cross-document view transition (`@view-transition` in style.css) keeps

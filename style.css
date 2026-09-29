@@ -69,6 +69,14 @@ html {
     /* Stops the rubber-band bounce at the ends of the page. Mid-game that bounce
        reads as the board lurching, since the pad is being tapped, not dragged. */
     overscroll-behavior: none;
+    /* Room for the scrollbar on every page, whether it scrolls or not. Without it a
+       page that scrolls (Home) is a scrollbar narrower than one that does not (the
+       Entertainment dashboard), so the column shifts sideways between them and the
+       margins change width. The margins carry the stream, which is laid out to their
+       width, so a block's difference redraws it with different bends, rocks and log;
+       the view transition between the pages would show a different landscape instead
+       of hiding the swap. Also steadies Entertainment as its views change height. */
+    scrollbar-gutter: stable;
 }
 
 body {

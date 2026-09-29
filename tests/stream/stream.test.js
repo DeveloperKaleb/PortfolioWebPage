@@ -257,4 +257,12 @@ describe('Both pages carry the landscape', () => {
         // Render-blocking, so the landscape is drawn before a view transition captures it.
         expect(html).toContain('<script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js');
     });
+
+    /* A page that scrolls is a scrollbar narrower than one that does not, which would
+       give the two pages different margins and so a different stream. */
+    test('with the same margins whether a page scrolls or not', () => {
+        const css = read('style.css');
+        const root = css.match(/\nhtml \{[^}]*\}/)[0];
+        expect(root).toContain('scrollbar-gutter: stable;');
+    });
 });
