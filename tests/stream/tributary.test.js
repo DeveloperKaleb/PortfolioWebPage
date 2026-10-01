@@ -134,6 +134,20 @@ describe.each([[69, 'wide'], [20, 'narrow']])('The tributary, %i columns (%s)', 
         expect(between).toBeGreaterThanOrEqual(cols > 40 ? 3 : 1);
     });
 
+    /* The downstream corner comes to a point that water would wear away; it is only
+       believable armoured. */
+    test('has a boulder sitting on the sharp downstream corner', () => {
+        const { tip, cornerRock } = stream;
+        expect(tip.y).toBeGreaterThan(trib.row);
+        // Big enough to round the point off, not just mark it: the tip, the cell into the
+        // creek below it and the cell back into the bank beside it are all rock.
+        expect(at(stream, tip.x, tip.y)).toBe(TERRAIN.BOULDER);
+        expect(at(stream, tip.x - 1, tip.y + 1)).toBe(TERRAIN.BOULDER);
+        expect(at(stream, tip.x + 1, tip.y)).toBe(TERRAIN.BOULDER);
+        // Water on its upstream face, from the tributary.
+        expect(at(stream, tip.x, Math.floor(cornerRock.y - cornerRock.r) - 1)).toBe(TERRAIN.WATER);
+    });
+
     test('keeps the log and the boulders out of the confluence', () => {
         expect(stream.log.end.y + stream.log.radius).toBeLessThan(trib.row - trib.mouth);
         stream.boulders.forEach((b) => {

@@ -2758,8 +2758,15 @@ for it.
     The creek's fastest water (`fast` in `channelAt`) is shoved towards the far bank,
     which is cut back into a bulge. The creek widens with the added water. There is an
     eddy turning back upstream in the downstream corner, with a ring of scum riding
-    round it, and a gravel bar (`TERRAIN.BAR`) in the slack water below it. Boulders
-    are kept out of the whole stretch so it reads on its own.
+    round it, and a gravel bar (`TERRAIN.BAR`) in the slack water below it. Random
+    boulders are kept out of the whole stretch so it reads on its own.
+  - **The corner boulder.** Where the tributary's lower bank meets the creek's right
+    bank, the two straight-ish banks come to a sharp point. The project owner pointed
+    out that water would wear that away quickly, so it is not believable bare. A big
+    boulder (`cornerRock`) sits on it, placed from the geometry (`tip`, the first row
+    below the junction where the cell past the creek's bank is no longer tributary), so
+    it lands on the point at every margin width. It takes the tributary's water on its
+    upstream face. It is kept apart from `boulders`, which stay out of the confluence.
   - **Glacial water**, the owner's choice over tannin brown or no difference.
     `glacial` per cell is how much of it the water holds. It is calibrated to
     photographs, not to the colour rules: the colours were sampled from public-domain

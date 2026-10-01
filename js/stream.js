@@ -360,7 +360,23 @@ export function createStream({ cols, rows, seed = 7 }) {
             if (clear) boulders.push({ x: bx, y: by, r });
         }
     }
-    for (const b of boulders) {
+
+    /* The downstream corner of the junction, where the tributary's lower bank meets the
+       creek's right bank, comes to a sharp point: a straight bank at 30 degrees against
+       one running down the page and bending away as the creek widens. Water would wear a
+       point like that away quickly, so it only survives armoured - a big boulder sitting
+       on it, taking the tributary's water on its upstream face. Found from the geometry:
+       the first row below the junction where the cell just past the creek's bank is no
+       longer tributary. Kept apart from the random boulders, which stay out of the
+       confluence. */
+    let tipY = trib.row;
+    while (tipY < trib.row + 60 && Math.abs(tribOffset(chan(tipY).right + 1, tipY)) <= tribHalf) tipY++;
+    const tip = { x: chan(tipY).right + 1, y: tipY };
+    const cornerR = Math.max(1.3, tribHalf * 0.65);
+    const cornerRock = { x: tip.x, y: tip.y + cornerR * 0.3, r: cornerR };
+    const rocks = [...boulders, cornerRock];
+
+    for (const b of rocks) {
         for (let y = Math.max(0, Math.floor(b.y - b.r)); y <= Math.min(rows - 1, Math.ceil(b.y + b.r)); y++) {
             for (let x = Math.max(0, Math.floor(b.x - b.r)); x <= Math.min(cols - 1, Math.ceil(b.x + b.r)); x++) {
                 if (Math.hypot(x - b.x, y - b.y) <= b.r) terrain[y * cols + x] = TERRAIN.BOULDER;
@@ -437,9 +453,9 @@ export function createStream({ cols, rows, seed = 7 }) {
             fx /= norm; fy /= norm;
 
             if (!openAt(x - 1, y) || !openAt(x + 1, y) || !openAt(x, y - 1) || !openAt(x, y + 1)) f = Math.max(f, 0.15);
-            const rocks = rockEffects(x, y, fx, fy, boulders);
-            f = Math.max(f, rocks.foam);
-            v *= rocks.slow;
+            const nearRocks = rockEffects(x, y, fx, fy, rocks);
+            f = Math.max(f, nearRocks.foam);
+            v *= nearRocks.slow;
 
             if (terrain[i] === TERRAIN.LOG_SUBMERGED) {
                 v = Math.min(1.2, v * 1.25);
@@ -504,7 +520,7 @@ export function createStream({ cols, rows, seed = 7 }) {
             } else if (kind === TERRAIN.BAR) {
                 paintStill(i, hash(x, y, seed + 9) < 0.3 ? C.paleStone : C.gravel);
             } else if (kind === TERRAIN.BOULDER) {
-                const b = boulders.find((o) => Math.hypot(x - o.x, y - o.y) <= o.r);
+                const b = rocks.find((o) => Math.hypot(x - o.x, y - o.y) <= o.r);
                 paintStill(i, shadeRock(C, b, x, y, seed));
             } else if (kind === TERRAIN.LOG) {
                 paintStill(i, barkAt(x, y));
@@ -516,7 +532,7 @@ export function createStream({ cols, rows, seed = 7 }) {
     }
 
     return Object.assign(grid, {
-        seed, channel, boulders, log, eddy, bar, foamRgb: C.foam,
+        seed, channel, boulders, cornerRock, tip, log, eddy, bar, foamRgb: C.foam,
         tributary: { ...trib, rocks: tribRocks, centre: tribCentre, offset: tribOffset },
         origin: { x: trib.x, y: trib.row },
     });
