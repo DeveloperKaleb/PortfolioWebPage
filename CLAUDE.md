@@ -105,10 +105,11 @@ under Vitest without a browser:
   mirrors the stylesheet so the phone pass mark can be tested. Board-agnostic;
   Minesweeper is its only user. See NOTES.md.
 - `js/stream.js` — the page margins on both pages: the mountain stream (channel,
-  boulders, log, flow and white water, one frame's colours) and the forest floor beside
-  it, thicker the further from the water. No row may depend on the page's length, so
-  the stream matches across pages. `scripts/stream.js` sizes page-tall canvases to both
-  margins and animates the stream. See NOTES.md.
+  boulders, log, flow and white water, one frame's colours), the forest floor beside
+  it, thicker the further from the water, and a glacial tributary that comes out of
+  snow in the right margin and joins the creek on the left. No row may depend on the
+  page's length, so the stream matches across pages. `scripts/stream.js` sizes
+  page-tall canvases to both margins and animates them. See NOTES.md.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

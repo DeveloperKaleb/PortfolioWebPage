@@ -2717,7 +2717,8 @@ apply. It sits in the gutters, never under text.
   stutters on desktop, pausing the stream during play is the first thing to try.
 - **Only the rows on screen are redrawn** each frame (`renderFrame`'s from/to band, plus
   a row either side). The whole stream is drawn once at the start, so rows scrolled in
-  between frames are never blank. The forest floor does not move and is drawn once.
+  between frames are never blank. The forest floor is animated too, since the
+  tributary crosses it.
 - **Sizing.** One canvas pixel per cell, scaled up by `BLOCK` (6px) with
   `image-rendering: pixelated`. Each canvas is a whole number of blocks laid flush
   against the page column, and any part-block spills off the screen edge rather than
@@ -2733,5 +2734,40 @@ apply. It sits in the gutters, never under text.
   frame is a lookup and the pixels stay crisp instead of being smoothly blended. It runs
   at 12fps, stops in a background tab (requestAnimationFrame), and shows a single frame
   under `prefers-reduced-motion`.
-- **The planned fork** into the right-hand margin, about 3/4 of the way up the page, is a
-  page-relative position now that the landscape spans the page.
+- **The tributary, not a fork.** The project owner first planned a fork into the right
+  margin, then chose a tributary instead. A smaller glacial stream comes down out of
+  snow near the top of the right margin, runs behind the page column, and joins the
+  creek from the right. It follows the one-landscape rule: a straight line (with a
+  gentle meander) up and to the right from the junction at 30 degrees below the
+  horizontal, so where it crosses each margin comes from the geometry, not from being
+  placed there.
+  - **Where it is.** The junction is `JUNCTION_PX` (900px) down, below the log, which
+    was the owner's choice over putting it on the first screen and moving the log. At
+    30 degrees the tributary crosses the right margin's page edge 150-300px down, and a
+    wide screen reaches the top right corner. On the left it shows for only 20-80px,
+    between the page edge and the creek.
+  - **What the cross current does**, all below the junction on its side: the milky
+    water shoots partway across, then is bent downstream and runs down the right side,
+    spreading and fading over about 500px. A foam seam runs where the two waters meet.
+    The creek's fastest water (`fast` in `channelAt`) is shoved towards the far bank,
+    which is cut back into a bulge. The creek widens with the added water. There is an
+    eddy turning back upstream in the downstream corner, with a ring of scum riding
+    round it, and a gravel bar (`TERRAIN.BAR`) in the slack water below it. Boulders
+    are kept out of the whole stretch so it reads on its own.
+  - **Glacial water**, the owner's choice over tannin brown or no difference. It is
+    milky (`glacial`), and so cloudy that the bed barely shows. `glacial` per cell is
+    how much of it the water holds. The mixing is the whole effect, so the two waters
+    have to be tellable apart: `tests/stream/tributary.test.js` holds them to
+    `areDistinguishable` over every bed colour. This is the only pair in the landscape
+    held to that rule.
+  - **Snow**, which the owner asked for so the milky water reads as meltwater. It lies
+    around the tributary's upstream end: `snowCover` of how far up the tributary a cell
+    is (measured along its line, `SNOW_RAMP`), thinning away from the water. The first
+    version measured only across the page and put snow down the whole outer strip of
+    the margin. `SNOW_RAMP` starts early enough that a narrow margin still shows drifts.
+  - **Flow has a direction now.** Each water cell has `flowX`/`flowY`, and the streaks
+    are laid along it, measured from the junction so that the coordinates are small
+    where the direction turns. Rock foam and wakes follow the direction too, so the same
+    code serves boulders in the creek and rocks in the tributary.
+  - **It has its own random stream** (`seed + 101`), so adding it left the log and
+    upstream boulders where they were.

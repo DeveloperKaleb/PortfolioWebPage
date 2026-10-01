@@ -1,5 +1,6 @@
 /* Draws the page margins (js/stream.js) on Home and Entertainment: the mountain stream
- * down the left and the forest floor down the right.
+ * down the left, and the forest floor down the right with the glacial tributary crossing
+ * it near the top. Both have moving water, so both are animated.
  *
  * Both canvases have one pixel per cell and are scaled up by BLOCK with
  * image-rendering: pixelated, which gives the chunky look. They are as tall as the page
@@ -24,8 +25,8 @@ const streamContext = streamCanvas.getContext('2d');
 const forestContext = forestCanvas.getContext('2d');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-let stream = null;
-let image = null;
+/* The two margins, each a grid from js/stream.js with the canvas it draws into. */
+let layers = [];
 let frameHandle = 0;
 let lastDraw = -Infinity;
 let fitted = '';
@@ -36,11 +37,13 @@ function visibleRows() {
     return [top, top + Math.ceil(window.innerHeight / BLOCK) + 2];
 }
 
-function draw(seconds, [from, to] = [0, stream.rows]) {
-    renderFrame(stream, seconds, image.data, from, to);
-    const top = Math.max(0, from);
-    const height = Math.min(stream.rows, to) - top;
-    if (height > 0) streamContext.putImageData(image, 0, 0, 0, top, stream.cols, height);
+function draw(seconds, [from, to] = [0, Infinity]) {
+    for (const { grid, context, image } of layers) {
+        renderFrame(grid, seconds, image.data, from, to);
+        const top = Math.max(0, from);
+        const height = Math.min(grid.rows, to) - top;
+        if (height > 0) context.putImageData(image, 0, 0, 0, top, grid.cols, height);
+    }
 }
 
 /* requestAnimationFrame already stops in a background tab, so there is no separate
@@ -59,8 +62,8 @@ function stop() {
 
 function start() {
     stop();
-    if (!stream) return;
-    /* The whole stream once, so rows scrolled into view before the next frame are
+    if (!layers.length) return;
+    /* The whole of both once, so rows scrolled into view before the next frame are
        never blank; after that only what is on screen. */
     draw(clock());
     if (!reducedMotion.matches) frameHandle = requestAnimationFrame(tick);
@@ -90,7 +93,7 @@ function fit() {
 
     if (cols < MIN_COLS) {
         stop();
-        stream = null;
+        layers = [];
         fitted = '';
         landscape.hidden = true;
         return;
@@ -106,14 +109,17 @@ function fit() {
     if (key === fitted) return;
     fitted = key;
 
-    stream = createStream({ cols, rows });
-    image = streamContext.createImageData(cols, rows);
+    const stream = createStream({ cols, rows });
     place(streamCanvas, streamLeft, cols, rows);
 
     const forestCols = Math.ceil((window.innerWidth - column.right) / BLOCK);
     const forest = createForestFloor(stream, { cols: forestCols, offset: column.right - streamLeft });
     place(forestCanvas, column.right, forestCols, rows);
-    forestContext.putImageData(new ImageData(forest.pixels, forestCols, rows), 0, 0);
+
+    layers = [
+        { grid: stream, context: streamContext, image: streamContext.createImageData(cols, rows) },
+        { grid: forest, context: forestContext, image: forestContext.createImageData(forestCols, rows) },
+    ];
 
     landscape.hidden = false;
     start();
