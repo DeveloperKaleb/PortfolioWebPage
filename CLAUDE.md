@@ -11,7 +11,9 @@ work rather than descriptions of old work. Two to know before designing anything
 touch:
 
 - **Colour choices are held to the contrast rules** in `js/contrast.js`, checked against
-  both colour-blindness simulations and asserted in `tests/contrast/`.
+  both colour-blindness simulations and asserted in `tests/contrast/`. The one exception
+  is the decorative landscape in the page margins (`js/stream.js`), which is held to
+  reference photographs instead, by the project owner's decision.
 - **Any multiplayer is phone to phone, in the same room** - no shared screen, co-presence rewarded by design, plain turn-based play welcome.
 
 ## What this is

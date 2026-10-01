@@ -2664,9 +2664,15 @@ before changing anything.
 
 The margins of both pages, Home and Entertainment, show a pixel-art mountain creek seen
 from above down the left, and forest floor down the right. The layout and colours live in `js/stream.js` (pure, tested
-in `tests/stream`), and the canvases live in `scripts/stream.js`. It is decoration, so
-its palette is in the "nothing read against it" case and the pairwise rules do not
-apply. It sits in the gutters, never under text.
+in `tests/stream`), and the canvases live in `scripts/stream.js`. It sits in the
+gutters, never under text.
+
+**The landscape is exempt from the colour rules**, by the project owner's decision
+(2026-10-01). That covers contrast and colour-blind distinguishability alike, the waters
+included: nothing is read against it, and what it has to do is look real. Its colours
+are held to reference photographs where that matters, as with the glacial water below,
+not to `js/contrast.js`. Do not add `areDistinguishable` or contrast-rule assertions
+for it.
 
 - **One landscape.** The page column hides the ground between the two margins. The
   right margin shows what lies a page-width away from the stream: the forest floor's
@@ -2754,12 +2760,27 @@ apply. It sits in the gutters, never under text.
     eddy turning back upstream in the downstream corner, with a ring of scum riding
     round it, and a gravel bar (`TERRAIN.BAR`) in the slack water below it. Boulders
     are kept out of the whole stretch so it reads on its own.
-  - **Glacial water**, the owner's choice over tannin brown or no difference. It is
-    milky (`glacial`), and so cloudy that the bed barely shows. `glacial` per cell is
-    how much of it the water holds. The mixing is the whole effect, so the two waters
-    have to be tellable apart: `tests/stream/tributary.test.js` holds them to
-    `areDistinguishable` over every bed colour. This is the only pair in the landscape
-    held to that rule.
+  - **Glacial water**, the owner's choice over tannin brown or no difference.
+    `glacial` per cell is how much of it the water holds. It is calibrated to
+    photographs, not to the colour rules: the colours were sampled from public-domain
+    and CC-licensed Wikimedia Commons photos of three clear-against-glacial confluences.
+    | Confluence | Contrast |
+    |---|---|
+    | The Otta, Norway | 1.33:1 |
+    | The Kenai meeting the Russian, Alaska | 1.57:1 |
+    | The Rhone meeting the Arve, Geneva | 2.07:1 |
+
+    The first version was milky and hid 80% of the bed. It came out at 2.05:1, the
+    Rhone and Arve figure: two big rivers, one unusually silty. On a creek the owner
+    found it unrealistic. It is now turquoise (`#3c9c9c`) over 45% of the bed
+    (`GLACIAL_OPACITY`), so it meets the creek at 1.46:1 at full strength and 1.34:1 as
+    a plume. The difference is mostly hue, as in the photos: at the Kenai both waters
+    carry nearly the same red, and the glacial water carries far more blue and green.
+    The bed shows through it, and the two waters shade into each other over a widening
+    band rather than meeting at an edge, because no photo shows a hard edge. The foam
+    seam is kept small, near the junction only, because no photo shows one at all.
+    `tests/stream/tributary.test.js` holds the contrast between the Otta and the Kenai
+    (`GLACIAL_REFERENCE`).
   - **Snow**, which the owner asked for so the milky water reads as meltwater. It lies
     around the tributary's upstream end: `snowCover` of how far up the tributary a cell
     is (measured along its line, `SNOW_RAMP`), thinning away from the water. The first

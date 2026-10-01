@@ -19,11 +19,11 @@
  * reset while the other is showing (a flow map, as games do it). See NOTES.md.
  */
 
-/* Decorative: nothing is read against any of these, so the pairwise rules do not apply
-   (the "nothing read against it" case in NOTES.md). They sit in the gutter, beside the
-   page column rather than under it. The one pair that matters is the two waters: the
-   tributary's glacial water has to be tellable from the creek's for the mixing to show,
-   and tests/stream holds it to areDistinguishable over every bed colour. */
+/* Exempt from the colour rules in js/contrast.js - contrast and colour-blind
+   distinguishability alike - by the project owner's decision. Nothing is read against
+   them, and they sit in the gutter, beside the page column rather than under it. They
+   are held to looking real instead: the glacial water against the creek is calibrated to
+   photographs of real confluences (see NOTES.md and tests/stream/tributary.test.js). */
 export const STREAM_COLORS = {
     forest: '#233320',
     moss: '#3d5a2c',
@@ -39,8 +39,10 @@ export const STREAM_COLORS = {
     waterDark: '#1f4744',
     highlight: '#8fc1b5',
     foam: '#e4eee8',
-    /* Milky with rock flour, and too cloudy to see the bed through. */
-    glacial: '#8dbfb9',
+    /* Turquoise with rock flour. In shallow water the bed still shows through it, and
+       against the creek it is mostly a shift in hue, not a jump in brightness - as in
+       the reference photographs. */
+    glacial: '#3c9c9c',
 
     snow: '#e9eff1',
     snowShadow: '#c3d0d8',
@@ -94,6 +96,14 @@ const TRIB_FLOW = [-Math.cos(TRIB_ANGLE), Math.sin(TRIB_ANGLE)];
    the viewer the milky water is meltwater - and a wide one reaches deep snow in the top
    right corner. */
 export const SNOW_RAMP = { start: 1000, full: 1600 };
+
+/* How much of the bed the tributary's water hides. Set with the glacial colour so the
+   two waters meet at 1.46:1, between the clear-against-glacial contrasts measured from
+   photographs of the Otta (1.33:1) and the Kenai meeting the Russian (1.57:1). The first
+   version hid 80% of the bed under a much paler tint and came out at 2.05:1 - the
+   Rhone against the Arve, two big rivers and an unusually silty one. */
+export const GLACIAL_OPACITY = 0.45;
+export const GLACIAL_REFERENCE = { otta: 1.33, kenai: 1.57 };
 
 /* Cells per second at full speed, and the length of one flow-map cycle in seconds. */
 const FLOW_RATE = 9;
@@ -212,7 +222,7 @@ function surface(cols, rows) {
 function shadeWater(grid, i, under, depth, C) {
     const g = grid.glacial[i];
     const tint = mix(C.water, C.glacial, g);
-    const base = mix(under, tint, (0.4 + 0.25 * depth) * (1 - g) + 0.8 * g);
+    const base = mix(under, tint, (0.4 + 0.25 * depth) * (1 - g) + GLACIAL_OPACITY * g);
     const put = (o, rgb) => { grid.shades[o] = rgb[0]; grid.shades[o + 1] = rgb[1]; grid.shades[o + 2] = rgb[2]; };
     put(i * 9, base);
     put(i * 9 + 3, mix(base, C.waterDark, 0.45 - 0.2 * g));
@@ -390,13 +400,16 @@ export function createStream({ cols, rows, seed = 7 }) {
                 if (plume >= 0) {
                     /* The tributary's water shoots partway across, then is bent
                        downstream and runs down the right side, spreading and mixing
-                       until it is gone. The seam between the two waters foams. */
+                       until it is gone. The two waters shade into each other over a
+                       few cells, widening downstream, as in the reference photographs,
+                       where no confluence shows a hard edge. A little foam marks the
+                       seam where they first meet and churn, and fades within ~150px. */
                     const width = c.right - c.left;
                     const reachAcross = Math.min(width * 0.85, width * 0.4 * smooth(plume / 6) + plume * 0.06);
                     const seam = c.right + 0.5 - reachAcross;
-                    const side = smooth((x - seam) / (0.8 + plume * 0.04) + 0.5);
+                    const side = smooth((x - seam) / (3 + plume * 0.15) + 0.5);
                     g = side * Math.exp(-plume / 90);
-                    if (Math.abs(x - seam) < 0.75 && plume > 1) f = Math.max(f, 0.6 * Math.exp(-plume / 50));
+                    if (Math.abs(x - seam) < 0.75 && plume > 1) f = Math.max(f, 0.3 * Math.exp(-plume / 25));
 
                     /* Where it comes in it still runs its own way, across the creek. */
                     const jet = 0.85 * Math.exp(-plume / 7) * side;

@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
-import { createStream, createForestFloor, snowCover, TERRAIN, BLOCK, JUNCTION_PX, STREAM_COLORS } from '../../js/stream.js';
-import { areDistinguishable } from '../../js/contrast.js';
+import { createStream, createForestFloor, snowCover, TERRAIN, BLOCK, JUNCTION_PX, STREAM_COLORS, GLACIAL_OPACITY, GLACIAL_REFERENCE } from '../../js/stream.js';
+import { contrastRatio } from '../../js/contrast.js';
 
 const cells = (grid, kind) => {
     const found = [];
@@ -104,15 +104,34 @@ describe.each([[69, 'wide'], [20, 'narrow']])('The tributary, %i columns (%s)', 
         gravel.forEach(({ x, y }) => expect(x).toBeGreaterThan(stream.channel[y].centre));
     });
 
-    test('foams along the seam between the two waters', () => {
-        let seam = 0;
-        for (let y = trib.row; y < trib.row + 30; y++) {
-            for (let x = 0; x < cols; x++) {
-                const i = y * cols + x;
-                if (stream.glacial[i] > 0.2 && stream.glacial[i] < 0.8 && stream.foam[i] > 0.3) seam++;
+    test('foams a little along the seam where the waters first meet, and not for long', () => {
+        // Rocks downstream foam in partly glacial water too; that is not the seam.
+        const nearRock = (x, y) => stream.boulders.some((b) => Math.hypot(x - b.x, y - b.y) < b.r * 3 + 8);
+        const seamFoam = (from, to) => {
+            let n = 0;
+            for (let y = from; y < to; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const i = y * cols + x;
+                    if (nearRock(x, y)) continue;
+                    if (stream.glacial[i] > 0.2 && stream.glacial[i] < 0.8 && stream.foam[i] > 0.2) n++;
+                }
             }
+            return n;
+        };
+        expect(seamFoam(trib.row, trib.row + 15)).toBeGreaterThan(0);
+        expect(seamFoam(trib.row + 60, trib.row + 120)).toBe(0);
+    });
+
+    /* No confluence in the reference photographs shows a hard edge between the waters. */
+    test('shades from one water into the other rather than meeting at an edge', () => {
+        const y = trib.row + 20;
+        const c = stream.channel[y];
+        let between = 0;
+        for (let x = c.left; x <= c.right; x++) {
+            const g = glacialAt(stream, x, y);
+            if (at(stream, x, y) === TERRAIN.WATER && g > 0.05 && g < 0.5) between++;
         }
-        expect(seam).toBeGreaterThan(0);
+        expect(between).toBeGreaterThanOrEqual(cols > 40 ? 3 : 1);
     });
 
     test('keeps the log and the boulders out of the confluence', () => {
@@ -145,15 +164,57 @@ describe('Snow and glacial water', () => {
         expect(snowOf(69)).toBeGreaterThan(snowOf(20));
     });
 
-    /* The mixing only shows if the two waters can be told apart, by a colour-blind viewer
-       too: held to the same rule as the game palettes, over every bed colour. */
-    test.each(STREAM_COLORS.bed)('glacial water is tellable from the creek over %s', (bed) => {
-        const toRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-        const hex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
-        const over = (tint, k) => hex(toRgb(bed).map((v, i) => v + (toRgb(tint)[i] - v) * k));
-        // The creek at its clearest and at its deepest, against the tributary's water.
-        [0.4, 0.65].forEach((k) => {
-            expect(areDistinguishable(over(STREAM_COLORS.water, k), over(STREAM_COLORS.glacial, 0.8))).toBe(true);
-        });
+    /* These colours are exempt from the site's colour rules, by the project owner's
+       decision; they are held to looking real instead. The glacial water against the
+       creek has to sit within the contrasts measured from photographs of real clear-
+       against-glacial confluences: the Otta at 1.33:1 and the Kenai meeting the Russian
+       at 1.57:1. The first version was 2.05:1, which is the Rhone against the Arve - two
+       big rivers and an unusually silty one - and looked wrong on a creek. */
+    const toRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const hex = (rgb) => '#' + rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+    const overBeds = (tint, k) => hex(STREAM_COLORS.bed.map(toRgb)
+        .map((bed) => bed.map((v, i) => v + (toRgb(tint)[i] - v) * k))
+        .reduce((sum, rgb) => sum.map((v, i) => v + rgb[i] / STREAM_COLORS.bed.length), [0, 0, 0]));
+    // The creek at its middling depth, as it runs beside the plume.
+    const creek = overBeds(STREAM_COLORS.water, 0.525);
+
+    test('glacial water sits within the contrast of real confluences', () => {
+        const ratio = contrastRatio(creek, overBeds(STREAM_COLORS.glacial, GLACIAL_OPACITY));
+        expect(ratio).toBeGreaterThanOrEqual(GLACIAL_REFERENCE.otta);
+        expect(ratio).toBeLessThanOrEqual(GLACIAL_REFERENCE.kenai);
+    });
+
+    test('and so does the plume where it runs beside the creek', () => {
+        const stream = createStream({ cols: 69, rows: 320, seed: 7 });
+        const y0 = stream.tributary.row;
+        const average = (pick) => {
+            const sum = [0, 0, 0];
+            let n = 0;
+            for (let i = 0; i < stream.terrain.length; i++) {
+                const y = Math.floor(i / stream.cols);
+                if (stream.terrain[i] !== TERRAIN.WATER || y < y0 + 10 || y >= y0 + 40 || !pick(stream.glacial[i])) continue;
+                for (let k = 0; k < 3; k++) sum[k] += stream.shades[i * 9 + k];
+                n++;
+            }
+            return hex(sum.map((v) => v / n));
+        };
+        const ratio = contrastRatio(average((g) => g < 0.05), average((g) => g > 0.6));
+        expect(ratio).toBeGreaterThanOrEqual(GLACIAL_REFERENCE.otta);
+        expect(ratio).toBeLessThanOrEqual(GLACIAL_REFERENCE.kenai);
+    });
+
+    /* Shallow water: the bed shows through the glacial water too, as it does through the
+       clear water at the Kenai and the Otta. */
+    test('the bed still shows through glacial water', () => {
+        expect(GLACIAL_OPACITY).toBeLessThanOrEqual(0.5);
+    });
+
+    /* The difference is mostly hue: at the Kenai the two waters carry nearly the same red,
+       and the glacial water far more blue and green. */
+    test('glacial water differs from the creek more in hue than in brightness', () => {
+        const [cr, , cb] = toRgb(creek);
+        const [gr, , gb] = toRgb(overBeds(STREAM_COLORS.glacial, GLACIAL_OPACITY));
+        expect(Math.abs(gr - cr)).toBeLessThan(15);
+        expect((gb - gr) - (cb - cr)).toBeGreaterThan(10);
     });
 });
