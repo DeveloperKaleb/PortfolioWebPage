@@ -67,7 +67,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty-four modules, all free of `document`/DOM calls so they stay testable
+The pure layer is twenty-five modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -131,6 +131,8 @@ under Vitest without a browser:
 - `js/orbit.js` — an object's position from JPL orbital elements (two-body), its
   distances, apparent magnitude, whether one Rubin visit could see it, the 100,000 AU
   scope, and the orbit flags. Tested against recorded JPL Horizons values.
+- `js/planets.js` — the planets where they really are on a date (JPL's approximate
+  elements, valid 1800-2050), for the Rubin tab's map.
 - `js/flags.js` — every flag the Rubin digest can raise, with the words it shows.
 - `js/verdict.js` — the whole verdict on one object: brightness and orbit together.
 - `js/polite.js` — the courtesy layer every Rubin data request goes through: one at a

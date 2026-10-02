@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
-    chartData, mapData, percent, kilometres, au, longDate,
+    chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -147,13 +147,44 @@ describe('The map', () => {
         ]);
     });
 
-    test('is sized to the furthest object, in rings of 50 AU', () => {
+    test('is sized to the furthest object, rounded up to 50 AU', () => {
         expect(map.radius).toBe(100);
-        expect(map.rings).toEqual([50, 100]);
+    });
+
+    test("carries all eight planets, placed on the digest's date", () => {
+        expect(map.planets.map((p) => p.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
+        map.planets.forEach((p) => expect(p.path.length).toBeGreaterThan(50));
     });
 
     test('leaves out an object with no position rather than placing it at the Sun', () => {
         const without = { ...digest, entries: [entry({ now: { r: 44, V: 20, detectable: true } })] };
         expect(mapData(without).marks).toEqual([]);
+    });
+});
+
+/* Cards show only for objects the reader picks; long sections get a filter over the names. */
+describe('Filtering names', () => {
+    const eris = digest.entries[0];
+    const vp113 = digest.entries[2];
+
+    test('matches by name, ignoring case', () => {
+        expect(matchesQuery(eris, 'eri')).toBe(true);
+        expect(matchesQuery(eris, 'ERIS')).toBe(true);
+        expect(matchesQuery(eris, 'sedna')).toBe(false);
+    });
+
+    test('matches by designation, ignoring spaces', () => {
+        expect(matchesQuery(vp113, '2012vp')).toBe(true);
+        expect(matchesQuery(eris, '136199')).toBe(true);
+        expect(matchesQuery(eris, '2003 ub313')).toBe(true);
+    });
+
+    test('an empty filter shows everything', () => {
+        expect(matchesQuery(eris, '')).toBe(true);
+        expect(matchesQuery(eris, '   ')).toBe(true);
+    });
+
+    test('only long sections get a filter box', () => {
+        expect(FILTER_FROM).toBeGreaterThan(10);
     });
 });

@@ -11,7 +11,8 @@
  * saw, and says so.
  */
 import {
-    DIGEST_URL, CHANGES_URL, LARGE_IF_DARK_SHOWN, summary, sections, displayName, sizeOf, flagsOf,
+    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
+    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, crossCheckText, offsetText,
 } from '../js/rubinview.js';
@@ -131,12 +132,82 @@ function card(entry, { extra } = {}) {
     return box;
 }
 
-function fillCards(sectionId, entries, options) {
+/* ---- Choosing which cards show ---------------------------------------------------------
+ *
+ * A card for every object took up the page, so cards show only for objects the reader
+ * picks: by name, with a toggle chip in each section, or by clicking the object on the map
+ * or its row in the map's table. All of them toggle one shared selection, so they cannot
+ * disagree: a chip, its map mark and its table row are always in the same state. */
+
+const selected = new Set();
+const pickers = new Map(); // designation -> the section's picker state
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+function select(designation, on, { scrollTo = false } = {}) {
+    const picker = pickers.get(designation);
+    if (!picker) return;
+    if (on) selected.add(designation); else selected.delete(designation);
+    picker.chips.get(designation)?.setAttribute('aria-pressed', String(on));
+    document.querySelectorAll(`[data-object="${CSS.escape(designation)}"]`).forEach((node) => {
+        node.classList.toggle('is-selected', on);
+        if (node.hasAttribute('aria-pressed')) node.setAttribute('aria-pressed', String(on));
+    });
+    renderCards(picker);
+    if (on && scrollTo) {
+        picker.cards.get(designation)?.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+    }
+}
+
+const toggle = (designation, options) => select(designation, !selected.has(designation), options);
+
+/* The section's cards: its selected objects, in the section's own order (most promising
+   first). Cards are built once and kept, so a flag left open stays open. */
+function renderCards(picker) {
+    const chosen = picker.entries.filter((e) => selected.has(e.designation));
+    for (const e of chosen) if (!picker.cards.has(e.designation)) picker.cards.set(e.designation, card(e, picker.extra?.(e)));
+    picker.holder.replaceChildren(...chosen.map((e) => picker.cards.get(e.designation)));
+    picker.empty.hidden = chosen.length > 0;
+}
+
+function buildPicker(sectionId, entries, { extra, onMap = false } = {}) {
     const section = document.getElementById(sectionId);
-    const holder = section.querySelector('.rubin-cards');
-    holder.replaceChildren(...entries.map((e) => card(e, options?.(e))));
     section.hidden = entries.length === 0;
-    return section;
+    if (!entries.length) return;
+    const holder = section.querySelector('.rubin-cards');
+    const box = section.querySelector('.rubin-picker');
+    const picker = { entries, extra, holder, cards: new Map(), chips: new Map(), empty: null };
+
+    const chips = el('div', { class: 'rubin-chips', role: 'group', 'aria-label': 'Choose objects to show' });
+    for (const e of entries) {
+        const chip = el('button', { type: 'button', class: 'rubin-chip', 'aria-pressed': 'false', 'data-object': e.designation }, displayName(e));
+        chip.addEventListener('click', () => toggle(e.designation));
+        chips.append(chip);
+        picker.chips.set(e.designation, chip);
+        pickers.set(e.designation, picker);
+    }
+    if (entries.length > 12) chips.classList.add('rubin-chips-long');
+
+    /* Select all and Clear act on the chips the filter is showing. */
+    const visible = () => entries.filter((e) => !picker.chips.get(e.designation).hidden);
+    const tools = el('div', { class: 'rubin-picker-tools' });
+    if (entries.length > FILTER_FROM) {
+        const filter = el('input', { type: 'search', class: 'rubin-filter', placeholder: 'Filter by name', 'aria-label': `Filter the ${entries.length} names` });
+        filter.addEventListener('input', () => {
+            for (const e of entries) picker.chips.get(e.designation).hidden = !matchesQuery(e, filter.value);
+        });
+        tools.append(filter);
+    }
+    const all = el('button', { type: 'button', class: 'rubin-tool' }, 'Select all');
+    all.addEventListener('click', () => visible().forEach((e) => select(e.designation, true)));
+    const none = el('button', { type: 'button', class: 'rubin-tool' }, 'Clear');
+    none.addEventListener('click', () => visible().forEach((e) => select(e.designation, false)));
+    tools.append(all, none);
+
+    picker.empty = el('p', { class: 'rubin-note rubin-empty' }, onMap
+        ? 'Choose objects above, or click them on the map, to see their details.'
+        : 'Choose objects above to see their details.');
+    box.replaceChildren(tools, chips, picker.empty);
+    renderCards(picker);
 }
 
 /* ---- The map ----------------------------------------------------------------------- */
@@ -172,46 +243,167 @@ function legend(items) {
 
 function drawMap(digest) {
     const section = document.getElementById('rubin-map');
-    const { marks, radius, rings, planets } = mapData(digest);
-    if (!marks.length) { section.hidden = true; return; }
-    const size = 440, centre = size / 2, scale = (size / 2 - 24) / radius;
-    const plot = svg('svg', { viewBox: `0 0 ${size} ${size}`, class: 'rubin-svg', role: 'group', 'aria-label': 'Map of the listed objects around the Sun, seen from above' });
+    const data = mapData(digest);
+    if (!data.marks.length) { section.hidden = true; return; }
+    const SIZE = 440;
+    let view = initialView(data.radius, SIZE);
+    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects and the planets around the Sun, seen from above' });
+    const layer = svg('g');
+    plot.append(layer);
 
-    rings.forEach((r) => {
-        plot.append(svg('circle', { cx: centre, cy: centre, r: r * scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
-        plot.append(svg('text', { x: centre + 4, y: centre - r * scale - 4, class: 'rubin-axis' }, `${r} AU`));
-    });
-    planets.forEach((p) => plot.append(svg('circle', { cx: centre, cy: centre, r: p.au * scale, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.6 })));
-    const neptune = planets.at(-1);
-    plot.append(svg('text', { x: centre + neptune.au * scale * 0.72 + 4, y: centre + neptune.au * scale * 0.72 + 12, class: 'rubin-axis' }, 'Neptune'));
-    plot.append(svg('circle', { cx: centre, cy: centre, r: 4, fill: C.text }));
+    const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
+    const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
+    const reset = el('button', { type: 'button', class: 'rubin-tool' }, 'Whole map');
+    const readout = el('span', { class: 'rubin-zoom-readout', 'aria-live': 'polite' });
 
-    marks.forEach(({ entry, kind }) => {
-        const x = centre + entry.now.x * scale, y = centre - entry.now.y * scale;
-        const g = svg('g', { class: 'rubin-mark' });
-        g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
-        g.append(mark(MARK_STYLE[kind], x, y));
-        attachDetails(g, [
-            [displayName(entry), MARK_STYLE[kind].label.toLowerCase(), MARK_STYLE[kind].color],
-            [au(entry.now.r), 'from the Sun'],
-            [sizeOf(entry).text, sizeOf(entry).measured ? 'measured' : 'from brightness'],
-        ]);
-        plot.append(g);
+    /* Everything is redrawn from the view on each zoom or pan: rings, planets, objects.
+       Marks keep their size in pixels at every zoom. */
+    function render() {
+        const [sx, sy] = toScreen(view, 0, 0);
+        const parts = [];
+        const spacing = ringSpacing(view);
+        const reach = Math.hypot(Math.abs(view.cx), Math.abs(view.cy)) + SIZE / view.scale;
+        for (let r = spacing, n = 0; r <= reach && n < 60; r += spacing, n++) {
+            parts.push(svg('circle', { cx: sx, cy: sy, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
+            const labelY = sy - r * view.scale - 4;
+            if (labelY > 12 && labelY < SIZE) parts.push(svg('text', { x: sx + 4, y: labelY, class: 'rubin-axis' }, `${r} AU`));
+        }
+
+        /* The planets, on their real orbits, where they are on the digest's date. */
+        for (const p of data.planets) {
+            const orbitPx = p.a * view.scale;
+            if (orbitPx < PLANET_DRAW_PX) continue;
+            const points = p.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+            parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+            const [px, py] = toScreen(view, p.x, p.y);
+            const g = svg('g', { class: 'rubin-mark' });
+            g.append(svg('circle', { cx: px, cy: py, r: 12, fill: 'transparent' }));
+            g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.surface, 'stroke-width': 2 }));
+            attachDetails(g, [[p.name], [au(p.r), 'from the Sun']]);
+            parts.push(g);
+            if (orbitPx >= PLANET_LABEL_PX) parts.push(svg('text', { x: px + 7, y: py - 7, class: 'rubin-axis' }, p.name));
+        }
+        parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
+
+        for (const { entry, kind } of data.marks) {
+            const [x, y] = toScreen(view, entry.now.x, entry.now.y);
+            if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) continue;
+            const chosen = selected.has(entry.designation);
+            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': entry.designation });
+            g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+            g.append(mark(MARK_STYLE[kind], x, y));
+            attachDetails(g, [
+                [displayName(entry), MARK_STYLE[kind].label.toLowerCase(), MARK_STYLE[kind].color],
+                [au(entry.now.r), 'from the Sun'],
+                [sizeOf(entry).text, sizeOf(entry).measured ? 'measured' : 'from brightness'],
+                ['Click to show or hide its card'],
+            ]);
+            /* Clicking a mark toggles its card, and scrolls to it when it appears. */
+            g.setAttribute('role', 'button');
+            g.setAttribute('aria-pressed', String(chosen));
+            g.addEventListener('click', () => { hideTooltip(); toggle(entry.designation, { scrollTo: true }); });
+            g.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(entry.designation, { scrollTo: true }); }
+            });
+            /* A double-click on an object is two clicks on it, not a zoom. */
+            g.addEventListener('dblclick', (e) => e.stopPropagation());
+            parts.push(g);
+        }
+        layer.replaceChildren(...parts);
+
+        const level = zoomLevel(view);
+        readout.textContent = level < 1.05 ? 'Whole map' : `${level < 10 ? level.toFixed(1) : Math.round(level)}× zoom`;
+        zoomIn.disabled = level >= MAP_ZOOM.max - 0.01;
+        zoomOut.disabled = level <= 1.0001;
+        reset.disabled = level <= 1.0001;
+        /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. */
+        plot.style.touchAction = level <= 1.0001 ? 'pan-y' : 'none';
+    }
+
+    const setView = (next) => { view = next; render(); };
+    /* The pointer in the drawing's own pixels. */
+    const local = (e) => {
+        const box = plot.getBoundingClientRect();
+        return [(e.clientX - box.left) * (SIZE / box.width), (e.clientY - box.top) * (SIZE / box.height)];
+    };
+
+    /* Drag to pan, two fingers to pinch. A press that moves less than a few pixels stays a
+       click, so it still toggles a card; one that moves is a drag, and its click is
+       swallowed. */
+    const pointers = new Map();
+    let dragged = false;
+    let pinch = null;
+    plot.addEventListener('pointerdown', (e) => {
+        pointers.set(e.pointerId, local(e));
+        dragged = false;
+        if (pointers.size === 2) {
+            const [a, b] = [...pointers.values()];
+            pinch = { distance: Math.hypot(a[0] - b[0], a[1] - b[1]), view };
+        }
     });
+    plot.addEventListener('pointermove', (e) => {
+        if (!pointers.has(e.pointerId)) return;
+        const [x, y] = local(e);
+        const [px, py] = pointers.get(e.pointerId);
+        if (pointers.size === 2 && pinch) {
+            pointers.set(e.pointerId, [x, y]);
+            const [a, b] = [...pointers.values()];
+            const mid = toWorld(pinch.view, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+            setView(zoomAt(pinch.view, Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.distance, mid));
+            dragged = true;
+            return;
+        }
+        if (!dragged && Math.hypot(x - px, y - py) < 4) return;
+        if (!dragged) { dragged = true; plot.setPointerCapture?.(e.pointerId); hideTooltip(); }
+        pointers.set(e.pointerId, [x, y]);
+        if (zoomLevel(view) > 1.0001) setView(panBy(view, x - px, y - py));
+    });
+    const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
+    plot.addEventListener('pointerup', release);
+    plot.addEventListener('pointercancel', release);
+    plot.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
+    plot.addEventListener('dblclick', (e) => setView(zoomAt(view, MAP_ZOOM.step, toWorld(view, ...local(e)))));
+    /* Ctrl + scroll (and a laptop trackpad's pinch, which arrives the same way) zooms;
+       plain scrolling stays the page's. */
+    plot.addEventListener('wheel', (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        setView(zoomAt(view, Math.exp(-e.deltaY * 0.0025), toWorld(view, ...local(e))));
+    }, { passive: false });
+
+    zoomIn.addEventListener('click', () => setView(zoomAt(view, MAP_ZOOM.step)));
+    zoomOut.addEventListener('click', () => setView(zoomAt(view, 1 / MAP_ZOOM.step)));
+    reset.addEventListener('click', () => setView(initialView(data.radius, SIZE)));
+    const controls = el('div', { class: 'rubin-map-controls' });
+    controls.append(zoomIn, zoomOut, reset, readout);
 
     const holder = section.querySelector('.rubin-plot');
-    const present = [...new Set(marks.map((m) => m.kind))];
+    const present = [...new Set(data.marks.map((m) => m.kind))];
     holder.replaceChildren(
-        legend(present.map((k) => ({ label: MARK_STYLE[k].label, swatch: mark(MARK_STYLE[k], 11, 7, 4) }))),
+        legend([
+            ...present.map((k) => ({ label: MARK_STYLE[k].label, swatch: mark(MARK_STYLE[k], 11, 7, 4) })),
+            { label: 'Planet', swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }) },
+        ]),
+        controls,
         plot,
     );
     section.querySelector('figcaption').textContent =
-        'Seen from above the plane of the planets, with the Sun at the centre and distances to scale. The planets\' orbits are the small rings in the middle.';
-    section.querySelector('.rubin-table-wrap').replaceChildren(table(
+        `Seen from above the plane of the planets on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. Every planet is where it was that day. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
+
+    const mapTable = table(
         ['Object', 'Listed as', 'From the Sun', 'Size'],
-        marks.map(({ entry, kind }) => [displayName(entry), MARK_STYLE[kind].label, au(entry.now.r), sizeOf(entry).text]),
-    ));
+        data.marks.map(({ entry, kind }) => [displayName(entry), MARK_STYLE[kind].label, au(entry.now.r), sizeOf(entry).text]),
+    );
+    /* Each name in the table is a button doing what clicking its map mark does. */
+    [...mapTable.tBodies[0].rows].forEach((row, k) => {
+        const { entry } = data.marks[k];
+        const name = el('button', { type: 'button', class: 'rubin-row-pick', 'aria-pressed': 'false', 'data-object': entry.designation }, displayName(entry));
+        name.addEventListener('click', () => toggle(entry.designation, { scrollTo: true }));
+        row.cells[0].replaceChildren(name);
+    });
+    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable);
     section.hidden = false;
+    render();
 }
 
 /* ---- The chart ----------------------------------------------------------------------- */
@@ -339,17 +531,10 @@ async function render() {
     if (offset) { offsetLine.textContent = offset; offsetLine.hidden = false; }
 
     const { passes, watch, largeIfDark } = sections(digest);
-    fillCards('rubin-passes', passes);
-    fillCards('rubin-watch', watch, (e) => ({ extra: whyWatched(e) }));
+    buildPicker('rubin-passes', passes, { onMap: true });
+    buildPicker('rubin-watch', watch, { onMap: true, extra: (e) => ({ extra: whyWatched(e) }) });
+    buildPicker('rubin-dark', largeIfDark);
     drawMap(digest);
-
-    const darkSection = fillCards('rubin-dark', largeIfDark.slice(0, LARGE_IF_DARK_SHOWN));
-    const more = darkSection.querySelector('.rubin-show-all');
-    if (largeIfDark.length > LARGE_IF_DARK_SHOWN) {
-        more.hidden = false;
-        more.textContent = `Show all ${largeIfDark.length}`;
-        more.addEventListener('click', () => { fillCards('rubin-dark', largeIfDark); more.hidden = true; }, { once: true });
-    }
 
     try {
         const month = digest.date.slice(0, 7);

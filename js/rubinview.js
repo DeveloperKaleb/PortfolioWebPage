@@ -8,6 +8,8 @@
 import { CALIBRATION, READINGS, SHAPED, fitEquilibrium, chanceShaped, diameterAt } from './equilibrium.js';
 import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
+import { planetsOn } from './planets.js';
+import { jdFromDate } from './orbit.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -18,9 +20,6 @@ export const DATA_ROOT = '/rubin-data';
 export const DIGEST_URL = `${DATA_ROOT}/digest/latest.json`;
 export const CHANGES_URL = (month) => `${DATA_ROOT}/changes/${month}.json`;
 export const DATA_REPO = 'https://github.com/DeveloperKaleb/rubin-data';
-
-/* How many of the long large-if-dark list show before "show all". */
-export const LARGE_IF_DARK_SHOWN = 8;
 
 export const percent = (chance) => {
     const p = chance * 100;
@@ -143,25 +142,18 @@ export function chartData({ steps = 120 } = {}) {
 
 /* ---- The map: where the listed objects are now, seen from above -------------------------- */
 
-export const PLANETS = [
-    { name: 'Jupiter', au: 5.2 },
-    { name: 'Saturn', au: 9.58 },
-    { name: 'Uranus', au: 19.2 },
-    { name: 'Neptune', au: 30.07 },
-];
-
-/* The objects on the map, and its radius: the furthest of them rounded up to a round
-   number of AU, with distance rings every 50 AU. */
+/* The objects on the map, the planets where they are on the digest's date (js/planets.js),
+   and the radius to fit them: the furthest object rounded up to a round number of AU. */
 export function mapData(digest) {
     const { passes, watch } = sections(digest);
     const marks = [
         ...passes.map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
         ...watch.map((e) => ({ entry: e, kind: 'watch' })),
     ].filter((m) => Number.isFinite(m.entry.now?.x) && Number.isFinite(m.entry.now?.y));
-    const furthest = Math.max(PLANETS.at(-1).au, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
+    const planets = planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)));
+    const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
-    const rings = Array.from({ length: radius / 50 }, (_, k) => (k + 1) * 50);
-    return { marks, radius, rings, planets: PLANETS };
+    return { marks, radius, planets };
 }
 
 /* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
@@ -208,3 +200,70 @@ export function offsetText(digest) {
     const dir = c.offsetH >= 0 ? 'fainter' : 'brighter';
     return `Rubin measures these objects ${Math.abs(c.offsetH).toFixed(2)} magnitudes ${dir} than JPL's catalogue, as a median over the ${c.from} it has measured - so where Rubin has not yet looked, sizes from the catalogue may run a little large.`;
 }
+
+/* ---- Choosing which cards show -------------------------------------------------------- */
+
+/* Cards show only for objects the reader picks - by name in each section, or on the
+   map - because a card for every object buried the rest of the page. A section with more
+   objects than this gets a filter box over its names. */
+export const FILTER_FROM = 24;
+
+/* Whether an object matches the filter box: by name or designation, ignoring case and
+   spaces, so "2017of" finds 2017 OF201. */
+export function matchesQuery(entry, query) {
+    const squash = (s) => String(s).toLowerCase().replace(/\s+/g, '');
+    const q = squash(query);
+    if (!q) return true;
+    return squash(displayName(entry)).includes(q) || squash(entry.designation).includes(q) || squash(entry.name).includes(q);
+}
+
+/* ---- Zooming the map ------------------------------------------------------------------
+ *
+ * The map spans a hundred AU or more, so the inner planets are a dot at the centre until
+ * the reader zooms in. A view is a scale (pixels per AU) and a centre (AU); marks keep
+ * their size in pixels at every zoom. Pure, so the maths is tested on its own. */
+
+/* From fitting everything, in to about the size of Mercury's orbit. */
+export const MAP_ZOOM = { max: 400, step: 2 };
+
+export function initialView(radiusAU, sizePx) {
+    const scale = (sizePx / 2 - 24) / radiusAU;
+    return { scale, cx: 0, cy: 0, fitScale: scale, radiusAU, sizePx };
+}
+
+/* Map coordinates (AU, y up) to the drawing (pixels, y down), and back. */
+export const toScreen = (view, x, y) => [view.sizePx / 2 + (x - view.cx) * view.scale, view.sizePx / 2 - (y - view.cy) * view.scale];
+export const toWorld = (view, sx, sy) => [view.cx + (sx - view.sizePx / 2) / view.scale, view.cy - (sy - view.sizePx / 2) / view.scale];
+
+const clampView = (view) => {
+    const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale));
+    /* The centre stays where there is something to see. */
+    const limit = view.radiusAU;
+    return { ...view, scale, cx: Math.max(-limit, Math.min(limit, view.cx)), cy: Math.max(-limit, Math.min(limit, view.cy)) };
+};
+
+/* Zoom by a factor, keeping the point under the anchor (AU) where it is on screen. At
+   the widest it re-centres on the Sun, so zooming out always comes home. */
+export function zoomAt(view, factor, anchor = [view.cx, view.cy]) {
+    const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale * factor));
+    const k = view.scale / scale;
+    const next = clampView({ ...view, scale, cx: anchor[0] - (anchor[0] - view.cx) * k, cy: anchor[1] - (anchor[1] - view.cy) * k });
+    return scale <= view.fitScale ? { ...next, cx: 0, cy: 0 } : next;
+}
+
+/* Drag by some pixels; the map moves with the pointer. */
+export const panBy = (view, dxPx, dyPx) => clampView({ ...view, cx: view.cx - dxPx / view.scale, cy: view.cy + dyPx / view.scale });
+
+export const zoomLevel = (view) => view.scale / view.fitScale;
+
+/* Distance rings at a round spacing for the zoom: about four across the visible radius. */
+const NICE = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+export function ringSpacing(view) {
+    const visible = (view.sizePx / 2) / view.scale;
+    return NICE.find((s) => visible / s <= 5) ?? NICE.at(-1);
+}
+
+/* A planet is drawn once its orbit is big enough on screen to tell from the Sun, and
+   labelled once there is room for its name. */
+export const PLANET_DRAW_PX = 6;
+export const PLANET_LABEL_PX = 26;

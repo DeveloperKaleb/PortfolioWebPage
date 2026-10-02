@@ -2159,18 +2159,6 @@ main.rubin {
     color: #b8bc93;
 }
 
-.rubin-show-all {
-    font: inherit;
-    color: #e3e7af;
-    background: transparent;
-    border: 1px solid #b8bc93;
-    border-radius: 6px;
-    padding: 10px 16px;
-    margin-top: 12px;
-    min-height: 44px;
-    cursor: pointer;
-}
-
 .rubin-changes {
     padding-left: 20px;
 }
@@ -2307,4 +2295,134 @@ main.rubin {
     text-align: center;
     max-width: 640px;
     margin: -16px auto 28px;
+}
+
+/* Choosing which cards show: a toggle chip per object. A selected chip fills solid (text
+   on the page brown, reversed: 9.97:1), so selection reads by fill, not colour alone. */
+.rubin-picker-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.rubin-filter {
+    font: inherit;
+    color: #e3e7af;
+    background: transparent;
+    border: 1px solid #b8bc93;
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-height: 36px;
+    flex: 1 1 180px;
+    max-width: 280px;
+}
+
+.rubin-filter::placeholder {
+    color: #b8bc93;
+}
+
+.rubin-tool,
+.rubin-chip,
+.rubin-row-pick {
+    font: inherit;
+    color: #e3e7af;
+    background: transparent;
+    border: 1px solid #b8bc93;
+    cursor: pointer;
+}
+
+.rubin-tool {
+    border-radius: 6px;
+    padding: 6px 12px;
+    min-height: 36px;
+}
+
+.rubin-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* A long list scrolls in its own box rather than pushing the page down. */
+.rubin-chips-long {
+    max-height: 9.5em;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid #51553a;
+    border-radius: 6px;
+}
+
+.rubin-chip {
+    font-size: 0.9em;
+    border-radius: 999px;
+    padding: 4px 12px;
+    min-height: 32px;
+}
+
+.rubin-chip[aria-pressed="true"],
+.rubin-row-pick[aria-pressed="true"] {
+    background: #e3e7af;
+    color: #3b3026;
+    border-color: #e3e7af;
+}
+
+.rubin-chip[hidden] {
+    display: none;
+}
+
+.rubin-empty {
+    margin: 10px 0 0;
+}
+
+.rubin-cards {
+    margin-top: 12px;
+}
+
+/* The map's table names are buttons too. */
+.rubin-row-pick {
+    border-radius: 4px;
+    padding: 2px 8px;
+    text-align: left;
+}
+
+/* A selected object on the map gets a bright ring, and the cursor says it can be picked. */
+.rubin-mark-pickable {
+    cursor: pointer;
+}
+
+.rubin-mark.is-selected > :last-child {
+    stroke: #e3e7af;
+    stroke-width: 3;
+}
+
+/* The map's zoom controls. */
+.rubin-map-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+
+.rubin-map-controls .rubin-tool {
+    min-width: 44px;
+    min-height: 40px;
+}
+
+.rubin-tool:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.rubin-zoom-readout {
+    color: #b8bc93;
+    min-width: 6em;
+    text-align: center;
+}
+
+.rubin-map-svg {
+    cursor: grab;
+    user-select: none;
 }

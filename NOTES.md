@@ -3030,8 +3030,19 @@ It also found four problems, all fixed:
 
 "Rubin" is a placeholder name; the owner may rename the tab. The sections were approved by
 the owner (2026-10-02): a status line, then likely shaped by gravity, worth watching,
-where they are now (a map), what changed this month, could be large if dark (first 8,
-then "show all"), how it works (a chart), and sources. Latest month only, for now.
+where they are now (a map), what changed this month, could be large if dark, how it works
+(a chart), and sources. Latest month only, for now.
+
+- **Cards show only for objects the reader picks** (the owner's change, 2026-10-02: a card
+  per object took up too much of the page). Each card section has toggle chips, one per
+  object, with Select all and Clear. A section with more than `FILTER_FROM` (24) objects
+  also gets a filter box, and a long chip list scrolls in its own box. Clicking an object
+  on the map, or its name in the map's table, toggles its card and scrolls to it (an
+  instant jump under reduced motion). All of these toggle one shared selection, keyed by
+  designation via `data-object`, so a chip, its map mark and its table row cannot
+  disagree. Selected marks get a bright ring, and a selected chip fills solid, so it
+  reads by fill as well as colour. Cards are built once, on first selection, and kept, so
+  an opened flag explanation stays open. Nothing is selected on arrival.
 
 - **Data from the same origin, never a third party.** The tab reads
   `/rubin-data/digest/latest.json` and `/rubin-data/changes/<month>.json`. That is the
@@ -3163,3 +3174,34 @@ setup only. From now on:
   Each one would otherwise cost an extra batch request every month.
 - **No usage guidance has been published by Fink.** The limits are ours. The owner may
   email the Fink team later to ask what pattern they prefer.
+
+### Map zoom, real planets, and a landscape that copes with a growing page (2026-10-02)
+
+- **The planets are where they really are** on the digest's date (`js/planets.js`): JPL's
+  "Approximate Positions of the Planets" (Standish), Table 1, elements and rates per
+  century, mean ecliptic J2000, valid 1800-2050, so through the survey. Against JPL
+  Horizons on 2026-10-02, Jupiter is within 0.024 degrees and 0.002 AU, and Neptune
+  within 0.008 degrees and 0.001 AU. That is recorded in tests/rubin/mapzoom.test.js.
+  Each planet's orbit is drawn as its real ellipse, sampled in mean anomaly. A planet is
+  drawn once its orbit is 6 px across on screen and labelled at 26 px, so at the whole
+  map the inner planets do not pile up on the Sun. Planets are context, in the muted
+  colour, with no new series colour.
+- **Zoom** is a view (pixels per AU, centre in AU) and everything is redrawn from it, so
+  marks keep their size. From the whole map to 400x (about Mercury's orbit). Zooming
+  holds the point under the pointer still, and zooming fully out re-centres on the Sun.
+  Distance rings re-space to round numbers, about four across the view. Controls: + / -
+  / Whole map, a two-finger pinch, Ctrl + scroll (a laptop trackpad pinch arrives this
+  way), a double-click to zoom in, and drag to pan. Plain scrolling stays the page's,
+  so the map never traps it. At the whole map a finger drag scrolls the page
+  (`touch-action: pan-y`); zoomed in, it pans the map. A press that moves under 4 px is
+  a click (it toggles a card) and one that moves further is a drag, whose click is
+  swallowed. A double-click on an object does not zoom. The maths (`initialView`,
+  `zoomAt`, `panBy`, `toScreen`, `toWorld`, `ringSpacing`) is pure and tested.
+- **The landscape is built in chunks and never shrunk** (`BUILD_CHUNK_ROWS`, 500 rows =
+  3,000 px, in scripts/stream.js). The owner worried about the stream once pages could
+  grow on every click. Correctness was already safe, because no row depends on page
+  length. Cost was the problem: every height change rebuilt the whole landscape, about
+  250 ms at 7,000 px and over a second at 45,000 px, so each card toggle stuttered. Now
+  it rebuilds only when the page outgrows its spare length or the width changes. A
+  shorter page clips the longer build, which #landscape already does. A short page such
+  as the homepage now builds 3,000 px up front, about 40 ms more at first paint.

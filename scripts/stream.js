@@ -12,6 +12,9 @@ import { createStream, createForestFloor, renderFrame, MIN_COLS, BLOCK } from '/
 
 const FPS = 12;
 
+/* Rows built at a time: 500 rows is 3,000px of page. See fit(). */
+const BUILD_CHUNK_ROWS = 500;
+
 /* The water runs on the wall clock, not on how long this page has been open, so moving
    between Home and Entertainment picks the ripples up where they were rather than
    restarting them. Wrapped daily to keep the numbers small; a day is a whole number of
@@ -105,20 +108,27 @@ function fit() {
     streamCanvas.style.left = `${streamLeft}px`;
     forestCanvas.style.left = `${column.right}px`;
 
-    const key = `${cols} ${rows} ${Math.round(column.right - streamLeft)}`;
-    if (key === fitted) return;
-    fitted = key;
+    /* Built in chunks, with spare length below, and never shrunk. A page whose height
+       changes on every click (the Rubin tab's cards) would otherwise rebuild the whole
+       landscape each time: about 250 ms at 7,000px and over a second at 45,000px. No row
+       depends on how many there are (js/stream.js), so a longer build is the same picture
+       with more below; a shorter page just clips it, as #landscape already does. Only
+       growing past the spare, or a change of width, rebuilds. */
+    const width = `${cols} ${Math.round(column.right - streamLeft)}`;
+    if (width === fitted && layers.length && layers[0].grid.rows >= rows) return;
+    fitted = width;
+    const built = Math.ceil(rows / BUILD_CHUNK_ROWS) * BUILD_CHUNK_ROWS;
 
-    const stream = createStream({ cols, rows });
-    place(streamCanvas, streamLeft, cols, rows);
+    const stream = createStream({ cols, rows: built });
+    place(streamCanvas, streamLeft, cols, built);
 
     const forestCols = Math.ceil((window.innerWidth - column.right) / BLOCK);
     const forest = createForestFloor(stream, { cols: forestCols, offset: column.right - streamLeft });
-    place(forestCanvas, column.right, forestCols, rows);
+    place(forestCanvas, column.right, forestCols, built);
 
     layers = [
-        { grid: stream, context: streamContext, image: streamContext.createImageData(cols, rows) },
-        { grid: forest, context: forestContext, image: forestContext.createImageData(forestCols, rows) },
+        { grid: stream, context: streamContext, image: streamContext.createImageData(cols, built) },
+        { grid: forest, context: forestContext, image: forestContext.createImageData(forestCols, built) },
     ];
 
     landscape.hidden = false;
