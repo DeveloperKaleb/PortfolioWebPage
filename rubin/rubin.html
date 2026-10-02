@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rubin - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-1450" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261002-1450" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-1509" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261002-1509" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -118,10 +118,45 @@
     <!-- Hover details for the chart and the map; filled and placed by rubin.js. -->
     <div id="rubin-tooltip" class="rubin-tooltip" role="tooltip" hidden></div>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-1450"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-1450"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-1450"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-1450"></script>
-    <script type="module" src="./rubin.js?v=20261002-1450"></script>
+    <!-- What a tundr is: opened by the word "Tundr" wherever rubin.js shows it, and by a
+         click on one of the four giants on the map. The reasoning is the owner's. -->
+    <dialog id="rubin-tundr" class="rubin-dialog" aria-labelledby="rubin-tundr-title">
+        <div class="rubin-dialog-panel">
+            <h3 id="rubin-tundr-title">Tundr</h3>
+            <p>
+                This site counts a body as a planet if its own gravity has rounded it, it has
+                a surface, and no fusion is going on in its core. Jupiter, Saturn, Uranus and
+                Neptune are round and have no fusion, but they have no surface at all: their
+                gas just thins out with height. So here they are not planets. They are tundrs.
+            </p>
+            <p>
+                <em>Tundr</em> is Old Norse for tinder. Like tinder, they are ready but never
+                lit. That is not to say they nearly were: Jupiter would need about 80 times its
+                mass to burn hydrogen like a star.
+            </p>
+            <p>
+                <strong>Hydrogen and water.</strong> Each kind is named after what it is mostly
+                made of. Jupiter and Saturn, the hydrogen tundrs, are about three-quarters
+                hydrogen. Uranus and Neptune, the water tundrs, are probably mostly water, with
+                ammonia and methane, under a thin envelope of hydrogen and helium; just how much
+                is water rather than rock is not yet settled.
+            </p>
+            <p>
+                The usual names, gas giant and ice giant, describe what they are made of by the
+                form it took in the cold where they gathered, so a Neptune-like world right
+                beside its star would still be an "ice giant" with no ice anywhere. These names
+                hold wherever a tundr is found.
+            </p>
+            <form method="dialog">
+                <button class="rubin-dialog-close">Close</button>
+            </form>
+        </div>
+    </dialog>
+
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-1509"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-1509"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-1509"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-1509"></script>
+    <script type="module" src="./rubin.js?v=20261002-1509"></script>
 </body>
 </html>

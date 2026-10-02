@@ -3282,3 +3282,17 @@ planets", attributed rather than endorsed; and "the plane of the planets" is "th
 of Earth's orbit", which is also the accurate name for the ecliptic frame the orbits
 use. The section headings still say "shaped by their own gravity", because that is
 what is measured.
+
+**Tundrs (owner's term, 2026-10-02).** The four giants are *tundrs*: Jupiter and Saturn
+are Hydrogen Tundrs, Uranus and Neptune Water Tundrs. *Tundr* is Old Norse for tinder,
+"ready but never lit" - chosen from a list of fire words; the dialog adds that they never
+nearly were stars, because "failed star" is the phrase scientists push back on. The
+qualifiers name what each is mostly made of, never where it formed: the owner rejected
+gas/ice because "ice" describes ingredients by the form they took in the cold, the same
+location-dependence they object to in the popular definition of planet. The map's legend,
+hover details and caption use the words. Wherever "tundr" appears it is a button
+(`tundrWord` in rubin/rubin.js) opening the `#rubin-tundr` dialog in rubin/rubin.html,
+written in the site's voice (owner's choice); a click on a giant on the map opens it too.
+The giants keep the planets' dot (owner's choice), so no new colour needed checking.
+Which body is which lives in `TUNDRS` in js/rubinview.js. How much of the water tundrs is
+water rather than rock is unsettled, and the dialog says so.

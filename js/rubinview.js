@@ -150,7 +150,7 @@ export function mapData(digest) {
         ...passes.map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
         ...watch.map((e) => ({ entry: e, kind: 'watch' })),
     ].filter((m) => Number.isFinite(m.entry.now?.x) && Number.isFinite(m.entry.now?.y));
-    const planets = planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)));
+    const planets = planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`))).map((p) => ({ ...p, kind: bodyKind(p.name) }));
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
     return { marks, radius, planets };
@@ -294,3 +294,14 @@ export function planeText(entry) {
     if (height < PLANE_NOTE_AU) return null;
     return `${au(along)} along the plane, ${au(height)} ${side ? `${side} it` : 'out of it'}`;
 }
+
+/* ---- Planets and tundrs ------------------------------------------------------------------
+ *
+ * The site's stance (NOTES.md): a planet is rounded by its own gravity, has a surface, and
+ * has no fusion in its core. The four giants have no surface, so the site calls them
+ * tundrs (Old Norse for tinder: ready but never lit), each kind named after what it is
+ * mostly made of - never after where it formed, as "gas giant" and "ice giant" are. The
+ * page explains this in a dialog wherever the word appears. */
+export const TUNDRS = { Jupiter: 'hydrogen', Saturn: 'hydrogen', Uranus: 'water', Neptune: 'water' };
+export const KIND_LABEL = { planet: 'Planet', hydrogen: 'Hydrogen Tundr', water: 'Water Tundr' };
+export const bodyKind = (name) => TUNDRS[name] ?? 'planet';

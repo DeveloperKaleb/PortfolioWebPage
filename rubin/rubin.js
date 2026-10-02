@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText,
+    rubinStatus, crossCheckText, offsetText, KIND_LABEL,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -68,6 +68,22 @@ function attachDetails(target, rows) {
         showTooltip(rows, box.right, box.top);
     });
     target.addEventListener('blur', hideTooltip);
+}
+
+/* What a tundr is, in a native <dialog>. A click on the backdrop closes it, as Escape
+   and the Close button do. */
+const tundrDialog = document.getElementById('rubin-tundr');
+tundrDialog.addEventListener('click', (e) => { if (e.target === tundrDialog) tundrDialog.close(); });
+function openTundr() {
+    hideTooltip();
+    if (typeof tundrDialog.showModal === 'function' && !tundrDialog.open) tundrDialog.showModal();
+}
+
+/* The word "tundr" wherever it appears: a button that reads as a word in the sentence. */
+function tundrWord(text) {
+    const word = el('button', { type: 'button', class: 'rubin-term', 'aria-haspopup': 'dialog' }, text);
+    word.addEventListener('click', openTundr);
+    return word;
 }
 
 function table(headers, rows) {
@@ -232,11 +248,11 @@ function mark(style, cx, cy, size = 5) {
 
 function legend(items) {
     const box = el('div', { class: 'rubin-legend' });
-    items.forEach(({ label, swatch }) => {
+    items.forEach(({ label, swatch, tundr }) => {
         const item = el('span', { class: 'rubin-legend-item' });
         const key = svg('svg', { width: 22, height: 14, viewBox: '0 0 22 14', 'aria-hidden': 'true' });
         key.append(swatch);
-        item.append(key, document.createTextNode(label));
+        item.append(key, tundr ? tundrWord(label) : document.createTextNode(label));
         box.append(item);
     });
     return box;
@@ -248,7 +264,7 @@ function drawMap(digest) {
     if (!data.marks.length) { section.hidden = true; return; }
     const SIZE = 440;
     let view = initialView(data.radius, SIZE);
-    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': "Map of the listed objects, the Sun and the IAU's eight planets, seen from above" });
+    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above' });
     const layer = svg('g');
     plot.append(layer);
 
@@ -270,17 +286,28 @@ function drawMap(digest) {
             if (labelY > 12 && labelY < SIZE) parts.push(svg('text', { x: sx + 4, y: labelY, class: 'rubin-axis' }, `${r} AU`));
         }
 
-        /* The IAU's eight planets, on their real orbits, where they are on the digest's date. */
+        /* The planets and tundrs, on their real orbits, where they are on the digest's date. */
         for (const p of data.planets) {
             const orbitPx = p.a * view.scale;
             if (orbitPx < PLANET_DRAW_PX) continue;
             const points = p.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
             parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
             const [px, py] = toScreen(view, p.x, p.y);
-            const g = svg('g', { class: 'rubin-mark' });
+            const tundr = p.kind !== 'planet';
+            const g = svg('g', { class: tundr ? 'rubin-mark rubin-mark-tundr' : 'rubin-mark' });
             g.append(svg('circle', { cx: px, cy: py, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.surface, 'stroke-width': 2 }));
-            attachDetails(g, [[p.name], [au(p.r), 'from the Sun']]);
+            attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], ...(tundr ? [['Click to read what a tundr is']] : [])]);
+            /* A tundr opens what a tundr is. */
+            if (tundr) {
+                g.setAttribute('role', 'button');
+                g.setAttribute('aria-haspopup', 'dialog');
+                g.addEventListener('click', openTundr);
+                g.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTundr(); }
+                });
+                g.addEventListener('dblclick', (e) => e.stopPropagation());
+            }
             parts.push(g);
             if (orbitPx >= PLANET_LABEL_PX) parts.push(svg('text', { x: px + 7, y: py - 7, class: 'rubin-axis' }, p.name));
         }
@@ -384,13 +411,18 @@ function drawMap(digest) {
     holder.replaceChildren(
         legend([
             ...present.map((k) => ({ label: MARK_STYLE[k].label, swatch: mark(MARK_STYLE[k], 11, 7, 4) })),
-            { label: "One of the IAU's eight planets", swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }) },
+            ...['planet', 'hydrogen', 'water'].map((kind) => ({
+                label: KIND_LABEL[kind], tundr: kind !== 'planet', swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }),
+            })),
         ]),
         controls,
         plot,
     );
-    section.querySelector('figcaption').textContent =
-        `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The IAU's eight planets are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
+    section.querySelector('figcaption').replaceChildren(
+        `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
+        tundrWord('tundrs'),
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`,
+    );
 
     const mapTable = table(
         ['Object', 'Listed as', 'From the Sun', 'Along the plane and out of it', 'Size'],

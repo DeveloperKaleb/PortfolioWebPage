@@ -2386,8 +2386,67 @@ main.rubin {
     text-align: left;
 }
 
-/* A selected object on the map gets a bright ring, and the cursor says it can be picked. */
-.rubin-mark-pickable {
+/* A selected object on the map gets a bright ring, and the cursor says it can be picked.
+   A tundr opens what a tundr is. */
+.rubin-mark-pickable,
+.rubin-mark-tundr {
+    cursor: pointer;
+}
+
+/* The word "tundr" wherever it appears: a button that reads as a word in the sentence,
+   underlined to say it can be clicked. */
+.rubin-term {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.rubin-term:focus-visible {
+    outline: 2px solid #e3e7af;
+    outline-offset: 2px;
+}
+
+/* What a tundr is, in a native <dialog>, in the tab's own colours (RUBIN_COLORS surface,
+   text and muted, contrast-checked in tests/contrast). */
+#rubin-tundr {
+    box-sizing: border-box;
+    width: min(92vw, 34rem);
+    max-height: 90vh;
+    padding: 0;
+    background: #3b3026;
+    color: #e3e7af;
+    border: 1px solid #b8bc93;
+    border-radius: 8px;
+}
+
+#rubin-tundr::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* The content fills this inner panel, so a click on the dialog element itself is a click
+   on the backdrop. */
+.rubin-dialog-panel {
+    padding: 20px;
+    text-align: left;
+}
+
+.rubin-dialog-panel h3 {
+    margin: 0 0 10px;
+}
+
+.rubin-dialog-close {
+    font: inherit;
+    color: #e3e7af;
+    background: transparent;
+    border: 1px solid #b8bc93;
+    border-radius: 999px;
+    padding: 4px 14px;
+    min-height: 32px;
     cursor: pointer;
 }
 

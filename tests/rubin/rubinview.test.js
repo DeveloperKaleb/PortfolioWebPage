@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
+    KIND_LABEL, bodyKind,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -212,5 +213,22 @@ describe('Along the plane, and out of it', () => {
 
     test('says nothing extra for an object near the plane, where the map tells the truth', () => {
         expect(planeText({ now: { r: 44, x: 30, y: 32.18, z: 0.4 } })).toBeNull();
+    });
+});
+
+/* The site's stance: rounded, a surface, no core fusion. The giants have no surface. */
+describe('Planets and tundrs', () => {
+    test('the four giants are tundrs, named by what they are made of', () => {
+        const kinds = Object.fromEntries(mapData(digest).planets.map((p) => [p.name, p.kind]));
+        expect(kinds).toEqual({
+            Mercury: 'planet', Venus: 'planet', Earth: 'planet', Mars: 'planet',
+            Jupiter: 'hydrogen', Saturn: 'hydrogen', Uranus: 'water', Neptune: 'water',
+        });
+    });
+
+    test('every kind has its words', () => {
+        expect(KIND_LABEL[bodyKind('Saturn')]).toBe('Hydrogen Tundr');
+        expect(KIND_LABEL[bodyKind('Neptune')]).toBe('Water Tundr');
+        expect(KIND_LABEL[bodyKind('Earth')]).toBe('Planet');
     });
 });
