@@ -61,7 +61,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty-two modules, all free of `document`/DOM calls so they stay testable
+The pure layer is twenty-three modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -133,6 +133,11 @@ under Vitest without a browser:
 - `js/sources.js` — the JPL and Fink clients and the photometry that turns Rubin
   detections into a visual H. Tested against recorded responses; never calls a live
   service in tests.
+- `js/collector.js` — the collector's logic: what a run fetches, one H per object, the
+  digest and the changes. `tools/rubin-collect.mjs` does the files and fetching around
+  it (`npm run collect -- --data <dir>`; a dry run on recorded data unless `--live`).
+  The scheduled run is a GitHub Action in the separate `rubin-data` repo; its template
+  is `tools/rubin-data-template/`.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

@@ -10,7 +10,8 @@
     "dev": "node tools/dev-server.js",
     "test": "vitest",
     "openings": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/mine-openings.mjs",
-    "albedos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/tno-albedos.mjs"
+    "albedos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/tno-albedos.mjs",
+    "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/rubin-collect.mjs"
   },
   "repository": {
     "type": "git",

@@ -1,0 +1,57 @@
+# The scheduled Rubin collector. Lives in the rubin-data repo; the code it runs lives in
+# the site repo (DeveloperKaleb/PortfolioWebPage), checked out read-only, so the site
+# repo never receives automated commits.
+#
+# Weekly, Monday 06:00 UTC: JPL's count every week, the full TNO list when it changes or
+# the month turns, Fink's detections once a month. Run it by hand from the Actions tab
+# (workflow_dispatch) for the first live run.
+name: Collect
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never two runs at once: they would race on state.json.
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out rubin-data
+        uses: actions/checkout@v4
+        with:
+          path: data
+
+      - name: Check out the site, for the collector's code
+        uses: actions/checkout@v4
+        with:
+          repository: DeveloperKaleb/PortfolioWebPage
+          path: site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Collect
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON site/tools/rubin-collect.mjs --data data --live
+
+      - name: Commit what changed
+        working-directory: data
+        run: |
+          git config user.name "rubin-collector"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+          else
+            git commit -m "Collect $(date -u +%F)"
+            git push
+          fi

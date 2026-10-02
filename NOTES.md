@@ -2958,3 +2958,37 @@ over the albedos the object plausibly has.
   queue) each failed a test.
 - **Machine note:** on the owner's machine, Git Bash's `curl` fails TLS verification for
   JPL. Node's `fetch` works, and it is what the clients use.
+
+### The collector (`js/collector.js`, `tools/rubin-collect.mjs`, the `rubin-data` repo)
+
+The layout and cadence were approved by the project owner (2026-10-02). The data repo is
+named `rubin-data` (public), separate from the site so the site repo never gets automated
+commits. Its README and workflow are templated in `tools/rubin-data-template/`.
+
+- **A run:** read `state.json`. Do JPL's count, and fetch the full list when the count moved
+  or the month turned. Ask Fink once a month. Assess every TNO with `assessObject` on the
+  run date. Write `inputs/YYYY-MM/{tnos,detections}.json`, `digest/YYYY-MM.json`,
+  `digest/latest.json`, `changes/YYYY-MM.json` and `state.json`. Weekly runs in the same
+  month overwrite that month's digest and changes. Changes are always measured against
+  the previous month's digest.
+- **Cadence:** a weekly GitHub Action (Mondays 06:00 UTC) plus a manual trigger. A quiet
+  week is 1 request. A Fink month is JPL's pages plus one Fink request per 100 objects
+  with catalogue H <= 7.5.
+- **Inputs are kept every month** (about 1 MB), so any future filter can be re-run over
+  the whole history. The owner chose this over storing only on change.
+- **The digest records only interesting objects:** passes, near misses (chance >= 0.5),
+  large-if-dark, and watch. That deviates slightly from "anything flagged" in the
+  proposal. Orbit flags alone are left out, because hundreds of faint, small TNOs have
+  unusual orbits. They are all in the inputs. The digest is ranked passes, then watch,
+  then large-if-dark, then by chance.
+- **Provenance:** every digest records the site commit, the fitted cutoffs, the albedo
+  snapshot's date, the dark albedo, the thresholds, the detection limit, and where its
+  inputs came from, so any month can be reproduced after the filter changes.
+- **Failure:** if JPL fails, the run throws and writes nothing, and state is unchanged. If
+  Fink fails, it is noted in the digest. The month's photometry falls back to the latest
+  stored detections, or the catalogue, and Fink is tried again next week (state is not
+  marked as fetched).
+- **Format:** JSON with one array entry per line (`stringifyLines`), so the data repo's
+  history shows one changed line per changed object.
+- **Safety:** `tools/rubin-collect.mjs` runs on recorded responses unless given `--live`.
+  The tests run whole collector runs in a temporary folder, against the recordings.
