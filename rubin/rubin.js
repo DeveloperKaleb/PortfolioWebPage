@@ -248,7 +248,7 @@ function drawMap(digest) {
     if (!data.marks.length) { section.hidden = true; return; }
     const SIZE = 440;
     let view = initialView(data.radius, SIZE);
-    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects and the planets around the Sun, seen from above' });
+    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': "Map of the listed objects, the Sun and the IAU's eight planets, seen from above" });
     const layer = svg('g');
     plot.append(layer);
 
@@ -270,7 +270,7 @@ function drawMap(digest) {
             if (labelY > 12 && labelY < SIZE) parts.push(svg('text', { x: sx + 4, y: labelY, class: 'rubin-axis' }, `${r} AU`));
         }
 
-        /* The planets, on their real orbits, where they are on the digest's date. */
+        /* The IAU's eight planets, on their real orbits, where they are on the digest's date. */
         for (const p of data.planets) {
             const orbitPx = p.a * view.scale;
             if (orbitPx < PLANET_DRAW_PX) continue;
@@ -384,13 +384,13 @@ function drawMap(digest) {
     holder.replaceChildren(
         legend([
             ...present.map((k) => ({ label: MARK_STYLE[k].label, swatch: mark(MARK_STYLE[k], 11, 7, 4) })),
-            { label: 'Planet', swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }) },
+            { label: "One of the IAU's eight planets", swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }) },
         ]),
         controls,
         plot,
     );
     section.querySelector('figcaption').textContent =
-        `Seen from above the plane of the planets on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. Every planet is where it was that day. Distances on the map are along the plane of the planets, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
+        `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The IAU's eight planets are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
 
     const mapTable = table(
         ['Object', 'Listed as', 'From the Sun', 'Along the plane and out of it', 'Size'],

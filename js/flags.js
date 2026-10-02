@@ -33,12 +33,12 @@ export const FLAGS = {
     highlyInclined: {
         kind: 'orbit',
         label: 'Highly inclined',
-        means: 'Orbit tilted more than 40 degrees to the plane of the planets.',
+        means: "Orbit tilted more than 40 degrees to the plane of Earth's orbit.",
     },
     retrograde: {
         kind: 'orbit',
         label: 'Retrograde',
-        means: 'Goes round the Sun the opposite way to the planets.',
+        means: 'Goes round the Sun the opposite way to Earth.',
     },
     uncertainOrbit: {
         kind: 'quality',

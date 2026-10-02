@@ -189,7 +189,7 @@ describe('Filtering names', () => {
     });
 });
 
-/* The map is seen from above the plane of the planets, so it shows distance along that
+/* The map is seen from above the plane of Earth's orbit, so it shows distance along that
    plane. 2014 UN225, tilted 53 degrees, is 43.7 AU from the Sun but was drawn between
    the 20 and 30 AU rings: the details now give both. */
 describe('Along the plane, and out of it', () => {

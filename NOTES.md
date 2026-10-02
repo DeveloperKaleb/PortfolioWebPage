@@ -3260,7 +3260,7 @@ change. Both sources were the owner's choice (2026-10-02):
 
 ### The map flattens height (2026-10-02)
 
-The map is seen from above the plane of the planets, so it shows distance along that
+The map is seen from above the plane of Earth's orbit, so it shows distance along that
 plane. The owner noticed 2014 UN225 labelled 43.7 AU but drawn between the 20 and 30 AU
 rings. Its orbit is tilted 53 degrees and it is near the top of it: 26.3 AU along the
 plane, 34.9 AU below it. 2015 BP519 is similar (37% shorter on the map), and a few others
@@ -3269,3 +3269,16 @@ are 22-26% shorter. The tooltip and the map's table now give both, once an objec
 `now.z` from 2026-10-05. Before that only the height's size is known, so the text says
 "out of it" rather than above or below. The owner wants a side (edge-on) view later; it
 is not a priority.
+
+### What the site calls a planet (owner's stance, 2026-10-02)
+
+A standing rule for all copy: the site passively holds that anything gravitationally
+rounded, with a surface, and without fusion in its core is a planet. So Pluto, Eris and
+the Rubin tab's passes are planets, and the four giants are deliberately not (no
+surface; the owner has no name for them yet). "Passively" means the site uses the words
+and never argues the point. So: no "dwarf planet" in visible copy (paper titles in
+citations stay as published); the eight bodies on the map are "the IAU's eight
+planets", attributed rather than endorsed; and "the plane of the planets" is "the plane
+of Earth's orbit", which is also the accurate name for the ecliptic frame the orbits
+use. The section headings still say "shaped by their own gravity", because that is
+what is measured.
