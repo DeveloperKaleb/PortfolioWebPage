@@ -177,3 +177,8 @@ export const MPC_X05 = "{\"obscode\":\"X05\",\"name\":\"Simonyi Survey Telescope
 /* Fink's Rubin list (ssoft, columns designation,sso_number,n_days), recorded 2026-10-02
    for Gonggong alone; the real list is about 750 KB. */
 export const RUBIN_LIST = "designation,sso_number,n_days\n2007 OR10,225088,14.959546812810004\n";
+
+/* Fink statistics (f:night, f:alerts) for 2026, recorded 2026-10-02 and trimmed to the
+   last 12 nights with alerts. The last is 14 July: the winter storm that closed Cerro
+   Pachon, then planned maintenance from 14 September. */
+export const NIGHTLY_ALERTS = "[{\"f:alerts\":\"19172\",\"f:night\":\"20260628\"},{\"f:alerts\":\"62794\",\"f:night\":\"20260629\"},{\"f:alerts\":\"254984\",\"f:night\":\"20260630\"},{\"f:alerts\":\"36224\",\"f:night\":\"20260701\"},{\"f:alerts\":\"543950\",\"f:night\":\"20260706\"},{\"f:alerts\":\"623292\",\"f:night\":\"20260707\"},{\"f:alerts\":\"664612\",\"f:night\":\"20260709\"},{\"f:alerts\":\"227916\",\"f:night\":\"20260710\"},{\"f:alerts\":\"125442\",\"f:night\":\"20260711\"},{\"f:alerts\":\"71683\",\"f:night\":\"20260712\"},{\"f:alerts\":\"744559\",\"f:night\":\"20260713\"},{\"f:alerts\":\"473344\",\"f:night\":\"20260714\"}]";

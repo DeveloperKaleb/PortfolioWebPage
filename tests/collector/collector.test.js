@@ -137,13 +137,13 @@ describe('A collector run', () => {
         }
     });
 
-    test('a quiet week in the same month makes one request', async () => {
+    test('a quiet week in the same month makes two small requests: JPL count and Fink nightly alerts', async () => {
         const dir = fresh();
         try {
             await collect({ dataDir: dir, date: new Date('2026-10-05T06:00:00Z'), polite: await recordedPolite() });
             const polite = await recordedPolite();
             await collect({ dataDir: dir, date: new Date('2026-10-12T06:00:00Z'), polite });
-            expect(polite.used()).toBe(1);
+            expect(polite.used()).toBe(2);
             // Still Rubin photometry, from the month's stored detections.
             expect(read(dir, 'digest/latest.json').entries.find((e) => e.designation === '225088').hSource).toMatch(/^Rubin/);
         } finally {

@@ -152,6 +152,12 @@ export const rubinListUrl = () => `${FINK_SSO.replace(/sso$/, 'ssoft')}?${new UR
     'output-format': 'csv', columns: 'designation,sso_number,n_days',
 })}`;
 
+/* Rubin's nightly alert counts as Fink saw them, for one year: about 4 KB. Read by
+   js/rubinstatus.js to tell whether Rubin is observing. */
+export const nightlyAlertsUrl = (year) => `${FINK_SSO.replace(/sso$/, 'statistics')}?${new URLSearchParams({
+    date: String(year), columns: 'f:night,f:alerts', 'output-format': 'json',
+})}`;
+
 /* The objects in Rubin's list, by provisional designation and by number. */
 export function parseRubinList(csv) {
     const [header, ...lines] = String(csv).trim().split(/\r?\n/);

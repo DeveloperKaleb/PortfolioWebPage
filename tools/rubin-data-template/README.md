@@ -48,3 +48,23 @@ JSON files put one object per line, so the history diffs cleanly.
 
 Data: JPL/NASA and the Rubin Observatory via the Fink broker; TNO albedos from Johnston's
 compilation (NASA PDS, doi:10.26033/y5sn-4t02).
+
+## Maintenance windows (`maintenance.json`, edited by hand)
+
+The only file here edited by hand. When Rubin announces downtime (its forum,
+www.rubin.community: "Early Operations Update" and "Summit technical progress" posts),
+add a window. The page says why Rubin is off-sky and, when an end is given, when new
+Rubin data will next arrive:
+
+```json
+{
+  "windows": [
+    { "start": "2026-07-15", "reason": "Storm recovery and planned maintenance",
+      "link": "https://www.rubin.community/t/summit-technical-progress-week-ending-2026-09-25/12773" }
+  ]
+}
+```
+
+`start` and `end` are dates (`YYYY-MM-DD`); leave `end` out until one is announced. Without
+this file the page still notices a pause on its own, from Rubin's nightly alert counts (no
+alerts for 4 nights or more), but cannot say why or for how long.

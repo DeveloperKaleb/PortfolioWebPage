@@ -179,7 +179,7 @@ export function provenance({ siteCommit, sources }) {
 
 /* The month's digest: counts over every object, and a line for each interesting one,
    most promising first. */
-export function buildDigest({ objects, jd, date, provenance: made, notes = [] }) {
+export function buildDigest({ objects, jd, date, provenance: made, notes = [], observing = null }) {
     const entries = [];
     const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0, confirmedByRubin: 0, seenByRubin: 0, orbitFromRubin: 0, jplDisagrees: 0 };
     const offset = catalogueOffset(objects);
@@ -208,7 +208,7 @@ export function buildDigest({ objects, jd, date, provenance: made, notes = [] })
     const rank = (x) => (x.passes ? 0 : x.watch ? 1 : x.flags.includes('largeIfDark') ? 2 : 3);
     entries.sort((x, y) => rank(x) - rank(y) || y.chance - x.chance || x.designation.localeCompare(y.designation));
     const catalogue = { offsetH: round(offset.median, 3), from: offset.n, used: offset.used };
-    return { format: FORMAT, date: date.toISOString().slice(0, 10), counts, notes, provenance: made, catalogue, entries };
+    return { format: FORMAT, date: date.toISOString().slice(0, 10), counts, notes, provenance: made, catalogue, observing, entries };
 }
 
 /* What changed between two months' digests. */

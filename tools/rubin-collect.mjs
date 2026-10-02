@@ -17,12 +17,13 @@ import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createPoliteFetch } from '../js/polite.js';
-import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin } from '../js/sources.js';
+import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl } from '../js/sources.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
     emptyDiscoveryStore, discoveryQueue, unnamedStations, annotateDiscoveries, DISCOVERY_PER_RUN, STATION_NAMES_PER_RUN,
 } from '../js/collector.js';
 import { jdFromDate } from '../js/orbit.js';
+import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink } from '../js/rubinstatus.js';
 
 /* How long a name Fink's lookup failed on is left alone before it is tried again. */
 const UNRESOLVED_MONTHS = 3;
@@ -78,6 +79,34 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
        next week tries again otherwise. A failure is noted in the digest. */
     let detections = latestInput(dataDir, 'detections.json');
     let detectionsFrom = detections?.month ?? null;
+    /* Is Rubin observing? Fink's nightly alert counts for the year, one small request a
+       run (and last year's too in January, if this year has none yet), with the
+       hand-edited maintenance.json. When Rubin has sent nothing since the last Fink pull,
+       this month's pull waits: there is nothing new to fetch. */
+    const windows = readJson(join(dataDir, 'maintenance.json'))?.windows ?? [];
+    let nights = null;
+    try {
+        for (const year of [date.getUTCFullYear(), date.getUTCFullYear() - 1]) {
+            const response = await polite(nightlyAlertsUrl(year), { maxBytes: 1024 * 1024 });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            nights = parseNightlyAlerts(JSON.parse(response.body));
+            if (nights.length) break;
+        }
+    } catch (error) {
+        notes.push(`Rubin's nightly alert counts could not be fetched (${error.message}); the Fink pull went ahead as scheduled.`);
+        nights = null;
+    }
+    const lastNight = nights ? lastAlertNight(nights) : null;
+    const status = observingStatus({ lastNight, today: date, windows });
+    if (plan.fetchFink && nights) {
+        const decision = shouldPullFink({ month: plan.month, finkFetchedMonth: state.finkFetchedMonth, lastPullNight: state.lastPullNight, lastNight });
+        if (!decision.pull) {
+            plan.fetchFink = false;
+            notes.push(`Fink was not asked this week: ${decision.reason} (last alerts: night of ${lastNight ?? 'none'}).`);
+            log(`Fink skipped: ${decision.reason}`);
+        }
+    }
+
     /* Who Rubin has seen: its list (one ~750 KB request a month) decides who Fink is
        asked about, and labels every object seen or not. Kept as the TNOs on it, so quiet
        weeks reuse it. */
@@ -117,7 +146,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
             writeJson(join(dataDir, 'inputs', plan.month, 'detections.json'), value);
             detections = { month: plan.month, value };
             detectionsFrom = plan.month;
-            if (complete) state.finkFetchedMonth = plan.month;
+            if (complete) Object.assign(state, { finkFetchedMonth: plan.month, lastPullNight: lastNight ?? state.lastPullNight ?? null });
             else notes.push(`Fink was only partly fetched this month (${stopped ? `stopped: ${stopped}` : `${skipped.length} batch(es) skipped`}); kept what came back, and will ask again next week.`);
             if (unpackable.length) notes.push(`${unpackable.length} TNOs have designations that could not be packed for Fink.`);
             log(`Fink: asked about ${chosen.length}, detections for ${byProvisional.size}, unresolved ${unresolved.length}, skipped batches ${skipped.length}${stopped ? `, stopped: ${stopped}` : ''}`);
@@ -133,6 +162,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
     const digest = buildDigest({
         objects, date, jd: jdFromDate(date), notes,
         provenance: provenance({ siteCommit, sources: { jplCount: state.jplCount ?? tnos.length, tnosFrom, detectionsFrom, requests: polite.used?.() ?? null } }),
+        observing: { lastAlertNight: lastNight, nightsWithout: status.nightsWithout, offSky: status.offSky, windows, finkFetchedMonth: state.finkFetchedMonth ?? null },
     });
     /* Who found each object: asked of the MPC once per object, at most DISCOVERY_PER_RUN a
        run, most interesting first, and kept. A failure here never costs the run. */
@@ -168,7 +198,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
    JPL page, plus Eris, Sedna and Gonggong (whose orbits were recorded for the orbit
    tests) so the dry run has Rubin detections to use. Nothing leaves the machine. */
 export async function recordedPolite() {
-    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST } = await import('../tests/sources/fixtures.js');
+    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS } = await import('../tests/sources/fixtures.js');
     const { OBJECTS } = await import('../tests/orbit/fixtures.js');
     const page = JSON.parse(JPL_PAGE);
     const extra = [['136199', ' 136199 Eris (2003 UB313)', OBJECTS.Eris], ['90377', ' 90377 Sedna (2003 VB12)', OBJECTS.Sedna], ['225088', ' 225088 Gonggong (2007 OR10)', OBJECTS.Gonggong]];
@@ -183,6 +213,7 @@ export async function recordedPolite() {
         const answer = (body) => ({ status: 200, ok: true, notModified: false, headers: new Headers(), body });
         if (url.includes('sbdb_query') && !url.includes('fields=')) return answer(JSON.stringify({ count: page.count }));
         if (url.includes('sbdb_query')) return answer(JSON.stringify(page));
+        if (url.includes('statistics')) return answer(NIGHTLY_ALERTS);
         if (url.includes('ssoft')) return answer(RUBIN_LIST);
         if (url.includes('fink')) return answer(JSON.stringify(url.includes('M5088') ? GONGGONG_DETECTIONS : []));
         if (url.includes('get-obs')) return answer(String(options?.body).includes('2007 OR10') ? MPC_GONGGONG : '[{"OBS80": ""}]');

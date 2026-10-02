@@ -140,10 +140,10 @@ describe('Keeping what was found', () => {
             const store = JSON.parse(readFileSync(join(dir, 'discovery.json'), 'utf8'));
             expect(store.objects['225088']).toEqual({ station: '675', date: '2007-07-17' });
             expect(made.entries.find((e) => e.designation === '225088').discovery).toMatchObject({ date: '2007-07-17', byRubin: false });
-            // The same month again: nothing left to ask, so no MPC requests.
+            // The same month again: nothing left to ask, so no MPC requests (only JPL count and Fink nightly alerts).
             const polite = await recordedPolite();
             await collect({ dataDir: dir, date: new Date('2026-10-12T06:00:00Z'), polite });
-            expect(polite.used()).toBe(1);
+            expect(polite.used()).toBe(2);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

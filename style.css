@@ -2426,3 +2426,32 @@ main.rubin {
     cursor: grab;
     user-select: none;
 }
+
+/* Whether Rubin is observing, and when the page next changes. Off-sky, it gains a
+   heavier rule and the word says why; never colour alone. */
+.rubin-notice {
+    max-width: 640px;
+    margin: -12px auto 28px;
+    padding: 10px 14px;
+    border: 1px solid #51553a;
+    border-radius: 6px;
+    text-align: left;
+}
+
+.rubin-notice p {
+    margin: 4px 0;
+}
+
+.rubin-notice-off-sky {
+    border: 2px solid #e3e7af;
+}
+
+.rubin-notice-status {
+    color: #e3e7af;
+    font-weight: bold;
+}
+
+.rubin-notice-update,
+.rubin-notice-link {
+    color: #b8bc93;
+}

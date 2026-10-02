@@ -17,6 +17,7 @@ import {
     rubinStatus, crossCheckText, offsetText,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
+import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const CACHE_KEY = 'rubin-digest';
@@ -486,6 +487,31 @@ function drawChart() {
     ));
 }
 
+/* ---- Is Rubin observing, and when does this page next change ------------------------ */
+
+/* Worked out now, from the digest's record of Rubin's alerts and the announced windows,
+   so the count of quiet nights and the next run are current whenever the page is viewed. */
+function showNotice(digest) {
+    const obs = digest.observing;
+    const box = document.getElementById('rubin-notice');
+    if (!obs) return;
+    const now = new Date();
+    const status = observingStatus({ lastNight: obs.lastAlertNight, today: now, windows: obs.windows ?? [] });
+    const lines = statusText(status) ?? [];
+    const parts = lines.map((line) => el('p', { class: 'rubin-notice-status' }, line));
+    if (status.window?.link) {
+        const more = el('p', { class: 'rubin-notice-link' });
+        more.append(el('a', { href: status.window.link, target: '_blank', rel: 'noopener' }, "Rubin's latest announcement"));
+        parts.push(more);
+    }
+    for (const line of updateText(nextUpdates({ now, status, finkFetchedMonth: obs.finkFetchedMonth }))) {
+        parts.push(el('p', { class: 'rubin-notice-update' }, line));
+    }
+    box.classList.toggle('rubin-notice-off-sky', status.offSky);
+    box.replaceChildren(...parts);
+    box.hidden = false;
+}
+
 /* ---- Loading ------------------------------------------------------------------------ */
 
 /* A fetch that hangs rather than fails would leave the page saying "Loading" for ever,
@@ -525,6 +551,8 @@ async function render() {
     }
     status.replaceChildren(...summary(digest).flatMap((part, k) => (k ? [el('span', { class: 'rubin-dot', 'aria-hidden': 'true' }, ' · '), el('span', {}, part)] : [el('span', {}, part)])));
     if (stale) status.append(el('span', { class: 'rubin-stale' }, ` (offline - showing the digest of ${longDate(digest.date)})`));
+
+    showNotice(digest);
 
     const offset = offsetText(digest);
     const offsetLine = document.getElementById('rubin-offset');

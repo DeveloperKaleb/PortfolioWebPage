@@ -3205,3 +3205,33 @@ setup only. From now on:
   it rebuilds only when the page outgrows its spare length or the width changes. A
   shorter page clips the longer build, which #landscape already does. A short page such
   as the homepage now builds 3,000 px up front, about 40 ms more at first paint.
+
+### Rubin's observing status and the next update (`js/rubinstatus.js`)
+
+The tab says whether Rubin is observing, and when the page and its Rubin data next
+change. Both sources were the owner's choice (2026-10-02):
+- **Detected:** Fink's nightly alert counts (`/api/v1/statistics`, the year's
+  `f:night,f:alerts`, about 4 KB, one request a run). Rubin observes at every phase of the
+  Moon, so `OFF_SKY_NIGHTS` (4) quiet nights in a row count as off-sky. The counts cannot
+  say why, or for how long.
+- **Announced:** `maintenance.json` in rubin-data, hand-edited from Rubin's forum. It
+  gives the reason and, when known, the end. Its format is in the rubin-data README.
+- **Rubin's forum moved** from community.lsst.org to www.rubin.community (301 redirects).
+- **What it found on day one:** Fink has no Rubin alerts after the night of 14 July 2026.
+  The forum explains it. A major winter storm was announced on 15 July, with evacuation
+  and up to 3 m of snow on Cerro Pachon, and the road and power were damaged. Recovery
+  followed, then planned "pre-storm" maintenance from 14 September (camera
+  refrigeration). As of 25 September Rubin was still off-sky, expecting "a matter of a
+  few weeks". rubin-data's maintenance.json was seeded with one window from 2026-07-15,
+  no end.
+- **The schedule:** the collector runs every Monday at 06:00 UTC, so the page refreshes
+  weekly. New Rubin data arrives with the first run that is in a month not yet pulled
+  **and** comes after Rubin has sent alerts since the last pull (`shouldPullFink`, with
+  `state.lastPullNight`). So no Fink requests are made while Rubin is off-sky, and data
+  arrives within a week of its return. The tab shows a date for it only when an end is
+  announced. The notice is worked out when the page is viewed, so the night count and
+  the next run are always current.
+- **A quiet week is now two small requests:** JPL's count, and Fink's nightly counts.
+- **GitHub disables scheduled workflows** in public repos after 60 days without commits.
+  rubin-data commits every week (state.json records each run), so a long maintenance
+  period does not stop the schedule.
