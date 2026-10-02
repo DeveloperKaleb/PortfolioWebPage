@@ -2841,3 +2841,53 @@ gravity**. Nothing on the site uses it yet.
   (80% at about 445 km) and marks a pass `disputed` when Grundy's reading would fail it.
   The digest is meant to record those flags, so it shows what the dispute affects
   rather than hiding either side.
+
+### From brightness to chance (`js/brightness.js`, `js/tnoalbedos.js`)
+
+Rubin measures an object's absolute magnitude H, never its size. Diameter is
+1329 km / sqrt(albedo) x 10^(-H/5), so the chance from the calibration fit is averaged
+over the albedos the object plausibly has.
+
+- **Albedos come from Johnston's compilation, not JPL.** The plan said JPL's records,
+  but JPL's small-body database has measured albedos for only 12 TNOs, and none of the
+  dwarf planets. Johnston's compilation of TNO and Centaur diameters, albedos and
+  densities (johnstonsarchive.net, archived at NASA PDS, doi:10.26033/y5sn-4t02) is the
+  standard one. `tools/tno-albedos.mjs` chooses one measurement per object (measured,
+  visual band, most direct method, then latest), keeps only TNOs, and writes 121 of
+  them to `js/tnoalbedos.js` with the page's date. It reads a saved copy of the page
+  and makes no request.
+- **Albedos are taken from objects of similar brightness**, because albedo is tied to
+  size: the dwarf planets average about 0.77, the median TNO about 0.13. Averaging over
+  all TNOs would treat a bright object as dark and so far larger than it is. A test
+  checks that the data still shows this link.
+- **Weighted by a bell curve in H, not a hard window.** The first version took every
+  albedo inside a window that widened in steps. Five dark objects entering at H 3.25
+  made a fainter object score higher than a brighter one. Every measurement now counts,
+  weighted by closeness in H. The width is the distance to the 10th-nearest, but never
+  under 0.5 mag, so it is narrow where the data is dense. A test walks H from -1.5 to 8
+  in 0.05 steps and fails on any rise.
+- **Wide at the bright end.** So few objects are as bright as Eris that the curve there
+  spans about +-4.7 mag and pulls in dark albedos. That makes bright objects look
+  bigger than they are, which only matters for objects that pass anyway.
+- **The cutoff is at H of about 4.1** on the evidence reading, pinned by a test. Objects
+  from about H 2.5 to 4.1 pass but are flagged disputed (Varuna, H 3.7, is 88% against
+  Grundy's 55%). Every known dwarf planet passes, undisputed.
+- **H uncertainty** is folded in with three-point Gauss-Hermite quadrature.
+- **H is visual.** Rubin measures H in its own bands, so the collector must convert a
+  Rubin H to V before calling `assessH`. That conversion is not built yet.
+- **Large if dark** (added at the owner's request). The averaged chance is a bet on what
+  is typical, and at faint H nearly every measured object is small, so a large dark
+  body would be averaged away. That is the out-of-place case the project most wants to
+  find. At albedo 0.04, a body up to about 1,000 km fails. So `assessH` also returns
+  `ifDark`, the chance if the body were as dark as the darkest TNOs measured
+  (`darkAlbedo`, the 5th percentile of the snapshot, about 0.035). A failure that would
+  pass under that assumption gets the `largeIfDark` flag. The flag runs from H 4.1,
+  where passing stops, to about H 6. It never loosens the filter, it only records.
+  Rubin alone mostly cannot settle the question. That takes a thermal measurement, an
+  occultation or a moon.
+- **Flags are named and defined once** in `FLAGS` (`brightness.js`), each with the label
+  and explanation the digest and tab will show: `disputed` only on a pass, `largeIfDark`
+  only on a fail. The orbit step is meant to add its flags to the same table (unusually
+  distant, highly inclined, retrograde). An out-of-place body would likely show in its
+  orbit too, so an object flagged both `largeIfDark` and for its orbit is the one most
+  worth watching. A test fails if `assessH` raises a flag `FLAGS` does not define.

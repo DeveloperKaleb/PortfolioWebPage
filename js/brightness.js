@@ -1,0 +1,132 @@
+/* From how bright an object is to the chance it was shaped by its own gravity.
+ *
+ * Rubin never measures a distant object's size, only its absolute magnitude H. The same H
+ * fits a small bright body or a large dark one: diameter = 1329 km / sqrt(albedo) x
+ * 10^(-H/5). So the chance from js/equilibrium.js is averaged over the albedos the object
+ * plausibly has.
+ *
+ * Which albedos matters as much as the averaging. Albedo is tied to size: the largest
+ * TNOs are bright with ice and frost (Pluto, Eris, Haumea and Makemake average about
+ * 0.77), the small ones mostly dark (the median TNO is about 0.13). Averaging over all
+ * TNOs would treat a bright object as probably dark, so far larger than it is. The
+ * albedos used are those measured for TNOs of similar H, from js/tnoalbedos.js, the
+ * window widening until there are enough of them. See NOTES.md.
+ *
+ * H here is visual (V band), as in the albedo data. Rubin measures H in its own bands, so
+ * a Rubin H has to be converted before it comes here - a job for the collector.
+ *
+ * Pure: no network, no DOM.
+ */
+import { CALIBRATION, READINGS, fitEquilibrium, chanceShaped } from './equilibrium.js';
+import { TNO_ALBEDOS } from './tnoalbedos.js';
+
+/* The standard relation between diameter, visual geometric albedo and absolute
+   magnitude, from the Sun's apparent magnitude. */
+export const DIAMETER_CONSTANT_KM = 1329;
+
+export const diameterFromH = (H, albedo) => DIAMETER_CONSTANT_KM / Math.sqrt(albedo) * 10 ** (-H / 5);
+
+/* How the measured albedos are weighted by closeness in H.
+ *
+ * Every measured albedo counts, weighted by a bell curve in H centred on the object. Its
+ * width is the distance to the minCount-th nearest measurement, but never under
+ * minWidth: narrow where the data is dense, wide where it is sparse. The first version
+ * used a hard window that widened in steps, and objects dropping in and out of it made
+ * the chance jump: five dark objects entering at H 3.25 made a fainter object score
+ * higher than a brighter one. A bell curve lets each measurement fade in. */
+export const ALBEDO_SAMPLE = { minCount: 10, minWidth: 0.5 };
+
+/* The measured albedos with their weights (summing to 1) for an object of this H, and
+   the bell curve's width. effectiveCount is how many equally weighted measurements the
+   weights are worth. */
+export function albedosNear(H, { sample = TNO_ALBEDOS, ...options } = {}) {
+    const { minCount, minWidth } = { ...ALBEDO_SAMPLE, ...options };
+    if (sample.length < minCount) throw new Error(`need at least ${minCount} measured albedos`);
+    const distances = sample.map((o) => Math.abs(o.H - H)).sort((a, b) => a - b);
+    const width = Math.max(minWidth, distances[minCount - 1]);
+    const raw = sample.map((o) => Math.exp(-0.5 * ((o.H - H) / width) ** 2));
+    const total = raw.reduce((a, b) => a + b, 0);
+    const weights = raw.map((w) => w / total);
+    const effectiveCount = 1 / weights.reduce((a, w) => a + w * w, 0);
+    return { albedos: sample.map((o) => o.albedo), weights, width, effectiveCount };
+}
+
+/* H uncertainty is folded in with three-point Gauss-Hermite quadrature: H at the mean and
+   at sqrt(3) standard deviations either side, weighted 2/3, 1/6 and 1/6. Exact for the
+   spread of a normal error up to fifth order, and three fits rather than hundreds. */
+const H_POINTS = [[0, 2 / 3], [Math.sqrt(3), 1 / 6], [-Math.sqrt(3), 1 / 6]];
+
+let fits = null;
+const readingFits = () => fits ??= {
+    evidence: fitEquilibrium(READINGS.evidence(CALIBRATION)),
+    grundy: fitEquilibrium(READINGS.grundy(CALIBRATION)),
+};
+
+/* The albedo of the darkest TNOs measured: the given quantile of the snapshot (5% by
+   default, about 0.035). Taken from the data rather than chosen, so it moves if darker
+   objects are measured. */
+export function darkAlbedo({ sample = TNO_ALBEDOS, quantile = 0.05 } = {}) {
+    const sorted = sample.map((o) => o.albedo).sort((a, b) => a - b);
+    return sorted[Math.floor(quantile * (sorted.length - 1))];
+}
+
+/* What the digest records about an object beyond pass or fail. Each flag is a question
+   worth a second look, never a verdict, and none of them changes whether it passes.
+   Defined once, with the words the digest and the tab show for it.
+
+   The orbit step is meant to add its flags here - unusually distant, highly inclined or
+   retrograde orbits - since an out-of-place body would likely show itself in its orbit
+   as well as its brightness, and an object flagged both large-if-dark and for its orbit
+   is the one most worth watching. */
+export const FLAGS = {
+    disputed: {
+        label: 'Disputed',
+        means: 'Passes on the evidence reading, but would fail if mid-sized TNOs never compacted, as Grundy et al. (2019) argue.',
+    },
+    largeIfDark: {
+        label: 'Large if dark',
+        means: 'Fails as a typical object of its brightness, but would pass if it were as dark as the darkest TNOs measured. Only a thermal measurement, an occultation or a moon could settle its size.',
+    },
+};
+
+/* The filter's verdict on an object of visual absolute magnitude H (with standard error
+   errH):
+   - evidence, grundy: the chance under each reading of the calibration list, averaged
+     over plausible albedos and over the error in H;
+   - ifDark: the same chances if it were as dark as the darkest TNOs measured;
+   - passes: the evidence reading at or above the threshold;
+   - flags: names from FLAGS. 'disputed' only on a pass, 'largeIfDark' only on a fail.
+
+   The plain average is a bet on what is typical, and at faint H nearly everything
+   measured is small, so a large dark body - something out of place, captured or
+   scattered in - would be averaged away: at albedo 0.04 a body up to about 1,000 km
+   fails. ifDark and the largeIfDark flag record those instead of losing them, without
+   loosening the filter. */
+export function assessH(H, { errH = 0, threshold = 0.8, sample = TNO_ALBEDOS } = {}) {
+    const { evidence: evidenceFit, grundy: grundyFit } = readingFits();
+    const dark = darkAlbedo({ sample });
+    let evidence = 0, grundy = 0, darkEvidence = 0, darkGrundy = 0, effectiveCount = 0, width = 0;
+    for (const [offset, weight] of H_POINTS) {
+        const h = H + offset * errH;
+        const near = albedosNear(h, { sample });
+        if (offset === 0) ({ width, effectiveCount } = near);
+        near.albedos.forEach((albedo, k) => {
+            const d = diameterFromH(h, albedo);
+            evidence += weight * near.weights[k] * chanceShaped(evidenceFit, d);
+            grundy += weight * near.weights[k] * chanceShaped(grundyFit, d);
+        });
+        const darkD = diameterFromH(h, dark);
+        darkEvidence += weight * chanceShaped(evidenceFit, darkD);
+        darkGrundy += weight * chanceShaped(grundyFit, darkD);
+    }
+    const passes = evidence >= threshold;
+    const flags = [];
+    if (passes && grundy < threshold) flags.push('disputed');
+    if (!passes && darkEvidence >= threshold) flags.push('largeIfDark');
+    return {
+        evidence, grundy, passes, flags,
+        disputed: flags.includes('disputed'),
+        ifDark: { albedo: dark, evidence: darkEvidence, grundy: darkGrundy },
+        effectiveCount, width,
+    };
+}
