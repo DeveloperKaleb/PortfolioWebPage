@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText, KIND_LABEL,
+    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -278,6 +278,8 @@ function drawMap(digest) {
     function render() {
         const [sx, sy] = toScreen(view, 0, 0);
         const parts = [];
+        /* Names to place once every dot is drawn, in priority order (placeLabels). */
+        const labels = [];
         const spacing = ringSpacing(view);
         const reach = Math.hypot(Math.abs(view.cx), Math.abs(view.cy)) + SIZE / view.scale;
         for (let r = spacing, n = 0; r <= reach && n < 60; r += spacing, n++) {
@@ -309,7 +311,7 @@ function drawMap(digest) {
                 g.addEventListener('dblclick', (e) => e.stopPropagation());
             }
             parts.push(g);
-            if (orbitPx >= PLANET_LABEL_PX) parts.push(svg('text', { x: px + 7, y: py - 7, class: 'rubin-axis' }, p.name));
+            if (orbitPx >= PLANET_LABEL_PX) labels.push({ x: px, y: py, text: p.name, rank: Infinity });
         }
         parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
 
@@ -337,6 +339,14 @@ function drawMap(digest) {
             /* A double-click on an object is two clicks on it, not a zoom. */
             g.addEventListener('dblclick', (e) => e.stopPropagation());
             parts.push(g);
+            const name = properName(entry);
+            if (name) labels.push({ x, y, text: name, rank: sizeOf(entry).km });
+        }
+        /* Planets and tundrs first, then the largest objects; a name with no room is left
+           out until zooming in makes some. */
+        labels.sort((a, b) => b.rank - a.rank);
+        for (const l of placeLabels(labels, SIZE)) {
+            parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
 

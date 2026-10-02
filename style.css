@@ -2190,6 +2190,11 @@ main.rubin {
     font-size: 12px;
 }
 
+/* Names on the map sit over the dots, so a click on one reaches the dot beneath. */
+.rubin-map-label {
+    pointer-events: none;
+}
+
 .rubin-mark {
     cursor: default;
     outline: none;

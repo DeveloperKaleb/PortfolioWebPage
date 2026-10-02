@@ -305,3 +305,31 @@ export function planeText(entry) {
 export const TUNDRS = { Jupiter: 'hydrogen', Saturn: 'hydrogen', Uranus: 'water', Neptune: 'water' };
 export const KIND_LABEL = { planet: 'Planet', hydrogen: 'Hydrogen Tundr', water: 'Water Tundr' };
 export const bodyKind = (name) => TUNDRS[name] ?? 'planet';
+
+/* ---- Labels on the map -------------------------------------------------------------------
+ *
+ * Pluto is a planet on this site, so the map names it as it names Mercury. Every object
+ * with a proper name (Pluto, Eris, Sedna...) is labelled when there is room; objects with
+ * only a designation are not. Labels are kept in priority order - planets and tundrs
+ * first, then the largest objects - and one that would overlap a label already kept, or
+ * run off the map, is left out. Zooming in makes room, so more names appear. */
+
+/* An object's proper name, or null when it has only a designation. */
+export const properName = (entry) => entry.name.match(/^\d+\s+(.+?)\s+\(/)?.[1] ?? null;
+
+/* The label's box, from where the text sits beside its dot: 12px text, about 7px a
+   character, set 7px right of and above the dot. */
+export const LABEL = { offset: 7, charPx: 7, linePx: 14 };
+
+export function placeLabels(labels, sizePx) {
+    const kept = [];
+    for (const label of labels) {
+        const x0 = label.x + LABEL.offset;
+        const y1 = label.y - LABEL.offset + 3;
+        const box = { x0, x1: x0 + label.text.length * LABEL.charPx, y0: y1 - LABEL.linePx, y1 };
+        if (box.x0 < 0 || box.x1 > sizePx || box.y0 < 0 || box.y1 > sizePx) continue;
+        if (kept.some(({ box: k }) => box.x0 < k.x1 && k.x0 < box.x1 && box.y0 < k.y1 && k.y0 < box.y1)) continue;
+        kept.push({ ...label, box });
+    }
+    return kept;
+}

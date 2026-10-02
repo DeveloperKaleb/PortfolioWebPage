@@ -3296,3 +3296,12 @@ written in the site's voice (owner's choice); a click on a giant on the map open
 The giants keep the planets' dot (owner's choice), so no new colour needed checking.
 Which body is which lives in `TUNDRS` in js/rubinview.js. How much of the water tundrs is
 water rather than rock is unsettled, and the dialog says so.
+
+**Named objects are labelled on the map (2026-10-02).** The owner noticed Pluto looked
+missing: it was plotted, but only planets had name labels, so under the site's stance the
+map named Mercury and not Pluto. Now every object with a proper name (`properName`) is
+labelled when there is room. `placeLabels` in js/rubinview.js keeps labels greedily in
+priority order (planets and tundrs first, then largest size), dropping any that would
+overlap a kept label or leave the map; zooming in spreads the dots and more names appear.
+Designation-only objects are not labelled. The label box is estimated (12px text, ~7px a
+character), not measured, so the rule stays pure and testable.

@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
-    KIND_LABEL, bodyKind,
+    KIND_LABEL, bodyKind, properName, placeLabels,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -230,5 +230,33 @@ describe('Planets and tundrs', () => {
         expect(KIND_LABEL[bodyKind('Saturn')]).toBe('Hydrogen Tundr');
         expect(KIND_LABEL[bodyKind('Neptune')]).toBe('Water Tundr');
         expect(KIND_LABEL[bodyKind('Earth')]).toBe('Planet');
+    });
+});
+
+/* Pluto is a planet here, so the map names it, and every other named object, when there
+   is room. */
+describe('Labels on the map', () => {
+    test('names an object only when it has a proper name', () => {
+        expect(properName({ name: '134340 Pluto (1930 BM)' })).toBe('Pluto');
+        expect(properName({ name: '(2012 VP113)' })).toBeNull();
+        expect(properName({ name: '612911 (2004 XR190)' })).toBeNull();
+    });
+
+    test('keeps labels in priority order, leaving out one that would overlap', () => {
+        const kept = placeLabels([
+            { x: 100, y: 100, text: 'Neptune' },
+            { x: 105, y: 102, text: 'Pluto' },
+            { x: 300, y: 300, text: 'Eris' },
+        ], 440);
+        expect(kept.map((l) => l.text)).toEqual(['Neptune', 'Eris']);
+    });
+
+    test('a label that would run off the map is left out', () => {
+        expect(placeLabels([{ x: 420, y: 100, text: 'Gonggong' }, { x: 100, y: 5, text: 'Sedna' }], 440)).toEqual([]);
+    });
+
+    test('zooming in, which spreads the dots, makes room for both', () => {
+        const kept = placeLabels([{ x: 100, y: 100, text: 'Neptune' }, { x: 160, y: 140, text: 'Pluto' }], 440);
+        expect(kept).toHaveLength(2);
     });
 });
