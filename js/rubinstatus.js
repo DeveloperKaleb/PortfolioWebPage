@@ -130,3 +130,13 @@ export function updateText({ refresh, data, waitingForRubin }) {
     else if (waitingForRubin) lines.push('New Rubin data arrives with the first weekly update after Rubin returns to the sky.');
     return lines;
 }
+
+/* The last night a pull could have covered, from when it was made: every night before
+   the pull's date was already in Fink. Fills in the last pull for data collected before
+   the collector recorded it, so a month with nothing new still waits rather than pulling
+   with "history unknown". (Not the latest stored detection: none of our objects need
+   have been seen on Rubin's last night.) */
+export function pullNightFrom(fetchedIso) {
+    if (!fetchedIso) return null;
+    return new Date(dayStart(fetchedIso.slice(0, 10)).getTime() - DAY).toISOString().slice(0, 10);
+}

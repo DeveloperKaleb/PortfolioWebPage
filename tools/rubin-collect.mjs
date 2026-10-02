@@ -23,7 +23,7 @@ import {
     emptyDiscoveryStore, discoveryQueue, unnamedStations, annotateDiscoveries, DISCOVERY_PER_RUN, STATION_NAMES_PER_RUN,
 } from '../js/collector.js';
 import { jdFromDate } from '../js/orbit.js';
-import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink } from '../js/rubinstatus.js';
+import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink, pullNightFrom } from '../js/rubinstatus.js';
 
 /* How long a name Fink's lookup failed on is left alone before it is tried again. */
 const UNRESOLVED_MONTHS = 3;
@@ -97,6 +97,9 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         nights = null;
     }
     const lastNight = nights ? lastAlertNight(nights) : null;
+    /* Data pulled before the collector recorded its last pull: take it from when that pull
+       was made, so the next month still waits if Rubin has sent nothing new. */
+    if (state.finkFetchedMonth && !state.lastPullNight) state.lastPullNight = pullNightFrom(detections?.value.fetched);
     const status = observingStatus({ lastNight, today: date, windows });
     if (plan.fetchFink && nights) {
         const decision = shouldPullFink({ month: plan.month, finkFetchedMonth: state.finkFetchedMonth, lastPullNight: state.lastPullNight, lastNight });

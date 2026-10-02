@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
     parseNightlyAlerts, lastAlertNight, nightsWithout, announcedWindow, observingStatus, nextRun,
-    shouldPullFink, nextUpdates, statusText, updateText, OFF_SKY_NIGHTS,
+    shouldPullFink, nextUpdates, statusText, updateText, OFF_SKY_NIGHTS, pullNightFrom,
 } from '../../js/rubinstatus.js';
 import { nightlyAlertsUrl } from '../../js/sources.js';
 import { collect, recordedPolite } from '../../tools/rubin-collect.mjs';
@@ -121,6 +121,31 @@ describe('Asking Fink only when there is something new', () => {
             const november = await collect({ dataDir: dir, date: new Date('2026-11-02T06:00:00Z'), polite: await recordedPolite() });
             expect(november.digest.notes.join(' ')).toMatch(/Fink was not asked this week: no new Rubin alerts since the last pull/);
             expect(JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8')).finkFetchedMonth).toBe('2026-10');
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
+/* The first live run pulled Fink before the collector recorded its last pull. Without
+   filling that in, November would pull with "history unknown" though nothing is new. */
+describe('A last pull recorded before there was a record', () => {
+    test('is the night before the pull was made: everything earlier was already in Fink', () => {
+        expect(pullNightFrom('2026-10-02T15:54:52.000Z')).toBe('2026-10-01');
+        expect(pullNightFrom(null)).toBeNull();
+    });
+
+    test('a run with no recorded last pull fills it from the stored detections, and then waits', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'rubin-data-'));
+        try {
+            await collect({ dataDir: dir, date: new Date('2026-10-05T06:00:00Z'), polite: await recordedPolite() });
+            const statePath = join(dir, 'state.json');
+            const state = JSON.parse(readFileSync(statePath, 'utf8'));
+            delete state.lastPullNight;
+            writeFileSync(statePath, JSON.stringify(state));
+            const november = await collect({ dataDir: dir, date: new Date('2026-11-02T06:00:00Z'), polite: await recordedPolite() });
+            expect(JSON.parse(readFileSync(statePath, 'utf8')).lastPullNight).toBe('2026-10-04');
+            expect(november.digest.notes.join(' ')).toMatch(/Fink was not asked this week/);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

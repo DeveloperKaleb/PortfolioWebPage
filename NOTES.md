@@ -3232,6 +3232,13 @@ change. Both sources were the owner's choice (2026-10-02):
   announced. The notice is worked out when the page is viewed, so the night count and
   the next run are always current.
 - **A quiet week is now two small requests:** JPL's count, and Fink's nightly counts.
+- **The last pull, for data from before it was recorded.** The first live run pulled
+  Fink before `state.lastPullNight` existed, so the next month would have pulled with
+  "history unknown" even with nothing new. A run with `finkFetchedMonth` but no
+  `lastPullNight` fills it in as the night before the stored detections were fetched
+  (`pullNightFrom`): everything earlier was already in Fink. It is not taken from the latest
+  stored detection, because none of our objects need have been seen on Rubin's last
+  night, and a test caught that first version pulling anyway.
 - **GitHub disables scheduled workflows** in public repos after 60 days without commits.
   rubin-data commits every week (state.json records each run), so a long maintenance
   period does not stop the schedule.
