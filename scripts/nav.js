@@ -5,6 +5,7 @@ const navTemplate = `
 <nav>
   <a href="${basePath}/" id="nav-home">Home</a>
   <a href="${basePath}/entertainment/entertainment.html" id="nav-entertainment">Entertainment</a>
+  <a href="${basePath}/rubin/rubin.html" id="nav-rubin">Rubin</a>
 </nav>
 `;
 
@@ -20,5 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('nav-home')?.classList.add('active');
     } else if (currentPath.includes('/entertainment/')) {
         document.getElementById('nav-entertainment')?.classList.add('active');
+    } else if (currentPath.includes('/rubin/')) {
+        document.getElementById('nav-rubin')?.classList.add('active');
     }
 });

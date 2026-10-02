@@ -3025,3 +3025,63 @@ It also found four problems, all fixed:
    U) are now fetched. Under 365 days of arc, or U >= 6, raises `uncertainOrbit` (kind
    `quality`). Such an object keeps its other flags but is not watched on their
    strength. These lines are conventions, to tune against the data.
+
+## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)
+
+"Rubin" is a placeholder name; the owner may rename the tab. The sections were approved by
+the owner (2026-10-02): a status line, then likely shaped by gravity, worth watching,
+where they are now (a map), what changed this month, could be large if dark (first 8,
+then "show all"), how it works (a chart), and sources. Latest month only, for now.
+
+- **Data from the same origin, never a third party.** The tab reads
+  `/rubin-data/digest/latest.json` and `/rubin-data/changes/<month>.json`. That is the
+  `rubin-data` repo published with GitHub Pages, served from developerkaleb.github.io
+  beside this site. The first plan was raw.githubusercontent.com, which would have broken
+  "The site loads nothing from anywhere else": a third party seeing every visitor. The
+  service worker fetches `/rubin-data/` network-first, because it has no ?v= stamp and
+  cache-first would pin an old digest. rubin.js also keeps the last digest in
+  localStorage for offline visits. `tests/rubin` fails if the URL stops being
+  same-origin. **This needs GitHub Pages switched on for rubin-data.**
+- **The chart** is the chance of having been shaped by gravity against diameter (log
+  scale). It shows both readings, the 80% line, the two cutoffs labelled directly, and
+  the calibration bodies as dots: rounded along the top, irregular along the bottom.
+  A crosshair shows both readings at any diameter.
+- **The map** shows passes (filled circle), disputed passes (hollow circle) and watched
+  objects (diamond, in the third colour) seen from above, with the Sun at the centre,
+  rings every 50 AU and the planets' orbits.
+- **Both have a legend, a table view, 24px hover and focus targets, and the same details
+  on keyboard focus.** Data reaches the DOM through textContent only.
+- **Colours** (`RUBIN_COLORS`, js/logic.js, mirrored in style.css and asserted in
+  tests/contrast) clear 4.5:1 worst-case on the page brown, and the three series are
+  pairwise distinguishable. On the dataviz skill's validator they pass CVD separation
+  (12.3 all-pairs), the normal-vision floor (18.2) and chroma. They deliberately exceed
+  its lightness band (0.48-0.67 for dark mode), which assumes a near-black surface:
+  inside it, every candidate fell below the site's 4.5:1 on this brown, and the site's
+  rule wins.
+- **Displayed sizes are capped estimates.** A size shown from brightness uses the
+  weighted median albedo of objects within 1 magnitude (`SIZE_WIDTH`). Uncapped, the
+  bright end takes in dark albedos and made Eris, from H alone, about 6,500 km instead
+  of 2,326. The filter's verdicts keep the uncapped average, which only matters for
+  objects that pass anyway.
+- **Preview locally** with `npm run dev`, then
+  `/PortfolioWebPage/rubin/rubin.html?digest=dev-digest.json&changes=dev-changes.json`.
+  The dev files are rebuilt from a scratch collector run and are git-ignored.
+
+### The confirmation run (2026-10-02)
+
+The second live run, after the four fixes: 13m17s and 92 requests. Fink completed (3,430
+asked, detections for 151, 53 names Fink did not recognise, 0 batches skipped, 0
+unpackable). 43 objects passed, Salacia among them at 984 km measured, and 2026 RY158
+dropped off the watch list as an uncertain orbit. Leleakuhonua also dropped off: its
+occultation-measured albedo (0.21) makes it about 220 km, which settles the
+large-if-dark question.
+
+- **Orbit uncertainty is common**, not a threshold error: 3,161 TNOs (43%) have orbits
+  from less than a year of observations, and a quarter from under 43 days. These are
+  mostly recent survey discoveries. Among H <= 6, about 24% are flagged.
+- **Catalogue H looks too bright.** All 9 objects with Rubin photometry came out
+  0.16-0.39 mag fainter than JPL's catalogue H (mean about 0.3), never brighter. For
+  Gonggong, the published 2.34 sides with Rubin's 2.17 over the catalogue's 1.82. If
+  this holds as more objects get Rubin data, the catalogue-H objects (most of them) are
+  judged a little generously, and a measured offset could correct them. Revisit with
+  more data before acting.

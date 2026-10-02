@@ -251,7 +251,7 @@ describe('The same stream on every page', () => {
 describe('Both pages carry the landscape', () => {
     const read = (page) => readFileSync(resolve(__dirname, '../..', page), 'utf8');
 
-    test.each(['index.html', 'entertainment/entertainment.html'])('%s', (page) => {
+    test.each(['index.html', 'entertainment/entertainment.html', 'rubin/rubin.html'])('%s', (page) => {
         const html = read(page);
         expect(html).toMatch(/<div id="landscape"[^>]*>\s*<canvas id="stream"><\/canvas>\s*<canvas id="forest"><\/canvas>/);
         // Render-blocking, so the landscape is drawn before a view transition captures it.

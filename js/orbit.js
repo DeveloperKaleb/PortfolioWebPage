@@ -124,6 +124,8 @@ export function observe(el, H, jd, { vMinusR = TYPICAL_V_MINUS_R } = {}) {
     const V = apparentMagnitude(H, p.r, delta, phase);
     return {
         r: p.r, delta, phase, V,
+        /* Where it is, heliocentric ecliptic AU, for the tab's top-down map. */
+        x: p.x, y: p.y, z: p.z,
         detectable: V - vMinusR <= RUBIN_SINGLE_VISIT.depth,
         inScope: p.r <= SCOPE_AU,
     };

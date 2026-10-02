@@ -85,7 +85,7 @@ function entry(o, v) {
         passes: v.passes, flags: v.flags, watch: v.watch,
         orbit: { a: round(a, 2), e: round(e, 3), i: round(i, 2), q: round(a * (1 - e), 2) },
         orbitQuality: o.quality ?? null,
-        now: { r: round(v.orbit.r, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },
+        now: { r: round(v.orbit.r, 2), x: round(v.orbit.x, 2), y: round(v.orbit.y, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },
     };
 }
 

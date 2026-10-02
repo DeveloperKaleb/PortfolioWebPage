@@ -1,0 +1,4 @@
+# Local previews of the Rubin tab, rebuilt from a scratch collector run. Never committed:
+# the real digest lives in the rubin-data repo.
+rubin/dev-digest.json
+rubin/dev-changes.json

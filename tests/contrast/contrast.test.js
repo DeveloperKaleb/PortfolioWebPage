@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, test, expect } from 'vitest';
 import {
     contrastRatio,
@@ -8,7 +10,7 @@ import {
     blueYellowAxis,
     MIN_AGAINST_BACKGROUND,
 } from '../../js/contrast.js';
-import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, MINE_MINIMAP, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
+import { RUBIN_COLORS, TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, MINE_MINIMAP, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -564,5 +566,27 @@ describe('Reading against a gradient', () => {
             .toBeCloseTo(worstCaseContrast('#000000', '#333333'), 5);
         expect(worstCaseOverGradient('#000000', stops))
             .toBeLessThan(worstCaseContrast('#000000', '#ffffff'));
+    });
+});
+
+/* The Rubin tab's chart, map and text colours, on the page column's brown. Marks and text
+   are read, so they clear the full 4.5:1 in the worst case; the three series colours
+   have to be told apart. (The dataviz validator's lightness band is deliberately
+   exceeded - it assumes a near-black surface; see NOTES.md.) */
+describe('Rubin tab palette', () => {
+    const { surface, grid, ...read } = RUBIN_COLORS;
+
+    test.each(Object.entries(read))('%s is legible on the page', (name, color) => {
+        expect(worstCaseContrast(color, surface)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test.each([['evidence', 'grundy'], ['evidence', 'watch'], ['grundy', 'watch']])('%s and %s can be told apart', (a, b) => {
+        expect(areDistinguishable(RUBIN_COLORS[a], RUBIN_COLORS[b])).toBe(true);
+    });
+
+    test('the stylesheet uses the same colours', () => {
+        const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf8');
+        const rubin = css.slice(css.indexOf('/* --- The Rubin tab'));
+        [RUBIN_COLORS.surface, RUBIN_COLORS.text, RUBIN_COLORS.muted, RUBIN_COLORS.grid].forEach((c) => expect(rubin).toContain(c));
     });
 });

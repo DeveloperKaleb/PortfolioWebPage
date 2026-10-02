@@ -2051,3 +2051,235 @@ a:active  {color: #002e2c;}
     opacity: 1;
     cursor: not-allowed;
 }
+
+/* --- The Rubin tab (rubin/rubin.html) ---
+   Colours mirror RUBIN_COLORS in js/logic.js, which tests/contrast holds to the rules;
+   change both together. Left-aligned, unlike the centred game pages: it is reading. */
+main.rubin {
+    text-align: left;
+}
+
+.rubin h2,
+.rubin-intro,
+.rubin-status {
+    text-align: center;
+}
+
+.rubin-intro {
+    max-width: 640px;
+    margin: 0 auto 12px;
+}
+
+.rubin-status {
+    color: #b8bc93;
+    margin-bottom: 28px;
+}
+
+.rubin-stale {
+    color: #e3e7af;
+}
+
+.rubin-section {
+    margin: 32px 0;
+}
+
+.rubin-section h3 {
+    margin-bottom: 4px;
+}
+
+.rubin-note {
+    color: #b8bc93;
+    margin-top: 0;
+}
+
+.rubin-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.rubin-card {
+    border: 1px solid #51553a;
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.rubin-card h4 {
+    margin: 0 0 8px;
+    font-size: 1.1em;
+}
+
+.rubin-why {
+    color: #b8bc93;
+    margin: 0 0 8px;
+}
+
+.rubin-facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    margin: 0;
+}
+
+.rubin-facts dt {
+    color: #b8bc93;
+}
+
+.rubin-facts dd {
+    margin: 0;
+}
+
+.rubin-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+/* Flags are buttons: tapping one shows what it means, so it works on a phone too. */
+.rubin-flag {
+    font: inherit;
+    font-size: 0.85em;
+    color: #e3e7af;
+    background: transparent;
+    border: 1px solid #b8bc93;
+    border-radius: 999px;
+    padding: 4px 10px;
+    min-height: 32px;
+    cursor: pointer;
+}
+
+.rubin-flag[aria-expanded="true"] {
+    border-color: #e3e7af;
+    text-decoration: underline;
+}
+
+.rubin-flag-means {
+    margin: 8px 0 0;
+    color: #b8bc93;
+}
+
+.rubin-show-all {
+    font: inherit;
+    color: #e3e7af;
+    background: transparent;
+    border: 1px solid #b8bc93;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-top: 12px;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+.rubin-changes {
+    padding-left: 20px;
+}
+
+.rubin-figure {
+    margin: 12px 0;
+}
+
+.rubin-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+#rubin-map .rubin-svg {
+    max-width: 440px;
+}
+
+/* Axis text wears the muted text colour, never a series colour. */
+.rubin-axis {
+    fill: #b8bc93;
+    font-size: 12px;
+}
+
+.rubin-label {
+    fill: #e3e7af;
+    font-size: 12px;
+}
+
+.rubin-mark {
+    cursor: default;
+    outline: none;
+}
+
+.rubin-mark:focus-visible > :last-child,
+.rubin-mark:hover > :last-child {
+    stroke: #e3e7af;
+}
+
+.rubin-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 16px;
+    margin-bottom: 8px;
+    color: #e3e7af;
+    font-size: 0.9em;
+}
+
+.rubin-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rubin-table-view summary {
+    cursor: pointer;
+    color: #e3e7af;
+    min-height: 32px;
+}
+
+.rubin-table-wrap {
+    overflow-x: auto;
+}
+
+.rubin-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9em;
+}
+
+.rubin-table th,
+.rubin-table td {
+    text-align: left;
+    padding: 4px 8px;
+    border-bottom: 1px solid #51553a;
+    vertical-align: top;
+}
+
+.rubin-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+/* One tooltip for the page: the value leads, the name follows. Fixed, so it follows the
+   pointer whatever the scroll. */
+.rubin-tooltip {
+    position: fixed;
+    z-index: 30;
+    max-width: 280px;
+    pointer-events: none;
+    background: #3b3026;
+    color: #e3e7af;
+    border: 1px solid #b8bc93;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.9em;
+    text-align: left;
+}
+
+.rubin-tooltip-row + .rubin-tooltip-row {
+    margin-top: 2px;
+}
+
+.rubin-key {
+    display: inline-block;
+    width: 12px;
+    height: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+}

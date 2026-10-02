@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const pages = ['index.html', 'entertainment/entertainment.html'];
+const pages = ['index.html', 'entertainment/entertainment.html', 'rubin/rubin.html'];
 
 const read = (page) => readFileSync(resolve(root, page), 'utf8');
 const idsIn = (html) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
@@ -38,11 +38,11 @@ describe.each(pages)('%s', (page) => {
     });
 });
 
-test('both pages are cache-busted to the same version', () => {
+test('every page is cache-busted to the same version', () => {
     // A page left behind keeps loading the previous footer.js, so its "last updated"
     // disagrees with the other page's - which is exactly how this was noticed.
     const stampOf = (page) => read(page).match(/\?v=(\d{8}-\d{4})/)[1];
-    expect(stampOf(pages[0])).toBe(stampOf(pages[1]));
+    pages.slice(1).forEach((page) => expect(stampOf(page)).toBe(stampOf(pages[0])));
 });
 
 /* The site loads nothing from anywhere else. It used to pull normalize.css from a CDN,

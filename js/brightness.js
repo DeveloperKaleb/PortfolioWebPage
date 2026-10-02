@@ -34,16 +34,19 @@ export const diameterFromH = (H, albedo) => DIAMETER_CONSTANT_KM / Math.sqrt(alb
  * used a hard window that widened in steps, and objects dropping in and out of it made
  * the chance jump: five dark objects entering at H 3.25 made a fainter object score
  * higher than a brighter one. A bell curve lets each measurement fade in. */
-export const ALBEDO_SAMPLE = { minCount: 10, minWidth: 0.5 };
+export const ALBEDO_SAMPLE = { minCount: 10, minWidth: 0.5, maxWidth: Infinity };
 
 /* The measured albedos with their weights (summing to 1) for an object of this H, and
    the bell curve's width. effectiveCount is how many equally weighted measurements the
    weights are worth. */
 export function albedosNear(H, { sample = TNO_ALBEDOS, ...options } = {}) {
-    const { minCount, minWidth } = { ...ALBEDO_SAMPLE, ...options };
+    const { minCount, minWidth, maxWidth } = { ...ALBEDO_SAMPLE, ...options };
     if (sample.length < minCount) throw new Error(`need at least ${minCount} measured albedos`);
     const distances = sample.map((o) => Math.abs(o.H - H)).sort((a, b) => a - b);
-    const width = Math.max(minWidth, distances[minCount - 1]);
+    /* maxWidth caps the reach for a size to show on the page (js/rubinview.js): at the
+       bright end the uncapped curve takes in dark albedos and made Eris, from H alone,
+       about 6,500 km. The filter's verdicts keep the uncapped curve. */
+    const width = Math.min(maxWidth, Math.max(minWidth, distances[minCount - 1]));
     const raw = sample.map((o) => Math.exp(-0.5 * ((o.H - H) / width) ** 2));
     const total = raw.reduce((a, b) => a + b, 0);
     const weights = raw.map((w) => w / total);

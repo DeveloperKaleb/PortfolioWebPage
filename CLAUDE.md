@@ -45,11 +45,17 @@ This means the site only fully works when served from that exact subpath (as on 
 
 ## Architecture
 
-**Two pages, shared nav and styles:**
+**Three pages, shared nav and styles:**
 - `index.html` — homepage/bio.
+- `rubin/rubin.html` — the Rubin tab (placeholder name; the owner may rename it): large
+  outer Solar System objects from public Rubin data. `rubin/rubin.js` builds it from
+  the latest digest, read from `/rubin-data/` on the same origin (the `rubin-data`
+  repo, published with GitHub Pages) - never from a third party. Its words and
+  geometry are in `js/rubinview.js`. Preview it locally with
+  `?digest=<path>&changes=<path>`.
 - `entertainment/entertainment.html` — a hub page for seven browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, an "Array Grid" color-painting toy, and Pets). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`), Multiplayer (`#multi`) and Toys (`#toys`: Finger Paint `#toy` and Pets `#pets`) are hubs of thumbnail cards, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.
-- `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on both pages and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
-- `style.css` — single global stylesheet for both pages, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
+- `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on every page and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
+- `style.css` — single global stylesheet for every page, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
 
 **Display names differ from the names in the code.** The games are called Falling
 Polyominos, Snake, Mine Sweeper, Sequence, Tic-Tac-Toe, Finger Paint and Pets on screen, but everything in
@@ -61,7 +67,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty-three modules, all free of `document`/DOM calls so they stay testable
+The pure layer is twenty-four modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece

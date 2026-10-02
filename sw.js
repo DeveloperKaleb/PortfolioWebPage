@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261002-1033';
+const VERSION = '20261002-1052';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -23,6 +23,8 @@ const PRECACHE = [
     `${BASE}/`,
     `${BASE}/index.html`,
     `${BASE}/entertainment/entertainment.html`,
+    `${BASE}/rubin/rubin.html`,
+    `${BASE}/rubin/rubin.js?v=${VERSION}`,
     `${BASE}/style.css?v=${VERSION}`,
     `${BASE}/vendor/normalize.css?v=${VERSION}`,
     `${BASE}/scripts/nav.js?v=${VERSION}`,
@@ -48,6 +50,13 @@ const PRECACHE = [
     `${BASE}/js/mineshapes.js`,
     `${BASE}/js/mineopenings.js`,
     `${BASE}/js/stream.js`,
+    /* The Rubin tab's modules. The digest itself comes from another site and is not
+       cached here; rubin.js keeps the last one it saw for offline visits. */
+    `${BASE}/js/rubinview.js`,
+    `${BASE}/js/equilibrium.js`,
+    `${BASE}/js/brightness.js`,
+    `${BASE}/js/tnoalbedos.js`,
+    `${BASE}/js/flags.js`,
 ];
 
 /* The family photo is deliberately NOT precached.
@@ -104,6 +113,24 @@ self.addEventListener('fetch', (event) => {
                     return response;
                 })
                 .catch(() => caches.match(request).then((hit) => hit || caches.match(`${BASE}/index.html`)))
+        );
+        return;
+    }
+
+    /* The Rubin digest (rubin-data, published at /rubin-data/ on the same origin) changes
+       every week under the same URL, with no ?v= stamp, so cache-first would pin an old
+       one. Network first, keeping a copy; the copy is the offline case. */
+    if (url.pathname.startsWith('/rubin-data/')) {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    if (response.ok) {
+                        const copy = response.clone();
+                        caches.open(CACHE).then((cache) => cache.put(request, copy));
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(request).then((hit) => hit || Response.error()))
         );
         return;
     }

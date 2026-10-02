@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rubin - Kaleb's Portfolio</title>
+    <!-- Vendored - see the note in index.html. -->
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-1052" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261002-1052" rel="stylesheet" />
+</head>
+<body>
+    <!-- The mountain stream down the left margin and the forest floor down the right,
+         as on the other pages; drawn by scripts/stream.js. -->
+    <div id="landscape" aria-hidden="true" hidden>
+      <canvas id="stream"></canvas>
+      <canvas id="forest"></canvas>
+    </div>
+    <header id="global-nav"></header>
+
+    <!-- The Rubin tab. rubin.js fills it from the latest digest in the rubin-data repo;
+         the words and geometry are worked out in js/rubinview.js. Visitors' browsers
+         only ever read that digest - never Fink or JPL. -->
+    <main id="main" class="wrapper rubin">
+        <h2>Large worlds at the edge of the Solar System</h2>
+        <p class="rubin-intro">
+            Objects beyond Neptune big enough that their own gravity has probably pulled
+            them round - dwarf planets, and anything still hiding - checked each month
+            against public data from the Vera C. Rubin Observatory.
+        </p>
+        <p id="rubin-status" class="rubin-status" role="status">Loading the latest digest…</p>
+
+        <section id="rubin-passes" class="rubin-section" hidden>
+            <h3>Likely shaped by their own gravity</h3>
+            <p class="rubin-note">At least an 80% chance, on the evidence of icy moons and dwarf planets whose shapes we know.</p>
+            <div class="rubin-cards"></div>
+        </section>
+
+        <section id="rubin-watch" class="rubin-section" hidden>
+            <h3>Worth watching</h3>
+            <p class="rubin-note">Faint, so probably small - but large if their surfaces are very dark, and on orbits that mark them out.</p>
+            <div class="rubin-cards"></div>
+        </section>
+
+        <section id="rubin-map" class="rubin-section" hidden>
+            <h3>Where they are now</h3>
+            <figure class="rubin-figure">
+                <div class="rubin-plot"></div>
+                <figcaption class="rubin-note"></figcaption>
+            </figure>
+            <details class="rubin-table-view">
+                <summary>The map as a table</summary>
+                <div class="rubin-table-wrap"></div>
+            </details>
+        </section>
+
+        <section id="rubin-changes" class="rubin-section" hidden>
+            <h3>What changed this month</h3>
+            <ul class="rubin-changes"></ul>
+        </section>
+
+        <section id="rubin-dark" class="rubin-section" hidden>
+            <h3>Could be large, if dark</h3>
+            <p class="rubin-note">They fail as typical objects of their brightness, but would pass if as dark as the darkest measured. Only a thermal measurement, an occultation or a moon could settle their size.</p>
+            <div class="rubin-cards"></div>
+            <button type="button" class="rubin-show-all" hidden></button>
+        </section>
+
+        <section id="rubin-method" class="rubin-section">
+            <h3>How it works</h3>
+            <p>
+                Rubin measures how bright a distant object is, never its size. So the size is
+                inferred from its brightness and the albedos measured for objects as bright -
+                or, where its own albedo has been measured, from that. The chance it was
+                shaped by its own gravity then comes from the curve below, fitted to icy
+                bodies whose shapes are known.
+            </p>
+            <figure class="rubin-figure">
+                <div class="rubin-plot"></div>
+                <figcaption class="rubin-note"></figcaption>
+            </figure>
+            <details class="rubin-table-view">
+                <summary>The bodies behind the curve, as a table</summary>
+                <div class="rubin-table-wrap"></div>
+            </details>
+            <p>
+                Below about 940 km the answer depends on an open question: whether mid-sized
+                bodies this cold ever squeezed out their porosity. Objects that pass only on
+                the icy moons' evidence are marked <em>disputed</em>.
+            </p>
+        </section>
+
+        <section id="rubin-sources" class="rubin-section">
+            <h3>Sources</h3>
+            <p>
+                Rubin Observatory's detections, through the <a href="https://fink-broker.org/" target="_blank" rel="noopener">Fink</a>
+                alert broker; orbits from NASA/JPL's
+                <a href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noopener">Small-Body Database</a>;
+                albedos from W. R. Johnston's compilation (NASA PDS, doi:10.26033/y5sn-4t02).
+                The services are asked gently: once a week to JPL, once a month to Fink, one
+                request at a time. Every month's data, and how it was produced, is kept in
+                <a href="https://github.com/DeveloperKaleb/rubin-data" target="_blank" rel="noopener">rubin-data</a>.
+            </p>
+        </section>
+    </main>
+
+    <footer id="global-footer" class="wrapper">
+      <p id="last-updated"></p>
+    </footer>
+
+    <!-- Hover details for the chart and the map; filled and placed by rubin.js. -->
+    <div id="rubin-tooltip" class="rubin-tooltip" role="tooltip" hidden></div>
+
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-1052"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-1052"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-1052"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-1052"></script>
+    <script type="module" src="./rubin.js?v=20261002-1052"></script>
+</body>
+</html>
