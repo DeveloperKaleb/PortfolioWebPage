@@ -2799,3 +2799,45 @@ for it.
     code serves boulders in the creek and rocks in the tributary.
   - **It has its own random stream** (`seed + 101`), so adding it left the log and
     upstream boulders where they were.
+
+## The Rubin tab: equilibrium calibration (`js/equilibrium.js`)
+
+The first piece of a planned third tab: a tool that digests public Rubin data (via the
+alert brokers; the project owner has no Rubin data rights) looking for outer Solar System
+objects large enough to have at least an **80% chance of having been shaped by their own
+gravity**. Nothing on the site uses it yet.
+
+- **The meaning of "in hydrostatic equilibrium" is the owner's choice: shaped by its own
+  gravity at some point.** Moons whose shapes froze after their spin changed (Iapetus,
+  Mimas, Quaoar's odd ellipsoid) count as yes. The strict sense, in equilibrium today,
+  was rejected: only Pluto, Europa, Ganymede and Triton are confirmed, so it would put
+  the cutoff near 2,000 km, and the moons fail it because of tidal history, which a
+  distant body on its own does not have.
+- **No published curve exists**, so one is fitted (the owner's choice over reading
+  Brown's tiers as percentages or taking Grundy's 900 km). It is a logistic in
+  log-diameter over a cited list of icy bodies.
+- **Labels come from shape or interior evidence, never from size**, or the fit would be
+  circular. Large bodies with no measured shape (Gonggong, Sedna, Orcus) are uncertain.
+  Uncertain bodies stay in the list with their reasons and are left out of the fit.
+  Moon diameters are from JPL's satellite physical parameters table, and the rest from
+  Wikipedia's compiled list, checked against the named primary papers.
+- **Result: 80% at about 445 km** (bootstrap 348-478 km). That is in Brown's "probably"
+  tier, above the 2006 icy assumption (400 km), and well below Grundy et al. (900-1000
+  km). The test pins it at 435-455 km so the list cannot move it unnoticed.
+- **The ridge is negligible on purpose.** Mimas (rounded, 396 km) being smaller than
+  Proteus (irregular, 416 km) is the only overlap, and it is what keeps the best slope
+  finite. A ridge claims the transition is gradual and moves the answer: 497 km at 0.01,
+  598 km at 0.1. Choosing it would be choosing the answer. It exists only to steady
+  bootstrap draws that lose that overlap.
+- **The open question that decides the answer.** Every distant object with a definite
+  label is over 1,000 km, so the cutoff comes entirely from icy moons (a moons-only fit
+  gives the same 445 km). Labelling the five low-density mid-sized TNOs as Grundy et al.
+  read them (Uni, Gǃkúnǁʼhòmdímà, Varda, Salacia, Varuna as not shaped) moves it to about
+  940 km (764-1052). Whether cold mid-sized TNOs behave like icy moons is an open
+  scientific question.
+- **The filter uses both readings** (the owner's choice, over filtering on 940 km or
+  ignoring the dispute). Grundy's reading is data, a `grundy: 'no'` field on the five
+  entries, applied by `READINGS.grundy`. `assessDiameter` passes on the evidence reading
+  (80% at about 445 km) and marks a pass `disputed` when Grundy's reading would fail it.
+  The digest is meant to record those flags, so it shows what the dispute affects
+  rather than hiding either side.

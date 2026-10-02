@@ -61,7 +61,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is fourteen modules, all free of `document`/DOM calls so they stay testable
+The pure layer is fifteen modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -112,6 +112,10 @@ under Vitest without a browser:
   snow in the right margin and joins the creek on the left. No row may depend on the
   page's length, so the stream matches across pages. `scripts/stream.js` sizes
   page-tall canvases to both margins and animates them. See NOTES.md.
+- `js/equilibrium.js` — the first piece of the planned Rubin tab: a cited calibration
+  list of icy bodies labelled by whether gravity shaped them, and the fitted curve of
+  that chance against diameter. No page uses it yet. See NOTES.md before changing a
+  label.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports
