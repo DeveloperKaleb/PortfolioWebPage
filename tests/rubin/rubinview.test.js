@@ -193,16 +193,17 @@ describe('Filtering names', () => {
    plane. 2014 UN225, tilted 53 degrees, is 43.7 AU from the Sun but was drawn between
    the 20 and 30 AU rings: the details now give both. */
 describe('Along the plane, and out of it', () => {
-    const un225 = { now: { r: 43.7, x: 20.3, y: -16.72, z: 34.9 } };
+    /* Its position as the collector recorded it on 2026-10-02 (rubin-data 846fd9b). */
+    const un225 = { now: { r: 43.7, x: 23.59, y: -11.55, z: -34.92 } };
 
-    test('gives the distance along the plane and the height above it', () => {
+    test('gives the distance along the plane and the height below it', () => {
         const parts = planeParts(un225);
         expect(parts.along).toBeCloseTo(26.3, 1);
-        expect(planeText(un225)).toBe('26.3 AU along the plane, 34.9 AU above it');
+        expect(planeText(un225)).toBe('26.3 AU along the plane, 34.9 AU below it');
     });
 
-    test('says below for an object under the plane', () => {
-        expect(planeText({ now: { r: 43.7, x: 20.3, y: -16.72, z: -34.9 } })).toMatch(/34\.9 AU below it$/);
+    test('says above for an object over the plane', () => {
+        expect(planeText({ now: { r: 43.7, x: 23.59, y: -11.55, z: 34.92 } })).toMatch(/34\.9 AU above it$/);
     });
 
     test('works out the height without a side for a digest from before z was recorded', () => {

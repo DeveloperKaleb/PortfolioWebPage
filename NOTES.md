@@ -3112,7 +3112,10 @@ large-if-dark question.
   At most `DISCOVERY_PER_RUN` (40) are asked per weekly run, most interesting first, so
   the first backfill of about 376 spreads over ten weekly runs. An object the MPC cannot
   answer for is tried again the next month, not every week. Observatory names are asked
-  once per code.
+  once per code. The counts therefore grow run by run during the backfill (38, then 77, then 116
+  after the first three runs on 2026-10-02, with 7 found by Rubin), and "found by Rubin"
+  rises with them. That is the queue being worked through, not answers changing; a known
+  object is never asked again.
 - **It wants a GET with a JSON body**, and refuses POST (405). Node's fetch refuses a body
   on a GET, so `liveFetch` in tools/rubin-collect.mjs sends those through node:https,
   streamed into a standard Response so the courtesy layer's size cap and timeout still
@@ -3260,7 +3263,7 @@ change. Both sources were the owner's choice (2026-10-02):
 The map is seen from above the plane of the planets, so it shows distance along that
 plane. The owner noticed 2014 UN225 labelled 43.7 AU but drawn between the 20 and 30 AU
 rings. Its orbit is tilted 53 degrees and it is near the top of it: 26.3 AU along the
-plane, 34.9 AU above it. 2015 BP519 is similar (37% shorter on the map), and a few others
+plane, 34.9 AU below it. 2015 BP519 is similar (37% shorter on the map), and a few others
 are 22-26% shorter. The tooltip and the map's table now give both, once an object is
 `PLANE_NOTE_AU` (1 AU) or more out of the plane (`planeText`). The collector records
 `now.z` from 2026-10-05. Before that only the height's size is known, so the text says

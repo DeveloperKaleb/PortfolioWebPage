@@ -273,7 +273,7 @@ export const PLANET_LABEL_PX = 26;
  * The map is seen from above the plane of the planets, so it shows an object's distance
  * along that plane, not its true distance from the Sun. For a steeply tilted orbit the
  * two differ a lot: 2014 UN225 (tilted 53 degrees) is 43.7 AU from the Sun but 26.3 AU
- * along the plane, 34.9 AU above it, so the map drew it between the 20 and 30 AU rings.
+ * along the plane, 34.9 AU below it, so the map drew it between the 20 and 30 AU rings.
  * So the tooltip and table give both. A side view may come later. */
 
 /* Below this height the object is near enough the plane that its map position tells the
