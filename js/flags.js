@@ -4,9 +4,10 @@
  * show, so a new flag cannot arrive without its words (tests/equilibrium checks that
  * every flag raised is defined here).
  *
- * Brightness flags come from js/brightness.js, orbit flags from js/orbit.js. An object
- * flagged largeIfDark and for its orbit is the one most worth watching: an out-of-place
- * body would likely show itself in both. See NOTES.md.
+ * Brightness flags come from js/brightness.js, orbit and orbit-quality flags from
+ * js/orbit.js. An object flagged largeIfDark and for its orbit is the one most worth
+ * watching: an out-of-place body would likely show itself in both - unless its orbit is
+ * uncertain, which makes its orbit flags uncertain too. See NOTES.md.
  */
 export const FLAGS = {
     disputed: {
@@ -38,6 +39,11 @@ export const FLAGS = {
         kind: 'orbit',
         label: 'Retrograde',
         means: 'Goes round the Sun the opposite way to the planets.',
+    },
+    uncertainOrbit: {
+        kind: 'quality',
+        label: 'Uncertain orbit',
+        means: 'Its orbit rests on under a year of observations, or the Minor Planet Center rates it poorly known (U of 6 or more): its distance, brightness and orbit flags may change a lot as it is followed up.',
     },
     unbound: {
         kind: 'orbit',

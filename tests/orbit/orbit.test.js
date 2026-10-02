@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import {
-    solveKepler, positionAt, earthAt, apparentMagnitude, observe, orbitFlags, jdFromDate,
+    solveKepler, positionAt, earthAt, apparentMagnitude, observe, orbitFlags, qualityFlags, jdFromDate, ORBIT_QUALITY,
     SCOPE_AU, RUBIN_SINGLE_VISIT, TYPICAL_V_MINUS_R,
 } from '../../js/orbit.js';
 import { assessObject, watchWorthy } from '../../js/verdict.js';
@@ -163,11 +163,70 @@ describe('The whole verdict', () => {
     test('every flag is defined, with a kind and words for the digest', () => {
         const raised = new Set();
         [OBJECTS.Eris, OBJECTS.Sedna, OBJECTS.Gonggong].forEach((o) => assessObject(o, today).flags.forEach((f) => raised.add(f)));
-        ['unbound', 'retrograde', 'highlyInclined', 'extremeOrbit', 'detached'].forEach((f) => raised.add(f));
+        ['unbound', 'retrograde', 'highlyInclined', 'extremeOrbit', 'detached', 'uncertainOrbit'].forEach((f) => raised.add(f));
         raised.forEach((name) => {
-            expect(['brightness', 'orbit']).toContain(FLAGS[name].kind);
+            expect(['brightness', 'orbit', 'quality']).toContain(FLAGS[name].kind);
             expect(FLAGS[name].label.length).toBeGreaterThan(0);
             expect(FLAGS[name].means.length).toBeGreaterThan(20);
         });
+    });
+});
+
+/* For an object with a measured albedo, the size is known: the first live run failed
+   Salacia (78%) by averaging over typical albedos, though its albedo is measured. */
+describe('Measured sizes', () => {
+    const today = jd('2026-10-02');
+    const salacia = { a: 42.06, e: 0.105, i: 23.93, om: 280, w: 310, ma: 120, epoch: EPOCH };
+
+    test('Salacia fails on its brightness alone, but is flagged large if dark', () => {
+        const v = assessObject({ H: 4.12, errH: 0.3, elements: salacia }, today);
+        expect(v.passes).toBe(false);
+        expect(v.sizeFrom).toBe('brightness');
+        expect(v.flags).toContain('largeIfDark');
+    });
+
+    test('with its measured albedo found by number, Salacia passes, sized from the measurement', () => {
+        const v = assessObject({ H: 4.12, errH: 0.3, elements: salacia, designation: '120347', provisional: '2004 SB60' }, today);
+        expect(v.passes).toBe(true);
+        expect(v.sizeFrom).toBe('measured');
+        expect(v.measured.albedo).toBe(0.041);
+        expect(v.flags).not.toContain('largeIfDark');
+    });
+
+    test('finds a measured albedo by provisional designation too', () => {
+        const v = assessObject({ H: 3.5, elements: salacia, designation: '2014 UZ224', provisional: '2014 UZ224' }, today);
+        expect(v.sizeFrom).toBe('measured');
+    });
+
+    test('an object with no measurement is sized from its brightness', () => {
+        expect(assessObject({ H: 4, elements: salacia, designation: '999999', provisional: '2099 ZZ99' }, today).sizeFrom).toBe('brightness');
+    });
+});
+
+/* A fresh discovery's orbit can be far off. The first live run watched 2026 RY158, found
+   this year, with a perihelion of 11 AU and a retrograde orbit. */
+describe('Orbit quality', () => {
+    const today = jd('2026-10-02');
+    const ry158 = { a: 434.91, e: 1 - 11.04 / 434.91, i: 95.47, om: 0, w: 0, ma: 1, epoch: EPOCH };
+
+    test('flags an orbit from under a year of observations', () => {
+        expect(qualityFlags({ arcDays: ORBIT_QUALITY.minArcDays - 1, conditionCode: 2 })).toEqual(['uncertainOrbit']);
+    });
+
+    test('flags an orbit the MPC rates poorly known', () => {
+        expect(qualityFlags({ arcDays: 3000, conditionCode: ORBIT_QUALITY.maxConditionCode + 1 })).toEqual(['uncertainOrbit']);
+    });
+
+    test('leaves a well-known orbit, or one with no quality data, alone', () => {
+        expect(qualityFlags({ arcDays: 11075, conditionCode: 3 })).toEqual([]);
+        expect(qualityFlags(null)).toEqual([]);
+    });
+
+    test('keeps the flags of a fresh, odd orbit, but does not watch it on their strength', () => {
+        const fresh = assessObject({ H: 4.8, elements: ry158, quality: { arcDays: 40, conditionCode: 9 } }, today);
+        expect(fresh.flags).toEqual(expect.arrayContaining(['largeIfDark', 'retrograde', 'uncertainOrbit']));
+        expect(fresh.watch).toBe(false);
+        const settled = assessObject({ H: 4.8, elements: ry158, quality: { arcDays: 4000, conditionCode: 2 } }, today);
+        expect(settled.watch).toBe(true);
     });
 });

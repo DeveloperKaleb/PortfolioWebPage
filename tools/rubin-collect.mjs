@@ -61,24 +61,28 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         log(`JPL: count unchanged at ${state.jplCount}, using ${tnosFrom}`);
     }
 
-    /* Fink: once a month. A failure is noted in the digest, and last month's
-       detections are used, rather than losing the run. */
+    /* Fink: once a month. Whatever is fetched is kept, even if some batches fail or the
+       run has to stop; the month only counts as fetched when every batch came back, so
+       next week tries again otherwise. A failure is noted in the digest. */
     let detections = latestInput(dataDir, 'detections.json');
     let detectionsFrom = detections?.month ?? null;
     if (plan.fetchFink) {
         try {
             const { chosen, unpackable } = selectForFink(tnos);
-            const { byProvisional, unresolved } = await fetchDetections(polite, chosen);
+            const { byProvisional, unresolved, skipped, stopped } = await fetchDetections(polite, chosen);
+            const complete = !stopped && skipped.length === 0;
             const value = {
-                fetched: date.toISOString(), asked: chosen.length,
-                unresolved: unresolved.map((o) => o.designation), unpackable,
+                fetched: date.toISOString(), asked: chosen.length, complete,
+                unresolved: unresolved.map((o) => o.designation), unpackable, skipped, stopped,
                 detections: Object.fromEntries(byProvisional),
             };
             writeJson(join(dataDir, 'inputs', plan.month, 'detections.json'), value);
             detections = { month: plan.month, value };
             detectionsFrom = plan.month;
-            state.finkFetchedMonth = plan.month;
-            log(`Fink: asked about ${chosen.length}, detections for ${byProvisional.size}, unresolved ${unresolved.length}`);
+            if (complete) state.finkFetchedMonth = plan.month;
+            else notes.push(`Fink was only partly fetched this month (${stopped ? `stopped: ${stopped}` : `${skipped.length} batch(es) skipped`}); kept what came back, and will ask again next week.`);
+            if (unpackable.length) notes.push(`${unpackable.length} TNOs have designations that could not be packed for Fink.`);
+            log(`Fink: asked about ${chosen.length}, detections for ${byProvisional.size}, unresolved ${unresolved.length}, skipped batches ${skipped.length}${stopped ? `, stopped: ${stopped}` : ''}`);
         } catch (error) {
             notes.push(`Fink failed this month (${error.message}); used ${detectionsFrom ?? 'no'} detections.`);
             log(`Fink failed: ${error.message}`);

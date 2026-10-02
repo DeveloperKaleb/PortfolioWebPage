@@ -2992,3 +2992,36 @@ commits. Its README and workflow are templated in `tools/rubin-data-template/`.
   history shows one changed line per changed object.
 - **Safety:** `tools/rubin-collect.mjs` runs on recorded responses unless given `--live`.
   The tests run whole collector runs in a temporary folder, against the recordings.
+
+### The first live run, and what it changed (2026-10-02)
+
+Run locally into a scratch folder before the scheduled job was enabled. It took 7m43s
+and 66 requests (4 to JPL, 62 to Fink), and assessed 7,294 of 7,296 TNOs. Every known
+dwarf planet passed undisputed. Passes ran to H 4.02, the disputed band was H 3.09-4.02
+(26 objects, including Grundy's five), and large-if-dark was H 4.05-5.91 (377).
+
+It also found four problems, all fixed:
+
+1. **Fink's rejections come in more than one wording.** "... for the object 50000 ..."
+   was handled. "K11Uf3H is not a valid name or number ..." was not, and it failed the
+   Fink stage outright, throwing away every batch already fetched, so the digest had no
+   Rubin photometry. `rejectedIn` now finds whichever of the batch's names the message
+   mentions, as a whole word. `fetchDetections` skips a batch it cannot explain and
+   carries on. If it must stop, it returns what it has. The collector keeps partial
+   detections, notes them, and marks the month fetched only when every batch came back.
+   Name rejections are routine: about 28 in that run.
+2. **45 recent discoveries could not be packed**, because their cycle count is 620 or
+   more. The MPC's extended format is now implemented, from the MPC documentation, and
+   checked against its examples.
+3. **Measured albedos are used when they exist.** Salacia failed at 78% on its averaged
+   catalogue H, though its albedo is measured. `assessObject` now looks up
+   `js/tnoalbedos.js` by number or provisional designation and, for the 121 measured
+   objects, sizes from the measurement (`sizeFrom: 'measured'`), with no large-if-dark
+   question. Salacia's chosen measurement (Johnston, K25a: H 4.12, albedo 0.041) gives
+   984 km, larger than the 838 km in the calibration list's source. They are separate
+   uses, and Salacia is uncertain in the calibration list, so it is not in the fit.
+4. **Fresh orbits are flagged.** 2026 RY158, a 2026 discovery with q = 11 AU, retrograde,
+   and H 4.06, was on the watch list. JPL's `data_arc` and `condition_code` (the MPC's
+   U) are now fetched. Under 365 days of arc, or U >= 6, raises `uncertainOrbit` (kind
+   `quality`). Such an object keeps its other flags but is not watched on their
+   strength. These lines are conventions, to tune against the data.

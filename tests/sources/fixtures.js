@@ -4,8 +4,9 @@
  * D6199,90377,M5088,D6472,D6108 (Eris, Sedna, Gonggong, Makemake, Haumea). Only Gonggong
  * had Rubin detections. Trimmed to the columns js/sources.js asks for.
  *
- * JPL_PAGE: SBDB Query API, sb-class=TNO, full-prec=1, limit=3, as returned. JPL_COUNT is
- * the count-only query's answer that day. */
+ * JPL_PAGE: SBDB Query API, sb-class=TNO, full-prec=1, limit=3, with the orbit-quality
+ * fields (data_arc, condition_code, n_obs_used), as returned. JPL_COUNT is the count-only
+ * query's answer that day. */
 export const GONGGONG_DETECTIONS = [
  {
   "r:designation": "2007 OR10",
@@ -107,12 +108,16 @@ export const GONGGONG_DETECTIONS = [
  }
 ];
 
-export const JPL_PAGE = "{\"signature\":{\"source\":\"NASA/JPL SBDB (Small-Body DataBase) Query API\",\"version\":\"1.0\"},\"fields\":[\"pdes\",\"full_name\",\"H\",\"a\",\"e\",\"i\",\"om\",\"w\",\"ma\",\"epoch\"],\"data\":[[\"15760\",\" 15760 Albion (1992 QB1)\",\"7.18\",\"44.13128015101105\",\".07115576064918994\",\"2.187986421529304\",\"359.5024198402141\",\"6.378968694221481\",\"36.25803194638895\",\"2461200.5\"],[\"15788\",\" 15788 (1993 SB)\",\"7.96\",\"39.69309386030809\",\".3259380307335113\",\"1.936813975459916\",\"354.9257866080662\",\"79.38882497810187\",\"4.903821038813498\",\"2461200.5\"],[\"15789\",\" 15789 (1993 SC)\",\"7.09\",\"39.68327981437692\",\".1835286651099575\",\"5.159874843339515\",\"354.7265728778696\",\"318.200319852755\",\"79.34412839501447\",\"2461200.5\"]],\"count\":7293}";
+export const JPL_PAGE = "{\"signature\":{\"version\":\"1.0\",\"source\":\"NASA/JPL SBDB (Small-Body DataBase) Query API\"},\"fields\":[\"pdes\",\"full_name\",\"H\",\"a\",\"e\",\"i\",\"om\",\"w\",\"ma\",\"epoch\",\"data_arc\",\"condition_code\",\"n_obs_used\"],\"data\":[[\"15760\",\" 15760 Albion (1992 QB1)\",\"7.18\",\"44.13128015101105\",\".07115576064918994\",\"2.187986421529304\",\"359.5024198402141\",\"6.378968694221481\",\"36.25803194638895\",\"2461200.5\",\"11075\",\"3\",96],[\"15788\",\" 15788 (1993 SB)\",\"7.96\",\"39.69309386030809\",\".3259380307335113\",\"1.936813975459916\",\"354.9257866080662\",\"79.38882497810187\",\"4.903821038813498\",\"2461200.5\",\"11458\",\"2\",129],[\"15789\",\" 15789 (1993 SC)\",\"7.09\",\"39.68327981437692\",\".1835286651099575\",\"5.159874843339515\",\"354.7265728778696\",\"318.200319852755\",\"79.34412839501447\",\"2461200.5\",\"9614\",\"2\",146]],\"count\":7296}";
 
 export const JPL_COUNT = '{"signature":{"source":"NASA/JPL SBDB (Small-Body DataBase) Query API","version":"1.0"},"count":7293}';
 
 /* Fink's rejection of a batch containing Quaoar, as returned. */
 export const FINK_UNRESOLVED = "{'status': 'error', 'text': 'We have found 0 packed designation in the aliases for the object 50000 according to quaero.\n'}";
+
+/* Fink's other wording, from the first live run, which the first parser could not read
+   and which cost that run all its Fink data. */
+export const FINK_INVALID = "{'status': 'error', 'text': 'K11Uf3H is not a valid name or number according to quaero.\n'}";
 
 /* Published visual H for Gonggong (Johnston's compilation, js/tnoalbedos.js). */
 export const GONGGONG_PUBLISHED_HV = 2.34;

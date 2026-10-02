@@ -39,9 +39,29 @@ export function packDesignation(designation) {
     if (!match) throw new RangeError(`cannot pack designation "${text}"`);
     const [, century, year, half, second, cycleText] = match;
     const cycle = cycleText ? Number(cycleText) : 0;
-    if (cycle >= 620) throw new RangeError(`cycle count too large to pack: "${text}"`);
+    if (cycle >= 620) return packExtended(century, year, half, second, cycle, text);
     const packedCycle = cycle < 100 ? String(cycle).padStart(2, '0') : BASE62[Math.floor(cycle / 10)] + (cycle % 10);
     return BASE62[Number(century)] + year + half + packedCycle + second;
+}
+
+/* The MPC's extended packed format, for cycle counts of 620 and over (more than 15,500
+   designations in a half-month, which large surveys now reach):
+   https://docs.minorplanetcenter.net/mpc-ops-docs/designations/provisional-designations/
+   "_" (and so a year in the 2000s), the year's last two digits as one base-62 digit
+   (P = 25), the half-month letter, then four base-62 digits of the designation's order
+   in the half-month minus 15,501. The order is cycle x 25 plus the second letter's place,
+   A = 1 with I skipped. Checked against the MPC's examples: 2025 DA620 = _PD0000 and
+   2029 FL591673 = _TFzzzz. */
+const LETTER_ORDER = 'ABCDEFGHJKLMNOPQRSTUVWXYZ';
+
+function packExtended(century, year, half, second, cycle, text) {
+    if (century !== '20') throw new RangeError(`extended packing only covers the 2000s: "${text}"`);
+    const order = cycle * 25 + LETTER_ORDER.indexOf(second) + 1;
+    let rest = order - 15501;
+    if (LETTER_ORDER.indexOf(second) < 0 || rest < 0 || rest >= 62 ** 4) throw new RangeError(`cannot pack designation "${text}"`);
+    let digits = '';
+    for (let k = 0; k < 4; k++) { digits = BASE62[rest % 62] + digits; rest = Math.floor(rest / 62); }
+    return '_' + BASE62[Number(year)] + half + digits;
 }
 
 /* JPL's full name is "225088 Gonggong (2007 OR10)" for a numbered object and
@@ -55,7 +75,9 @@ export function provisionalFrom(fullName, pdes) {
 /* ---- JPL ------------------------------------------------------------------------------- */
 
 const JPL_QUERY = 'https://ssd-api.jpl.nasa.gov/sbdb_query.api';
-const JPL_FIELDS = ['pdes', 'full_name', 'H', 'a', 'e', 'i', 'om', 'w', 'ma', 'epoch'];
+/* data_arc, condition_code and n_obs_used say how well the orbit is known: a fresh
+   discovery's orbit can be far off, and must not look like a find (js/orbit.js). */
+const JPL_FIELDS = ['pdes', 'full_name', 'H', 'a', 'e', 'i', 'om', 'w', 'ma', 'epoch', 'data_arc', 'condition_code', 'n_obs_used'];
 
 export const jplCountUrl = () => `${JPL_QUERY}?${new URLSearchParams({ 'sb-class': 'TNO' })}`;
 
@@ -79,6 +101,7 @@ export function parseJplPage(body) {
             provisional: provisionalFrom(row[col.full_name], pdes),
             H: num('H'),
             elements: { a: num('a'), e: num('e'), i: num('i'), om: num('om'), w: num('w'), ma: num('ma'), epoch: num('epoch') },
+            quality: col.data_arc === undefined ? null : { arcDays: num('data_arc'), conditionCode: num('condition_code'), nObs: num('n_obs_used') },
         };
     });
 }
@@ -118,31 +141,55 @@ export const finkUrl = (packed) => `${FINK_SSO}?${new URLSearchParams({
     n_or_d: packed.join(','), columns: FINK_COLUMNS.join(','), 'output-format': 'json',
 })}`;
 
-/* One unresolvable designation fails Fink's whole batch with an HTTP 400 naming it. */
-export function unresolvedIn(body) {
-    const match = String(body).match(/for the object (\S+?)(?: according|\s|$)/);
-    return match ? match[1] : null;
+/* One designation Fink's name lookup does not know fails the whole batch with an HTTP 400
+   that names it - in more than one wording ("... for the object 50000 according to
+   quaero", "K11Uf3H is not a valid name or number according to quaero"). Rather than
+   parse each wording, find which of the batch's names the message mentions, as a whole
+   word. Returns its index in the batch, or -1. */
+export function rejectedIn(body, batch) {
+    const text = String(body);
+    const mentions = (name) => name && new RegExp(`(^|[^0-9A-Za-z~_])${name.replace(/[.*+?^${}()|[]\]/g, '\$&')}([^0-9A-Za-z]|$)`).test(text);
+    return batch.findIndex((o) => mentions(o.packed) || mentions(o.provisional) || mentions(o.designation));
 }
 
-/* Detections for a list of objects ({ packed, provisional }), in batches. An object Fink
-   cannot resolve is set aside and the rest of its batch asked again. Returns the
-   detections grouped by provisional designation, and the objects Fink could not find. */
+/* Detections for a list of objects ({ packed, provisional, designation }), in batches.
+ *
+ * Nothing already fetched is ever thrown away. The first live run lost every batch to one
+ * error it could not read, so now:
+ *   - an object Fink rejects by name is set aside and the rest of its batch asked again;
+ *   - a batch that fails any other way is skipped, with the reason, and the next batch
+ *     asked;
+ *   - if the run has to stop (out of request budget, response too large, network gone),
+ *     what was fetched so far is returned, with the reason.
+ * The caller decides whether a month with skipped batches counts as fetched. */
 export async function fetchDetections(polite, objects, { batchSize = FINK_BATCH } = {}) {
     const byProvisional = new Map();
     const unresolved = [];
-    for (let start = 0; start < objects.length; start += batchSize) {
+    const skipped = [];
+    let stopped = null;
+    batches: for (let start = 0; start < objects.length; start += batchSize) {
         let batch = objects.slice(start, start + batchSize);
         while (batch.length) {
-            const response = await polite(finkUrl(batch.map((o) => o.packed)));
-            if (response.status === 400) {
-                const bad = unresolvedIn(response.body);
-                const index = batch.findIndex((o) => o.packed === bad || o.provisional === bad || o.designation === bad);
-                if (index < 0) throw new Error(`Fink rejected a batch without naming an object: ${response.body.slice(0, 200)}`);
-                unresolved.push(batch[index]);
-                batch = batch.filter((_, k) => k !== index);
-                continue;
+            let response;
+            try {
+                response = await polite(finkUrl(batch.map((o) => o.packed)));
+            } catch (error) {
+                stopped = error.message;
+                skipped.push({ designations: objects.slice(start).map((o) => o.designation), reason: `stopped: ${error.message}` });
+                break batches;
             }
-            if (!response.ok) throw new Error(`Fink batch failed: HTTP ${response.status}`);
+            if (response.status === 400) {
+                const index = rejectedIn(response.body, batch);
+                if (index >= 0) {
+                    unresolved.push(batch[index]);
+                    batch = batch.filter((_, k) => k !== index);
+                    continue;
+                }
+            }
+            if (!response.ok) {
+                skipped.push({ designations: batch.map((o) => o.designation), reason: `HTTP ${response.status}: ${String(response.body).slice(0, 200)}` });
+                break;
+            }
             for (const row of JSON.parse(response.body)) {
                 const key = row['r:designation'];
                 if (!byProvisional.has(key)) byProvisional.set(key, []);
@@ -151,7 +198,7 @@ export async function fetchDetections(polite, objects, { batchSize = FINK_BATCH 
             break;
         }
     }
-    return { byProvisional, unresolved };
+    return { byProvisional, unresolved, skipped, stopped };
 }
 
 /* ---- Photometry ------------------------------------------------------------------------ */

@@ -115,3 +115,47 @@ export function assessH(H, { errH = 0, threshold = 0.8, sample = TNO_ALBEDOS } =
         effectiveCount, width,
     };
 }
+
+/* ---- Measured sizes ------------------------------------------------------------------- */
+
+/* For an object whose albedo has been measured (js/tnoalbedos.js), the size is known and
+   averaging over typical albedos would throw that away. The first live run showed it:
+   Salacia's catalogue H, averaged over typical albedos, gave 78% and failed, though its
+   albedo is measured (dark, 0.041). The measured pair gives the diameter directly. */
+
+/* The snapshot names objects "(120347) Salacia 2004 SB60" or "2014 UZ224": index by
+   number and by provisional designation, either of which JPL may use. */
+let measuredIndex = null;
+function indexMeasured(sample) {
+    const index = new Map();
+    for (const o of sample) {
+        const number = o.name.match(/^\((\d+)\)/)?.[1];
+        const provisional = o.name.match(/(\d{4} [A-Z]{2}\d*)$/)?.[1];
+        if (number) index.set(number, o);
+        if (provisional) index.set(provisional, o);
+    }
+    return index;
+}
+
+/* The measured albedo for an object, by JPL designation or provisional designation, or
+   null. */
+export function measuredFor({ designation, provisional }, { sample = TNO_ALBEDOS } = {}) {
+    const index = sample === TNO_ALBEDOS ? (measuredIndex ??= indexMeasured(sample)) : indexMeasured(sample);
+    return index.get(String(designation)) ?? index.get(String(provisional)) ?? null;
+}
+
+/* The verdict for an object of known diameter: the same shape as assessH, but no
+   averaging, so no large-if-dark question - the size is measured. */
+export function assessDiameter(diameterKm, { threshold = 0.8 } = {}) {
+    const { evidence: evidenceFit, grundy: grundyFit } = readingFits();
+    const evidence = chanceShaped(evidenceFit, diameterKm);
+    const grundy = chanceShaped(grundyFit, diameterKm);
+    const passes = evidence >= threshold;
+    const flags = passes && grundy < threshold ? ['disputed'] : [];
+    return {
+        evidence, grundy, passes, flags,
+        disputed: flags.includes('disputed'),
+        ifDark: { albedo: null, evidence, grundy },
+        diameterKm,
+    };
+}

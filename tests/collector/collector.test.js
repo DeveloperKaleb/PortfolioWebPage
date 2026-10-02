@@ -174,8 +174,9 @@ describe('A collector run', () => {
                 return recorded(url);
             };
             const { digest } = await collect({ dataDir: dir, date: new Date('2026-10-05T06:00:00Z'), polite });
-            expect(digest.notes.join(' ')).toMatch(/Fink failed.*Fink is down/);
+            expect(digest.notes.join(' ')).toMatch(/only partly fetched.*Fink is down.*ask again next week/);
             expect(read(dir, 'state.json').finkFetchedMonth).toBeUndefined();
+            expect(read(dir, 'inputs/2026-10/detections.json')).toMatchObject({ complete: false, stopped: 'Fink is down' });
             expect(digest.entries.every((e) => e.hSource === 'catalogue (JPL)')).toBe(true);
         } finally {
             rmSync(dir, { recursive: true, force: true });

@@ -79,9 +79,12 @@ function entry(o, v) {
         designation: o.designation,
         name: o.fullName,
         H: round(o.Hv, 2), errH: round(o.errH, 2), hSource: o.hSource, detections: o.detections,
+        sizeFrom: v.sizeFrom,
+        ...(v.sizeFrom === 'measured' ? { diameterKm: round(v.diameterKm, 0), measured: { H: v.measured.H, albedo: v.measured.albedo, method: v.measured.method, source: v.measured.source } } : {}),
         chance: round(v.evidence, 3), chanceGrundy: round(v.grundy, 3), chanceIfDark: round(v.ifDark.evidence, 3),
         passes: v.passes, flags: v.flags, watch: v.watch,
         orbit: { a: round(a, 2), e: round(e, 3), i: round(i, 2), q: round(a * (1 - e), 2) },
+        orbitQuality: o.quality ?? null,
         now: { r: round(v.orbit.r, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },
     };
 }
@@ -110,15 +113,20 @@ export function provenance({ siteCommit, sources }) {
    most promising first. */
 export function buildDigest({ objects, jd, date, provenance: made, notes = [] }) {
     const entries = [];
-    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0 };
+    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0 };
     for (const o of objects) {
-        const v = assessObject({ H: o.Hv, errH: o.errH, elements: o.elements }, jd);
+        const v = assessObject({
+            H: o.Hv, errH: o.errH, elements: o.elements, quality: o.quality,
+            designation: o.designation, provisional: o.provisional,
+        }, jd);
         counts.assessed++;
         if (o.hSource.startsWith('Rubin')) counts.withRubinH++;
         if (v.passes) counts.passes++;
         if (v.flags.includes('disputed')) counts.disputed++;
         if (v.flags.includes('largeIfDark')) counts.largeIfDark++;
         if (v.watch) counts.watch++;
+        if (v.sizeFrom === 'measured') counts.measuredSize++;
+        if (v.flags.includes('uncertainOrbit')) counts.uncertainOrbit++;
         if (!v.passes && v.evidence >= NEAR_MISS) counts.nearMiss++;
         if (interesting(v)) entries.push(entry(o, v));
     }

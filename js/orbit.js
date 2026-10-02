@@ -143,3 +143,20 @@ export function orbitFlags(el) {
     else if (i > t.inclined) flags.push('highlyInclined');
     return flags;
 }
+
+/* How well an orbit is known, from JPL's data_arc (days the observations span) and
+   condition_code (the MPC's U, 0 well known to 9 highly uncertain). A fresh discovery's
+   orbit can be far off: the first live run's watch list included 2026 RY158, found this
+   year, with a perihelion of 11 AU and a retrograde orbit - more likely an early orbit
+   than a find. These lines are conventions, not published cuts: a year of observations
+   pins a distant orbit far better than a few weeks, and U of 6 or more means positions a
+   year on are uncertain by degrees. */
+export const ORBIT_QUALITY = { minArcDays: 365, maxConditionCode: 5 };
+
+export function qualityFlags(quality) {
+    if (!quality) return [];
+    const { arcDays, conditionCode } = quality;
+    const short = arcDays !== null && arcDays !== undefined && arcDays < ORBIT_QUALITY.minArcDays;
+    const poor = conditionCode !== null && conditionCode !== undefined && conditionCode > ORBIT_QUALITY.maxConditionCode;
+    return short || poor ? ['uncertainOrbit'] : [];
+}
