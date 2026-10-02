@@ -70,24 +70,9 @@ export function darkAlbedo({ sample = TNO_ALBEDOS, quantile = 0.05 } = {}) {
     return sorted[Math.floor(quantile * (sorted.length - 1))];
 }
 
-/* What the digest records about an object beyond pass or fail. Each flag is a question
-   worth a second look, never a verdict, and none of them changes whether it passes.
-   Defined once, with the words the digest and the tab show for it.
-
-   The orbit step is meant to add its flags here - unusually distant, highly inclined or
-   retrograde orbits - since an out-of-place body would likely show itself in its orbit
-   as well as its brightness, and an object flagged both large-if-dark and for its orbit
-   is the one most worth watching. */
-export const FLAGS = {
-    disputed: {
-        label: 'Disputed',
-        means: 'Passes on the evidence reading, but would fail if mid-sized TNOs never compacted, as Grundy et al. (2019) argue.',
-    },
-    largeIfDark: {
-        label: 'Large if dark',
-        means: 'Fails as a typical object of its brightness, but would pass if it were as dark as the darkest TNOs measured. Only a thermal measurement, an occultation or a moon could settle its size.',
-    },
-};
+/* The flags are defined, with their words, in js/flags.js, shared with the orbit
+   checks. Re-exported here for anything that only needs the brightness side. */
+export { FLAGS } from './flags.js';
 
 /* The filter's verdict on an object of visual absolute magnitude H (with standard error
    errH):

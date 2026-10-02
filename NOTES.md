@@ -2891,3 +2891,34 @@ over the albedos the object plausibly has.
   distant, highly inclined, retrograde). An out-of-place body would likely show in its
   orbit too, so an object flagged both `largeIfDark` and for its orbit is the one most
   worth watching. A test fails if `assessH` raises a flag `FLAGS` does not define.
+
+### Orbits (`js/orbit.js`, `js/flags.js`, `js/verdict.js`)
+
+- **Two-body motion from JPL's elements** (heliocentric ecliptic J2000), with Kepler's
+  equation for elliptic and unbound orbits. A parabolic orbit is refused rather than
+  approximated. It ignores the planets' pull. Against JPL Horizons, which includes
+  it, the distances agree to 0.0003 AU near the elements' epoch and 0.007 AU three
+  years out, and the magnitudes to 0.001. The values are recorded in
+  `tests/orbit/fixtures.js` (fetched 2026-10-02), so the tests never call JPL. Two
+  deliberate breakages, a flipped rotation sign and a wrong mean-motion exponent, both
+  failed them. The collector refreshes the elements, so the drift never grows far.
+- **JPL's API rounds elements to 3 significant figures by default.** Ask for
+  `full-prec=1`. At 3 figures Sedna's position is visibly off.
+- **Earth** comes from the Astronomical Almanac's low-precision solar coordinates, turned
+  back to J2000. That is plenty for objects tens of AU away.
+- **Detectable** means one Rubin visit could see it: V minus a typical TNO colour
+  (V - r = 0.4) within r = 24.7, the single-visit depth in Ivezic et al. (2019). The
+  collector should use measured colours where Rubin has them.
+- **Scope:** an object beyond 100,000 AU (`SCOPE_AU`) never passes.
+- **Orbit flags**, in the shared table `js/flags.js`:
+  - `extremeOrbit`: a > 150 AU and q > 30 AU, the extreme-TNO definition of Trujillo &
+    Sheppard (2014).
+  - `detached`: q > 50 AU, the Sednoid cut.
+  - `highlyInclined`: i > 40 degrees. This is a convention, not a published line, and
+    should be tuned once the collector has the TNO population.
+  - `retrograde`: i > 90 degrees, replacing `highlyInclined`.
+  - `unbound`: e >= 1.
+  Like the brightness flags, they never change whether an object passes.
+- **`assessObject`** (`js/verdict.js`) is what the collector will call per object. Its
+  `watch` is true for a failing object flagged both `largeIfDark` and for its orbit:
+  the out-of-place case.
