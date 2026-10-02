@@ -61,7 +61,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty modules, all free of `document`/DOM calls so they stay testable
+The pure layer is twenty-two modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -127,6 +127,12 @@ under Vitest without a browser:
   scope, and the orbit flags. Tested against recorded JPL Horizons values.
 - `js/flags.js` — every flag the Rubin digest can raise, with the words it shows.
 - `js/verdict.js` — the whole verdict on one object: brightness and orbit together.
+- `js/polite.js` — the courtesy layer every Rubin data request goes through: one at a
+  time, gaps, budgets, backoff, Retry-After, size caps. `fetch`, `sleep` and `now` are
+  passed in, so it is tested with a fake network and clock.
+- `js/sources.js` — the JPL and Fink clients and the photometry that turns Rubin
+  detections into a visual H. Tested against recorded responses; never calls a live
+  service in tests.
 
 `entertainment/entertainment.js` is the DOM/state layer for every game and the toy:
 rendering, game loops (`setInterval`), input handling and score/status UI. It imports

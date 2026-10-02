@@ -2922,3 +2922,39 @@ over the albedos the object plausibly has.
 - **`assessObject`** (`js/verdict.js`) is what the collector will call per object. Its
   `watch` is true for a failing object flagged both `largeIfDark` and for its orbit:
   the out-of-place case.
+
+### Source clients (`js/polite.js`, `js/sources.js`)
+
+- **Fink's fitted table (SSoFT) is useless for distant objects.** Its fit needs a range
+  of phase angles, which TNOs never show. Gonggong has a row, but with no H and fit code
+  4 (failure). So H is computed from Rubin's individual detections, fetched from Fink's
+  `/api/v1/sso`. Each detection carries a flux (nJy, AB), the distances from Sun and
+  Earth, and the phase angle. It is reduced to 1 AU and zero phase with H-G, G = 0.15,
+  then averaged per band, weighted, with an uncertainty that is the larger of the
+  statistical error and the scatter, floor 0.05. Visual H uses Jester et al. (2005)
+  when g and r are both present. Otherwise it uses r plus a typical TNO colour (0.4),
+  with 0.15 mag added to the uncertainty. With neither, it falls back to the catalogue
+  H, at +-0.3. Gonggong gives 2.17 +- 0.16 against 2.34 published. JPL's catalogue says
+  1.82, which is why Rubin's own photometry is preferred.
+- **Coverage is thin so far.** On 2026-10-02 Fink had Rubin detections of Gonggong (7,
+  in r, i and z), but none of Eris, Sedna, Makemake or Haumea.
+- **Packed designations.** Fink resolves designations through IMCCE's Quaero, and a
+  plain number can fail. It failed for Quaoar (50000), rejecting the whole batch with
+  an HTTP 400 that names the object. Requests use MPC packed designations
+  (`packDesignation`), and `fetchDetections` sets an unresolvable object aside and asks
+  again for the rest. Fink detections are joined to JPL objects by provisional
+  designation (`r:designation` against the brackets in JPL's full name).
+- **Only bright-enough objects are asked about.** JPL lists 7,293 TNOs. Fink is asked
+  only about those with catalogue H <= 7.5 (`FINK_H_LIMIT`), in batches of 100 with 12
+  of Fink's 144 columns. The flags stop near H 6, and catalogue H can be half a
+  magnitude out.
+- **JPL:** a count-only query first, so an unchanged week is one tiny request. Then
+  pages of 2,500 at `full-prec=1`. Its list query rounds too, without that.
+- **Courtesy layer:** one request in flight, a 5 s gap per host, a 200-request budget per
+  run (retries count), up to 3 retries on 429/5xx honouring Retry-After up to an hour,
+  otherwise exponential backoff from 10 s. It never retries a refusal or an over-size
+  response (50 MB cap, enforced while streaming). The timeout covers headers and body.
+  The User-Agent names the project with a contact. Two deliberate breakages (no gap, no
+  queue) each failed a test.
+- **Machine note:** on the owner's machine, Git Bash's `curl` fails TLS verification for
+  JPL. Node's `fetch` works, and it is what the clients use.
