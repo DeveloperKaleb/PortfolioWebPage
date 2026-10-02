@@ -2,7 +2,9 @@
  *
  * GONGGONG_DETECTIONS: Fink/LSST /api/v1/sso for packed designations
  * D6199,90377,M5088,D6472,D6108 (Eris, Sedna, Gonggong, Makemake, Haumea). Only Gonggong
- * had Rubin detections. Trimmed to the columns js/sources.js asks for.
+ * had Rubin detections. Trimmed to the columns js/sources.js asks for. The position and
+ * velocity columns (helio_*) come from a second recording of the same seven detections
+ * that day, matched by time and band.
  *
  * JPL_PAGE: SBDB Query API, sb-class=TNO, full-prec=1, limit=3, with the orbit-quality
  * fields (data_arc, condition_code, n_obs_used), as returned. JPL_COUNT is the count-only
@@ -20,7 +22,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 0.99959105,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.76543,
+  "r:helio_y": -33.60471,
+  "r:helio_z": -15.866673,
+  "r:helio_vx": 1.7581875,
+  "r:helio_vy": 0.8192555,
+  "r:helio_vz": 1.6510803
  },
  {
   "r:designation": "2007 OR10",
@@ -34,7 +42,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 0.99821424,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.76543,
+  "r:helio_y": -33.604713,
+  "r:helio_z": -15.866674,
+  "r:helio_vx": 1.7581877,
+  "r:helio_vy": 0.8192555,
+  "r:helio_vz": 1.6510803
  },
  {
   "r:designation": "2007 OR10",
@@ -48,7 +62,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 1,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.76145,
+  "r:helio_y": -33.606594,
+  "r:helio_z": -15.870442,
+  "r:helio_vx": 1.7583897,
+  "r:helio_vy": 0.81920415,
+  "r:helio_vz": 1.651061
  },
  {
   "r:designation": "2007 OR10",
@@ -62,7 +82,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 0.9999999,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.75428,
+  "r:helio_y": -33.609936,
+  "r:helio_z": -15.877175,
+  "r:helio_vx": 1.7587419,
+  "r:helio_vy": 0.81911767,
+  "r:helio_vz": 1.6510277
  },
  {
   "r:designation": "2007 OR10",
@@ -76,7 +102,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 1,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.75425,
+  "r:helio_y": -33.609947,
+  "r:helio_z": -15.877203,
+  "r:helio_vx": 1.7587435,
+  "r:helio_vy": 0.8191174,
+  "r:helio_vz": 1.6510278
  },
  {
   "r:designation": "2007 OR10",
@@ -90,7 +122,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 0.9999995,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.750305,
+  "r:helio_y": -33.6118,
+  "r:helio_z": -15.880924,
+  "r:helio_vx": 1.7589397,
+  "r:helio_vy": 0.81906784,
+  "r:helio_vz": 1.6510069
  },
  {
   "r:designation": "2007 OR10",
@@ -104,7 +142,13 @@ export const GONGGONG_DETECTIONS = [
   "r:psfFlux_flag": false,
   "r:pixelFlags_saturatedCenter": false,
   "r:reliability": 1,
-  "r:timeWithdrawnMjdTai": null
+  "r:timeWithdrawnMjdTai": null,
+  "r:helio_x": 81.75028,
+  "r:helio_y": -33.611813,
+  "r:helio_z": -15.880948,
+  "r:helio_vx": 1.7589412,
+  "r:helio_vy": 0.81906766,
+  "r:helio_vz": 1.651007
  }
 ];
 
@@ -121,3 +165,15 @@ export const FINK_INVALID = "{'status': 'error', 'text': 'K11Uf3H is not a valid
 
 /* Published visual H for Gonggong (Johnston's compilation, js/tnoalbedos.js). */
 export const GONGGONG_PUBLISHED_HV = 2.34;
+
+/* MPC get-obs for 2007 OR10 (Gonggong), output_format OBS80, recorded 2026-10-02 and
+   trimmed to the asterisked discovery line and the next two. The full record had 557
+   observations: discovered at Palomar (675) on 2007-07-17. */
+export const MPC_GONGGONG = "[{\"OBS80\":\"M5088K07O10R*_C2007 07 17.39416 22 16 18.15 -15 02 01.3          21.4 Rc~033v675\\nM5088K07O10R 4 1985 08 19.19084 21 52 39.47 -21 37 43.0                o~08Uf262\\nM5088K07O10R 4 1991 10 01.47296 21 57 30.24 -19 52 51.6                o~08Uf260\"}]";
+
+/* MPC obscodes for X05, recorded 2026-10-02, trimmed to the fields used. */
+export const MPC_X05 = "{\"obscode\":\"X05\",\"name\":\"Simonyi Survey Telescope, Rubin Observatory\",\"short_name\":\"Simonyi Survey Telescope, Rubin Observatory\",\"longitude\":\"289.25058\",\"observations_type\":\"optical\"}";
+
+/* Fink's Rubin list (ssoft, columns designation,sso_number,n_days), recorded 2026-10-02
+   for Gonggong alone; the real list is about 750 KB. */
+export const RUBIN_LIST = "designation,sso_number,n_days\n2007 OR10,225088,14.959546812810004\n";

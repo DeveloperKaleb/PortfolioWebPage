@@ -55,7 +55,7 @@ describe('Words', () => {
     test('the status line says when, how many and how much is Rubin\'s own', () => {
         expect(summary(digest)).toEqual([
             'Updated 5 October 2026', '7,294 distant objects checked', '2 likely shaped by their own gravity',
-            '1 worth watching', "Rubin's own measurements for 41",
+            '1 worth watching', '41 confirmed by Rubin',
         ]);
     });
 });

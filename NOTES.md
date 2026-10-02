@@ -3085,3 +3085,81 @@ large-if-dark question.
   this holds as more objects get Rubin data, the catalogue-H objects (most of them) are
   judged a little generously, and a measured offset could correct them. Revisit with
   more data before acting.
+
+### Who discovered it (MPC), and what the setup cannot see
+
+- **Discovery circumstances come from the MPC's observations API** (`get-obs`). Each
+  object's discovery observation is the one with an asterisk in column 13 of the
+  80-column format, with the date in columns 16-32 and the observatory code in 78-80.
+  Gonggong comes out as Palomar (675), 2007-07-17. **Rubin's code is X05**, "Simonyi
+  Survey Telescope, Rubin Observatory", confirmed against the MPC's obscodes API, so
+  "found by Rubin" means the discovery observation is X05. JPL's query API has no
+  discovery fields.
+- **The API is one object per request and returns the whole observation history**, so it
+  is used sparingly. Only objects in the digest are asked about, never all 7,296. Each is
+  asked once and kept in rubin-data's `discovery.json`, because discovery never changes.
+  At most `DISCOVERY_PER_RUN` (40) are asked per weekly run, most interesting first, so
+  the first backfill of about 376 spreads over ten weekly runs. An object the MPC cannot
+  answer for is tried again the next month, not every week. Observatory names are asked
+  once per code.
+- **It wants a GET with a JSON body**, and refuses POST (405). Node's fetch refuses a body
+  on a GET, so `liveFetch` in tools/rubin-collect.mjs sends those through node:https,
+  streamed into a standard Response so the courtesy layer's size cap and timeout still
+  apply. Checked live against Gonggong through the real code path.
+- **What the setup is not sensitive to.** Everything starts from JPL's TNO list, so:
+  (1) Rubin detections not yet linked into an orbit are invisible, and could not be
+  sized anyway, having no distance. That was out of scope from the start. (2) Objects
+  designated but not yet at JPL are a short gap, about a day. (3) Objects JPL does not
+  class as TNO (centaurs, comets) are outside the query. (4) Objects whose names Fink
+  cannot resolve are still assessed, on catalogue H. The setup notices Rubin's finds
+  once they have an orbit and a designation.
+
+## Rubin is the source of truth (owner's direction, 2026-10-02)
+
+Rubin runs for at least ten years, and the tab treats it as the source of truth, as far
+as possible. JPL and the others are validation and fallback. The owner chose to keep
+objects Rubin has not yet measured, labelled "Not yet confirmed by Rubin", and to use
+Rubin's predicted positions and velocities as its view of the orbit.
+
+| | Source of truth | Validation / fallback |
+|---|---|---|
+| Brightness (H) | Rubin's photometry, where Rubin has measured it | JPL catalogue H, labelled, with a recorded difference |
+| Orbit, where it is now | Rubin's own position and velocity at its latest detection | JPL's elements, kept beside Rubin's for the cross-check |
+| Who is seen | Rubin's monthly list (Fink SSoFT, 3 columns, ~750 KB) | JPL's class says which objects are distant, since Rubin can't yet |
+| Discovery | MPC, where Rubin is X05 | - |
+| Measured size | Unchanged: thermal and occultation measure the diameter itself, and the albedo is derived from it. Rubin's H does not override a measured diameter. | |
+
+- **Rubin's orbit records** (`r:helio_x/y/z`, `r:helio_vx/vy/vz` in each detection) are
+  in AU and km/s in the equatorial frame (ICRS). They were checked against JPL for
+  Gonggong: 0.0007 AU in position and 0.0005 km/s in velocity. `rubinState` turns the
+  latest record into elements (`elementsFromState`). For Gonggong that gives a = 66.871
+  against JPL's 66.867. These are Rubin's own predictions, from the MPC orbit its
+  observations feed into, not an independent fit. Orbits fitted from Rubin's sky
+  positions alone are a later step, once arcs span several seasons.
+- **Orbit quality** for the `uncertainOrbit` flag still comes from the MPC's U and arc,
+  because Rubin's state vector inherits that orbit's reliability. Rubin's own observing
+  span is shown separately.
+- **The catalogue offset.** Over the 50 objects Rubin had measured, its H runs 0.35 mag
+  fainter than JPL's catalogue (median, range -0.07 to +0.81). The brightness
+  cross-check is judged against that median, measured afresh each month once at least 10
+  objects are available (`catalogueOffset`). Otherwise it would flag the catalogue's
+  general bias as individual disagreements: raw, 9 of 50 crossed 0.5 mag, and after the
+  offset none do. The offset is recorded in each digest (`catalogue`) and stated on the
+  tab, because over ten years it becomes a finding in its own right.
+- **`jplDisagrees`** (kind `validation`) is raised when Rubin and JPL differ beyond
+  `VALIDATION`: H by 0.5 mag beyond the offset, distance now by 0.1 AU, semi-major axis
+  by 5%, or inclination by 1 degree.
+
+### Gentleness, revised the same day
+
+On 2026-10-02 the full monthly collection ran three times (two test runs and the first
+live run): about 250 Fink requests in a day, each run sequential with 5 s gaps. That was
+setup only. From now on:
+- **Rubin's list first.** One ~750 KB request a month says which objects Rubin has seen,
+  and only those go to Fink for detections. In the confirmation run, 151 of 3,430 bright
+  TNOs had any detections, so this takes a Fink month from about 88 requests to about 5.
+  The seen TNOs are kept in `inputs/<month>/rubin-seen.json`, so quiet weeks reuse them.
+- **Names Fink's lookup failed on are left alone for 3 months** (`fink-unresolved.json`).
+  Each one would otherwise cost an extra batch request every month.
+- **No usage guidance has been published by Fink.** The limits are ours. The owner may
+  email the Fink team later to ask what pattern they prefer.

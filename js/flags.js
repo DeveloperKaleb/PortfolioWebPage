@@ -45,6 +45,11 @@ export const FLAGS = {
         label: 'Uncertain orbit',
         means: 'Its orbit rests on under a year of observations, or the Minor Planet Center rates it poorly known (U of 6 or more): its distance, brightness and orbit flags may change a lot as it is followed up.',
     },
+    jplDisagrees: {
+        kind: 'validation',
+        label: 'Differs from JPL',
+        means: 'Rubin and JPL disagree on it by more than the usual margin - in brightness, where it is now, or its orbit. Rubin is taken as the source of truth; the difference is worth a look.',
+    },
     unbound: {
         kind: 'orbit',
         label: 'Unbound',

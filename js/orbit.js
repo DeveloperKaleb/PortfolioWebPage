@@ -162,3 +162,81 @@ export function qualityFlags(quality) {
     const poor = conditionCode !== null && conditionCode !== undefined && conditionCode > ORBIT_QUALITY.maxConditionCode;
     return short || poor ? ['uncertainOrbit'] : [];
 }
+
+/* ---- Orbits from Rubin's own records ------------------------------------------------- */
+
+/* Rubin's detection records carry the object's heliocentric position (AU) and velocity
+   (km/s) in the equatorial frame (ICRS). Checked against Gonggong: rotated into the
+   equatorial frame, JPL's orbit agrees to 0.0007 AU in position and 0.0005 km/s in
+   velocity. These are Rubin's own predictions for the object (from the MPC orbit its
+   observations feed), the closest thing to Rubin's view of the orbit until orbits can be
+   fitted from Rubin's sky positions alone. See NOTES.md. */
+export const OBLIQUITY_J2000 = 23.4392911 * DEG;
+export const KM_S_TO_AU_PER_DAY = 86400 / 149597870.7;
+
+/* Equatorial (ICRS) to ecliptic J2000: a rotation about x by the obliquity. */
+export function equatorialToEcliptic([x, y, z]) {
+    const c = Math.cos(OBLIQUITY_J2000), s = Math.sin(OBLIQUITY_J2000);
+    return [x, c * y + s * z, -s * y + c * z];
+}
+
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = (a) => Math.sqrt(dot(a, a));
+const wrapDeg = (rad) => ((rad / DEG) % 360 + 360) % 360;
+
+/* Orbital elements, in the same form as JPL's (a in AU, negative when unbound; angles in
+   degrees; epoch a JD), from a heliocentric ecliptic position (AU) and velocity
+   (AU/day) at a moment. Two-body, the Sun's mass alone, like the rest of this module. */
+export function elementsFromState(position, velocity, epoch) {
+    const mu = K * K;
+    const r = norm(position);
+    const h = cross(position, velocity);
+    const n = [-h[1], h[0], 0];
+    const eVec = cross(velocity, h).map((c, k) => c / mu - position[k] / r);
+    const e = norm(eVec);
+    const energy = dot(velocity, velocity) / 2 - mu / r;
+    const a = -mu / (2 * energy);
+    const i = Math.acos(Math.max(-1, Math.min(1, h[2] / norm(h))));
+    const nLen = norm(n);
+    /* Undefined for an orbit in the ecliptic or a circle; set to zero then, as is usual. */
+    const om = nLen > 1e-12 ? Math.atan2(n[1], n[0]) : 0;
+    let w = 0;
+    if (nLen > 1e-12 && e > 1e-10) {
+        w = Math.acos(Math.max(-1, Math.min(1, dot(n, eVec) / (nLen * e))));
+        if (eVec[2] < 0) w = 2 * Math.PI - w;
+    }
+    let nu = e > 1e-10
+        ? Math.acos(Math.max(-1, Math.min(1, dot(eVec, position) / (e * r))))
+        : Math.atan2(position[1], position[0]) - om;
+    if (dot(position, velocity) < 0) nu = 2 * Math.PI - nu;
+    let ma;
+    if (e < 1) {
+        const E = 2 * Math.atan2(Math.sqrt(1 - e) * Math.sin(nu / 2), Math.sqrt(1 + e) * Math.cos(nu / 2));
+        ma = E - e * Math.sin(E);
+    } else {
+        const F = 2 * Math.atanh(Math.sqrt((e - 1) / (e + 1)) * Math.tan(nu / 2));
+        ma = e * Math.sinh(F) - F;
+    }
+    return { a, e, i: i / DEG, om: wrapDeg(om), w: wrapDeg(w), ma: e < 1 ? wrapDeg(ma) : ma / DEG, epoch };
+}
+
+/* Rubin's view of an object from its detections (Fink rows): the latest usable record's
+   position and velocity, turned into elements, and how long Rubin has been following it.
+   Null when no record carries a position. */
+export function rubinState(rows) {
+    const usable = rows.filter((row) => ['r:helio_x', 'r:helio_y', 'r:helio_z', 'r:helio_vx', 'r:helio_vy', 'r:helio_vz', 'r:midpointMjdTai']
+        .every((k) => Number.isFinite(row[k])));
+    if (!usable.length) return null;
+    const times = usable.map((row) => row['r:midpointMjdTai']);
+    const latest = usable[times.indexOf(Math.max(...times))];
+    const jd = latest['r:midpointMjdTai'] + 2400000.5;
+    const position = equatorialToEcliptic([latest['r:helio_x'], latest['r:helio_y'], latest['r:helio_z']]);
+    const velocity = equatorialToEcliptic([latest['r:helio_vx'], latest['r:helio_vy'], latest['r:helio_vz']]).map((v) => v * KM_S_TO_AU_PER_DAY);
+    return {
+        elements: elementsFromState(position, velocity, jd),
+        firstJd: Math.min(...times) + 2400000.5,
+        lastJd: jd,
+        arcDays: Math.max(...times) - Math.min(...times),
+    };
+}

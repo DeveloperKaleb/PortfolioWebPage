@@ -78,7 +78,7 @@ export function createPoliteFetch({
     let queue = Promise.resolve();
 
     /* One request, timed out as a whole: headers and body together. */
-    async function once(url, headers, maxBytes) {
+    async function once(url, headers, maxBytes, method, body) {
         if (used >= rules.maxRequests) throw new BudgetExceeded(`request budget of ${rules.maxRequests} used up`);
         const host = new URL(url).host;
         const wait = (lastAt.get(host) ?? -Infinity) + rules.minGapMs - now();
@@ -88,19 +88,21 @@ export function createPoliteFetch({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), rules.timeoutMs);
         try {
-            const response = await fetch(url, { headers: { 'User-Agent': userAgent, ...headers }, signal: controller.signal });
-            const body = response.status === 304 ? '' : await readCapped(response, maxBytes);
-            return { status: response.status, ok: response.ok, notModified: response.status === 304, headers: response.headers, body };
+            const response = await fetch(url, { method, body, headers: { 'User-Agent': userAgent, ...headers }, signal: controller.signal });
+            const text = response.status === 304 ? '' : await readCapped(response, maxBytes);
+            return { status: response.status, ok: response.ok, notModified: response.status === 304, headers: response.headers, body: text };
         } finally {
             clearTimeout(timer);
         }
     }
 
-    async function request(url, { headers = {}, maxBytes = rules.maxBytes } = {}) {
+    /* method and body pass straight through: the Minor Planet Center's API wants a GET
+       with a JSON body, which the collector's live fetch (tools/rubin-collect.mjs) sends. */
+    async function request(url, { headers = {}, maxBytes = rules.maxBytes, method = 'GET', body } = {}) {
         for (let attempt = 0; ; attempt++) {
             let result, failure;
             try {
-                result = await once(url, headers, maxBytes);
+                result = await once(url, headers, maxBytes, method, body);
             } catch (error) {
                 /* Over budget or over size: stop, do not retry. */
                 if (error instanceof BudgetExceeded || error instanceof TooLarge) throw error;

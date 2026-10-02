@@ -130,6 +130,8 @@ const FINK_SSO = 'https://api.lsst.fink-portal.org/api/v1/sso';
 export const FINK_COLUMNS = [
     'r:designation', 'r:band', 'r:midpointMjdTai', 'r:psfFlux', 'r:psfFluxErr', 'r:helioRange', 'r:topoRange',
     'r:phaseAngle', 'r:psfFlux_flag', 'r:pixelFlags_saturatedCenter', 'r:reliability', 'r:timeWithdrawnMjdTai',
+    /* Rubin's position (AU) and velocity (km/s), equatorial: its view of the orbit (js/orbit.js). */
+    'r:helio_x', 'r:helio_y', 'r:helio_z', 'r:helio_vx', 'r:helio_vy', 'r:helio_vz',
 ];
 
 /* Fink is only asked about objects bright enough to matter: the flags stop at about
@@ -140,6 +142,33 @@ export const FINK_BATCH = 100;
 export const finkUrl = (packed) => `${FINK_SSO}?${new URLSearchParams({
     n_or_d: packed.join(','), columns: FINK_COLUMNS.join(','), 'output-format': 'json',
 })}`;
+
+/* Everything Rubin has seen: Fink's monthly table, cut to three columns - about 750 KB in
+   one request. It is what decides who gets asked about: only objects Rubin has seen are
+   worth a detections request. Asking about every bright TNO took 34 batches when only
+   151 of 3,430 had any detections. Its fitted columns are empty for distant objects, but
+   the membership is complete. */
+export const rubinListUrl = () => `${FINK_SSO.replace(/sso$/, 'ssoft')}?${new URLSearchParams({
+    'output-format': 'csv', columns: 'designation,sso_number,n_days',
+})}`;
+
+/* The objects in Rubin's list, by provisional designation and by number. */
+export function parseRubinList(csv) {
+    const [header, ...lines] = String(csv).trim().split(/\r?\n/);
+    const col = Object.fromEntries(header.split(',').map((name, k) => [name.trim(), k]));
+    const designations = new Set(), numbers = new Set();
+    for (const line of lines) {
+        const cells = line.split(',');
+        const designation = cells[col.designation]?.trim();
+        const number = cells[col.sso_number]?.trim();
+        if (designation) designations.add(designation);
+        if (number) numbers.add(String(Number(number)));
+    }
+    return { designations, numbers, size: lines.length };
+}
+
+export const seenByRubin = (list, { designation, provisional }) =>
+    list.numbers.has(String(designation)) || list.designations.has(provisional) || list.designations.has(String(designation));
 
 /* One designation Fink's name lookup does not know fails the whole batch with an HTTP 400
    that names it - in more than one wording ("... for the object 50000 according to
@@ -264,3 +293,89 @@ export function visualH(bands) {
 /* Catalogue H (JPL, from the Minor Planet Center) is often a few tenths out for distant
    objects, so when it is all there is, it carries this uncertainty. */
 export const CATALOGUE_H_ERR = 0.3;
+
+/* ---- Minor Planet Center: who discovered it ---------------------------------------------- */
+
+/* Rubin's observatory code at the MPC: "Simonyi Survey Telescope, Rubin Observatory"
+   (confirmed against the MPC's observatory codes API). */
+export const RUBIN_STATION = 'X05';
+
+const MPC_OBS = 'https://data.minorplanetcenter.net/api/get-obs';
+const MPC_OBSCODES = 'https://data.minorplanetcenter.net/api/obscodes';
+
+/* The MPC's APIs take a GET with a JSON body, one object per request, and return its
+   whole observation history - so the collector asks only about objects in the digest,
+   once each, and keeps the answer (discovery never changes). Only the 80-column format is
+   asked for. */
+export const mpcObsRequest = (designation) => ({
+    url: MPC_OBS,
+    options: {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desigs: [designation], output_format: ['OBS80'] }),
+    },
+});
+
+export const mpcObscodeRequest = (code) => ({
+    url: MPC_OBSCODES,
+    options: { method: 'GET', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ obscode: code }) },
+});
+
+/* The discovery observation is the one marked with an asterisk in column 13 of the
+   80-column format; the date is in columns 16-32 and the observatory code in 78-80.
+   Returns { station, date } or null when no observation is marked. */
+export function parseDiscovery(responseText) {
+    const json = JSON.parse(responseText);
+    const record = Array.isArray(json) ? json[0] : json;
+    const lines = String(record?.OBS80 ?? '').split('\n');
+    const line = lines.find((l) => l.length >= 80 && l[12] === '*');
+    if (!line) return null;
+    const [year, month, day] = line.slice(15, 32).trim().split(/\s+/);
+    return {
+        station: line.slice(77, 80),
+        date: `${year}-${month.padStart(2, '0')}-${String(Math.floor(Number(day))).padStart(2, '0')}`,
+    };
+}
+
+export const parseObscodeName = (responseText) => {
+    const json = JSON.parse(responseText);
+    return json.short_name || json.name || null;
+};
+
+/* Discovery circumstances for a list of objects ({ designation, provisional }), at most
+   `limit` of them, most interesting first (the caller orders them). Asks by provisional
+   designation, which the MPC resolves for numbered objects too. A failure for one object
+   is recorded and the rest carry on; running out of request budget stops early, keeping
+   what was found. */
+export async function fetchDiscoveries(polite, objects, { limit = Infinity } = {}) {
+    const found = {}, failed = [];
+    let stopped = null;
+    for (const o of objects.slice(0, limit)) {
+        const { url, options } = mpcObsRequest(o.provisional ?? o.designation);
+        try {
+            const response = await polite(url, { ...options, maxBytes: 20 * 1024 * 1024 });
+            const discovery = response.ok ? parseDiscovery(response.body) : null;
+            if (discovery) found[o.designation] = discovery;
+            else failed.push({ designation: o.designation, reason: response.ok ? 'no discovery observation marked' : `HTTP ${response.status}` });
+        } catch (error) {
+            if (error.name === 'BudgetExceeded' || /budget/.test(error.message)) { stopped = error.message; break; }
+            failed.push({ designation: o.designation, reason: error.message });
+        }
+    }
+    return { found, failed, stopped };
+}
+
+/* Names for observatory codes not yet known, asked once each and kept. */
+export async function fetchStationNames(polite, codes) {
+    const names = {};
+    for (const code of codes) {
+        const { url, options } = mpcObscodeRequest(code);
+        try {
+            const response = await polite(url, options);
+            if (response.ok) names[code] = parseObscodeName(response.body);
+        } catch (error) {
+            if (/budget/.test(error.message)) break;
+        }
+    }
+    return names;
+}

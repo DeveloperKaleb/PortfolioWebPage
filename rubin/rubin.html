@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rubin - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-1052" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261002-1052" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-1253" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261002-1253" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -28,6 +28,9 @@
             against public data from the Vera C. Rubin Observatory.
         </p>
         <p id="rubin-status" class="rubin-status" role="status">Loading the latest digest…</p>
+        <!-- Rubin is the source of truth; JPL the check. The measured offset between the two
+             is a finding in its own right, tracked every month. -->
+        <p id="rubin-offset" class="rubin-note rubin-offset" hidden></p>
 
         <section id="rubin-passes" class="rubin-section" hidden>
             <h3>Likely shaped by their own gravity</h3>
@@ -110,10 +113,10 @@
     <!-- Hover details for the chart and the map; filled and placed by rubin.js. -->
     <div id="rubin-tooltip" class="rubin-tooltip" role="tooltip" hidden></div>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-1052"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-1052"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-1052"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-1052"></script>
-    <script type="module" src="./rubin.js?v=20261002-1052"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-1253"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-1253"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-1253"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-1253"></script>
+    <script type="module" src="./rubin.js?v=20261002-1253"></script>
 </body>
 </html>

@@ -12,7 +12,8 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, LARGE_IF_DARK_SHOWN, summary, sections, displayName, sizeOf, flagsOf,
-    whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE,
+    whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
+    rubinStatus, crossCheckText, offsetText,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 
@@ -88,6 +89,8 @@ function table(headers, rows) {
 function card(entry, { extra } = {}) {
     const box = el('article', { class: 'rubin-card' });
     box.append(el('h4', {}, displayName(entry)));
+    const status = rubinStatus(entry);
+    box.append(el('p', { class: status.confirmed ? 'rubin-confirmed' : 'rubin-unconfirmed' }, status.text));
     if (extra) box.append(el('p', { class: 'rubin-why' }, extra));
 
     const size = sizeOf(entry);
@@ -98,6 +101,10 @@ function card(entry, { extra } = {}) {
         ? `${percent(entry.chance)} · ${percent(entry.chanceGrundy)} on Grundy's reading`
         : `${percent(entry.chance)} as typical · ${percent(entry.chanceIfDark)} if dark`);
     fact('Now', `${au(entry.now.r)} from the Sun · magnitude ${entry.now.V.toFixed(1)} · ${entry.now.detectable ? 'within one Rubin exposure' : 'too faint for one Rubin exposure'}`);
+    const found = discoveryText(entry);
+    if (found) fact('Found', found);
+    const checked = crossCheckText(entry);
+    if (checked) fact('Checked', checked);
     fact('Brightness', entry.hSource.startsWith('Rubin')
         ? `from Rubin's own detections (${entry.detections})`
         : 'from the catalogue (JPL)');
@@ -289,8 +296,12 @@ function drawChart() {
 
 /* ---- Loading ------------------------------------------------------------------------ */
 
+/* A fetch that hangs rather than fails would leave the page saying "Loading" for ever,
+   so each gives up after LOAD_TIMEOUT_MS and the page falls back to its saved copy. */
+const LOAD_TIMEOUT_MS = 15000;
+
 async function getJson(url) {
-    const response = await fetch(url, { cache: 'no-cache' });
+    const response = await fetch(url, { cache: 'no-cache', signal: AbortSignal.timeout(LOAD_TIMEOUT_MS) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
 }
@@ -322,6 +333,10 @@ async function render() {
     }
     status.replaceChildren(...summary(digest).flatMap((part, k) => (k ? [el('span', { class: 'rubin-dot', 'aria-hidden': 'true' }, ' · '), el('span', {}, part)] : [el('span', {}, part)])));
     if (stale) status.append(el('span', { class: 'rubin-stale' }, ` (offline - showing the digest of ${longDate(digest.date)})`));
+
+    const offset = offsetText(digest);
+    const offsetLine = document.getElementById('rubin-offset');
+    if (offset) { offsetLine.textContent = offset; offsetLine.hidden = false; }
 
     const { passes, watch, largeIfDark } = sections(digest);
     fillCards('rubin-passes', passes);

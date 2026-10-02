@@ -77,7 +77,8 @@ export function summary(digest) {
         `${groupThousands(counts.assessed)} distant objects checked`,
         `${counts.passes} likely shaped by their own gravity`,
         `${counts.watch} worth watching`,
-        `Rubin's own measurements for ${counts.withRubinH}`,
+        `${counts.confirmedByRubin ?? counts.withRubinH} confirmed by Rubin`,
+        ...(counts.discoveryKnown ? [`${counts.discoveredByRubin} found by Rubin`] : []),
     ];
 }
 
@@ -161,4 +162,49 @@ export function mapData(digest) {
     const radius = Math.ceil(furthest / 50) * 50;
     const rings = Array.from({ length: radius / 50 }, (_, k) => (k + 1) * 50);
     return { marks, radius, rings, planets: PLANETS };
+}
+
+/* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
+   Mountain", or "... by Rubin Observatory" for Rubin's own discoveries. Null while the
+   lookup is still pending. */
+export function discoveryText(entry) {
+    const d = entry.discovery;
+    if (!d) return null;
+    const when = longDate(d.date);
+    if (d.byRubin) return `${when}, by Rubin Observatory`;
+    return `${when}, at ${d.stationName ?? `observatory ${d.station}`}`;
+}
+
+/* ---- Rubin as the source of truth ---------------------------------------------------- */
+
+/* What Rubin itself has of the object, in words. Objects Rubin has not measured are
+   kept, labelled - the owner's choice - and the label falls away as the survey reaches
+   them. */
+export function rubinStatus(entry) {
+    const r = entry.rubin;
+    if (!r?.confirmed) return { confirmed: false, text: 'Not yet confirmed by Rubin' };
+    const span = r.arcDays >= 1 ? ` over ${Math.round(r.arcDays)} days` : '';
+    const last = r.lastSeen ? `, last ${longDate(r.lastSeen)}` : '';
+    return { confirmed: true, text: `Confirmed by Rubin: ${r.detections} detections${span}${last}` };
+}
+
+/* Rubin's values against JPL's, in words, or null when there was nothing to check. */
+export function crossCheckText(entry) {
+    const c = entry.crossCheck;
+    if (!c) return null;
+    if (c.agrees) return 'Agrees with JPL';
+    const parts = [];
+    if (c.dH !== undefined && !c.dHok) parts.push(`brightness by ${Math.abs(c.dH).toFixed(1)} mag`);
+    if (Math.abs(c.dR ?? 0) > 0.1) parts.push(`distance by ${Math.abs(c.dR).toFixed(2)} AU`);
+    if (Math.abs(c.dA ?? 0) > 0.05) parts.push(`orbit size by ${Math.round(Math.abs(c.dA) * 100)}%`);
+    if (Math.abs(c.dI ?? 0) > 1) parts.push(`tilt by ${Math.abs(c.dI).toFixed(1)} degrees`);
+    return `Differs from JPL: ${parts.join(', ')}`;
+}
+
+/* The month's measured offset between Rubin's brightness and JPL's catalogue, in words. */
+export function offsetText(digest) {
+    const c = digest.catalogue;
+    if (!c?.used) return null;
+    const dir = c.offsetH >= 0 ? 'fainter' : 'brighter';
+    return `Rubin measures these objects ${Math.abs(c.offsetH).toFixed(2)} magnitudes ${dir} than JPL's catalogue, as a median over the ${c.from} it has measured - so where Rubin has not yet looked, sizes from the catalogue may run a little large.`;
 }
