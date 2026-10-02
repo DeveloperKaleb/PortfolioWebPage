@@ -153,7 +153,7 @@ function entry(o, v) {
             lastSeen: o.rubin.lastSeenJd ? new Date((o.rubin.lastSeenJd - 2440587.5) * 86400000).toISOString().slice(0, 10) : null,
         } : null,
         crossCheck: v.crossCheck ? Object.fromEntries(Object.entries(v.crossCheck).map(([k, x]) => [k, typeof x === 'number' ? round(x, k === 'dA' ? 4 : 3) : x])) : null,
-        now: { r: round(v.orbit.r, 2), x: round(v.orbit.x, 2), y: round(v.orbit.y, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },
+        now: { r: round(v.orbit.r, 2), x: round(v.orbit.x, 2), y: round(v.orbit.y, 2), z: round(v.orbit.z, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },
     };
 }
 

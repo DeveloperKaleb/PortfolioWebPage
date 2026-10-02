@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
-    chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM,
+    chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -186,5 +186,30 @@ describe('Filtering names', () => {
 
     test('only long sections get a filter box', () => {
         expect(FILTER_FROM).toBeGreaterThan(10);
+    });
+});
+
+/* The map is seen from above the plane of the planets, so it shows distance along that
+   plane. 2014 UN225, tilted 53 degrees, is 43.7 AU from the Sun but was drawn between
+   the 20 and 30 AU rings: the details now give both. */
+describe('Along the plane, and out of it', () => {
+    const un225 = { now: { r: 43.7, x: 20.3, y: -16.72, z: 34.9 } };
+
+    test('gives the distance along the plane and the height above it', () => {
+        const parts = planeParts(un225);
+        expect(parts.along).toBeCloseTo(26.3, 1);
+        expect(planeText(un225)).toBe('26.3 AU along the plane, 34.9 AU above it');
+    });
+
+    test('says below for an object under the plane', () => {
+        expect(planeText({ now: { r: 43.7, x: 20.3, y: -16.72, z: -34.9 } })).toMatch(/34\.9 AU below it$/);
+    });
+
+    test('works out the height without a side for a digest from before z was recorded', () => {
+        expect(planeText({ now: { r: 43.7, x: 20.3, y: -16.72 } })).toBe('26.3 AU along the plane, 34.9 AU out of it');
+    });
+
+    test('says nothing extra for an object near the plane, where the map tells the truth', () => {
+        expect(planeText({ now: { r: 44, x: 30, y: 32.18, z: 0.4 } })).toBeNull();
     });
 });

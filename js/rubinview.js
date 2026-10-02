@@ -267,3 +267,30 @@ export function ringSpacing(view) {
    labelled once there is room for its name. */
 export const PLANET_DRAW_PX = 6;
 export const PLANET_LABEL_PX = 26;
+
+/* ---- Distance along the plane, and out of it ---------------------------------------------
+ *
+ * The map is seen from above the plane of the planets, so it shows an object's distance
+ * along that plane, not its true distance from the Sun. For a steeply tilted orbit the
+ * two differ a lot: 2014 UN225 (tilted 53 degrees) is 43.7 AU from the Sun but 26.3 AU
+ * along the plane, 34.9 AU above it, so the map drew it between the 20 and 30 AU rings.
+ * So the tooltip and table give both. A side view may come later. */
+
+/* Below this height the object is near enough the plane that its map position tells the
+   truth, and only the true distance is given. */
+export const PLANE_NOTE_AU = 1;
+
+export function planeParts(entry) {
+    const { r, x, y, z } = entry.now;
+    const along = Math.hypot(x, y);
+    /* z is recorded from 2026-10-05; before that only its size can be worked out. */
+    const height = Number.isFinite(z) ? Math.abs(z) : Math.sqrt(Math.max(0, r * r - along * along));
+    const side = Number.isFinite(z) ? (z >= 0 ? 'above' : 'below') : null;
+    return { r, along, height, side };
+}
+
+export function planeText(entry) {
+    const { along, height, side } = planeParts(entry);
+    if (height < PLANE_NOTE_AU) return null;
+    return `${au(along)} along the plane, ${au(height)} ${side ? `${side} it` : 'out of it'}`;
+}

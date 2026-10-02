@@ -12,7 +12,7 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
-    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, crossCheckText, offsetText,
 } from '../js/rubinview.js';
@@ -296,6 +296,7 @@ function drawMap(digest) {
             attachDetails(g, [
                 [displayName(entry), MARK_STYLE[kind].label.toLowerCase(), MARK_STYLE[kind].color],
                 [au(entry.now.r), 'from the Sun'],
+                ...(planeText(entry) ? [[planeText(entry)]] : []),
                 [sizeOf(entry).text, sizeOf(entry).measured ? 'measured' : 'from brightness'],
                 ['Click to show or hide its card'],
             ]);
@@ -389,11 +390,11 @@ function drawMap(digest) {
         plot,
     );
     section.querySelector('figcaption').textContent =
-        `Seen from above the plane of the planets on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. Every planet is where it was that day. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
+        `Seen from above the plane of the planets on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. Every planet is where it was that day. Distances on the map are along the plane of the planets, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`;
 
     const mapTable = table(
-        ['Object', 'Listed as', 'From the Sun', 'Size'],
-        data.marks.map(({ entry, kind }) => [displayName(entry), MARK_STYLE[kind].label, au(entry.now.r), sizeOf(entry).text]),
+        ['Object', 'Listed as', 'From the Sun', 'Along the plane and out of it', 'Size'],
+        data.marks.map(({ entry, kind }) => [displayName(entry), MARK_STYLE[kind].label, au(entry.now.r), planeText(entry) ?? 'in the plane', sizeOf(entry).text]),
     );
     /* Each name in the table is a button doing what clicking its map mark does. */
     [...mapTable.tBodies[0].rows].forEach((row, k) => {

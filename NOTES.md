@@ -3254,3 +3254,15 @@ change. Both sources were the owner's choice (2026-10-02):
 - **GitHub disables scheduled workflows** in public repos after 60 days without commits.
   rubin-data commits every week (state.json records each run), so a long maintenance
   period does not stop the schedule.
+
+### The map flattens height (2026-10-02)
+
+The map is seen from above the plane of the planets, so it shows distance along that
+plane. The owner noticed 2014 UN225 labelled 43.7 AU but drawn between the 20 and 30 AU
+rings. Its orbit is tilted 53 degrees and it is near the top of it: 26.3 AU along the
+plane, 34.9 AU above it. 2015 BP519 is similar (37% shorter on the map), and a few others
+are 22-26% shorter. The tooltip and the map's table now give both, once an object is
+`PLANE_NOTE_AU` (1 AU) or more out of the plane (`planeText`). The collector records
+`now.z` from 2026-10-05. Before that only the height's size is known, so the text says
+"out of it" rather than above or below. The owner wants a side (edge-on) view later; it
+is not a priority.
