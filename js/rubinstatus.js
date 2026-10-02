@@ -61,7 +61,7 @@ export function observingStatus({ lastNight, today, windows = [] }) {
     const quiet = nightsWithout(lastNight, today);
     const window = announcedWindow(windows, today);
     const offSky = Boolean(window?.active) || (quiet !== null && quiet >= OFF_SKY_NIGHTS);
-    return { offSky, lastNight, nightsWithout: quiet, window };
+    return { offSky, lastNight, nightsWithout: quiet, window, returned: offSky ? null : recentReturn(windows, today) };
 }
 
 /* The next weekly run at or after a moment. */
@@ -118,6 +118,11 @@ export function statusText(status) {
     } else if (w) {
         lines.push(`Planned maintenance is announced from ${dateWords(w.start)}${w.end ? ` to ${dateWords(w.end)}` : ''}.`);
     }
+    const r = status.returned;
+    if (r && !w?.active) {
+        const back = r.returned ?? new Date(dayStart(r.end).getTime() + DAY).toISOString().slice(0, 10);
+        lines.push(`Rubin returned to the sky on the night of ${dateWords(back)}, after ${r.reason ? r.reason.toLowerCase() : 'maintenance'}.`);
+    }
     if (status.nightsWithout !== null && status.nightsWithout >= OFF_SKY_NIGHTS) {
         lines.push(`Rubin has sent no alerts since the night of ${dateWords(status.lastNight)} (${status.nightsWithout} nights) - off the sky for maintenance or weather.`);
     }
@@ -139,4 +144,46 @@ export function updateText({ refresh, data, waitingForRubin }) {
 export function pullNightFrom(fetchedIso) {
     if (!fetchedIso) return null;
     return new Date(dayStart(fetchedIso.slice(0, 10)).getTime() - DAY).toISOString().slice(0, 10);
+}
+
+/* ---- Closing a window when Rubin comes back --------------------------------------------- */
+
+/* An announced window with no end would count as active for ever, and the notice would
+   go on saying Rubin is in maintenance after it had returned. So an open-ended window is
+   closed by the data: the first night with alerts after its start ends it the night
+   before. An end entered by hand is respected as it is. */
+export function closeWindows(windows = [], nights = []) {
+    return windows.map((w) => {
+        if (w.end) return w;
+        const back = nights.find((n) => n.night > w.start);
+        if (!back) return w;
+        const end = new Date(dayStart(back.night).getTime() - DAY).toISOString().slice(0, 10);
+        return { ...w, end, closedBy: 'alerts', returned: back.night };
+    });
+}
+
+/* How long the notice says Rubin has returned, after a window closes. */
+export const RETURNED_DAYS = 21;
+
+/* The window Rubin most recently came back from, if within RETURNED_DAYS of today. */
+export function recentReturn(windows = [], today) {
+    const day = isoDay(today);
+    const ended = windows.filter((w) => w.end && w.end < day)
+        .filter((w) => (dayStart(day) - dayStart(w.end)) / DAY <= RETURNED_DAYS)
+        .sort((a, b) => b.end.localeCompare(a.end));
+    return ended[0] ?? null;
+}
+
+/* ---- Rubin's latest status post ---------------------------------------------------------- */
+
+/* Rubin's forum (www.rubin.community, a Discourse forum) lists its News category as JSON.
+   The status posts have no single title format, so the newest one whose title looks
+   like a status report is taken - nothing is read from the prose. */
+export const STATUS_TITLE = /summit technical progress|operations update|observatory status|recovery|storm|downtime|maintenance/i;
+
+export function latestStatusPost(newsJson, origin = 'https://www.rubin.community') {
+    const topics = newsJson?.topic_list?.topics ?? [];
+    const post = topics.filter((t) => !t.pinned && STATUS_TITLE.test(t.title ?? ''))
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+    return post ? { title: post.title, url: `${origin}/t/${post.slug}/${post.id}`, date: String(post.created_at).slice(0, 10) } : null;
 }

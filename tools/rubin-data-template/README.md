@@ -65,6 +65,8 @@ Rubin data will next arrive:
 }
 ```
 
-`start` and `end` are dates (`YYYY-MM-DD`); leave `end` out until one is announced. Without
+`start` and `end` are dates (`YYYY-MM-DD`); leave `end` out until one is announced. A
+window with no end closes itself once Rubin sends alerts again (the page then says when
+Rubin returned), so forgetting to add the end does no harm. Without
 this file the page still notices a pause on its own, from Rubin's nightly alert counts (no
 alerts for 4 nights or more), but cannot say why or for how long.

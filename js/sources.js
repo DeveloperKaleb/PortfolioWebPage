@@ -158,6 +158,10 @@ export const nightlyAlertsUrl = (year) => `${FINK_SSO.replace(/sso$/, 'statistic
     date: String(year), columns: 'f:night,f:alerts', 'output-format': 'json',
 })}`;
 
+/* Rubin's forum News category as JSON (a Discourse forum): one small request a run, for
+   the link to Rubin's latest status post (js/rubinstatus.js). */
+export const RUBIN_NEWS_URL = 'https://www.rubin.community/c/news/7.json';
+
 /* The objects in Rubin's list, by provisional designation and by number. */
 export function parseRubinList(csv) {
     const [header, ...lines] = String(csv).trim().split(/\r?\n/);

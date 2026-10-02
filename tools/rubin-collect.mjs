@@ -17,13 +17,13 @@ import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createPoliteFetch } from '../js/polite.js';
-import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl } from '../js/sources.js';
+import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL } from '../js/sources.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
     emptyDiscoveryStore, discoveryQueue, unnamedStations, annotateDiscoveries, DISCOVERY_PER_RUN, STATION_NAMES_PER_RUN,
 } from '../js/collector.js';
 import { jdFromDate } from '../js/orbit.js';
-import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink, pullNightFrom } from '../js/rubinstatus.js';
+import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink, pullNightFrom, closeWindows, latestStatusPost } from '../js/rubinstatus.js';
 
 /* How long a name Fink's lookup failed on is left alone before it is tried again. */
 const UNRESOLVED_MONTHS = 3;
@@ -83,7 +83,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
        run (and last year's too in January, if this year has none yet), with the
        hand-edited maintenance.json. When Rubin has sent nothing since the last Fink pull,
        this month's pull waits: there is nothing new to fetch. */
-    const windows = readJson(join(dataDir, 'maintenance.json'))?.windows ?? [];
+    const announced = readJson(join(dataDir, 'maintenance.json'))?.windows ?? [];
     let nights = null;
     try {
         for (const year of [date.getUTCFullYear(), date.getUTCFullYear() - 1]) {
@@ -97,6 +97,16 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         nights = null;
     }
     const lastNight = nights ? lastAlertNight(nights) : null;
+    /* An open-ended announced window closes itself once Rubin sends alerts again. */
+    const windows = closeWindows(announced, nights ?? []);
+    /* Rubin's latest status post, for the notice's link: one small request. */
+    let latestPost = null;
+    try {
+        const news = await polite(RUBIN_NEWS_URL, { maxBytes: 2 * 1024 * 1024, headers: { Accept: 'application/json' } });
+        if (news.ok) latestPost = latestStatusPost(JSON.parse(news.body));
+    } catch (error) {
+        log(`Rubin's news could not be fetched: ${error.message}`);
+    }
     /* Data pulled before the collector recorded its last pull: take it from when that pull
        was made, so the next month still waits if Rubin has sent nothing new. */
     if (state.finkFetchedMonth && !state.lastPullNight) state.lastPullNight = pullNightFrom(detections?.value.fetched);
@@ -165,7 +175,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
     const digest = buildDigest({
         objects, date, jd: jdFromDate(date), notes,
         provenance: provenance({ siteCommit, sources: { jplCount: state.jplCount ?? tnos.length, tnosFrom, detectionsFrom, requests: polite.used?.() ?? null } }),
-        observing: { lastAlertNight: lastNight, nightsWithout: status.nightsWithout, offSky: status.offSky, windows, finkFetchedMonth: state.finkFetchedMonth ?? null },
+        observing: { lastAlertNight: lastNight, nightsWithout: status.nightsWithout, offSky: status.offSky, windows, latestPost, finkFetchedMonth: state.finkFetchedMonth ?? null },
     });
     /* Who found each object: asked of the MPC once per object, at most DISCOVERY_PER_RUN a
        run, most interesting first, and kept. A failure here never costs the run. */
@@ -201,7 +211,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
    JPL page, plus Eris, Sedna and Gonggong (whose orbits were recorded for the orbit
    tests) so the dry run has Rubin detections to use. Nothing leaves the machine. */
 export async function recordedPolite() {
-    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS } = await import('../tests/sources/fixtures.js');
+    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS, RUBIN_NEWS } = await import('../tests/sources/fixtures.js');
     const { OBJECTS } = await import('../tests/orbit/fixtures.js');
     const page = JSON.parse(JPL_PAGE);
     const extra = [['136199', ' 136199 Eris (2003 UB313)', OBJECTS.Eris], ['90377', ' 90377 Sedna (2003 VB12)', OBJECTS.Sedna], ['225088', ' 225088 Gonggong (2007 OR10)', OBJECTS.Gonggong]];
@@ -217,6 +227,7 @@ export async function recordedPolite() {
         if (url.includes('sbdb_query') && !url.includes('fields=')) return answer(JSON.stringify({ count: page.count }));
         if (url.includes('sbdb_query')) return answer(JSON.stringify(page));
         if (url.includes('statistics')) return answer(NIGHTLY_ALERTS);
+        if (url.includes('rubin.community')) return answer(RUBIN_NEWS);
         if (url.includes('ssoft')) return answer(RUBIN_LIST);
         if (url.includes('fink')) return answer(JSON.stringify(url.includes('M5088') ? GONGGONG_DETECTIONS : []));
         if (url.includes('get-obs')) return answer(String(options?.body).includes('2007 OR10') ? MPC_GONGGONG : '[{"OBS80": ""}]');

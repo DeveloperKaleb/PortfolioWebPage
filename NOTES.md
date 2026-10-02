@@ -3231,7 +3231,19 @@ change. Both sources were the owner's choice (2026-10-02):
   arrives within a week of its return. The tab shows a date for it only when an end is
   announced. The notice is worked out when the page is viewed, so the night count and
   the next run are always current.
-- **A quiet week is now two small requests:** JPL's count, and Fink's nightly counts.
+- **A quiet week is three small requests:** JPL's count, Fink's nightly counts, and the
+  forum's News list.
+- **Rubin's return closes an open-ended window** (`closeWindows`). A window in
+  maintenance.json with no end would otherwise count as active for ever, and the notice
+  would go on saying Rubin was in maintenance after it had come back. The first night
+  with alerts after a window's start ends it the night before (`closedBy: "alerts"`). An
+  end entered by hand is respected. For `RETURNED_DAYS` (21) afterwards, the notice says
+  when Rubin returned. Detection lags by up to a week, the same as the data.
+- **The latest status post** comes from the forum's News category as JSON
+  (www.rubin.community/c/news/7.json, a Discourse forum). The newest unpinned post whose
+  title matches `STATUS_TITLE` (Summit technical progress, Operations Update, Observatory
+  Status, recovery, storm, downtime, maintenance) becomes the notice's link. Nothing is
+  read from the prose, so no date can be misread. The fallback is the window's own link.
 - **The last pull, for data from before it was recorded.** The first live run pulled
   Fink before `state.lastPullNight` existed, so the next month would have pulled with
   "history unknown" even with nothing new. A run with `finkFetchedMonth` but no

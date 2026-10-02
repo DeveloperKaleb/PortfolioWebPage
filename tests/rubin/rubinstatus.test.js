@@ -5,10 +5,11 @@ import { join } from 'node:path';
 import {
     parseNightlyAlerts, lastAlertNight, nightsWithout, announcedWindow, observingStatus, nextRun,
     shouldPullFink, nextUpdates, statusText, updateText, OFF_SKY_NIGHTS, pullNightFrom,
+    closeWindows, recentReturn, latestStatusPost, RETURNED_DAYS,
 } from '../../js/rubinstatus.js';
 import { nightlyAlertsUrl } from '../../js/sources.js';
 import { collect, recordedPolite } from '../../tools/rubin-collect.mjs';
-import { NIGHTLY_ALERTS } from '../sources/fixtures.js';
+import { NIGHTLY_ALERTS, RUBIN_NEWS } from '../sources/fixtures.js';
 
 /* The winter storm that closed Cerro Pachon in July 2026, then planned maintenance from
    14 September - as Rubin's forum announced it. */
@@ -146,6 +147,74 @@ describe('A last pull recorded before there was a record', () => {
             const november = await collect({ dataDir: dir, date: new Date('2026-11-02T06:00:00Z'), polite: await recordedPolite() });
             expect(JSON.parse(readFileSync(statePath, 'utf8')).lastPullNight).toBe('2026-10-04');
             expect(november.digest.notes.join(' ')).toMatch(/Fink was not asked this week/);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
+/* An announced window with no end would count as active for ever. The data closes it:
+   the first night with alerts after its start ends it the night before. */
+describe('When Rubin comes back', () => {
+    const back = [{ night: '2026-07-14', alerts: 400000 }, { night: '2026-10-21', alerts: 300000 }, { night: '2026-10-22', alerts: 500000 }];
+
+    test('an open-ended window closes on the first night of alerts after it began', () => {
+        expect(closeWindows([STORM], back)[0]).toMatchObject({ end: '2026-10-20', closedBy: 'alerts', returned: '2026-10-21' });
+    });
+
+    test('stays open while Rubin is still off-sky', () => {
+        expect(closeWindows([STORM], back.slice(0, 1))[0].end).toBeUndefined();
+    });
+
+    test('an end entered by hand is respected as it is', () => {
+        const announced = { ...STORM, end: '2026-10-30' };
+        expect(closeWindows([announced], back)[0]).toEqual(announced);
+    });
+
+    test('the notice says Rubin is back, then drops it after a few weeks', () => {
+        const windows = closeWindows([STORM], back);
+        const soon = observingStatus({ lastNight: '2026-10-25', today: new Date('2026-10-26T12:00:00Z'), windows });
+        expect(soon.offSky).toBe(false);
+        expect(statusText(soon)).toEqual(['Rubin returned to the sky on the night of 21 October 2026, after storm recovery and planned maintenance.']);
+        const later = new Date(Date.UTC(2026, 9, 21 + RETURNED_DAYS + 2, 12));
+        expect(recentReturn(windows, later)).toBeNull();
+        expect(statusText(observingStatus({ lastNight: '2026-11-13', today: later, windows }))).toBeNull();
+    });
+
+    test('once Rubin is back, new data is a date again, not "after Rubin returns"', () => {
+        const windows = closeWindows([STORM], back);
+        const now = new Date('2026-10-26T12:00:00Z');
+        const status = observingStatus({ lastNight: '2026-10-25', today: now, windows });
+        expect(nextUpdates({ now, status, finkFetchedMonth: '2026-10' }).data.toISOString()).toBe('2026-11-02T06:00:00.000Z');
+    });
+});
+
+describe("Rubin's latest status post", () => {
+    test('is the newest post titled like a status report, from the recorded forum list', () => {
+        expect(latestStatusPost(JSON.parse(RUBIN_NEWS))).toEqual({
+            title: 'Summit technical progress (week ending 2026-09-25)',
+            url: 'https://www.rubin.community/t/summit-technical-progress-week-ending-2026-09-25/12773',
+            date: '2026-09-25',
+        });
+    });
+
+    test('skips pinned posts and posts that are not status reports', () => {
+        const news = { topic_list: { topics: [
+            { id: 1, slug: 'about', title: 'About the News category', created_at: '2026-10-05T00:00:00Z', pinned: true },
+            { id: 2, slug: 'rtn', title: 'RTN-011 v9.1: Rubin Early Science Program', created_at: '2026-10-04T00:00:00Z', pinned: false },
+            { id: 3, slug: 'status', title: 'Rubin Observatory Status', created_at: '2026-10-03T00:00:00Z', pinned: false },
+        ] } };
+        expect(latestStatusPost(news).url).toBe('https://www.rubin.community/t/status/3');
+        expect(latestStatusPost({ topic_list: { topics: [] } })).toBeNull();
+    });
+
+    test('a whole run records it in the digest', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'rubin-data-'));
+        try {
+            writeFileSync(join(dir, 'maintenance.json'), JSON.stringify({ windows: [STORM] }));
+            const { digest } = await collect({ dataDir: dir, date: new Date('2026-10-05T06:00:00Z'), polite: await recordedPolite() });
+            expect(digest.observing.latestPost.date).toBe('2026-09-25');
+            expect(digest.observing.windows[0].end).toBeUndefined();
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

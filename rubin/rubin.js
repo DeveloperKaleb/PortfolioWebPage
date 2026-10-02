@@ -499,9 +499,13 @@ function showNotice(digest) {
     const status = observingStatus({ lastNight: obs.lastAlertNight, today: now, windows: obs.windows ?? [] });
     const lines = statusText(status) ?? [];
     const parts = lines.map((line) => el('p', { class: 'rubin-notice-status' }, line));
-    if (status.window?.link) {
+    /* The newest status post on Rubin's forum, found by the collector; else the link the
+       announced window carries. */
+    const post = obs.latestPost;
+    const link = post?.url ?? (status.window ?? status.returned)?.link;
+    if (link && (status.offSky || status.returned || status.window)) {
         const more = el('p', { class: 'rubin-notice-link' });
-        more.append(el('a', { href: status.window.link, target: '_blank', rel: 'noopener' }, "Rubin's latest announcement"));
+        more.append(el('a', { href: link, target: '_blank', rel: 'noopener' }, post ? `Rubin's latest status post: ${post.title} (${longDate(post.date)})` : "Rubin's latest announcement"));
         parts.push(more);
     }
     for (const line of updateText(nextUpdates({ now, status, finkFetchedMonth: obs.finkFetchedMonth }))) {
