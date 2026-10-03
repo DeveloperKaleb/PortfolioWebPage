@@ -3305,3 +3305,18 @@ priority order (planets and tundrs first, then largest size), dropping any that 
 overlap a kept label or leave the map; zooming in spreads the dots and more names appear.
 Designation-only objects are not labelled. The label box is estimated (12px text, ~7px a
 character), not measured, so the rule stays pure and testable.
+
+### NASA's images on the cards (2026-10-02)
+
+The owner asked for a link to every NASA image of each object. NASA has no such page:
+its image library is a free-text search that mixes real pictures with artist's concepts
+(Eris returned 2 results, one a painting; Quaoar's only result was a Sedna size-comparison
+artwork), and Photojournal's target filter covers few of these objects. Of the passes,
+only Pluto has close-up images. So, by the owner's choice, cards carry a **checked list**,
+`NASA_IMAGES` in js/rubinview.js, keyed by designation: Pluto (NASA's Pluto page, which
+links its New Horizons gallery), Eris and Dysnomia, Sedna, Makemake and its moon, Gonggong
+and its moon (all Hubble), and Quaoar (New Horizons, 2016). Every other card says "None
+released by NASA yet". Haumea, Orcus, Varda and Salacia have telescope images, but none
+NASA released, so they are left out. Researched with 13 one-off, spaced searches of
+images-api.nasa.gov and a load check of each link. Add an entry by hand when NASA
+releases a new image; nothing fetches this automatically.

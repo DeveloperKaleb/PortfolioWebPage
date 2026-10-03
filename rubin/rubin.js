@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels,
+    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -113,7 +113,11 @@ function card(entry, { extra } = {}) {
 
     const size = sizeOf(entry);
     const facts = el('dl', { class: 'rubin-facts' });
-    const fact = (term, value) => { facts.append(el('dt', {}, term), el('dd', {}, value)); };
+    const fact = (term, value) => {
+        const dd = el('dd');
+        dd.append(value);
+        facts.append(el('dt', {}, term), dd);
+    };
     fact('Size', `${size.text}${size.measured ? ' (measured)' : ' (from brightness)'}`);
     fact('Chance', entry.passes || !entry.flags.includes('largeIfDark')
         ? `${percent(entry.chance)} · ${percent(entry.chanceGrundy)} on Grundy's reading`
@@ -121,6 +125,11 @@ function card(entry, { extra } = {}) {
     fact('Now', `${au(entry.now.r)} from the Sun · magnitude ${entry.now.V.toFixed(1)} · ${entry.now.detectable ? 'within one Rubin exposure' : 'too faint for one Rubin exposure'}`);
     const found = discoveryText(entry);
     if (found) fact('Found', found);
+    /* NASA's images: a checked link, or a plain statement that there are none yet. */
+    const images = nasaImages(entry);
+    fact('Images', images
+        ? el('a', { href: images.url, target: '_blank', rel: 'noopener' }, images.text)
+        : 'None released by NASA yet');
     const checked = crossCheckText(entry);
     if (checked) fact('Checked', checked);
     fact('Brightness', entry.hSource.startsWith('Rubin')

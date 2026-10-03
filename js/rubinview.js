@@ -333,3 +333,24 @@ export function placeLabels(labels, sizePx) {
     }
     return kept;
 }
+
+/* ---- NASA's images ------------------------------------------------------------------------
+ *
+ * NASA has no one page of every image of an object, and its image library's search mixes
+ * real pictures with artist's concepts (Eris: 2 results, one a painting). So this is a
+ * checked list (owner's choice, 2026-10-02): only objects NASA has released real images
+ * of, each linked to the best NASA page for them. Checked against NASA's image library
+ * and science.nasa.gov on 2026-10-02; Haumea, Orcus, Varda and others have telescope
+ * images, but none NASA released. A visitor's browser contacts NASA only if they click.
+ * Keyed by designation. */
+export const NASA_IMAGES = {
+    134340: { url: 'https://science.nasa.gov/dwarf-planets/pluto/', text: "NASA's Pluto page, with New Horizons' close-up images (2015)" },
+    136199: { url: 'https://science.nasa.gov/asset/hubble/hubble-view-of-eris-and-dysnomia-unannotated/', text: 'Hubble: Eris and its moon Dysnomia (2005-06)' },
+    90377: { url: 'https://science.nasa.gov/asset/hubble/hstacs-co-added-image-of-sedna-march-16-2004/', text: "Hubble's sharpest view of Sedna, one pixel wide (2004)" },
+    50000: { url: 'https://science.nasa.gov/photojournal/new-horizons-spies-a-kuiper-belt/', text: 'New Horizons: Quaoar from 2.1 billion km (2016)' },
+    136472: { url: 'https://science.nasa.gov/asset/hubble/makemake-and-its-moon/', text: 'Hubble: Makemake and its moon (2015)' },
+    225088: { url: 'https://science.nasa.gov/asset/hubble/hubble-images-of-2007-or10/', text: 'Hubble: Gonggong and its moon (2009-10)' },
+};
+
+/* What the card says about NASA's images of an object: a link, or that there are none. */
+export const nasaImages = (entry) => NASA_IMAGES[entry.designation] ?? null;

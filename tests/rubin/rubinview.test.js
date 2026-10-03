@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
-    KIND_LABEL, bodyKind, properName, placeLabels,
+    KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -258,5 +258,24 @@ describe('Labels on the map', () => {
     test('zooming in, which spreads the dots, makes room for both', () => {
         const kept = placeLabels([{ x: 100, y: 100, text: 'Neptune' }, { x: 160, y: 140, text: 'Pluto' }], 440);
         expect(kept).toHaveLength(2);
+    });
+});
+
+/* A checked list of NASA's real images, never a search that could turn up a painting. */
+describe("NASA's images", () => {
+    test('links an object NASA has imaged, to a NASA page', () => {
+        expect(nasaImages(digest.entries[0]).url).toMatch(/^https:\/\/science\.nasa\.gov\//);
+    });
+
+    test('has nothing for an object NASA has released no images of', () => {
+        expect(nasaImages(digest.entries[2])).toBeNull();
+    });
+
+    test('every link is a NASA page, keyed by a designation', () => {
+        for (const [designation, { url, text }] of Object.entries(NASA_IMAGES)) {
+            expect(designation).toMatch(/^\d+$/);
+            expect(url).toMatch(/^https:\/\/science\.nasa\.gov\//);
+            expect(text.length).toBeGreaterThan(10);
+        }
     });
 });
