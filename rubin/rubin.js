@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages,
+    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownWorlds,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -79,6 +79,8 @@ function openTundr() {
     if (typeof tundrDialog.showModal === 'function' && !tundrDialog.open) tundrDialog.showModal();
 }
 
+document.querySelectorAll('[data-tundr]').forEach((word) => word.addEventListener('click', openTundr));
+
 /* The word "tundr" wherever it appears: a button that reads as a word in the sentence. */
 function tundrWord(text) {
     const word = el('button', { type: 'button', class: 'rubin-term', 'aria-haspopup': 'dialog' }, text);
@@ -104,7 +106,31 @@ function table(headers, rows) {
 
 /* ---- Cards ------------------------------------------------------------------------- */
 
+/* A planet's or tundr's card: measured, certain, and nothing from Rubin's data. */
+function worldCard(world) {
+    const box = el('article', { class: 'rubin-card' });
+    box.append(el('h4', {}, world.name));
+    const kind = el('p', { class: 'rubin-confirmed' });
+    if (world.kind === 'planet') kind.textContent = 'Planet';
+    else kind.append(tundrWord(KIND_LABEL[world.kind]), ': no surface, so not a planet here');
+    box.append(kind);
+    const facts = el('dl', { class: 'rubin-facts' });
+    const fact = (term, value) => {
+        const dd = el('dd');
+        dd.append(value);
+        facts.append(el('dt', {}, term), dd);
+    };
+    fact('Size', `${kilometres(world.km)} across the equator (measured)`);
+    fact('Now', `${au(world.now.r)} from the Sun`);
+    if (world.found) fact('Found', world.found);
+    const images = nasaImages(world);
+    fact('Images', el('a', { href: images.url, target: '_blank', rel: 'noopener' }, images.text));
+    box.append(facts);
+    return box;
+}
+
 function card(entry, { extra } = {}) {
+    if (entry.world) return worldCard(entry);
     const box = el('article', { class: 'rubin-card' });
     box.append(el('h4', {}, displayName(entry)));
     const status = rubinStatus(entry);
@@ -195,12 +221,14 @@ function renderCards(picker) {
     picker.empty.hidden = chosen.length > 0;
 }
 
-function buildPicker(sectionId, entries, { extra, onMap = false } = {}) {
+/* A picker fills a section, or one group within it (the gravity section has two). */
+function buildPicker(sectionId, entries, { extra, onMap = false, group } = {}) {
     const section = document.getElementById(sectionId);
-    section.hidden = entries.length === 0;
+    const scope = group ? section.querySelector(group) : section;
+    scope.hidden = entries.length === 0;
     if (!entries.length) return;
-    const holder = section.querySelector('.rubin-cards');
-    const box = section.querySelector('.rubin-picker');
+    const holder = scope.querySelector('.rubin-cards');
+    const box = scope.querySelector('.rubin-picker');
     const picker = { entries, extra, holder, cards: new Map(), chips: new Map(), empty: null };
 
     const chips = el('div', { class: 'rubin-chips', role: 'group', 'aria-label': 'Choose objects to show' });
@@ -304,21 +332,21 @@ function drawMap(digest) {
             const points = p.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
             parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
             const [px, py] = toScreen(view, p.x, p.y);
-            const tundr = p.kind !== 'planet';
-            const g = svg('g', { class: tundr ? 'rubin-mark rubin-mark-tundr' : 'rubin-mark' });
+            const designation = `world:${p.name}`;
+            const chosen = selected.has(designation);
+            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
             g.append(svg('circle', { cx: px, cy: py, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.surface, 'stroke-width': 2 }));
-            attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], ...(tundr ? [['Click to read what a tundr is']] : [])]);
-            /* A tundr opens what a tundr is. */
-            if (tundr) {
-                g.setAttribute('role', 'button');
-                g.setAttribute('aria-haspopup', 'dialog');
-                g.addEventListener('click', openTundr);
-                g.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTundr(); }
-                });
-                g.addEventListener('dblclick', (e) => e.stopPropagation());
-            }
+            attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], ['Click to show or hide its card']]);
+            /* Like every object on the map, a click toggles its card; the card's "tundr"
+               opens what a tundr is. */
+            g.setAttribute('role', 'button');
+            g.setAttribute('aria-pressed', String(chosen));
+            g.addEventListener('click', () => { hideTooltip(); toggle(designation, { scrollTo: true }); });
+            g.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(designation, { scrollTo: true }); }
+            });
+            g.addEventListener('dblclick', (e) => e.stopPropagation());
             parts.push(g);
             if (orbitPx >= PLANET_LABEL_PX) labels.push({ x: px, y: py, text: p.name, rank: Infinity });
         }
@@ -615,7 +643,9 @@ async function render() {
     if (offset) { offsetLine.textContent = offset; offsetLine.hidden = false; }
 
     const { passes, watch, largeIfDark } = sections(digest);
-    buildPicker('rubin-passes', passes, { onMap: true });
+    document.getElementById('rubin-passes').hidden = false;
+    buildPicker('rubin-passes', knownWorlds(digest), { onMap: true, group: '.rubin-known' });
+    buildPicker('rubin-passes', passes, { onMap: true, group: '.rubin-likely' });
     buildPicker('rubin-watch', watch, { onMap: true, extra: (e) => ({ extra: whyWatched(e) }) });
     buildPicker('rubin-dark', largeIfDark);
     drawMap(digest);

@@ -3292,7 +3292,7 @@ gas/ice because "ice" describes ingredients by the form they took in the cold, t
 location-dependence they object to in the popular definition of planet. The map's legend,
 hover details and caption use the words. Wherever "tundr" appears it is a button
 (`tundrWord` in rubin/rubin.js) opening the `#rubin-tundr` dialog in rubin/rubin.html,
-written in the site's voice (owner's choice); a click on a giant on the map opens it too.
+written in the site's voice (owner's choice). A click on a giant on the map first opened it too; since the known-world cards, it shows the giant's card instead, whose "tundr" opens the dialog.
 The giants keep the planets' dot (owner's choice), so no new colour needed checking.
 Which body is which lives in `TUNDRS` in js/rubinview.js. How much of the water tundrs is
 water rather than rock is unsettled, and the dialog says so.
@@ -3320,3 +3320,16 @@ released by NASA yet". Haumea, Orcus, Varda and Salacia have telescope images, b
 NASA released, so they are left out. Researched with 13 one-off, spaced searches of
 images-api.nasa.gov and a load check of each link. Add an entry by hand when NASA
 releases a new image; nothing fetches this automatically.
+
+### The known worlds get cards (2026-10-02)
+
+The owner wanted NASA's images for the planets as well, which meant cards for them. By the
+owner's choices: all eight (planets and tundrs), in their own "Known worlds" row at the top
+of the gravity section (renamed "Shaped by their own gravity", with Rubin's objects below
+under "Likely, from Rubin's data"), and a click on any of them on the map shows its card,
+like every other object. `KNOWN_WORLDS` / `knownWorlds` in js/rubinview.js: measured
+equatorial diameters from NASA's Planetary Fact Sheet (the tundrs' at the 1-bar level),
+distance from the Sun on the digest's date (js/planets.js), discovery for Uranus and
+Neptune, and science.nasa.gov/<name>/ for images (each checked to load). Their designations
+are `world:<Name>`, which no minor planet's can clash with. `buildPicker` takes a
+`group` so one section can hold two pickers.

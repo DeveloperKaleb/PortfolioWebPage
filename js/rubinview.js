@@ -353,4 +353,38 @@ export const NASA_IMAGES = {
 };
 
 /* What the card says about NASA's images of an object: a link, or that there are none. */
-export const nasaImages = (entry) => NASA_IMAGES[entry.designation] ?? null;
+export const nasaImages = (entry) => entry.images ?? NASA_IMAGES[entry.designation] ?? null;
+
+/* ---- The known worlds -----------------------------------------------------------------------
+ *
+ * The planets and tundrs get cards too (owner, 2026-10-02), in their own row at the top of
+ * the gravity section: they are certain, not likely. Their sizes are measured, from NASA's
+ * Planetary Fact Sheet (equatorial diameter; the tundrs' at the 1-bar level, as they have
+ * no surface); their distance from the Sun is where they are on the digest's date
+ * (js/planets.js). Every one has a NASA page with its missions' images. */
+export const WORLD_PREFIX = 'world:';
+export const KNOWN_WORLDS = [
+    { name: 'Mercury', km: 4879, found: 'Known since antiquity' },
+    { name: 'Venus', km: 12104, found: 'Known since antiquity' },
+    { name: 'Earth', km: 12756, found: null },
+    { name: 'Mars', km: 6792, found: 'Known since antiquity' },
+    { name: 'Jupiter', km: 142984, found: 'Known since antiquity' },
+    { name: 'Saturn', km: 120536, found: 'Known since antiquity' },
+    { name: 'Uranus', km: 51118, found: '13 March 1781, by William Herschel, from Bath' },
+    { name: 'Neptune', km: 49528, found: "23 September 1846, by Johann Galle at Berlin Observatory, where Urbain Le Verrier's maths said it would be" },
+];
+
+export function knownWorlds(digest) {
+    const where = new Map(planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)), { samples: 2 }).map((p) => [p.name, p]));
+    return KNOWN_WORLDS.map((w) => {
+        const p = where.get(w.name);
+        return {
+            ...w,
+            designation: WORLD_PREFIX + w.name,
+            world: true,
+            kind: bodyKind(w.name),
+            now: { r: p.r, x: p.x, y: p.y, z: p.z },
+            images: { url: `https://science.nasa.gov/${w.name.toLowerCase()}/`, text: `NASA's ${w.name} page, with its missions' images` },
+        };
+    });
+}

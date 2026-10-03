@@ -2391,11 +2391,15 @@ main.rubin {
     text-align: left;
 }
 
-/* A selected object on the map gets a bright ring, and the cursor says it can be picked.
-   A tundr opens what a tundr is. */
-.rubin-mark-pickable,
-.rubin-mark-tundr {
+/* A selected object on the map gets a bright ring, and the cursor says it can be picked. */
+.rubin-mark-pickable {
     cursor: pointer;
+}
+
+/* The gravity section's two groups: the known worlds, then Rubin's likely ones. */
+.rubin-subhead {
+    margin: 18px 0 4px;
+    font-size: 1em;
 }
 
 /* The word "tundr" wherever it appears: a button that reads as a word in the sentence,

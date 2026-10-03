@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rubin - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-2021" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261002-2021" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261002-2039" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261002-2039" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -36,10 +36,21 @@
         <p id="rubin-offset" class="rubin-note rubin-offset" hidden></p>
 
         <section id="rubin-passes" class="rubin-section" hidden>
-            <h3>Likely shaped by their own gravity</h3>
-            <p class="rubin-note">At least an 80% chance, on the evidence of icy moons and Kuiper belt worlds whose shapes we know.</p>
-            <div class="rubin-picker"></div>
-            <div class="rubin-cards"></div>
+            <h3>Shaped by their own gravity</h3>
+            <!-- Certain first, then likely: the planets and tundrs, then Rubin's objects. Each
+                 group has its own picker and cards. -->
+            <div class="rubin-group rubin-known">
+                <h4 class="rubin-subhead">Known worlds</h4>
+                <p class="rubin-note">The planets and <button type="button" class="rubin-term" aria-haspopup="dialog" data-tundr>tundrs</button>, all measured up close by spacecraft.</p>
+                <div class="rubin-picker"></div>
+                <div class="rubin-cards"></div>
+            </div>
+            <div class="rubin-group rubin-likely">
+                <h4 class="rubin-subhead">Likely, from Rubin's data</h4>
+                <p class="rubin-note">At least an 80% chance, on the evidence of icy moons and Kuiper belt worlds whose shapes we know.</p>
+                <div class="rubin-picker"></div>
+                <div class="rubin-cards"></div>
+            </div>
         </section>
 
         <section id="rubin-watch" class="rubin-section" hidden>
@@ -153,10 +164,10 @@
         </div>
     </dialog>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-2021"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-2021"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-2021"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-2021"></script>
-    <script type="module" src="./rubin.js?v=20261002-2021"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261002-2039"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261002-2039"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261002-2039"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261002-2039"></script>
+    <script type="module" src="./rubin.js?v=20261002-2039"></script>
 </body>
 </html>

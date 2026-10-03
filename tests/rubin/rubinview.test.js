@@ -2,7 +2,7 @@ import { describe, test, expect } from 'vitest';
 import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
-    KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages,
+    KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -277,5 +277,30 @@ describe("NASA's images", () => {
             expect(url).toMatch(/^https:\/\/science\.nasa\.gov\//);
             expect(text.length).toBeGreaterThan(10);
         }
+    });
+});
+
+/* The planets and tundrs have cards too: measured sizes, where they are on the day. */
+describe('The known worlds', () => {
+    const worlds = knownWorlds(digest);
+
+    test('all eight, in order from the Sun, planets and tundrs alike', () => {
+        expect(worlds.map((w) => w.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
+        expect(worlds.map((w) => w.kind)).toEqual(['planet', 'planet', 'planet', 'planet', 'hydrogen', 'hydrogen', 'water', 'water']);
+    });
+
+    test("each is where it is on the digest's date", () => {
+        const earth = worlds.find((w) => w.name === 'Earth');
+        expect(earth.now.r).toBeGreaterThan(0.98);
+        expect(earth.now.r).toBeLessThan(1.02);
+        expect(worlds.find((w) => w.name === 'Neptune').now.r).toBeCloseTo(29.9, 0);
+    });
+
+    test("keys never clash with a minor planet's designation", () => {
+        worlds.forEach((w) => expect(w.designation.startsWith(WORLD_PREFIX)).toBe(true));
+    });
+
+    test("links each to NASA's page for it", () => {
+        expect(nasaImages(worlds[3]).url).toBe('https://science.nasa.gov/mars/');
     });
 });
