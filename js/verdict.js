@@ -21,6 +21,16 @@ export const watchWorthy = (flags) =>
     && flags.some((f) => FLAGS[f].kind === 'orbit')
     && !flags.includes('uncertainOrbit');
 
+/* Brighter than this (V), an object with an uncertain orbit is implausible: sky surveys
+   reach well past it (Gaia's whole-sky survey to about 20.7, Pan-STARRS and Catalina to
+   21 or fainter), so anything this bright would have a long record of observations, not
+   a fresh, short one. A short arc cannot pin down distance; when the fitted orbit puts a
+   new object too far away, the H worked out from that distance comes out far too bright,
+   and so does the size. 2026 RY158 (11 days of observations, V 15.8 by its catalogue
+   numbers) prompted it; on 2026-10-03 the next brightest uncertain orbit was V 21.4.
+   See NOTES.md. */
+export const IMPLAUSIBLE_V = 19;
+
 /* object: { H (visual absolute magnitude), errH (optional), elements (as JPL gives
    them, numbers), quality (optional: arcDays, conditionCode), designation and
    provisional (optional, to find a measured albedo) }. jd: the Julian date to place it
@@ -32,9 +42,10 @@ export function assessObject({ H, errH = 0, elements, quality = null, designatio
         : { ...assessH(H, { errH, ...options }), sizeFrom: 'brightness' };
     const seen = observe(elements, H, jd, options);
     const flags = [...size.flags, ...orbitFlags(elements), ...qualityFlags(quality)];
+    if (flags.includes('uncertainOrbit') && seen.V < IMPLAUSIBLE_V) flags.push('implausiblyBright');
     return {
         ...size,
-        passes: size.passes && seen.inScope,
+        passes: size.passes && seen.inScope && !flags.includes('implausiblyBright'),
         flags,
         watch: watchWorthy(flags),
         orbit: seen,

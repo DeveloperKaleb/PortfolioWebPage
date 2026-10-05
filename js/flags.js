@@ -45,6 +45,11 @@ export const FLAGS = {
         label: 'Uncertain orbit',
         means: 'Its orbit rests on under a year of observations, or the Minor Planet Center rates it poorly known (U of 6 or more): its distance, brightness and orbit flags may change a lot as it is followed up.',
     },
+    implausiblyBright: {
+        kind: 'quality',
+        label: 'Implausibly bright',
+        means: 'Its catalogue brightness and orbit together say it is brighter than magnitude 19, yet its orbit rests on so few observations that it must be newly found. Sky surveys would have found anything that bright long ago, so the orbit, and the size it implies, are almost certainly wrong. It is left off every list until follow-up settles it.',
+    },
     jplDisagrees: {
         kind: 'validation',
         label: 'Differs from JPL',

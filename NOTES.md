@@ -3333,3 +3333,23 @@ distance from the Sun on the digest's date (js/planets.js), discovery for Uranus
 Neptune, and science.nasa.gov/<name>/ for images (each checked to load). Their designations
 are `world:<Name>`, which no minor planet's can clash with. `buildPicker` takes a
 `group` so one section can hold two pickers.
+
+### Implausibly bright objects (2026-10-05)
+
+The owner ran the numbers past Gemini, which balked at 2026 RY158. Vetting (5 one-off
+requests): JPL lists H 4.06 on the MPC's orbit from 19 observations over 11 days (10-21
+Sept 2026), condition code 7, no uncertainties, 1.07" RMS; a 435 AU, e 0.975, i 95 degree
+orbit. The MPC knows the designation (K26RF8Y) but get-obs returned no observations, so the
+observed magnitudes could not be checked. Our maths reproduces JPL's numbers correctly:
+H 4.06 at 13.6 AU means V 15.8 at discovery - only 1.4 mag fainter than Pluto, which
+surveys would have found decades ago. The likely story: an 11-day arc cannot fix distance,
+the fit chose a far orbit, and H (and so the ~1000 km size) came from that distance.
+Note that V on the tab is our prediction from JPL's H and orbit, not a measurement.
+
+The owner chose a brightness sanity check over a minimum arc. `implausiblyBright`
+(js/verdict.js, `IMPLAUSIBLE_V` = 19): an object with an uncertain orbit predicted
+brighter than V 19 is flagged, never passes, is not counted as large-if-dark or a near
+miss, and `sections` leaves it off every list. It stays in the digest with the flag, so
+the record shows why. Gaia covers the whole sky to about 20.7 and Pan-STARRS and Catalina
+go fainter, so 19 leaves a margin. Re-assessing all 7,296 catalogue objects offline on
+2026-10-05 flagged only RY158; the next brightest uncertain orbit was V 21.4.

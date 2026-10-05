@@ -181,7 +181,7 @@ export function provenance({ siteCommit, sources }) {
    most promising first. */
 export function buildDigest({ objects, jd, date, provenance: made, notes = [], observing = null }) {
     const entries = [];
-    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0, confirmedByRubin: 0, seenByRubin: 0, orbitFromRubin: 0, jplDisagrees: 0 };
+    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0, implausiblyBright: 0, confirmedByRubin: 0, seenByRubin: 0, orbitFromRubin: 0, jplDisagrees: 0 };
     const offset = catalogueOffset(objects);
     for (const o of objects) {
         const v = assessObject({
@@ -198,11 +198,12 @@ export function buildDigest({ objects, jd, date, provenance: made, notes = [], o
         if (v.flags.includes('jplDisagrees')) counts.jplDisagrees++;
         if (v.passes) counts.passes++;
         if (v.flags.includes('disputed')) counts.disputed++;
-        if (v.flags.includes('largeIfDark')) counts.largeIfDark++;
+        if (v.flags.includes('largeIfDark') && !v.flags.includes('implausiblyBright')) counts.largeIfDark++;
         if (v.watch) counts.watch++;
         if (v.sizeFrom === 'measured') counts.measuredSize++;
         if (v.flags.includes('uncertainOrbit')) counts.uncertainOrbit++;
-        if (!v.passes && v.evidence >= NEAR_MISS) counts.nearMiss++;
+        if (v.flags.includes('implausiblyBright')) counts.implausiblyBright++;
+        if (!v.passes && v.evidence >= NEAR_MISS && !v.flags.includes('implausiblyBright')) counts.nearMiss++;
         if (interesting(v)) entries.push(entry(o, v));
     }
     const rank = (x) => (x.passes ? 0 : x.watch ? 1 : x.flags.includes('largeIfDark') ? 2 : 3);

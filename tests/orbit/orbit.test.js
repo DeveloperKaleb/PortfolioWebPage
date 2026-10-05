@@ -3,7 +3,7 @@ import {
     solveKepler, positionAt, earthAt, apparentMagnitude, observe, orbitFlags, qualityFlags, jdFromDate, ORBIT_QUALITY,
     SCOPE_AU, RUBIN_SINGLE_VISIT, TYPICAL_V_MINUS_R,
 } from '../../js/orbit.js';
-import { assessObject, watchWorthy } from '../../js/verdict.js';
+import { assessObject, watchWorthy, IMPLAUSIBLE_V } from '../../js/verdict.js';
 import { FLAGS } from '../../js/flags.js';
 import { OBJECTS, EPOCH } from './fixtures.js';
 
@@ -228,5 +228,32 @@ describe('Orbit quality', () => {
         expect(fresh.watch).toBe(false);
         const settled = assessObject({ H: 4.8, elements: ry158, quality: { arcDays: 4000, conditionCode: 2 } }, today);
         expect(settled.watch).toBe(true);
+    });
+});
+
+/* A fresh orbit that makes an object brighter than surveys could have missed is not
+   believed. 2026 RY158 as JPL listed it on 2026-10-05 (the MPC's orbit from 19
+   observations over 11 days): H 4.06 at 13.6 AU, so V 15.8. */
+describe('Implausibly bright', () => {
+    const RY158 = { a: 434.9094318, e: 0.9746116, i: 95.46826, om: 189.68908, w: 325.37913, ma: 359.81733, epoch: 2461200.5 };
+    const jd = jdFromDate(new Date('2026-10-05T00:00:00Z'));
+
+    test('a short arc with a magnitude-16 prediction is flagged, and passes nothing', () => {
+        const v = assessObject({ H: 4.06, errH: 0.3, elements: RY158, quality: { arcDays: 11, conditionCode: 7, nObs: 19 } }, jd);
+        expect(v.orbit.V).toBeLessThan(IMPLAUSIBLE_V);
+        expect(v.flags).toContain('implausiblyBright');
+        expect(v.passes).toBe(false);
+        expect(v.watch).toBe(false);
+    });
+
+    test('the same brightness on a well-observed orbit is believed', () => {
+        const v = assessObject({ H: 4.06, errH: 0.3, elements: RY158, quality: { arcDays: 20000, conditionCode: 0, nObs: 900 } }, jd);
+        expect(v.flags).not.toContain('implausiblyBright');
+    });
+
+    test('a faint new object with a short arc is only uncertain', () => {
+        const v = assessObject({ H: 9.5, elements: RY158, quality: { arcDays: 11, conditionCode: 7, nObs: 19 } }, jd);
+        expect(v.flags).toContain('uncertainOrbit');
+        expect(v.flags).not.toContain('implausiblyBright');
     });
 });

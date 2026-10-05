@@ -84,9 +84,11 @@ export function summary(digest) {
 /* The digest split into the tab's sections, in the digest's own order (most promising
    first). */
 export function sections(digest) {
-    const passes = digest.entries.filter((e) => e.passes);
-    const watch = digest.entries.filter((e) => !e.passes && e.watch);
-    const largeIfDark = digest.entries
+    /* An implausibly bright object is on no list until follow-up settles it (js/verdict.js). */
+    const listed = digest.entries.filter((e) => !e.flags.includes('implausiblyBright'));
+    const passes = listed.filter((e) => e.passes);
+    const watch = listed.filter((e) => !e.passes && e.watch);
+    const largeIfDark = listed
         .filter((e) => !e.passes && !e.watch && e.flags.includes('largeIfDark'))
         .sort((a, b) => b.chanceIfDark - a.chanceIfDark || b.chance - a.chance);
     return { passes, watch, largeIfDark };
