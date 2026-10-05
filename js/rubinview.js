@@ -9,7 +9,7 @@ import { CALIBRATION, READINGS, SHAPED, fitEquilibrium, chanceShaped, diameterAt
 import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
-import { jdFromDate } from './orbit.js';
+import { jdFromDate, positionAt } from './orbit.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -86,12 +86,14 @@ export function summary(digest) {
 export function sections(digest) {
     /* An implausibly bright object is on no list until follow-up settles it (js/verdict.js). */
     const listed = digest.entries.filter((e) => !e.flags.includes('implausiblyBright'));
-    const passes = listed.filter((e) => e.passes);
+    /* Objects whose shape has been seen are known, not likely: they head the section. */
+    const known = listed.filter(isKnownShape);
+    const passes = listed.filter((e) => e.passes && !isKnownShape(e));
     const watch = listed.filter((e) => !e.passes && e.watch);
     const largeIfDark = listed
         .filter((e) => !e.passes && !e.watch && e.flags.includes('largeIfDark'))
         .sort((a, b) => b.chanceIfDark - a.chanceIfDark || b.chance - a.chance);
-    return { passes, watch, largeIfDark };
+    return { known, passes, watch, largeIfDark };
 }
 
 /* Why a watched object is on the list, in one sentence. */
@@ -147,12 +149,12 @@ export function chartData({ steps = 120 } = {}) {
 /* The objects on the map, the planets where they are on the digest's date (js/planets.js),
    and the radius to fit them: the furthest object rounded up to a round number of AU. */
 export function mapData(digest) {
-    const { passes, watch } = sections(digest);
+    const { known, passes, watch } = sections(digest);
     const marks = [
-        ...passes.map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
+        ...[...known, ...passes].map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
         ...watch.map((e) => ({ entry: e, kind: 'watch' })),
     ].filter((m) => Number.isFinite(m.entry.now?.x) && Number.isFinite(m.entry.now?.y));
-    const planets = planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`))).map((p) => ({ ...p, kind: bodyKind(p.name) }));
+    const planets = worldsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)));
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
     return { marks, radius, planets };
@@ -370,6 +372,7 @@ export const KNOWN_WORLDS = [
     { name: 'Venus', km: 12104, found: 'Known since antiquity' },
     { name: 'Earth', km: 12756, found: null },
     { name: 'Mars', km: 6792, found: 'Known since antiquity' },
+    { name: 'Ceres', km: 939.4, across: 'across, on average', found: '1 January 1801, by Giuseppe Piazzi, from Palermo', images: { url: 'https://science.nasa.gov/dwarf-planets/ceres/', text: "NASA's Ceres page, with Dawn's close-up images (2015-18)" } },
     { name: 'Jupiter', km: 142984, found: 'Known since antiquity' },
     { name: 'Saturn', km: 120536, found: 'Known since antiquity' },
     { name: 'Uranus', km: 51118, found: '13 March 1781, by William Herschel, from Bath' },
@@ -377,7 +380,7 @@ export const KNOWN_WORLDS = [
 ];
 
 export function knownWorlds(digest) {
-    const where = new Map(planetsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)), { samples: 2 }).map((p) => [p.name, p]));
+    const where = new Map(worldsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)), { samples: 2 }).map((p) => [p.name, p]));
     return KNOWN_WORLDS.map((w) => {
         const p = where.get(w.name);
         return {
@@ -385,8 +388,42 @@ export function knownWorlds(digest) {
             designation: WORLD_PREFIX + w.name,
             world: true,
             kind: bodyKind(w.name),
+            a: p.a,
+            across: w.across ?? 'across the equator',
             now: { r: p.r, x: p.x, y: p.y, z: p.z },
-            images: { url: `https://science.nasa.gov/${w.name.toLowerCase()}/`, text: `NASA's ${w.name} page, with its missions' images` },
+            images: w.images ?? { url: `https://science.nasa.gov/${w.name.toLowerCase()}/`, text: `NASA's ${w.name} page, with its missions' images` },
         };
     });
+}
+
+/* ---- Known shapes ----------------------------------------------------------------------------
+ *
+ * "Known worlds" is read literally (owner, 2026-10-05): every body the calibration list
+ * (js/equilibrium.js) marks as seen to be shaped by gravity, moons aside for now. That is
+ * Pluto, Eris, Haumea, Makemake and Quaoar from the digest, and Ceres. Their cards move up
+ * from the likely row, keeping all their Rubin details. Bodies the list calls uncertain
+ * (Gonggong, Sedna, Orcus...) stay likely. Matched by name. */
+export const KNOWN_SHAPES = new Set(CALIBRATION.filter((b) => b.shaped === 'yes' && b.population !== 'moon').map((b) => b.name));
+export const isKnownShape = (entry) => KNOWN_SHAPES.has(displayName(entry));
+
+/* Ceres, from JPL's orbit (sbdb.api, 2026-10-05, full precision; epoch 2026-Jul-07.0).
+   Two-body, so Jupiter's pull makes it drift a little over the years: plenty for the map. */
+export const CERES_ELEMENTS = { a: 2.765552595034094, e: 0.07969229514816586, i: 10.58802780183462, om: 80.24862682043221, w: 73.29421453021587, ma: 274.4193463761342, epoch: 2461200.5 };
+
+/* The planets, the tundrs and Ceres where they are on a date, in order from the Sun. */
+export function worldsOn(jd, { samples = 120 } = {}) {
+    const at = positionAt(CERES_ELEMENTS, jd);
+    const period = 365.25 * CERES_ELEMENTS.a ** 1.5;
+    const path = Array.from({ length: samples }, (_, k) => {
+        const p = positionAt(CERES_ELEMENTS, jd + (period * k) / samples);
+        return { x: p.x, y: p.y };
+    });
+    const ceres = { name: 'Ceres', a: CERES_ELEMENTS.a, x: at.x, y: at.y, z: at.z, r: at.r, path };
+    return [...planetsOn(jd, { samples }), ceres].sort((p, q) => p.a - q.a).map((p) => ({ ...p, kind: bodyKind(p.name) }));
+}
+
+/* The Known worlds row: the planets, tundrs and Ceres, and the digest's known shapes, in
+   order of distance from the Sun. */
+export function knownRow(digest) {
+    return [...knownWorlds(digest), ...sections(digest).known].sort((p, q) => (p.a ?? p.orbit.a) - (q.a ?? q.orbit.a));
 }

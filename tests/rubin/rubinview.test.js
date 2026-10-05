@@ -3,6 +3,7 @@ import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
+    KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -80,7 +81,7 @@ describe('Sections', () => {
     const { passes, watch, largeIfDark } = sections(digest);
 
     test('passes, watched and large-if-dark are separate, with nothing in two', () => {
-        expect(passes.map((e) => e.designation)).toEqual(['136199', '120347']);
+        expect(passes.map((e) => e.designation)).toEqual(['120347']);
         expect(watch.map((e) => e.designation)).toEqual(['2012 VP113']);
         expect(largeIfDark.map((e) => e.designation)).toEqual(['3', '2']); // most likely large first
     });
@@ -152,8 +153,8 @@ describe('The map', () => {
         expect(map.radius).toBe(100);
     });
 
-    test("carries all eight planets, placed on the digest's date", () => {
-        expect(map.planets.map((p) => p.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
+    test("carries the planets, the tundrs and Ceres, placed on the digest's date", () => {
+        expect(map.planets.map((p) => p.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Ceres', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
         map.planets.forEach((p) => expect(p.path.length).toBeGreaterThan(50));
     });
 
@@ -221,7 +222,7 @@ describe('Planets and tundrs', () => {
     test('the four giants are tundrs, named by what they are made of', () => {
         const kinds = Object.fromEntries(mapData(digest).planets.map((p) => [p.name, p.kind]));
         expect(kinds).toEqual({
-            Mercury: 'planet', Venus: 'planet', Earth: 'planet', Mars: 'planet',
+            Mercury: 'planet', Venus: 'planet', Earth: 'planet', Mars: 'planet', Ceres: 'planet',
             Jupiter: 'hydrogen', Saturn: 'hydrogen', Uranus: 'water', Neptune: 'water',
         });
     });
@@ -285,8 +286,8 @@ describe('The known worlds', () => {
     const worlds = knownWorlds(digest);
 
     test('all eight, in order from the Sun, planets and tundrs alike', () => {
-        expect(worlds.map((w) => w.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
-        expect(worlds.map((w) => w.kind)).toEqual(['planet', 'planet', 'planet', 'planet', 'hydrogen', 'hydrogen', 'water', 'water']);
+        expect(worlds.map((w) => w.name)).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Ceres', 'Jupiter', 'Saturn', 'Uranus', 'Neptune']);
+        expect(worlds.map((w) => w.kind)).toEqual(['planet', 'planet', 'planet', 'planet', 'planet', 'hydrogen', 'hydrogen', 'water', 'water']);
     });
 
     test("each is where it is on the digest's date", () => {
@@ -302,5 +303,32 @@ describe('The known worlds', () => {
 
     test("links each to NASA's page for it", () => {
         expect(nasaImages(worlds[3]).url).toBe('https://science.nasa.gov/mars/');
+    });
+});
+
+/* "Known worlds" read literally: every body whose gravity-made shape has been seen. */
+describe('Known shapes', () => {
+    test('are the calibration list\'s shaped bodies other than moons', () => {
+        expect([...KNOWN_SHAPES].sort()).toEqual(['Ceres', 'Eris', 'Haumea', 'Makemake', 'Pluto', 'Quaoar']);
+    });
+
+    test('move from the likely row to the known row, and stay on the map', () => {
+        expect(sections(digest).known.map((e) => e.designation)).toEqual(['136199']);
+        expect(mapData(digest).marks.some((m) => m.entry.designation === '136199')).toBe(true);
+    });
+
+    test('the known row runs outward from the Sun, Eris after Neptune', () => {
+        const names = knownRow(digest).map((w) => displayName(w));
+        expect(names).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Ceres', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Eris']);
+    });
+
+    test('an uncertain shape stays likely', () => {
+        expect(isKnownShape({ name: '225088 Gonggong (2007 OR10)' })).toBe(false);
+    });
+
+    test("Ceres sits where JPL's orbit puts it, inside Jupiter's", () => {
+        const ceres = worldsOn(2461200.5).find((w) => w.name === 'Ceres');
+        expect(ceres.r).toBeGreaterThan(2.5);
+        expect(ceres.r).toBeLessThan(3.0);
     });
 });

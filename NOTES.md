@@ -3353,3 +3353,23 @@ miss, and `sections` leaves it off every list. It stays in the digest with the f
 the record shows why. Gaia covers the whole sky to about 20.7 and Pan-STARRS and Catalina
 go fainter, so 19 leaves a margin. Re-assessing all 7,296 catalogue objects offline on
 2026-10-05 flagged only RY158; the next brightest uncertain orbit was V 21.4.
+
+### Known worlds, read literally (2026-10-05)
+
+The owner reads "Known worlds" literally: every body known to be shaped by its gravity, not
+only the planets and tundrs. The test is the calibration list's own evidence
+(js/equilibrium.js): bodies marked `shaped: 'yes'` other than moons - Pluto, Eris,
+Haumea, Makemake, Quaoar and Ceres (`KNOWN_SHAPES`). Moons (17 icy ones in the list, plus
+the Moon and Io) are left for a later step, by the owner's choice. The five from the digest
+move up from the likely row (owner's choice) and keep their full Rubin cards, with a
+"Planet" line like the planets' cards; `sections` returns them as `known`, `mapData`
+still draws them. Bodies the list calls uncertain (Gonggong, Sedna, Orcus...) stay likely.
+Ceres is not a TNO, so it is not in the digest: it is a world card like the planets, placed
+on the map from JPL's orbit recorded on 2026-10-05 (`CERES_ELEMENTS`, two-body;
+`worldsOn`), labelled once zoomed in as the planets are. Its size is the mean diameter
+(939.4 km, Dawn), the planets' the equatorial one. The row runs outward from the Sun
+(`knownRow`).
+
+On the same day the owner removed the tundr cards' aside "no surface, so not a planet here":
+asides that justify the site's terms read as defensive. State the terms plainly; the tundr
+dialog is the one place the reasoning lives.

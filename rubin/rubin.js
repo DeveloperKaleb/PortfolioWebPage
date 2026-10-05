@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownWorlds,
+    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -112,7 +112,7 @@ function worldCard(world) {
     box.append(el('h4', {}, world.name));
     const kind = el('p', { class: 'rubin-confirmed' });
     if (world.kind === 'planet') kind.textContent = 'Planet';
-    else kind.append(tundrWord(KIND_LABEL[world.kind]), ': no surface, so not a planet here');
+    else kind.append(tundrWord(KIND_LABEL[world.kind]));
     box.append(kind);
     const facts = el('dl', { class: 'rubin-facts' });
     const fact = (term, value) => {
@@ -120,7 +120,7 @@ function worldCard(world) {
         dd.append(value);
         facts.append(el('dt', {}, term), dd);
     };
-    fact('Size', `${kilometres(world.km)} across the equator (measured)`);
+    fact('Size', `${kilometres(world.km)} ${world.across} (measured)`);
     fact('Now', `${au(world.now.r)} from the Sun`);
     if (world.found) fact('Found', world.found);
     const images = nasaImages(world);
@@ -133,6 +133,8 @@ function card(entry, { extra } = {}) {
     if (entry.world) return worldCard(entry);
     const box = el('article', { class: 'rubin-card' });
     box.append(el('h4', {}, displayName(entry)));
+    /* A known shape says what it is, as the planets' cards do. */
+    if (isKnownShape(entry)) box.append(el('p', { class: 'rubin-confirmed' }, 'Planet'));
     const status = rubinStatus(entry);
     box.append(el('p', { class: status.confirmed ? 'rubin-confirmed' : 'rubin-unconfirmed' }, status.text));
     if (extra) box.append(el('p', { class: 'rubin-why' }, extra));
@@ -644,7 +646,7 @@ async function render() {
 
     const { passes, watch, largeIfDark } = sections(digest);
     document.getElementById('rubin-passes').hidden = false;
-    buildPicker('rubin-passes', knownWorlds(digest), { onMap: true, group: '.rubin-known' });
+    buildPicker('rubin-passes', knownRow(digest), { onMap: true, group: '.rubin-known' });
     buildPicker('rubin-passes', passes, { onMap: true, group: '.rubin-likely' });
     buildPicker('rubin-watch', watch, { onMap: true, extra: (e) => ({ extra: whyWatched(e) }) });
     buildPicker('rubin-dark', largeIfDark);
