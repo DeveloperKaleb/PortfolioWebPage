@@ -2190,11 +2190,12 @@ main.rubin {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
-    /* The fade eases in and out (a smoothstep curve between the two colours, in four
-       in-between steps), so it leaves the dark slowly and arrives at the brown slowly
+    /* The fade eases in and out (a smoothstep curve between the two colours, in six
+       in-between steps, evenly spaced over the outer 30%), so it leaves the dark slowly and arrives at the brown slowly
        instead of a straight blend. */
     background: radial-gradient(circle closest-side,
-        #17120e 0%, #17120e 80%, #1b1510 84%, #241d16 88%, #2e251e 92%, #372d24 96%, #3b3026 100%);
+        #17120e 0%, #17120e 70%, #19140f 74.3%, #1e1813 78.6%, #251e17 82.9%,
+        #2d241d 87.1%, #342a21 91.4%, #392e25 95.7%, #3b3026 100%);
 }
 
 /* Axis text wears the muted text colour, never a series colour. */

@@ -3497,9 +3497,9 @@ stay column-width.
 
 **Revised the same day: a soft vignette, not black.** Pure black was too harsh on the eyes. Of four
 options (vignette, warm near-black, night navy, brown with a frame), the owner chose the vignette:
-`RUBIN_COLORS.space` is now #17120e, a warm near-black in the page's own hue, solid to 80% of the
-radius (first 60%; widened the same day at the owner's request), then easing into the brown along a
-smoothstep curve in four in-between stops (84, 88, 92, 96%) rather than a straight blend and fading to the page brown at the map's edges (`radial-gradient`, closest-side), so there is no
+`RUBIN_COLORS.space` is now #17120e, a warm near-black in the page's own hue, solid to 70% of the
+radius (60%, then 80%, then 70% the same day at the owner's requests), then easing into the brown along
+a smoothstep curve in six in-between stops evenly spaced over the outer 30%, rather than a straight blend and fading to the page brown at the map's edges (`radial-gradient`, closest-side), so there is no
 hard square edge. Every read colour passes on both ends of the fade (worst case on #17120e: text 14.3,
 evidence 8.1, grundy 7.9, watch 13.4; the brown end is the page, already asserted). The paragraph
 below is the first version.
