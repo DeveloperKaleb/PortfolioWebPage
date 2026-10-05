@@ -3374,6 +3374,11 @@ On the same day the owner removed the tundr cards' aside "no surface, so not a p
 asides that justify the site's terms read as defensive. State the terms plainly; the tundr
 dialog is the one place the reasoning lives.
 
+**Earth's moon is Luna (owner, 2026-10-05).** "Moon" + "Planet" read awkwardly on its card. To the
+owner a moon is what a body does (orbits a planet) and a planet what it is, so a moon can be both;
+"Luna" is its name, as Titan and Io are theirs. Its image link keeps NASA's name for the page
+("NASA's Moon page"). In js/moons.js the key is `Luna`.
+
 **Round moons join Known worlds (2026-10-05).** Planets by the owner's definition.
 `KNOWN_MOONS` in js/rubinview.js: the calibration list's 17 shaped moons plus the Moon and
 Io (rocky, so absent from that icy list, but certainly round); a test keeps the list in step

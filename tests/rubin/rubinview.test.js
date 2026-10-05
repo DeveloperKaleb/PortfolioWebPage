@@ -322,7 +322,7 @@ describe('Known shapes', () => {
     test('the known row runs outward from the Sun, Eris after Neptune', () => {
         const names = knownRow(digest).map((w) => displayName(w));
         expect(names).toEqual([
-            'Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Ceres',
+            'Mercury', 'Venus', 'Earth', 'Luna', 'Mars', 'Ceres',
             'Jupiter', 'Io', 'Europa', 'Ganymede', 'Callisto',
             'Saturn', 'Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea', 'Titan', 'Iapetus',
             'Uranus', 'Miranda', 'Ariel', 'Umbriel', 'Titania', 'Oberon',
@@ -343,10 +343,10 @@ describe('Known shapes', () => {
 
 /* The round moons are planets by the site's definition: cards in the known row. */
 describe('Round moons', () => {
-    test("are the calibration list's shaped moons, plus the Moon and Io", async () => {
+    test("are the calibration list's shaped moons, plus Luna and Io", async () => {
         const { CALIBRATION } = await import('../../js/equilibrium.js');
         const shaped = CALIBRATION.filter((b) => b.shaped === 'yes' && b.population === 'moon').map((b) => b.name);
-        expect(KNOWN_MOONS.map((m) => m.name).sort()).toEqual([...shaped, 'Moon', 'Io'].sort());
+        expect(KNOWN_MOONS.map((m) => m.name).sort()).toEqual([...shaped, 'Luna', 'Io'].sort());
     });
 
     test('every moon has a size, a discovery and a NASA page', () => {
@@ -392,4 +392,10 @@ describe('Moons on the map', () => {
         const view = initialView(map.radius, 440);
         expect(MOON_ORBITS_CHARON_A * view.scale * MAP_ZOOM.max).toBeGreaterThan(MOON_DRAW_PX);
     });
+});
+
+/* Earth's moon is Luna on this site, but NASA's page for it is "the Moon". */
+test("Luna's card links NASA's Moon page by NASA's name for it", () => {
+    const luna = knownRow(digest).find((b) => b.name === 'Luna');
+    expect(luna.images).toEqual({ url: 'https://science.nasa.gov/moon/', text: "NASA's Moon page, with its missions' images" });
 });

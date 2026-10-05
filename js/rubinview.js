@@ -439,15 +439,15 @@ export function knownRow(digest) {
  *
  * Planets by the site's definition (owner, 2026-10-05): rounded by their own gravity, with
  * a surface, and no fusion. These are the calibration list's moons seen to be shaped by
- * gravity, plus the Moon and Io, which are rocky and so not in that icy list but just as
- * certainly round. Sizes are mean diameters (the list's, and NASA's for the Moon and Io);
+ * gravity, plus Luna (the Moon; owner's name for it, 2026-10-05) and Io, which are rocky and so not in that icy list but just as
+ * certainly round. Sizes are mean diameters (the list's, and NASA's for Luna and Io);
  * discovery as usually credited; images from each one's NASA page, checked to load on
  * 2026-10-05. In order outward from their parent. A moon is where its parent is, as far as
  * the map's scale can tell, so it has no mark of its own. */
 const calibrated = (name) => CALIBRATION.find((b) => b.name === name)?.diameterKm;
 const NASA = 'https://science.nasa.gov/';
 export const KNOWN_MOONS = [
-    { name: 'Moon', parent: 'Earth', km: 3474.8, found: 'Known since antiquity', url: `${NASA}moon/` },
+    { name: 'Luna', parent: 'Earth', km: 3474.8, found: 'Known since antiquity', url: `${NASA}moon/`, page: 'Moon' },
     { name: 'Io', parent: 'Jupiter', km: 3643.2, found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/io/` },
     { name: 'Europa', parent: 'Jupiter', found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/europa/` },
     { name: 'Ganymede', parent: 'Jupiter', found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/ganymede/` },
@@ -485,7 +485,8 @@ export function knownMoons(bodies) {
             across: 'across, on average',
             found: m.found,
             now: { r: parent.now.r },
-            images: { url: m.url, text: `NASA's ${m.name} page, with its missions' images` },
+            /* NASA's own name for its page, where it differs (the Moon, for Luna). */
+            images: { url: m.url, text: `NASA's ${m.page ?? m.name} page, with its missions' images` },
         };
     });
 }

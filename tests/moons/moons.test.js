@@ -21,7 +21,7 @@ describe('The moons', () => {
     test('every round moon has an orbit and a parent', () => {
         expect(Object.keys(MOON_PARENTS)).toHaveLength(19);
         expect(MOON_PARENTS.Charon).toBe('Pluto');
-        expect(MOON_PARENTS.Moon).toBe('Earth');
+        expect(MOON_PARENTS.Luna).toBe('Earth');
     });
 
     test('a circle orbit keeps its radius and returns after one period', () => {
@@ -40,7 +40,7 @@ describe('The moons', () => {
         expect(ioNormal[2]).toBeGreaterThan(0);
     });
 
-    test("the Moon stays between perigee and apogee", () => {
+    test("Luna stays between perigee and apogee", () => {
         for (let d = 0; d < 60; d += 3) {
             const km = Math.hypot(...lunarOffset(MOON_EPOCH + d)) * 149597870.7;
             expect(km).toBeGreaterThan(355000);
@@ -50,6 +50,6 @@ describe('The moons', () => {
 
     test('a ring for the map, and a mean distance to decide when to draw it', () => {
         expect(moonRing('Io', MOON_EPOCH)).toHaveLength(72);
-        expect(moonDistance('Moon')).toBeCloseTo(0.00257, 4);
+        expect(moonDistance('Luna')).toBeCloseTo(0.00257, 4);
     });
 });

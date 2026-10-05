@@ -1,7 +1,7 @@
 /* Where the round moons are, for the Rubin tab's map (owner, 2026-10-05: each moon visible
  * once zoomed in far enough to tell it from its parent).
  *
- * Each moon (but the Moon) is a circle around its parent: radius, period, and the plane and
+ * Each moon (but Luna, Earth's) is a circle around its parent: radius, period, and the plane and
  * direction of motion, fitted once to JPL Horizons positions on 2026-10-05 and 2027-10-05
  * (heliocentric ecliptic J2000 axes, AU; tools/moon-orbits.mjs, which makes one request per
  * moon and was run once). The count of turns between those dates was settled with each
@@ -10,7 +10,7 @@
  * (eccentric orbits a circle ignores). The error grows slowly over the years; rerun the tool
  * to refresh.
  *
- * The Moon is too disturbed by the Sun for a fixed circle, so it uses the standard
+ * Luna is too disturbed by the Sun for a fixed circle, so it uses the standard
  * low-precision lunar series (within 0.3 degrees of Horizons on all three dates), shifted from
  * the ecliptic of date to J2000.
  *
@@ -42,7 +42,7 @@ export const MOON_ORBITS = {
 const DEG = Math.PI / 180;
 const AU_KM = 149597870.7;
 
-/* The Moon from Earth: ecliptic J2000, AU. */
+/* Luna (the Moon) from Earth: ecliptic J2000, AU. */
 export function lunarOffset(jd) {
     const d = jd - 2451545.0;
     const L = 218.316 + 13.176396 * d;
@@ -59,7 +59,7 @@ export function lunarOffset(jd) {
 
 /* A moon's offset from its parent on a Julian date: ecliptic J2000, AU. */
 export function moonOffset(name, jd) {
-    if (name === 'Moon') return lunarOffset(jd);
+    if (name === 'Luna') return lunarOffset(jd);
     const { a, period, p, q } = MOON_ORBITS[name];
     const t = (2 * Math.PI * (jd - MOON_EPOCH)) / period;
     const c = Math.cos(t), s = Math.sin(t);
@@ -68,10 +68,10 @@ export function moonOffset(name, jd) {
 
 /* Every moon's parent, its mean distance from it (AU), and its orbit as a ring of offsets
    for the map. */
-export const MOON_PARENTS = { Moon: 'Earth', ...Object.fromEntries(Object.entries(MOON_ORBITS).map(([n, o]) => [n, o.parent])) };
-export const moonDistance = (name) => (name === 'Moon' ? 385001 / AU_KM : MOON_ORBITS[name].a);
+export const MOON_PARENTS = { Luna: 'Earth', ...Object.fromEntries(Object.entries(MOON_ORBITS).map(([n, o]) => [n, o.parent])) };
+export const moonDistance = (name) => (name === 'Luna' ? 385001 / AU_KM : MOON_ORBITS[name].a);
 
 export function moonRing(name, jd, samples = 72) {
-    const period = name === 'Moon' ? 27.321661 : MOON_ORBITS[name].period;
+    const period = name === 'Luna' ? 27.321661 : MOON_ORBITS[name].period;
     return Array.from({ length: samples }, (_, k) => moonOffset(name, jd + (period * k) / samples));
 }
