@@ -47,8 +47,10 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Three pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `rubin/rubin.html` — the Rubin tab (placeholder name; the owner may rename it): large
-  outer Solar System objects from public Rubin data. `rubin/rubin.js` builds it from
+- `rubin/rubin.html` — the Solar System tab (shown as "The Solar System"; the code, path,
+  ids and tests still say rubin, like the games' internal names): built around public
+  Rubin data, but not only about Rubin - the known worlds, their moons and the large
+  outer Solar System objects. `rubin/rubin.js` builds it from
   the latest digest, read from `/rubin-data/` on the same origin (the `rubin-data`
   repo, published with GitHub Pages) - never from a third party. Its words and
   geometry are in `js/rubinview.js`. Preview it locally with

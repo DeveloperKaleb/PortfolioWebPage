@@ -3474,3 +3474,11 @@ first; the observing notice would fall back to maintenance.json alone. The other
 2026-10: Lasair stores Rubin's Solar System tables but has built nothing on them and needs a
 token; ANTARES looks up by Rubin's ssObjectId only, not designation; Babamul is invitation-only;
 AMPEL runs user code; Pitt-Google needs a Google Cloud account.
+
+### The tab is "The Solar System" (owner, 2026-10-05)
+
+Renamed from the placeholder "Rubin": it is built to capture Rubin data but is not only about
+Rubin (planets, tundrs, moons, JPL and NASA sources). Only the visible name changed - the nav
+label and the page title. The path (rubin/rubin.html), ids (#nav-rubin, .rubin-*), modules,
+tests and the rubin-data repo keep "rubin", like the games' internal names (CLAUDE.md), so no
+link, route or test moves.
