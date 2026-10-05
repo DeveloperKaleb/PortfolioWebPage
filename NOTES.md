@@ -3495,6 +3495,14 @@ each side. The drawing is made at the size shown (`mapSizeFor`, measured once wh
 stretched from the old fixed 440 units, so labels stay 12px; the legend, controls and caption
 stay column-width.
 
+**Revised the same day: a soft vignette, not black.** Pure black was too harsh on the eyes. Of four
+options (vignette, warm near-black, night navy, brown with a frame), the owner chose the vignette:
+`RUBIN_COLORS.space` is now #17120e, a warm near-black in the page's own hue, solid to 60% of the
+radius and fading to the page brown at the map's edges (`radial-gradient`, closest-side), so there is no
+hard square edge. Every read colour passes on both ends of the fade (worst case on #17120e: text 14.3,
+evidence 8.1, grundy 7.9, watch 13.4; the brown end is the page, already asserted). The paragraph
+below is the first version.
+
 **The map's background is black (owner, 2026-10-05).** The page brown behind the map read as
 more page; black reads as space. `RUBIN_COLORS.space` (#000000) is the map's background, and
 the rings round filled marks and the fill of hollow ones use it on the map (`mark(..., ground)`),

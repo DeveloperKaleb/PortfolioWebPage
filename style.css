@@ -2178,9 +2178,11 @@ main.rubin {
 /* The map is wider than the text column: 750px, 125% of it, reaching into the margins
    (owner, 2026-10-05; mapSizeFor in js/rubinview.js draws it at this size). It is centred on
    the column with left and a transform, since a block wider than its container cannot
-   centre with auto margins. Positioned, it paints over the landscape, and its black
-   (RUBIN_COLORS.space: space, set apart from the page) stops the stream and forest
-   cleanly at its edges. */
+   centre with auto margins. Positioned, it paints over the landscape, and its ground stops
+   the stream and forest cleanly at its edges. The ground is a soft vignette: a warm
+   near-black (RUBIN_COLORS.space) through the middle, fading to the page's brown at the
+   edges, so it reads as a window into space with no hard square edge. Pure black was too
+   harsh (owner, 2026-10-05). Every map colour passes on both ends of the fade. */
 #rubin-map .rubin-svg {
     max-width: none;
     width: min(750px, calc(100vw - 32px));
@@ -2188,7 +2190,7 @@ main.rubin {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
-    background: #000000;
+    background: radial-gradient(circle closest-side, #17120e 0%, #17120e 60%, #3b3026 100%);
 }
 
 /* Axis text wears the muted text colour, never a series colour. */
