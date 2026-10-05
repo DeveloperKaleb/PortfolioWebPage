@@ -3511,3 +3511,16 @@ while legend swatches, which sit on the page, keep the brown. Every read colour 
 on black (worst case: text 16.3:1, evidence 9.2:1, watch 15.2:1); tests/contrast now asserts
 them against space as well as the page. The grid rings rise from 1.6:1 to 2.7:1, so they show a
 little more.
+
+### Fun facts on the Known worlds (2026-10-05)
+
+The owner asked for a fun fact per known object, unusual enough to surprise someone who knows
+these bodies, with a small source link (owner's choices: the 33 Known worlds only; link shown).
+js/funfacts.js holds them by card name; each card shows "Fun fact:" under its facts with
+"Source: <name>". Every fact was checked against its linked page on 2026-10-05, preferring
+NASA, ESA, NOAA, journals and the Planetary Society; three cite Wikipedia (Tethys's density,
+Flamsteed's 34 Tauri, Messina Chasmata). Two first choices were swapped because a good source
+did not support them: Triton's future break-up (NASA's page does not say it; geysers at -235 C
+instead) and Tethys's trojans (NASA's page covers Dione's; Dione got that fact). Common facts
+were avoided on purpose (Saturn floating, Venus's day longer than its year). Tests check every
+Known world has one, each fits a card (170 characters), and none says "dwarf planet".

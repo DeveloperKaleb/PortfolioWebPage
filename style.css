@@ -2114,6 +2114,16 @@ main.rubin {
     margin: 0 0 8px;
 }
 
+/* A Known world's fun fact, under its facts; the source link is small, there to check. */
+.rubin-funfact {
+    margin: 10px 0 0;
+}
+
+.rubin-source {
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
 .rubin-facts {
     display: grid;
     grid-template-columns: auto 1fr;

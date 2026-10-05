@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261005-1214';
+const VERSION = '20261005-1707';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -60,6 +60,7 @@ const PRECACHE = [
     `${BASE}/js/orbit.js`,
     `${BASE}/js/planets.js`,
     `${BASE}/js/moons.js`,
+    `${BASE}/js/funfacts.js`,
     `${BASE}/js/rubinstatus.js`,
 ];
 

@@ -17,6 +17,7 @@ import {
     rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
+import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -88,6 +89,17 @@ function tundrWord(text) {
     return word;
 }
 
+/* A Known world's fun fact (js/funfacts.js), with a small link to its source; nothing for a
+   body without one. */
+function funFactLine(name) {
+    const f = funFact(name);
+    if (!f) return null;
+    const line = el('p', { class: 'rubin-funfact' });
+    line.append(el('strong', {}, 'Fun fact: '), f.text, ' ');
+    line.append(el('a', { class: 'rubin-source', href: f.url, target: '_blank', rel: 'noopener' }, `Source: ${f.source}`));
+    return line;
+}
+
 function table(headers, rows) {
     const t = el('table', { class: 'rubin-table' });
     const head = el('tr');
@@ -127,6 +139,8 @@ function worldCard(world) {
     const images = nasaImages(world);
     fact('Images', el('a', { href: images.url, target: '_blank', rel: 'noopener' }, images.text));
     box.append(facts);
+    const fun = funFactLine(world.name);
+    if (fun) box.append(fun);
     return box;
 }
 
@@ -165,6 +179,8 @@ function card(entry, { extra } = {}) {
         ? `from Rubin's own detections (${entry.detections})`
         : 'from the catalogue (JPL)');
     box.append(facts);
+    const fun = funFactLine(displayName(entry));
+    if (fun) box.append(fun);
 
     const flags = flagsOf(entry);
     if (flags.length) {

@@ -69,7 +69,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty-seven modules, all free of `document`/DOM calls so they stay testable
+The pure layer is twenty-eight modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -135,6 +135,8 @@ under Vitest without a browser:
   scope, and the orbit flags. Tested against recorded JPL Horizons values.
 - `js/planets.js` — the planets where they really are on a date (JPL's approximate
   elements, valid 1800-2050), for the Rubin tab's map.
+- `js/funfacts.js` — one checked fun fact per Known world on the Solar System tab, each
+  with its source link.
 - `js/moons.js` — the round moons where they are on a date, for the map: circles fitted
   once to JPL Horizons (`npm run moons` refits them), and a lunar series for the Moon.
   See NOTES.md.
