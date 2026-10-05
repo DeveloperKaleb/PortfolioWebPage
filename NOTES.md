@@ -3373,3 +3373,12 @@ on the map from JPL's orbit recorded on 2026-10-05 (`CERES_ELEMENTS`, two-body;
 On the same day the owner removed the tundr cards' aside "no surface, so not a planet here":
 asides that justify the site's terms read as defensive. State the terms plainly; the tundr
 dialog is the one place the reasoning lives.
+
+**Round moons join Known worlds (2026-10-05).** Planets by the owner's definition.
+`KNOWN_MOONS` in js/rubinview.js: the calibration list's 17 shaped moons plus the Moon and
+Io (rocky, so absent from that icy list, but certainly round); a test keeps the list in step
+with the calibration. Each card gives mean diameter, what it orbits, distance from the Sun
+(its parent's), discovery as usually credited, and its NASA page (all 19 checked to load on
+2026-10-05; Jupiter's moons live under /jupiter/jupiter-moons/). Each follows its parent in
+the row, innermost first, so the row is 33 long and gets the name filter. Moons have no map
+mark: at the map's scale a moon sits on its parent.

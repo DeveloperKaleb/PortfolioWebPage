@@ -3,7 +3,7 @@ import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
-    KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS,
+    KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 
@@ -319,7 +319,13 @@ describe('Known shapes', () => {
 
     test('the known row runs outward from the Sun, Eris after Neptune', () => {
         const names = knownRow(digest).map((w) => displayName(w));
-        expect(names).toEqual(['Mercury', 'Venus', 'Earth', 'Mars', 'Ceres', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Eris']);
+        expect(names).toEqual([
+            'Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Ceres',
+            'Jupiter', 'Io', 'Europa', 'Ganymede', 'Callisto',
+            'Saturn', 'Mimas', 'Enceladus', 'Tethys', 'Dione', 'Rhea', 'Titan', 'Iapetus',
+            'Uranus', 'Miranda', 'Ariel', 'Umbriel', 'Titania', 'Oberon',
+            'Neptune', 'Triton', 'Eris',
+        ]);
     });
 
     test('an uncertain shape stays likely', () => {
@@ -330,5 +336,37 @@ describe('Known shapes', () => {
         const ceres = worldsOn(2461200.5).find((w) => w.name === 'Ceres');
         expect(ceres.r).toBeGreaterThan(2.5);
         expect(ceres.r).toBeLessThan(3.0);
+    });
+});
+
+/* The round moons are planets by the site's definition: cards in the known row. */
+describe('Round moons', () => {
+    test("are the calibration list's shaped moons, plus the Moon and Io", async () => {
+        const { CALIBRATION } = await import('../../js/equilibrium.js');
+        const shaped = CALIBRATION.filter((b) => b.shaped === 'yes' && b.population === 'moon').map((b) => b.name);
+        expect(KNOWN_MOONS.map((m) => m.name).sort()).toEqual([...shaped, 'Moon', 'Io'].sort());
+    });
+
+    test('every moon has a size, a discovery and a NASA page', () => {
+        const moons = knownMoons(knownRow({ ...digest, entries: [] }).filter((b) => !b.moon).concat([{ name: '134340 Pluto (1930 BM)', now: { r: 35.6 } }]));
+        expect(moons).toHaveLength(KNOWN_MOONS.length);
+        for (const m of moons) {
+            expect(m.km).toBeGreaterThan(300);
+            expect(m.found).toBeTruthy();
+            expect(m.images.url).toMatch(/^https:\/\/science\.nasa\.gov\//);
+        }
+    });
+
+    test('a moon is as far from the Sun as its parent', () => {
+        const row = knownRow(digest);
+        const titan = row.find((b) => b.name === 'Titan');
+        const saturn = row.find((b) => b.name === 'Saturn');
+        expect(titan.now.r).toBe(saturn.now.r);
+    });
+
+    test('Charon follows Pluto when Pluto is in the digest', () => {
+        const withPluto = { ...digest, entries: [...digest.entries, { ...digest.entries[0], designation: '134340', name: '134340 Pluto (1930 BM)', orbit: { a: 39.5 }, now: { r: 35.6, x: 20, y: -29, V: 15 } }] };
+        const names = knownRow(withPluto).map((b) => displayName(b));
+        expect(names.slice(names.indexOf('Pluto'), names.indexOf('Pluto') + 2)).toEqual(['Pluto', 'Charon']);
     });
 });

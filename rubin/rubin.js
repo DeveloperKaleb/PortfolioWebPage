@@ -121,7 +121,8 @@ function worldCard(world) {
         facts.append(el('dt', {}, term), dd);
     };
     fact('Size', `${kilometres(world.km)} ${world.across} (measured)`);
-    fact('Now', `${au(world.now.r)} from the Sun`);
+    if (world.moon) fact('Orbits', world.parent);
+    fact('Now', world.moon ? `${au(world.now.r)} from the Sun, with ${world.parent}` : `${au(world.now.r)} from the Sun`);
     if (world.found) fact('Found', world.found);
     const images = nasaImages(world);
     fact('Images', el('a', { href: images.url, target: '_blank', rel: 'noopener' }, images.text));

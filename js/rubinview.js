@@ -399,7 +399,8 @@ export function knownWorlds(digest) {
 /* ---- Known shapes ----------------------------------------------------------------------------
  *
  * "Known worlds" is read literally (owner, 2026-10-05): every body the calibration list
- * (js/equilibrium.js) marks as seen to be shaped by gravity, moons aside for now. That is
+ * (js/equilibrium.js) marks as seen to be shaped by gravity; the round moons follow below
+ * (KNOWN_MOONS). Apart from the moons, that is
  * Pluto, Eris, Haumea, Makemake and Quaoar from the digest, and Ceres. Their cards move up
  * from the likely row, keeping all their Rubin details. Bodies the list calls uncertain
  * (Gonggong, Sedna, Orcus...) stay likely. Matched by name. */
@@ -425,5 +426,63 @@ export function worldsOn(jd, { samples = 120 } = {}) {
 /* The Known worlds row: the planets, tundrs and Ceres, and the digest's known shapes, in
    order of distance from the Sun. */
 export function knownRow(digest) {
-    return [...knownWorlds(digest), ...sections(digest).known].sort((p, q) => (p.a ?? p.orbit.a) - (q.a ?? q.orbit.a));
+    const bodies = [...knownWorlds(digest), ...sections(digest).known].sort((p, q) => (p.a ?? p.orbit.a) - (q.a ?? q.orbit.a));
+    /* Each round moon follows its parent, innermost first. */
+    const moons = knownMoons(bodies);
+    return bodies.flatMap((b) => [b, ...moons.filter((m) => m.parent === displayName(b))]);
+}
+
+/* ---- The round moons ---------------------------------------------------------------------------
+ *
+ * Planets by the site's definition (owner, 2026-10-05): rounded by their own gravity, with
+ * a surface, and no fusion. These are the calibration list's moons seen to be shaped by
+ * gravity, plus the Moon and Io, which are rocky and so not in that icy list but just as
+ * certainly round. Sizes are mean diameters (the list's, and NASA's for the Moon and Io);
+ * discovery as usually credited; images from each one's NASA page, checked to load on
+ * 2026-10-05. In order outward from their parent. A moon is where its parent is, as far as
+ * the map's scale can tell, so it has no mark of its own. */
+const calibrated = (name) => CALIBRATION.find((b) => b.name === name)?.diameterKm;
+const NASA = 'https://science.nasa.gov/';
+export const KNOWN_MOONS = [
+    { name: 'Moon', parent: 'Earth', km: 3474.8, found: 'Known since antiquity', url: `${NASA}moon/` },
+    { name: 'Io', parent: 'Jupiter', km: 3643.2, found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/io/` },
+    { name: 'Europa', parent: 'Jupiter', found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/europa/` },
+    { name: 'Ganymede', parent: 'Jupiter', found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/ganymede/` },
+    { name: 'Callisto', parent: 'Jupiter', found: 'January 1610, by Galileo Galilei', url: `${NASA}jupiter/jupiter-moons/callisto/` },
+    { name: 'Mimas', parent: 'Saturn', found: '17 September 1789, by William Herschel', url: `${NASA}saturn/moons/mimas/` },
+    { name: 'Enceladus', parent: 'Saturn', found: '28 August 1789, by William Herschel', url: `${NASA}saturn/moons/enceladus/` },
+    { name: 'Tethys', parent: 'Saturn', found: 'March 1684, by Giovanni Domenico Cassini', url: `${NASA}saturn/moons/tethys/` },
+    { name: 'Dione', parent: 'Saturn', found: 'March 1684, by Giovanni Domenico Cassini', url: `${NASA}saturn/moons/dione/` },
+    { name: 'Rhea', parent: 'Saturn', found: '23 December 1672, by Giovanni Domenico Cassini', url: `${NASA}saturn/moons/rhea/` },
+    { name: 'Titan', parent: 'Saturn', found: '25 March 1655, by Christiaan Huygens', url: `${NASA}saturn/moons/titan/` },
+    { name: 'Iapetus', parent: 'Saturn', found: '25 October 1671, by Giovanni Domenico Cassini', url: `${NASA}saturn/moons/iapetus/` },
+    { name: 'Miranda', parent: 'Uranus', found: '16 February 1948, by Gerard Kuiper', url: `${NASA}uranus/moons/miranda/` },
+    { name: 'Ariel', parent: 'Uranus', found: '24 October 1851, by William Lassell', url: `${NASA}uranus/moons/ariel/` },
+    { name: 'Umbriel', parent: 'Uranus', found: '24 October 1851, by William Lassell', url: `${NASA}uranus/moons/umbriel/` },
+    { name: 'Titania', parent: 'Uranus', found: '11 January 1787, by William Herschel', url: `${NASA}uranus/moons/titania/` },
+    { name: 'Oberon', parent: 'Uranus', found: '11 January 1787, by William Herschel', url: `${NASA}uranus/moons/oberon/` },
+    { name: 'Triton', parent: 'Neptune', found: '10 October 1846, by William Lassell', url: `${NASA}neptune/moons/triton/` },
+    { name: 'Charon', parent: 'Pluto', found: '22 June 1978, by James Christy', url: `${NASA}dwarf-planets/pluto/moons/charon/` },
+];
+
+/* The moons as cards, each placed where its parent is (bodies: the known row's other
+   members, which carry their distance from the Sun). */
+export function knownMoons(bodies) {
+    const parents = new Map(bodies.map((b) => [displayName(b), b]));
+    return KNOWN_MOONS.filter((m) => parents.has(m.parent)).map((m) => {
+        const parent = parents.get(m.parent);
+        return {
+            name: m.name,
+            parent: m.parent,
+            designation: WORLD_PREFIX + m.name,
+            world: true,
+            moon: true,
+            kind: 'planet',
+            km: m.km ?? calibrated(m.name),
+            across: 'across, on average',
+            found: m.found,
+            now: { r: parent.now.r },
+            images: { url: m.url, text: `NASA's ${m.name} page, with its missions' images` },
+        };
+    });
 }
