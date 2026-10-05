@@ -30,6 +30,7 @@ one request to JPL; Fink is asked once a month.
 | `digest/YYYY-MM.json` | That month's results: passes, near misses, flags |
 | `digest/latest.json` | The newest digest, which the site reads |
 | `changes/YYYY-MM.json` | What changed since the month before |
+| `moons.json` | The round moons' orbits for the site's map, refitted from JPL Horizons once a year |
 
 Inputs are kept every month so any future filter can be re-run against the whole
 history. Each digest records the site commit, cutoffs and thresholds that produced it.

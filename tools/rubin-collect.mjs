@@ -17,7 +17,8 @@ import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createPoliteFetch } from '../js/polite.js';
-import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL } from '../js/sources.js';
+import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL, fetchMoonVectors } from '../js/sources.js';
+import { moonsDue, moonFitTimes, fitMoons, MOON_HORIZONS, BUILT_IN_MOONS } from '../js/moons.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
     emptyDiscoveryStore, discoveryQueue, unnamedStations, annotateDiscoveries, DISCOVERY_PER_RUN, STATION_NAMES_PER_RUN,
@@ -193,6 +194,24 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         writeJson(join(dataDir, 'discovery.json'), store);
     }
     annotateDiscoveries(digest, store);
+
+    /* The round moons' orbits for the map: refitted from JPL Horizons once the fit in use is
+       a year old (js/moons.js), one request per moon. A refit that fails anywhere, or misses
+       its check, is not used, and the previous fit stays. */
+    let moons = readJson(join(dataDir, 'moons.json'));
+    const today = Math.floor(jdFromDate(date) - 0.5) + 0.5;
+    if (moonsDue(moons, today)) {
+        const { rows, failed } = await fetchMoonVectors(polite, MOON_HORIZONS, moonFitTimes(today));
+        const fit = failed.length ? { ok: false, reason: `no positions for ${failed.join(', ')}` } : fitMoons(rows, today, moons ?? BUILT_IN_MOONS);
+        if (fit.ok) {
+            moons = { ...fit.set, fitted: date.toISOString().slice(0, 10), checks: fit.checks };
+            writeJson(join(dataDir, 'moons.json'), moons);
+            log(`Moons: refitted; worst check ${Math.max(...Object.values(fit.checks))} degrees`);
+        } else {
+            log(`Moons: refit not used (${fit.reason}); keeping the previous fit`);
+        }
+    }
+    digest.moons = moons ? { epoch: moons.epoch, orbits: moons.orbits } : null;
     digest.provenance.sources.requests = polite.used?.() ?? null;
 
     const changes = diffDigests(previousDigest(dataDir, plan.month), digest);
@@ -213,6 +232,8 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
 export async function recordedPolite() {
     const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS, RUBIN_NEWS } = await import('../tests/sources/fixtures.js');
     const { OBJECTS } = await import('../tests/orbit/fixtures.js');
+    const { HORIZONS_VECTORS, horizonsResponse } = await import('../tests/moons/fixtures.js');
+    const { MOON_HORIZONS } = await import('../js/moons.js');
     const page = JSON.parse(JPL_PAGE);
     const extra = [['136199', ' 136199 Eris (2003 UB313)', OBJECTS.Eris], ['90377', ' 90377 Sedna (2003 VB12)', OBJECTS.Sedna], ['225088', ' 225088 Gonggong (2007 OR10)', OBJECTS.Gonggong]];
     for (const [pdes, fullName, o] of extra) {
@@ -228,6 +249,13 @@ export async function recordedPolite() {
         if (url.includes('sbdb_query')) return answer(JSON.stringify(page));
         if (url.includes('statistics')) return answer(NIGHTLY_ALERTS);
         if (url.includes('rubin.community')) return answer(RUBIN_NEWS);
+        /* Horizons: the recorded rows for that moon, whatever dates were asked (they were
+           recorded for an epoch of 2026-10-05). */
+        if (url.includes('horizons.api')) {
+            const id = Number(new URL(url).searchParams.get('COMMAND').replace(/'/g, ''));
+            const name = Object.keys(MOON_HORIZONS).find((n) => MOON_HORIZONS[n][0] === id);
+            return answer(horizonsResponse(HORIZONS_VECTORS[name]));
+        }
         if (url.includes('ssoft')) return answer(RUBIN_LIST);
         if (url.includes('fink')) return answer(JSON.stringify(url.includes('M5088') ? GONGGONG_DETECTIONS : []));
         if (url.includes('get-obs')) return answer(String(options?.body).includes('2007 OR10') ? MPC_GONGGONG : '[{"OBS80": ""}]');

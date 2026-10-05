@@ -389,3 +389,47 @@ export async function fetchStationNames(polite, codes) {
     }
     return names;
 }
+
+/* ---- JPL Horizons: the round moons, once a year ---------------------------------------- */
+
+/* One moon's position and velocity from its parent at a list of Julian dates: ecliptic
+   J2000, AU and AU/day, CSV inside Horizons's JSON. Used for the yearly moon refit
+   (js/moons.js): one request per moon. */
+export function horizonsVectorsUrl(id, center, jds) {
+    const query = new URLSearchParams({
+        format: 'json', COMMAND: `'${id}'`, OBJ_DATA: 'NO', MAKE_EPHEM: 'YES', EPHEM_TYPE: 'VECTORS',
+        CENTER: `'500@${center}'`, TLIST: jds.map((jd) => `'${jd}'`).join(' '), TLIST_TYPE: 'JD',
+        REF_PLANE: 'ECLIPTIC', REF_SYSTEM: 'J2000', OUT_UNITS: 'AU-D', VEC_TABLE: '2', CSV_FORMAT: 'YES', VEC_LABELS: 'NO',
+    });
+    return `https://ssd.jpl.nasa.gov/api/horizons.api?${query}`;
+}
+
+/* The rows between $$SOE and $$EOE: JD, calendar date, x, y, z, vx, vy, vz. An error
+   (no ephemeris) gives no rows. */
+export function parseHorizonsVectors(body) {
+    const result = JSON.parse(body).result ?? '';
+    const table = result.split('$$SOE')[1]?.split('$$EOE')[0];
+    if (!table) return [];
+    return table.trim().split('\n').map((line) => {
+        const c = line.split(',').map((s) => s.trim());
+        return { jd: Number(c[0]), r: [c[2], c[3], c[4]].map(Number), v: [c[5], c[6], c[7]].map(Number) };
+    }).filter((row) => [row.jd, ...row.r, ...row.v].every(Number.isFinite));
+}
+
+/* Every fitted moon's rows for these dates, one request each through the courtesy layer.
+   A moon that fails is named in failed; the caller then keeps the previous fit. */
+export async function fetchMoonVectors(polite, moons, jds) {
+    const rows = {}, failed = [];
+    for (const [name, [id, center]] of Object.entries(moons)) {
+        try {
+            const response = await polite(horizonsVectorsUrl(id, center, jds), { headers: { Accept: 'application/json' } });
+            const parsed = response.ok ? parseHorizonsVectors(response.body) : [];
+            if (parsed.length === jds.length) rows[name] = parsed;
+            else failed.push(name);
+        } catch (error) {
+            failed.push(name);
+            if (/budget/i.test(error.message)) break;
+        }
+    }
+    return { rows, failed };
+}

@@ -10,7 +10,7 @@ import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
 import { jdFromDate, positionAt } from './orbit.js';
-import { moonOffset, moonRing, moonDistance, MOON_PARENTS } from './moons.js';
+import { moonOffset, moonRing, moonDistance, MOON_PARENTS, BUILT_IN_MOONS } from './moons.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -159,7 +159,8 @@ export function mapData(digest) {
     const planets = worldsOn(jd);
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
-    return { marks, radius, planets, moons: moonsOn(jd, planets, known) };
+    /* The digest carries the collector's latest moon fit; an older digest, the built-in one. */
+    return { marks, radius, planets, moons: moonsOn(jd, planets, known, digest.moons ?? BUILT_IN_MOONS) };
 }
 
 /* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
@@ -498,18 +499,18 @@ export function knownMoons(bodies) {
  * is a planet or tundr from worldsOn, or Pluto from the digest. */
 export const MOON_DRAW_PX = 8;
 
-export function moonsOn(jd, planets, known = []) {
+export function moonsOn(jd, planets, known = [], set = BUILT_IN_MOONS) {
     const parents = new Map([
         ...planets.map((p) => [p.name, p]),
         ...known.filter((e) => Number.isFinite(e.now?.x)).map((e) => [displayName(e), { x: e.now.x, y: e.now.y }]),
     ]);
     return Object.entries(MOON_PARENTS).filter(([, parent]) => parents.has(parent)).map(([name, parent]) => {
         const at = parents.get(parent);
-        const [dx, dy] = moonOffset(name, jd);
+        const [dx, dy] = moonOffset(name, jd, set);
         return {
-            name, parent, a: moonDistance(name),
+            name, parent, a: moonDistance(name, set),
             x: at.x + dx, y: at.y + dy,
-            path: moonRing(name, jd).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry })),
+            path: moonRing(name, jd, 72, set).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry })),
         };
     });
 }

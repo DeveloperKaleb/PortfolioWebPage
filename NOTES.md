@@ -3411,3 +3411,15 @@ The owner wanted each round moon visible once zoomed in far enough. Two things m
 
 A moon's dot works like any other: a click shows its card. Charon is drawn around the
 digest's Pluto, so it waits until Pluto is in the digest.
+
+**Yearly moon refit (owner, 2026-10-05).** The scheduled collector refits every moon once the
+fit in use is a year old (`moonsDue`, `MOON_REFIT_DAYS` = 365): one Horizons request per moon
+(18, through the courtesy layer, so 5 s apart, once a year), the same three dates as the tool
+(`moonFitTimes`). `fitMoons` refuses the whole refit if any moon is missing or misses its
+held-back check by more than `MOON_FIT_LIMIT_DEG` (10 degrees; the worst today is 6.8), and the
+previous fit stays. A good refit is saved as rubin-data's moons.json and carried in the digest
+as `digest.moons` ({ epoch, orbits }); the map uses it, falling back to the fit built into
+js/moons.js for older digests. Yearly is ample: Titan's and Iapetus's error comes from
+eccentricity and does not grow, and the rest drift by a degree or two a year. Luna is never
+refitted. `npm run moons` now shares the same code and only updates the built-in fallback.
+The dry run answers Horizons from tests/moons/fixtures.js whatever dates are asked.
