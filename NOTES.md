@@ -3446,3 +3446,31 @@ measure" instead of "Not yet confirmed by Rubin". The card also works it out fro
 older digests say it too. Only Pluto (r ~14.7) is caught; Makemake and Haumea (~16.7-16.9) are
 just clear and may saturate in poor seeing. Revisit the limit once Rubin publishes measured
 values.
+
+### Fallback broker: ALeRCE's TAP service (researched 2026-10-05; nothing built)
+
+Every broker gets the same Rubin alert stream, so a second broker adds no measurements, only
+load; Fink stays the one source. If Fink goes down or changes its API, the fallback is
+**ALeRCE's TAP service** (`https://tap.alerce.online/tap`, IVOA TAP/ADQL, sync endpoint
+`/tap/sync`, no account). ALeRCE staff said on the Rubin forum (19 Aug 2026) that its Python
+client and REST API do not support Solar System queries - TAP only. Its direct database access
+is being retired (frozen 7 July 2026, off around October 2026), so TAP is the supported path.
+
+Checked with one metadata query (TAP_SCHEMA.columns) on 2026-10-05:
+- `alerce_tap.lsst_ss_detection`: `measurement_id`, `ssobjectid`, `designation`, phase angle,
+  helio/topo range and range rate, and `helio_x/y/z`, `helio_vx/vy/vz` - the same
+  Rubin-predicted state the site takes from Fink (`r:helio_*`) as Rubin's orbit.
+- `alerce_tap.lsst_ss_object`: per-object, per band `<band>_h`, `_herr`, `_g12`, `_nobs`,
+  `_slope_fit_failed`, plus `arc`, `nobs`, `firstobservationmjdtai` - Rubin's own phase fits
+  (Fink's SSoFT fits fail for TNOs; whether these do is unchecked).
+- `alerce_tap.lsst_mpc_orbits`: MPC orbits by `designation` / packed provisional designation.
+- Fluxes per detection would come from `alerce_tap.lsst_detection`, joined on `measurement_id`
+  (not inspected).
+
+One ADQL query can ask about a whole list of designations (`WHERE designation IN (...)`), so a
+fallback stays a handful of requests a month. What ALeRCE lacks is Fink's monthly list of
+objects Rubin has seen and its nightly alert counts: `lsst_ss_object` could stand in for the
+first; the observing notice would fall back to maintenance.json alone. The others, as of
+2026-10: Lasair stores Rubin's Solar System tables but has built nothing on them and needs a
+token; ANTARES looks up by Rubin's ssObjectId only, not designation; Babamul is invitation-only;
+AMPEL runs user code; Pitt-Google needs a Google Cloud account.
