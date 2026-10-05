@@ -239,6 +239,14 @@ export function matchesQuery(entry, query) {
 /* Zoomed all the way in, Charon (13,000 km from Pluto) is a few pixels clear of it. */
 export const MAP_ZOOM = { max: 50000, step: 2 };
 
+/* The map is the tab's centrepiece, so it is wider than the text (owner, 2026-10-05): 750px,
+   125% of the 600px column, reaching into the margins. On a narrower screen it takes the
+   screen's width less a 16px gutter each side. The drawing is made at the size it is shown,
+   so labels and marks stay their intended size instead of being stretched with it. */
+export const MAP_WIDTH = 750;
+export const MAP_GUTTER = 16;
+export const mapSizeFor = (viewportPx) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * MAP_GUTTER)));
+
 export function initialView(radiusAU, sizePx) {
     const scale = (sizePx / 2 - 24) / radiusAU;
     return { scale, cx: 0, cy: 0, fitScale: scale, radiusAU, sizePx };

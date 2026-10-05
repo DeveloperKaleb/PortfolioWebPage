@@ -3482,3 +3482,15 @@ Rubin (planets, tundrs, moons, JPL and NASA sources). Only the visible name chan
 label and the page title. The path (rubin/rubin.html), ids (#nav-rubin, .rubin-*), modules,
 tests and the rubin-data repo keep "rubin", like the games' internal names (CLAUDE.md), so no
 link, route or test moves.
+
+### The map is wider than the column (owner, 2026-10-05)
+
+The owner wanted the map's importance shown by size: at least a quarter wider than the text.
+It is 750px (125% of the 600px column), reaching about 75px into each margin, with the page
+colour behind it so the stream and forest stop cleanly at its edges (owner's choice over
+letting the landscape show through). It is centred with `left: 50%` and a transform, since a
+block wider than its container cannot centre with auto margins, and being positioned it paints
+over #landscape (which has no z-index). On narrower screens it is the screen's width less 16px
+each side. The drawing is made at the size shown (`mapSizeFor`, measured once when drawn), not
+stretched from the old fixed 440 units, so labels stay 12px; the legend, controls and caption
+stay column-width.

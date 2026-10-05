@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'vitest';
+import { mapSizeFor, MAP_WIDTH } from '../../js/rubinview.js';
 import { planetsOn, planetElements, VALID_UNTIL_JD } from '../../js/planets.js';
 import { jdFromDate } from '../../js/orbit.js';
 import {
@@ -102,5 +103,17 @@ describe('Zooming the map', () => {
     test('zoomed in far enough, the inner planets are visible', () => {
         const deep = zoomAt(fit, MAP_ZOOM.max);
         expect(1.52 * deep.scale).toBeGreaterThan(100); // Mars's orbit spans well over 100 px
+    });
+});
+
+/* The map is drawn at the width it is shown: 750px where there is room, the screen less
+   its gutters where there is not. */
+describe('Map size', () => {
+    test('750px on a desktop, wider than the 600px column by a quarter', () => {
+        expect(mapSizeFor(1400)).toBe(MAP_WIDTH);
+        expect(MAP_WIDTH / 600).toBeGreaterThanOrEqual(1.25);
+    });
+    test('the screen less 16px each side on a phone', () => {
+        expect(mapSizeFor(390)).toBe(358);
     });
 });

@@ -2175,8 +2175,19 @@ main.rubin {
     margin: 0 auto;
 }
 
+/* The map is wider than the text column: 750px, 125% of it, reaching into the margins
+   (owner, 2026-10-05; mapSizeFor in js/rubinview.js draws it at this size). It is centred on
+   the column with left and a transform, since a block wider than its container cannot
+   centre with auto margins. Positioned, it paints over the landscape, and the page colour
+   behind it stops the stream and forest cleanly at its edges. */
 #rubin-map .rubin-svg {
-    max-width: 440px;
+    max-width: none;
+    width: min(750px, calc(100vw - 32px));
+    margin: 0;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3b3026;
 }
 
 /* Axis text wears the muted text colour, never a series colour. */

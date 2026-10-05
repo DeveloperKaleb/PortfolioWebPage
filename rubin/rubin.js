@@ -12,7 +12,7 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
-    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
 } from '../js/rubinview.js';
@@ -302,7 +302,8 @@ function drawMap(digest) {
     const section = document.getElementById('rubin-map');
     const data = mapData(digest);
     if (!data.marks.length) { section.hidden = true; return; }
-    const SIZE = 440;
+    /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. */
+    const SIZE = mapSizeFor(document.documentElement.clientWidth);
     let view = initialView(data.radius, SIZE);
     const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above' });
     const layer = svg('g');
