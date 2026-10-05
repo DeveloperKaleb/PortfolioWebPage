@@ -3382,3 +3382,27 @@ with the calibration. Each card gives mean diameter, what it orbits, distance fr
 2026-10-05; Jupiter's moons live under /jupiter/jupiter-moons/). Each follows its parent in
 the row, innermost first, so the row is 33 long and gets the name filter. Moons have no map
 mark: at the map's scale a moon sits on its parent.
+
+### Moons on the map (2026-10-05)
+
+The owner wanted each round moon visible once zoomed in far enough. Two things made it work:
+
+- **Zoom.** `MAP_ZOOM.max` went from 400 to 50,000. At 400x the Moon is about a pixel from
+  Earth and Charon nothing; moons are drawn once their orbit is `MOON_DRAW_PX` (8 px) across
+  on screen, which is about 490x for Callisto, 2,400x for the Moon and 47,000x for Charon.
+  The distance rings stay centred on the Sun, so at that zoom none is in view.
+- **Where they are.** The map shows everything where it really is on the digest's date, and
+  moons move fast (Io laps Jupiter in 1.8 days). By the owner's choice the orbits were
+  recorded once, not asked for every week: `tools/moon-orbits.mjs` (`npm run moons`) made
+  one Horizons request per moon, 5 s apart, for its position and velocity from its parent on
+  2026-10-05 and a year later. js/moons.js turns that into a circle (radius, plane, direction,
+  and the mean period that joins the two dates); the number of whole turns in between is
+  settled with each moon's known period - an osculating period picked the wrong count for
+  Io, Mimas, Enceladus and Titan. Checked on 2026-04-05, a date the fit never saw (recorded in
+  tests/moons/fixtures.js): within 1.2 degrees for most, 5-7 degrees for Mimas (its slow
+  resonance with Tethys), Titan and Iapetus (eccentric orbits). The Moon is too disturbed by
+  the Sun for a circle; it uses the standard low-precision lunar series (within 0.3 degrees on
+  all three dates). Errors grow slowly; rerun the tool every few years.
+
+A moon's dot works like any other: a click shows its card. Charon is drawn around the
+digest's Pluto, so it waits until Pluto is in the digest.

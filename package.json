@@ -11,7 +11,8 @@
     "test": "vitest",
     "openings": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/mine-openings.mjs",
     "albedos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/tno-albedos.mjs",
-    "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/rubin-collect.mjs"
+    "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/rubin-collect.mjs",
+    "moons": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/moon-orbits.mjs"
   },
   "repository": {
     "type": "git",

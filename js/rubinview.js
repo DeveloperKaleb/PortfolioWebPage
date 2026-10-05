@@ -10,6 +10,7 @@ import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
 import { jdFromDate, positionAt } from './orbit.js';
+import { moonOffset, moonRing, moonDistance, MOON_PARENTS } from './moons.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -154,10 +155,11 @@ export function mapData(digest) {
         ...[...known, ...passes].map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
         ...watch.map((e) => ({ entry: e, kind: 'watch' })),
     ].filter((m) => Number.isFinite(m.entry.now?.x) && Number.isFinite(m.entry.now?.y));
-    const planets = worldsOn(jdFromDate(new Date(`${digest.date}T00:00:00Z`)));
+    const jd = jdFromDate(new Date(`${digest.date}T00:00:00Z`));
+    const planets = worldsOn(jd);
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
-    return { marks, radius, planets };
+    return { marks, radius, planets, moons: moonsOn(jd, planets, known) };
 }
 
 /* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
@@ -228,7 +230,8 @@ export function matchesQuery(entry, query) {
  * their size in pixels at every zoom. Pure, so the maths is tested on its own. */
 
 /* From fitting everything, in to about the size of Mercury's orbit. */
-export const MAP_ZOOM = { max: 400, step: 2 };
+/* Zoomed all the way in, Charon (13,000 km from Pluto) is a few pixels clear of it. */
+export const MAP_ZOOM = { max: 50000, step: 2 };
 
 export function initialView(radiusAU, sizePx) {
     const scale = (sizePx / 2 - 24) / radiusAU;
@@ -483,6 +486,29 @@ export function knownMoons(bodies) {
             found: m.found,
             now: { r: parent.now.r },
             images: { url: m.url, text: `NASA's ${m.name} page, with its missions' images` },
+        };
+    });
+}
+
+/* ---- Moons on the map ----------------------------------------------------------------------
+ *
+ * Each round moon is drawn once zoomed in far enough to tell it from its parent
+ * (MOON_DRAW_PX), on its orbit, where it is on the digest's date (js/moons.js). Its parent
+ * is a planet or tundr from worldsOn, or Pluto from the digest. */
+export const MOON_DRAW_PX = 8;
+
+export function moonsOn(jd, planets, known = []) {
+    const parents = new Map([
+        ...planets.map((p) => [p.name, p]),
+        ...known.filter((e) => Number.isFinite(e.now?.x)).map((e) => [displayName(e), { x: e.now.x, y: e.now.y }]),
+    ]);
+    return Object.entries(MOON_PARENTS).filter(([, parent]) => parents.has(parent)).map(([name, parent]) => {
+        const at = parents.get(parent);
+        const [dx, dy] = moonOffset(name, jd);
+        return {
+            name, parent, a: moonDistance(name),
+            x: at.x + dx, y: at.y + dy,
+            path: moonRing(name, jd).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry })),
         };
     });
 }

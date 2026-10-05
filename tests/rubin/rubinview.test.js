@@ -3,9 +3,11 @@ import {
     DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
-    KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons,
+    KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons, MOON_DRAW_PX, initialView, MAP_ZOOM,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
+import { MOON_ORBITS } from '../../js/moons.js';
+const MOON_ORBITS_CHARON_A = MOON_ORBITS.Charon.a;
 
 /* A small digest in the collector's format, with one of each kind of entry. */
 const entry = (over) => ({
@@ -368,5 +370,26 @@ describe('Round moons', () => {
         const withPluto = { ...digest, entries: [...digest.entries, { ...digest.entries[0], designation: '134340', name: '134340 Pluto (1930 BM)', orbit: { a: 39.5 }, now: { r: 35.6, x: 20, y: -29, V: 15 } }] };
         const names = knownRow(withPluto).map((b) => displayName(b));
         expect(names.slice(names.indexOf('Pluto'), names.indexOf('Pluto') + 2)).toEqual(['Pluto', 'Charon']);
+    });
+});
+
+/* Each round moon on the map, around its parent, once there is room to tell them apart. */
+describe('Moons on the map', () => {
+    const map = mapData(digest);
+
+    test('every moon of a body on the map is placed around it', () => {
+        const titan = map.moons.find((m) => m.name === 'Titan');
+        const saturn = map.planets.find((p) => p.name === 'Saturn');
+        expect(Math.hypot(titan.x - saturn.x, titan.y - saturn.y)).toBeLessThan(titan.a * 1.01);
+        expect(titan.path.length).toBeGreaterThan(50);
+    });
+
+    test("Charon waits for Pluto: with no Pluto in the digest, it is not drawn", () => {
+        expect(map.moons.some((m) => m.name === 'Charon')).toBe(false);
+    });
+
+    test('zoomed all the way in, even Charon clears its parent', () => {
+        const view = initialView(map.radius, 440);
+        expect(MOON_ORBITS_CHARON_A * view.scale * MAP_ZOOM.max).toBeGreaterThan(MOON_DRAW_PX);
     });
 });

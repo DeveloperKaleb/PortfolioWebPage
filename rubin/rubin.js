@@ -12,7 +12,7 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
-    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
 } from '../js/rubinview.js';
@@ -352,6 +352,31 @@ function drawMap(digest) {
             g.addEventListener('dblclick', (e) => e.stopPropagation());
             parts.push(g);
             if (orbitPx >= PLANET_LABEL_PX) labels.push({ x: px, y: py, text: p.name, rank: Infinity });
+        }
+        /* The round moons, once zoomed in far enough to tell each from its parent. A click
+           shows its card. */
+        for (const m of data.moons) {
+            const ringPx = m.a * view.scale;
+            if (ringPx < MOON_DRAW_PX) continue;
+            const [mx, my] = toScreen(view, m.x, m.y);
+            if (mx < -20 || mx > SIZE + 20 || my < -20 || my > SIZE + 20) continue;
+            const points = m.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+            parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.4 }));
+            const designation = `world:${m.name}`;
+            const chosen = selected.has(designation);
+            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
+            g.append(svg('circle', { cx: mx, cy: my, r: 12, fill: 'transparent' }));
+            g.append(svg('circle', { cx: mx, cy: my, r: 2.5, fill: C.muted, stroke: C.surface, 'stroke-width': 1.5 }));
+            attachDetails(g, [[m.name, `planet, orbiting ${m.parent}`], ['Click to show or hide its card']]);
+            g.setAttribute('role', 'button');
+            g.setAttribute('aria-pressed', String(chosen));
+            g.addEventListener('click', () => { hideTooltip(); toggle(designation, { scrollTo: true }); });
+            g.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(designation, { scrollTo: true }); }
+            });
+            g.addEventListener('dblclick', (e) => e.stopPropagation());
+            parts.push(g);
+            if (ringPx >= PLANET_LABEL_PX) labels.push({ x: mx, y: my, text: m.name, rank: 1e7 });
         }
         parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
 
