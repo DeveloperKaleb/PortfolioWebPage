@@ -9,7 +9,7 @@ import { CALIBRATION, READINGS, SHAPED, fitEquilibrium, chanceShaped, diameterAt
 import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
-import { jdFromDate, positionAt } from './orbit.js';
+import { jdFromDate, positionAt, tooBrightForRubin } from './orbit.js';
 import { moonOffset, moonRing, moonDistance, MOON_PARENTS, BUILT_IN_MOONS } from './moons.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
@@ -181,6 +181,11 @@ export function discoveryText(entry) {
    them. */
 export function rubinStatus(entry) {
     const r = entry.rubin;
+    /* Pluto: brighter than a Rubin visit can measure, so never "not yet". Worked out from the
+       entry's brightness too, so digests from before the collector recorded it say so. */
+    if (r?.tooBright || (Number.isFinite(entry.now?.V) && tooBrightForRubin(entry.now.V))) {
+        return { confirmed: false, tooBright: true, text: 'Too bright for Rubin to measure' };
+    }
     if (!r?.confirmed) return { confirmed: false, text: 'Not yet confirmed by Rubin' };
     const span = r.arcDays >= 1 ? ` over ${Math.round(r.arcDays)} days` : '';
     const last = r.lastSeen ? `, last ${longDate(r.lastSeen)}` : '';

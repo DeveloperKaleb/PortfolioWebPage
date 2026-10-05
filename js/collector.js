@@ -10,7 +10,7 @@ import { packDesignation, provisionalFrom, bandH, visualH, seenByRubin, FINK_H_L
 import { CALIBRATION, READINGS, fitEquilibrium, diameterAt } from './equilibrium.js';
 import { TNO_ALBEDOS_MODIFIED } from './tnoalbedos.js';
 import { darkAlbedo } from './brightness.js';
-import { ORBIT_THRESHOLDS, SCOPE_AU, RUBIN_SINGLE_VISIT, TYPICAL_V_MINUS_R, rubinState, positionAt } from './orbit.js';
+import { ORBIT_THRESHOLDS, SCOPE_AU, RUBIN_SINGLE_VISIT, TYPICAL_V_MINUS_R, rubinState, positionAt, observe, tooBrightForRubin } from './orbit.js';
 
 export const FORMAT = 1;
 
@@ -63,11 +63,15 @@ export function selectForFink(tnos, { rubinList = null, skip = new Set() } = {})
    it. An object Rubin has not measured is kept, labelled not yet confirmed by Rubin.
    JPL's elements and H are kept beside Rubin's for the cross-check. Objects with no H
    anywhere are left out and counted. */
-export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = null } = {}) {
+/* jd (optional): the run's date, to tell which objects are too bright for Rubin to
+   measure (js/orbit.js, RUBIN_SATURATION). Those keep their catalogue H whatever Rubin
+   reports, since saturated detections clip the brightness. */
+export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = null, jd = null } = {}) {
     const objects = [], withoutH = [];
     for (const o of tnos) {
         const rows = detectionsByProvisional?.get?.(o.provisional) ?? detectionsByProvisional?.[o.provisional] ?? [];
-        const photometry = rows.length ? visualH(bandH(rows)) : null;
+        const tooBright = jd !== null && o.H !== null && o.elements ? tooBrightForRubin(observe(o.elements, o.H, jd).V) : false;
+        const photometry = rows.length && !tooBright ? visualH(bandH(rows)) : null;
         const state = rows.length ? rubinState(rows) : null;
         const rubin = {
             seen: rubinList ? seenByRubin(rubinList, o) : rows.length > 0,
@@ -75,6 +79,7 @@ export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = nu
             detections: rows.length,
             arcDays: state ? state.arcDays : null,
             lastSeenJd: state ? state.lastJd : null,
+            ...(tooBright ? { tooBright: true } : {}),
         };
         const base = {
             ...o, rubin, jpl: { H: o.H, elements: o.elements },
@@ -151,6 +156,7 @@ function entry(o, v) {
             confirmed: o.rubin.confirmed, seen: o.rubin.seen, detections: o.rubin.detections,
             arcDays: round(o.rubin.arcDays, 1),
             lastSeen: o.rubin.lastSeenJd ? new Date((o.rubin.lastSeenJd - 2440587.5) * 86400000).toISOString().slice(0, 10) : null,
+            ...(o.rubin.tooBright ? { tooBright: true } : {}),
         } : null,
         crossCheck: v.crossCheck ? Object.fromEntries(Object.entries(v.crossCheck).map(([k, x]) => [k, typeof x === 'number' ? round(x, k === 'dA' ? 4 : 3) : x])) : null,
         now: { r: round(v.orbit.r, 2), x: round(v.orbit.x, 2), y: round(v.orbit.y, 2), z: round(v.orbit.z, 2), V: round(v.orbit.V, 2), detectable: v.orbit.detectable },

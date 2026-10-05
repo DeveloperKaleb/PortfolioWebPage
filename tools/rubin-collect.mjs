@@ -170,7 +170,7 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         }
     }
 
-    const { objects, withoutH } = choosePhotometry(tnos, detections?.value.detections ?? {}, { rubinList });
+    const { objects, withoutH } = choosePhotometry(tnos, detections?.value.detections ?? {}, { rubinList, jd: jdFromDate(date) });
     if (withoutH.length) notes.push(`${withoutH.length} TNOs have no H anywhere and were not assessed.`);
 
     const digest = buildDigest({

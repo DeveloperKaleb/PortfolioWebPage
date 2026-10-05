@@ -3423,3 +3423,26 @@ js/moons.js for older digests. Yearly is ample: Titan's and Iapetus's error come
 eccentricity and does not grow, and the rest drift by a degree or two a year. Luna is never
 refitted. `npm run moons` now shares the same code and only updates the built-in fallback.
 The dry run answers Horizons from tests/moons/fixtures.js whatever dates are asked.
+
+### Too bright for Rubin (2026-10-05)
+
+The owner asked whether Rubin sees the round moons. It does not usefully: they are far brighter
+than a visit can measure, sit in their planets' glare, and (Charon) are closer to their parent
+than the seeing; and Fink matches by MPC designation, which planetary moons lack. So moon cards
+carry no Rubin line - a permanent "not seen" would mislead, and an explanation would be the
+kind of aside the owner rejects.
+
+Pluto raised the same question. Rubin's saturation, as published: r 15.8 for a 15 s exposure in
+0.7" seeing (LSST Science Book, ch. 3; u 14.7, g 15.7, i 15.8, z 15.3, y 13.9), about 0.7-0.8 mag
+fainter for the single 30 s exposures Rubin now takes (arXiv:2111.10172), so about 16.5 - all
+pre-LSSTCam estimates (Rubin forum "Saturation limits", 2026-09-24), varying with seeing. Rubin's
+alerts can still carry saturated detections (flagged, from one saturated pixel up), so the risk
+was the collector preferring clipped Rubin photometry for Pluto.
+
+`RUBIN_SATURATION` (js/orbit.js, r 16, between the two figures) and `tooBrightForRubin`: an
+object predicted brighter keeps its catalogue H whatever Rubin reports (`choosePhotometry` takes
+the run's `jd`), its entry records `rubin.tooBright`, and its card says "Too bright for Rubin to
+measure" instead of "Not yet confirmed by Rubin". The card also works it out from `now.V`, so
+older digests say it too. Only Pluto (r ~14.7) is caught; Makemake and Haumea (~16.7-16.9) are
+just clear and may saturate in poor seeing. Revisit the limit once Rubin publishes measured
+values.

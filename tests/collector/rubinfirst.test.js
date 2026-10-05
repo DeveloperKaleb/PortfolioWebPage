@@ -191,3 +191,29 @@ describe('The catalogue offset', () => {
         expect(offsetText({ catalogue: { used: false } })).toBeNull();
     });
 });
+
+/* Rubin saturates brighter than about r 16, so its brightness for such an object is clipped
+   and never used: the catalogue's H stays, and the card says why there is no Rubin value. */
+describe('Too bright for Rubin', () => {
+    const jd = 2461318.5; // 2026-10-05
+    const asBright = (H) => ({ designation: '225088', provisional: '2007 OR10', fullName: '225088 Gonggong (2007 OR10)', H, elements: OBJECTS.Gonggong.elements });
+
+    test('keeps the catalogue H, even with Rubin detections', () => {
+        const [o] = choosePhotometry([asBright(-4)], { '2007 OR10': GONGGONG_DETECTIONS }, { jd }).objects;
+        expect(o.hSource).toBe('catalogue (JPL)');
+        expect(o.rubin.tooBright).toBe(true);
+        expect(o.rubin.confirmed).toBe(false);
+    });
+
+    test('an object Rubin can measure still uses Rubin', () => {
+        const [o] = choosePhotometry([asBright(1.82)], { '2007 OR10': GONGGONG_DETECTIONS }, { jd }).objects;
+        expect(o.hSource).toMatch(/^Rubin/);
+        expect(o.rubin.tooBright).toBeUndefined();
+    });
+
+    test('the card says so, from the entry or from its brightness alone', () => {
+        expect(rubinStatus({ rubin: { tooBright: true }, now: { V: 15.2 } }).text).toBe('Too bright for Rubin to measure');
+        expect(rubinStatus({ rubin: { confirmed: false }, now: { V: 15.15 } }).text).toBe('Too bright for Rubin to measure');
+        expect(rubinStatus({ rubin: { confirmed: false }, now: { V: 17.11 } }).text).toBe('Not yet confirmed by Rubin');
+    });
+});

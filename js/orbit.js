@@ -29,6 +29,18 @@ export const SCOPE_AU = 100000;
 export const RUBIN_SINGLE_VISIT = { band: 'r', depth: 24.7 };
 export const TYPICAL_V_MINUS_R = 0.4;
 
+/* Brighter than this in r, a single Rubin visit saturates: the LSST Science Book gives
+   r 15.8 for a 15 s exposure in 0.7" seeing, and Rubin's single 30 s exposures move that
+   about 0.7-0.8 mag fainter, to about 16.5 - estimates made before real LSSTCam data, which
+   vary with seeing (Rubin forum, "Saturation limits", 2026-09-24). 16 sits between the two.
+   Rubin may still report a saturated object (its alerts flag saturated pixels), but its
+   brightness is clipped, so it is never used. Pluto (r about 14.7) is the one object it
+   catches; Makemake and Haumea (about 16.7-16.9) are just clear. See NOTES.md. */
+export const RUBIN_SATURATION = { band: 'r', limit: 16 };
+
+/* Whether an object as bright as this (V) is too bright for Rubin to measure. */
+export const tooBrightForRubin = (V, vMinusR = TYPICAL_V_MINUS_R) => V - vMinusR < RUBIN_SATURATION.limit;
+
 /* The thresholds for the orbit flags. extremeOrbit is the extreme-TNO definition of
    Trujillo & Sheppard (2014, Nature 507, 471). detached is the usual Sednoid perihelion
    cut. highlyInclined at 40 degrees is a convention, not a published line: to be tuned
