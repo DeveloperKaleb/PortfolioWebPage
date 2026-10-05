@@ -2190,7 +2190,7 @@ main.rubin {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
-    background: radial-gradient(circle closest-side, #17120e 0%, #17120e 60%, #3b3026 100%);
+    background: radial-gradient(circle closest-side, #17120e 0%, #17120e 80%, #3b3026 100%);
 }
 
 /* Axis text wears the muted text colour, never a series colour. */
