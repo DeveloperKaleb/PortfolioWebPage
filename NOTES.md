@@ -3494,3 +3494,11 @@ over #landscape (which has no z-index). On narrower screens it is the screen's w
 each side. The drawing is made at the size shown (`mapSizeFor`, measured once when drawn), not
 stretched from the old fixed 440 units, so labels stay 12px; the legend, controls and caption
 stay column-width.
+
+**The map's background is black (owner, 2026-10-05).** The page brown behind the map read as
+more page; black reads as space. `RUBIN_COLORS.space` (#000000) is the map's background, and
+the rings round filled marks and the fill of hollow ones use it on the map (`mark(..., ground)`),
+while legend swatches, which sit on the page, keep the brown. Every read colour gains contrast
+on black (worst case: text 16.3:1, evidence 9.2:1, watch 15.2:1); tests/contrast now asserts
+them against space as well as the page. The grid rings rise from 1.6:1 to 2.7:1, so they show a
+little more.

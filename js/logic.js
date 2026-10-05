@@ -894,6 +894,7 @@ export const TETRIS_CONTROL_ACCENTS = [
    NOTES.md. */
 export const RUBIN_COLORS = {
     surface: '#3b3026',
+    space: '#000000', // the map's background: space, set apart from the page (owner, 2026-10-05)
     text: '#e3e7af',
     muted: '#b8bc93',
     grid: '#51553a',

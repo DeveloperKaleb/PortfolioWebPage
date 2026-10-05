@@ -275,10 +275,12 @@ const MARK_STYLE = {
     watch: { label: 'Worth watching', color: C.watch, shape: 'diamond', filled: true },
 };
 
-function mark(style, cx, cy, size = 5) {
+/* ground: the colour behind the mark - the map's black, or the page's brown for a legend
+   swatch - which rings a filled mark and fills a hollow one. */
+function mark(style, cx, cy, size = 5, ground = C.surface) {
     const attrs = style.filled
-        ? { fill: style.color, stroke: C.surface, 'stroke-width': 2 }
-        : { fill: C.surface, stroke: style.color, 'stroke-width': 2 };
+        ? { fill: style.color, stroke: ground, 'stroke-width': 2 }
+        : { fill: ground, stroke: style.color, 'stroke-width': 2 };
     if (style.shape === 'diamond') {
         const d = size * 1.35;
         return svg('path', { d: `M${cx},${cy - d}L${cx + d},${cy}L${cx},${cy + d}L${cx - d},${cy}Z`, ...attrs });
@@ -340,7 +342,7 @@ function drawMap(digest) {
             const chosen = selected.has(designation);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
             g.append(svg('circle', { cx: px, cy: py, r: 12, fill: 'transparent' }));
-            g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.surface, 'stroke-width': 2 }));
+            g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.space, 'stroke-width': 2 }));
             attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], ['Click to show or hide its card']]);
             /* Like every object on the map, a click toggles its card; the card's "tundr"
                opens what a tundr is. */
@@ -367,7 +369,7 @@ function drawMap(digest) {
             const chosen = selected.has(designation);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
             g.append(svg('circle', { cx: mx, cy: my, r: 12, fill: 'transparent' }));
-            g.append(svg('circle', { cx: mx, cy: my, r: 2.5, fill: C.muted, stroke: C.surface, 'stroke-width': 1.5 }));
+            g.append(svg('circle', { cx: mx, cy: my, r: 2.5, fill: C.muted, stroke: C.space, 'stroke-width': 1.5 }));
             attachDetails(g, [[m.name, `planet, orbiting ${m.parent}`], ['Click to show or hide its card']]);
             g.setAttribute('role', 'button');
             g.setAttribute('aria-pressed', String(chosen));
@@ -387,7 +389,7 @@ function drawMap(digest) {
             const chosen = selected.has(entry.designation);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': entry.designation });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
-            g.append(mark(MARK_STYLE[kind], x, y));
+            g.append(mark(MARK_STYLE[kind], x, y, 5, C.space));
             attachDetails(g, [
                 [displayName(entry), MARK_STYLE[kind].label.toLowerCase(), MARK_STYLE[kind].color],
                 [au(entry.now.r), 'from the Sun'],

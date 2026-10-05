@@ -574,10 +574,15 @@ describe('Reading against a gradient', () => {
    have to be told apart. (The dataviz validator's lightness band is deliberately
    exceeded - it assumes a near-black surface; see NOTES.md.) */
 describe('Rubin tab palette', () => {
-    const { surface, grid, ...read } = RUBIN_COLORS;
+    const { surface, space, grid, ...read } = RUBIN_COLORS;
 
     test.each(Object.entries(read))('%s is legible on the page', (name, color) => {
         expect(worstCaseContrast(color, surface)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    /* The map is drawn on black (space), so everything read on the map clears 4.5:1 there too. */
+    test.each(Object.entries(read))('%s is legible on the map', (name, color) => {
+        expect(worstCaseContrast(color, space)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
     });
 
     test.each([['evidence', 'grundy'], ['evidence', 'watch'], ['grundy', 'watch']])('%s and %s can be told apart', (a, b) => {
@@ -587,6 +592,6 @@ describe('Rubin tab palette', () => {
     test('the stylesheet uses the same colours', () => {
         const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf8');
         const rubin = css.slice(css.indexOf('/* --- The Rubin tab'));
-        [RUBIN_COLORS.surface, RUBIN_COLORS.text, RUBIN_COLORS.muted, RUBIN_COLORS.grid].forEach((c) => expect(rubin).toContain(c));
+        [RUBIN_COLORS.surface, RUBIN_COLORS.space, RUBIN_COLORS.text, RUBIN_COLORS.muted, RUBIN_COLORS.grid].forEach((c) => expect(rubin).toContain(c));
     });
 });
