@@ -23,20 +23,21 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A month's Fink fetch took 27 minutes on 2026-11-02; a run cut off here commits nothing.
+    timeout-minutes: 60
     steps:
       - name: Check out rubin-data
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: data
 
       - name: Check out the site, for the collector's code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: DeveloperKaleb/PortfolioWebPage
           path: site
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
