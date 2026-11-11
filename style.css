@@ -2224,6 +2224,28 @@ main.rubin {
     pointer-events: none;
 }
 
+/* The light rings (js/light.js) are drawn over the marks and take no clicks. */
+.rubin-light {
+    pointer-events: none;
+}
+
+/* The ruler under the map: the same width as the map, on the page's brown. */
+#rubin-map .rubin-ruler {
+    background: none;
+    margin-top: 8px;
+}
+
+.rubin-light-text {
+    color: #e3e7af;
+    margin: 8px 0 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.rubin-light-text.rubin-note {
+    color: #b8bc93;
+    margin-bottom: 8px;
+}
+
 .rubin-mark {
     cursor: default;
     outline: none;

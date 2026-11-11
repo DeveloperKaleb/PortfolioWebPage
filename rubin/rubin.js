@@ -14,8 +14,12 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
+    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
 } from '../js/rubinview.js';
+import {
+    lightTravelledAU, milestones, lightSentence, sunlightText, rulerFraction, RULER_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow,
+} from '../js/light.js';
+import { SCOPE_AU } from '../js/orbit.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -23,6 +27,21 @@ import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubi
 const SVG = 'http://www.w3.org/2000/svg';
 const CACHE_KEY = 'rubin-digest';
 const tooltip = document.getElementById('rubin-tooltip');
+
+/* The light rings on the map (js/light.js) start from two moments: when this page opened,
+   and when this browser first opened it. The second is kept in this browser's storage
+   and sent nowhere; where storage is blocked there is just the one ring. */
+const OPENED = Date.now();
+const FIRST_KEY = 'rubin-first-visit';
+let firstOpened = OPENED;
+let remembersVisits = false;
+try {
+    firstOpened = firstVisit(localStorage.getItem(FIRST_KEY), OPENED);
+    localStorage.setItem(FIRST_KEY, String(firstOpened));
+    remembersVisits = true;
+} catch { /* storage blocked: fine */ }
+/* Earth on the digest's date, for each card's Sunlight line; set once the digest is in. */
+let earthNow = null;
 
 /* ---- Small DOM helpers ----------------------------------------------------------- */
 
@@ -135,6 +154,7 @@ function worldCard(world) {
     fact('Size', `${kilometres(world.km)} ${world.across} (measured)`);
     if (world.moon) fact('Orbits', world.parent);
     fact('Now', world.moon ? `${au(world.now.r)} from the Sun, with ${world.parent}` : `${au(world.now.r)} from the Sun`);
+    if (Number.isFinite(world.now.x)) fact('Sunlight', sunlightText(world.now, earthNow));
     if (world.found) fact('Found', world.found);
     const images = nasaImages(world);
     fact('Images', el('a', { href: images.url, target: '_blank', rel: 'noopener' }, images.text));
@@ -166,6 +186,7 @@ function card(entry, { extra } = {}) {
         ? `${percent(entry.chance)} · ${percent(entry.chanceGrundy)} on Grundy's reading`
         : `${percent(entry.chance)} as typical · ${percent(entry.chanceIfDark)} if dark`);
     fact('Now', `${au(entry.now.r)} from the Sun · magnitude ${entry.now.V.toFixed(1)} · ${entry.now.detectable ? 'within one Rubin exposure' : 'too faint for one Rubin exposure'}`);
+    if (Number.isFinite(entry.now.x)) fact('Sunlight', sunlightText(entry.now, earthNow));
     const found = discoveryText(entry);
     if (found) fact('Found', found);
     /* NASA's images: a checked link, or a plain statement that there are none yet. */
@@ -323,7 +344,88 @@ function drawMap(digest) {
     let view = initialView(data.radius, SIZE);
     const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above' });
     const layer = svg('g');
-    plot.append(layer);
+    /* The light rings are drawn over the map on their own layer, so they can move without
+       the marks being rebuilt under a pointer. Decoration: the words under the map say
+       the same, and the layer takes no clicks. */
+    const lightLayer = svg('g', { class: 'rubin-light', 'aria-hidden': 'true' });
+    plot.append(layer, lightLayer);
+
+    const RULER_HEIGHT = 74;
+    const ruler = svg('svg', { viewBox: `0 0 ${SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', 'aria-hidden': 'true' });
+    const lightNow = el('p', { class: 'rubin-light-text' });
+    const lightFirst = el('p', { class: 'rubin-light-text' });
+    const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, 'The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above, where each step to the right is ten times further from the Sun.');
+    const findLight = el('button', { type: 'button', class: 'rubin-tool' }, 'Find the light');
+
+    const neptune = data.planets.find((p) => p.name === 'Neptune');
+    const stops = milestones([
+        ...data.planets,
+        ...data.marks.map(({ entry }) => ({ name: displayName(entry), r: entry.now.r })),
+    ]);
+    const edge = { name: "this page's outer limit, 100,000 AU from the Sun", r: SCOPE_AU };
+    const firstDay = new Date(firstOpened);
+    const firstDate = longDate(`${firstDay.getFullYear()}-${firstDay.getMonth() + 1}-${firstDay.getDate()}`);
+    const earlier = hasEarlierVisit(firstOpened, OPENED);
+    /* This visit's light is a solid ring; the first visit's is dotted, and its ruler mark
+       hollow, so they are told apart without colour. */
+    const lights = [
+        { since: OPENED, label: 'this visit', dash: null },
+        ...(earlier ? [{ since: firstOpened, label: `first visit, ${firstDate}`, dash: '3 5' }] : []),
+    ];
+
+    function drawLight() {
+        const now = Date.now();
+        const [sx, sy] = toScreen(view, 0, 0);
+        const fromCentre = Math.hypot(sx - SIZE / 2, sy - SIZE / 2);
+        const rings = [];
+        const marks = [];
+        const at = (fraction) => 8 + fraction * (SIZE - 16);
+        const lineY = 46;
+        marks.push(svg('line', { x1: at(0), y1: lineY, x2: at(1), y2: lineY, stroke: C.muted, 'stroke-width': 1 }));
+        for (let decade = RULER_FROM_AU; decade <= SCOPE_AU * 1.01; decade *= 10) {
+            const x = at(rulerFraction(decade, SCOPE_AU));
+            marks.push(svg('line', { x1: x, y1: lineY - 3, x2: x, y2: lineY + 3, stroke: C.muted, 'stroke-width': 1 }));
+        }
+        marks.push(svg('text', { x: at(0), y: lineY + 20, class: 'rubin-axis' }, `${RULER_FROM_AU} AU`));
+        marks.push(svg('text', { x: at(rulerFraction(1, SCOPE_AU)), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'middle' }, 'Earth'));
+        if (neptune) marks.push(svg('text', { x: at(rulerFraction(neptune.r, SCOPE_AU)), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'middle' }, 'Neptune'));
+        marks.push(svg('text', { x: at(1), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'end' }, '100,000 AU'));
+
+        lights.forEach((light, k) => {
+            const travelled = lightTravelledAU(now - light.since);
+            const r = travelled * view.scale;
+            /* Drawn only where some of the ring crosses the picture. */
+            if (r >= 1 && r < 1e6 && Math.abs(fromCentre - r) <= SIZE * 0.71) {
+                rings.push(svg('circle', { cx: sx, cy: sy, r, fill: 'none', stroke: C.text, 'stroke-width': 1.5, ...(light.dash ? { 'stroke-dasharray': light.dash } : {}) }));
+                const labelY = sy - r - 4;
+                if (r > 14 && labelY > 12 && labelY < SIZE && sx > 60 && sx < SIZE) {
+                    rings.push(svg('text', { x: sx - 4, y: labelY, class: 'rubin-label', 'text-anchor': 'end' }, `light, ${light.label}`));
+                }
+            }
+            const x = at(rulerFraction(travelled, SCOPE_AU));
+            const labelRow = 14 + 14 * k;
+            marks.push(svg('line', { x1: x, y1: labelRow + 4, x2: x, y2: lineY, stroke: C.text, 'stroke-width': 1 }));
+            marks.push(svg('circle', { cx: x, cy: lineY, r: 4.5, fill: light.dash ? C.space : C.text, stroke: C.text, 'stroke-width': 1.5 }));
+            const left = x < SIZE / 2;
+            marks.push(svg('text', { x: left ? x + 6 : x - 6, y: labelRow, class: 'rubin-label', 'text-anchor': left ? 'start' : 'end' }, `light, ${light.label}`));
+        });
+        lightLayer.replaceChildren(...rings);
+        ruler.replaceChildren(...marks);
+
+        lightNow.textContent = lightSentence({ since: 'as you opened this page', travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge });
+        if (earlier) {
+            lightFirst.textContent = `${lightSentence({ since: `when you first opened this page, on ${firstDate},`, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`;
+        } else if (remembersVisits) {
+            lightFirst.textContent = 'This browser will remember when you first opened this page, so on a later visit you can see how far that light has got. The time is kept on your device and sent nowhere.';
+        }
+        lightFirst.hidden = !lightFirst.textContent;
+    }
+    /* The light moves four times a second; for a visitor who asked for less motion it
+       steps every ten seconds instead. Nothing runs while the tab is hidden. */
+    (function tick() {
+        if (!document.hidden) drawLight();
+        setTimeout(tick, reducedMotion.matches ? 10000 : 250);
+    })();
 
     const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
     const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
@@ -439,6 +541,7 @@ function drawMap(digest) {
         reset.disabled = level <= 1.0001;
         /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. */
         plot.style.touchAction = level <= 1.0001 ? 'pan-y' : 'none';
+        drawLight();
     }
 
     const setView = (next) => { view = next; render(); };
@@ -495,8 +598,14 @@ function drawMap(digest) {
     zoomIn.addEventListener('click', () => setView(zoomAt(view, MAP_ZOOM.step)));
     zoomOut.addEventListener('click', () => setView(zoomAt(view, 1 / MAP_ZOOM.step)));
     reset.addEventListener('click', () => setView(initialView(data.radius, SIZE)));
+    /* Zooms on the Sun until this visit's light fills about a third of the map. */
+    findLight.addEventListener('click', () => {
+        const home = initialView(data.radius, SIZE);
+        const scale = scaleToShow(lightTravelledAU(Date.now() - OPENED), SIZE, { fitScale: home.fitScale, maxZoom: MAP_ZOOM.max });
+        setView(zoomAt(home, scale / home.fitScale, [0, 0]));
+    });
     const controls = el('div', { class: 'rubin-map-controls' });
-    controls.append(zoomIn, zoomOut, reset, readout);
+    controls.append(zoomIn, zoomOut, reset, findLight, readout);
 
     const holder = section.querySelector('.rubin-plot');
     const present = [...new Set(data.marks.map((m) => m.kind))];
@@ -509,6 +618,10 @@ function drawMap(digest) {
         ]),
         controls,
         plot,
+        ruler,
+        lightNow,
+        lightFirst,
+        rulerNote,
     );
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
@@ -687,6 +800,7 @@ async function render() {
     const offsetLine = document.getElementById('rubin-offset');
     if (offset) { offsetLine.textContent = offset; offsetLine.hidden = false; }
 
+    earthNow = knownWorlds(digest).find((w) => w.name === 'Earth')?.now ?? null;
     const { passes, watch, largeIfDark } = sections(digest);
     document.getElementById('rubin-passes').hidden = false;
     buildPicker('rubin-passes', knownRow(digest), { onMap: true, group: '.rubin-known' });

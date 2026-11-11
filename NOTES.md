@@ -3601,3 +3601,36 @@ resolves where 50000 did not. It matters little now that only objects on Fink's 
 asked about (November 2026: 87 asked, none rejected). The 162 names in fink-unresolved.json
 date from before that. Fink's API was answering 502 when this was to be tried live, so it is
 tested against a fake network only.
+
+## Sunlight on the map, at its real speed (owner, 2026-11-11)
+
+Asked for something on the Solar System tab to inspire awe. When the page opens, a ring of
+light leaves the Sun on the map and grows at the true speed of light at the map's true
+scale: 499 seconds to Earth, about four hours to Neptune, most of a day to cross the map.
+Nothing is sped up; the slowness is the point. The logic is `js/light.js` (pure, no clock:
+the page passes the times in), the drawing is `drawLight` in `rubin/rubin.js`.
+
+- **Two rings (owner's choice).** A solid one for light that left when this page opened, and
+  a dotted one for light that left when this browser first opened the tab. The first time
+  is kept in localStorage under `rubin-first-visit`, in the visitor's browser only, and the
+  page says so. Nothing is sent anywhere. With storage blocked there is one ring and no
+  mention of remembering. The second ring appears once the older light has a minute's lead.
+- **The ruler under the map.** The map is about a hundred AU across and a week-old ring is
+  over a thousand AU out, so both lights are also marked on a logarithmic ruler from
+  0.001 AU to the page's 100,000 AU limit (`SCOPE_AU`), which light takes 1.58 years to
+  reach. The first visit's mark is hollow and its ring dotted, so the two are told apart
+  without colour. Both use `RUBIN_COLORS.text`; no colour was added.
+- **The words carry it.** The rings and ruler are `aria-hidden` decoration; the sentences
+  under the map say the same (how far, what it has passed, what is next, how long to the
+  limit) and are not a live region, so a screen reader is not interrupted every tick.
+- **Motion.** Redrawn four times a second; every ten seconds for a visitor who asked for
+  reduced motion; not at all while the tab is hidden. The rings sit on their own layer so
+  the marks are not rebuilt under a pointer.
+- **"Find the light"** zooms on the Sun until this visit's ring fills about a third of the
+  map (in the first minutes the ring is smaller than the Sun's dot on the whole map).
+- **Each card has a Sunlight line**: the time from the Sun to the object, and from the
+  object back to Earth, which is how old our view of it is. Distances are the true ones
+  (x, y, z) on the digest's date. A moon uses its parent's position.
+- The ring meets a dot on the map slightly before the sentence says the light reaches that
+  object when the object is far out of the plane: the map is a projection, the sentence
+  uses the true distance.

@@ -510,7 +510,8 @@ export function knownMoons(bodies) {
             km: m.km ?? calibrated(m.name),
             across: 'across, on average',
             found: m.found,
-            now: { r: parent.now.r },
+            /* A moon is where its parent is, near enough for distances from the Sun and Earth. */
+            now: { r: parent.now.r, x: parent.now.x, y: parent.now.y, z: parent.now.z },
             /* NASA's own name for its page, where it differs (the Moon, for Luna). */
             images: { url: m.url, text: `NASA's ${m.page ?? m.name} page, with its missions' images` },
         };
