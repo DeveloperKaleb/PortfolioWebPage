@@ -127,6 +127,13 @@ describe('The sentence under the map', () => {
             .toBe("Light that left the Sun as you opened this page has travelled 2,997,925 km. It reaches Earth in 8 min 4 s. It will be 1.58 years before it reaches this page's outer limit, 100,000 AU from the Sun.");
     });
 
+    test('says how long ago the light left, when told', () => {
+        expect(lightSentence({ since: 'as you opened this page', elapsedSeconds: 10, travelledAU: lightTravelledAU(10000), sorted, edge }))
+            .toMatch(/^Light that left the Sun 10 s ago, as you opened this page, has travelled 2,997,925 km\. It reaches Earth in 8 min 4 s\./);
+        expect(lightSentence({ since: 'when you first opened this page on 30 October 2026', elapsedSeconds: 12 * 86400 + 3 * 3600, travelledAU: 2100, sorted, edge }))
+            .toMatch(/^Light that left the Sun 12 days 3 h ago, when you first opened this page on 30 October 2026, has travelled 2,100 AU\./);
+    });
+
     test('part of the way out', () => {
         expect(lightSentence({ since: 'as you opened this page', travelledAU: 10, sorted, edge }))
             .toContain('has travelled 10.00 AU. It has passed Earth and reaches Neptune in 2 h 46 min.');

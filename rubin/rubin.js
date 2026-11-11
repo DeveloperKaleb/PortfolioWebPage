@@ -17,7 +17,7 @@ import {
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
 } from '../js/rubinview.js';
 import {
-    lightTravelledAU, milestones, lightSentence, sunlightText, rulerFraction, RULER_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow,
+    lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, RULER_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow,
 } from '../js/light.js';
 import { SCOPE_AU } from '../js/orbit.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
@@ -354,7 +354,7 @@ function drawMap(digest) {
     const ruler = svg('svg', { viewBox: `0 0 ${SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', 'aria-hidden': 'true' });
     const lightNow = el('p', { class: 'rubin-light-text' });
     const lightFirst = el('p', { class: 'rubin-light-text' });
-    const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, 'The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above, where each step to the right is ten times further from the Sun.');
+    const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, 'The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above with how long ago it left, where each step to the right is ten times further from the Sun.');
     const findLight = el('button', { type: 'button', class: 'rubin-tool' }, 'Find the light');
 
     const neptune = data.planets.find((p) => p.name === 'Neptune');
@@ -369,8 +369,8 @@ function drawMap(digest) {
     /* This visit's light is a solid ring; the first visit's is dotted, and its ruler mark
        hollow, so they are told apart without colour. */
     const lights = [
-        { since: OPENED, label: 'this visit', dash: null },
-        ...(earlier ? [{ since: firstOpened, label: `first visit, ${firstDate}`, dash: '3 5' }] : []),
+        { since: OPENED, label: 'this visit', short: 'this visit', dash: null },
+        ...(earlier ? [{ since: firstOpened, label: `first visit, ${firstDate}`, short: 'first visit', dash: '3 5' }] : []),
     ];
 
     function drawLight() {
@@ -407,14 +407,15 @@ function drawMap(digest) {
             marks.push(svg('line', { x1: x, y1: labelRow + 4, x2: x, y2: lineY, stroke: C.text, 'stroke-width': 1 }));
             marks.push(svg('circle', { cx: x, cy: lineY, r: 4.5, fill: light.dash ? C.space : C.text, stroke: C.text, 'stroke-width': 1.5 }));
             const left = x < SIZE / 2;
-            marks.push(svg('text', { x: left ? x + 6 : x - 6, y: labelRow, class: 'rubin-label', 'text-anchor': left ? 'start' : 'end' }, `light, ${light.label}`));
+            /* On the ruler each light says how long ago it left. */
+            marks.push(svg('text', { x: left ? x + 6 : x - 6, y: labelRow, class: 'rubin-label', 'text-anchor': left ? 'start' : 'end' }, `${light.short}, ${durationText((now - light.since) / 1000)} ago`));
         });
         lightLayer.replaceChildren(...rings);
         ruler.replaceChildren(...marks);
 
-        lightNow.textContent = lightSentence({ since: 'as you opened this page', travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge });
+        lightNow.textContent = lightSentence({ since: 'as you opened this page', elapsedSeconds: (now - OPENED) / 1000, travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge });
         if (earlier) {
-            lightFirst.textContent = `${lightSentence({ since: `when you first opened this page, on ${firstDate},`, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`;
+            lightFirst.textContent = `${lightSentence({ since: `when you first opened this page on ${firstDate}`, elapsedSeconds: (now - firstOpened) / 1000, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`;
         } else if (remembersVisits) {
             lightFirst.textContent = 'This browser will remember when you first opened this page, so on a later visit you can see how far that light has got. The time is kept on your device and sent nowhere.';
         }

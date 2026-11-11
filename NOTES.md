@@ -3621,7 +3621,7 @@ the page passes the times in), the drawing is `drawLight` in `rubin/rubin.js`.
   reach. The first visit's mark is hollow and its ring dotted, so the two are told apart
   without colour. Both use `RUBIN_COLORS.text`; no colour was added.
 - **The words carry it.** The rings and ruler are `aria-hidden` decoration; the sentences
-  under the map say the same (how far, what it has passed, what is next, how long to the
+  under the map say the same (how long ago it left, how far, what it has passed, what is next, how long to the
   limit) and are not a live region, so a screen reader is not interrupted every tick.
 - **Motion.** Redrawn four times a second; every ten seconds for a visitor who asked for
   reduced motion; not at all while the tab is hidden. The rings sit on their own layer so

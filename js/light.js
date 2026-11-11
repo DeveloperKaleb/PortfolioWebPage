@@ -73,12 +73,15 @@ export function lightProgress(travelledAU, sorted) {
 /* The sentence under the map for one ring of light.
  *
  *   since   what the light is: "as you opened this page" / "when you first opened this
- *           page, on 30 October 2026"
+ *           page on 30 October 2026"
+ *   elapsedSeconds  how long ago it left, said first when given
  *   edge    { name, r } for the last line of the journey (the page's 100,000 AU limit)
  */
-export function lightSentence({ since, travelledAU, sorted, edge }) {
+export function lightSentence({ since, travelledAU, sorted, edge, elapsedSeconds }) {
     const { passed, next, secondsToNext } = lightProgress(travelledAU, sorted);
-    const parts = [`Light that left the Sun ${since} has travelled ${distanceText(travelledAU)}.`];
+    const parts = [Number.isFinite(elapsedSeconds)
+        ? `Light that left the Sun ${durationText(elapsedSeconds)} ago, ${since}, has travelled ${distanceText(travelledAU)}.`
+        : `Light that left the Sun ${since} has travelled ${distanceText(travelledAU)}.`];
     if (next) {
         parts.push(passed
             ? `It has passed ${passed.name} and reaches ${next.name} in ${durationText(secondsToNext)}.`
