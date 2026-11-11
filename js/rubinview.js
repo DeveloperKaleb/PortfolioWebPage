@@ -186,10 +186,22 @@ export function rubinStatus(entry) {
     if (r?.tooBright || (Number.isFinite(entry.now?.V) && tooBrightForRubin(entry.now.V))) {
         return { confirmed: false, tooBright: true, text: 'Too bright for Rubin to measure' };
     }
-    if (!r?.confirmed) return { confirmed: false, text: 'Not yet confirmed by Rubin' };
+    if (!r?.confirmed) return { confirmed: false, text: "Rubin's measurements not yet public" };
     const span = r.arcDays >= 1 ? ` over ${Math.round(r.arcDays)} days` : '';
     const last = r.lastSeen ? `, last ${longDate(r.lastSeen)}` : '';
     return { confirmed: true, text: `Confirmed by Rubin: ${r.detections} detections${span}${last}` };
+}
+
+/* Where the object's brightness comes from, and by which route when it is Rubin's own:
+   its alerts, which the Fink broker collects, or its observations as Rubin reported them
+   to the Minor Planet Center, for objects the alerts have not reached. Both count as
+   confirmed by Rubin; the card says which (the owner's choice, 2026-11-11). Digests from
+   before the second route have no `via`, and theirs were all alerts. */
+export function brightnessText(entry) {
+    if (!String(entry.hSource).startsWith('Rubin')) return 'from the catalogue (JPL)';
+    return entry.rubin?.via === 'MPC'
+        ? `from Rubin's observations, as reported to the Minor Planet Center (${entry.detections})`
+        : `from Rubin's alerts, through Fink (${entry.detections})`;
 }
 
 /* Rubin's values against JPL's, in words, or null when there was nothing to check. */

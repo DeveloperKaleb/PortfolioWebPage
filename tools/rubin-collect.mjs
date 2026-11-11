@@ -1,5 +1,5 @@
 /* The Rubin collector: one run reads the rubin-data repo's state, fetches what is due
- * from JPL and Fink through the courtesy layer, assesses every TNO, and writes the
+ * from JPL, Fink and the Minor Planet Center through the courtesy layer, assesses every TNO, and writes the
  * month's inputs, digest and changes back. The logic is in js/collector.js; this file
  * only reads, writes and fetches.
  *
@@ -21,17 +21,14 @@ import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinL
 import { moonsDue, moonFitTimes, fitMoons, MOON_HORIZONS, BUILT_IN_MOONS } from '../js/moons.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
-    emptyDiscoveryStore, discoveryQueue, unnamedStations, annotateDiscoveries, DISCOVERY_PER_RUN, STATION_NAMES_PER_RUN,
+    emptyDiscoveryStore, unnamedStations, annotateDiscoveries, STATION_NAMES_PER_RUN,
+    emptyMpcStore, mpcQueue, recordMpc, reportedByRubin, monthsBetween, MPC_PER_RUN,
 } from '../js/collector.js';
 import { jdFromDate } from '../js/orbit.js';
 import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink, pullNightFrom, closeWindows, latestStatusPost } from '../js/rubinstatus.js';
 
 /* How long a name Fink's lookup failed on is left alone before it is tried again. */
 const UNRESOLVED_MONTHS = 3;
-const monthsBetween = (a, b) => {
-    const [ya, ma] = a.split('-').map(Number), [yb, mb] = b.split('-').map(Number);
-    return (yb - ya) * 12 + (mb - ma);
-};
 
 const readJson = (file) => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null);
 const writeJson = (file, value) => {
@@ -170,28 +167,43 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         }
     }
 
-    const { objects, withoutH } = choosePhotometry(tnos, detections?.value.detections ?? {}, { rubinList, jd: jdFromDate(date) });
+    /* Rubin's observations as it reported them to the Minor Planet Center, kept from
+       earlier runs: the second route to Rubin's measurements (js/collector.js). */
+    const mpcStore = readJson(join(dataDir, 'mpc-rubin.json')) ?? emptyMpcStore();
+    const assess = () => {
+        const chosen = choosePhotometry(tnos, detections?.value.detections ?? {}, { rubinList, jd: jdFromDate(date), reported: reportedByRubin(mpcStore) });
+        return {
+            withoutH: chosen.withoutH,
+            digest: buildDigest({
+                objects: chosen.objects, date, jd: jdFromDate(date), notes,
+                provenance: provenance({ siteCommit, sources: { jplCount: state.jplCount ?? tnos.length, tnosFrom, detectionsFrom, requests: polite.used?.() ?? null } }),
+                observing: { lastAlertNight: lastNight, nightsWithout: status.nightsWithout, offSky: status.offSky, windows, latestPost, finkFetchedMonth: state.finkFetchedMonth ?? null },
+            }),
+        };
+    };
+    let { digest, withoutH } = assess();
     if (withoutH.length) notes.push(`${withoutH.length} TNOs have no H anywhere and were not assessed.`);
 
-    const digest = buildDigest({
-        objects, date, jd: jdFromDate(date), notes,
-        provenance: provenance({ siteCommit, sources: { jplCount: state.jplCount ?? tnos.length, tnosFrom, detectionsFrom, requests: polite.used?.() ?? null } }),
-        observing: { lastAlertNight: lastNight, nightsWithout: status.nightsWithout, offSky: status.offSky, windows, latestPost, finkFetchedMonth: state.finkFetchedMonth ?? null },
-    });
-    /* Who found each object: asked of the MPC once per object, at most DISCOVERY_PER_RUN a
-       run, most interesting first, and kept. A failure here never costs the run. */
+    /* The MPC: who found each object, and Rubin's own observations of it, from one request
+       an object, at most MPC_PER_RUN a run, most interesting first, and kept. A failure
+       here never costs the run. When Rubin's observations of anything changed, the digest
+       is worked out again, so what was fetched this run shows this run. */
     const store = readJson(join(dataDir, 'discovery.json')) ?? emptyDiscoveryStore();
-    const queue = discoveryQueue(digest, store, plan.month);
+    const queue = mpcQueue(digest, store, mpcStore, plan.month);
     if (queue.length) {
-        const { found, failed, stopped } = await fetchDiscoveries(polite, queue, { limit: DISCOVERY_PER_RUN });
+        const { found, observations, failed, stopped } = await fetchDiscoveries(polite, queue, { limit: MPC_PER_RUN });
         Object.assign(store.objects, found);
-        for (const f of failed) store.failed[f.designation] = plan.month;
+        for (const f of failed) if (!store.objects[f.designation]) store.failed[f.designation] = plan.month;
+        const changed = recordMpc(mpcStore, { observations, failed }, plan.month);
         const named = await fetchStationNames(polite, unnamedStations(store).slice(0, STATION_NAMES_PER_RUN));
         Object.assign(store.stations, named);
-        const left = discoveryQueue(digest, store, plan.month).length;
-        log(`Discovery: ${Object.keys(found).length} found, ${failed.length} failed, ${left} still to look up${stopped ? `, stopped: ${stopped}` : ''}`);
-        if (left) notes.push(`Discovery circumstances are still being looked up for ${left} objects, at most ${DISCOVERY_PER_RUN} a week.`);
         writeJson(join(dataDir, 'discovery.json'), store);
+        writeJson(join(dataDir, 'mpc-rubin.json'), mpcStore);
+        if (changed) ({ digest } = assess());
+        const left = mpcQueue(digest, store, mpcStore, plan.month).length;
+        const withRubin = Object.values(observations).filter((list) => list.length).length;
+        log(`MPC: asked about ${Object.keys(observations).length + failed.filter((f) => !(f.designation in observations)).length}, ${Object.keys(found).length} discoveries found, Rubin observations for ${withRubin}, ${left} still to ask${stopped ? `, stopped: ${stopped}` : ''}`);
+        if (left) notes.push(`The Minor Planet Center is still being asked about ${left} objects (who found them, and Rubin's own observations), at most ${MPC_PER_RUN} a week.`);
     }
     annotateDiscoveries(digest, store);
 
@@ -226,11 +238,13 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
 
 /* ---- Dry run: recorded responses only ---------------------------------------------- */
 
-/* Answers like JPL and Fink would, from what was recorded on 2026-10-02: the three-object
-   JPL page, plus Eris, Sedna and Gonggong (whose orbits were recorded for the orbit
-   tests) so the dry run has Rubin detections to use. Nothing leaves the machine. */
+/* Answers like JPL, Fink and the MPC would, from what was recorded on 2026-10-02: the
+   three-object JPL page, plus Eris, Sedna and Gonggong (whose orbits were recorded for
+   the orbit tests) so the dry run has Rubin detections to use, and 2026 ED138 (recorded
+   2026-11-11), which Fink has nothing for and the MPC has Rubin's observations of.
+   Nothing leaves the machine. */
 export async function recordedPolite() {
-    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS, RUBIN_NEWS } = await import('../tests/sources/fixtures.js');
+    const { JPL_PAGE, GONGGONG_DETECTIONS, MPC_GONGGONG, MPC_ED138, ED138, MPC_X05, RUBIN_LIST, NIGHTLY_ALERTS, RUBIN_NEWS } = await import('../tests/sources/fixtures.js');
     const { OBJECTS } = await import('../tests/orbit/fixtures.js');
     const { HORIZONS_VECTORS, horizonsResponse } = await import('../tests/moons/fixtures.js');
     const { MOON_HORIZONS } = await import('../js/moons.js');
@@ -239,6 +253,11 @@ export async function recordedPolite() {
     for (const [pdes, fullName, o] of extra) {
         const { a, e, i, om, w, ma, epoch } = o.elements;
         page.data.push([pdes, fullName, String(o.H), ...[a, e, i, om, w, ma, epoch].map(String)]);
+    }
+    {
+        const { a, e, i, om, w, ma, epoch } = ED138.elements;
+        const { arcDays, conditionCode, nObs } = ED138.quality;
+        page.data.push([ED138.designation, ` ${ED138.fullName}`, String(ED138.H), ...[a, e, i, om, w, ma, epoch].map(String), String(arcDays), String(conditionCode), nObs]);
     }
     page.count = page.data.length;
     let used = 0;
@@ -258,7 +277,10 @@ export async function recordedPolite() {
         }
         if (url.includes('ssoft')) return answer(RUBIN_LIST);
         if (url.includes('fink')) return answer(JSON.stringify(url.includes('M5088') ? GONGGONG_DETECTIONS : []));
-        if (url.includes('get-obs')) return answer(String(options?.body).includes('2007 OR10') ? MPC_GONGGONG : '[{"OBS80": ""}]');
+        if (url.includes('get-obs')) {
+            const asked = String(options?.body);
+            return answer(asked.includes('2007 OR10') ? MPC_GONGGONG : asked.includes('2026 ED138') ? MPC_ED138 : '[{"OBS80": ""}]');
+        }
         if (url.includes('obscodes')) return String(options?.body).includes('X05')
             ? answer(MPC_X05)
             : { status: 404, ok: false, notModified: false, headers: new Headers(), body: '' };
@@ -314,7 +336,7 @@ async function main(argv) {
     const live = argv.includes('--live');
     const date = arg('--date') ? new Date(`${arg('--date')}T06:00:00Z`) : new Date();
     const polite = live ? createPoliteFetch({ fetch: liveFetch }) : await recordedPolite();
-    console.log(live ? 'LIVE run: fetching from JPL and Fink.' : 'Dry run: recorded responses only, nothing fetched.');
+    console.log(live ? 'LIVE run: fetching from JPL, Fink and the Minor Planet Center.' : 'Dry run: recorded responses only, nothing fetched.');
     await collect({ dataDir: resolve(dataDir), date, polite, siteCommit: siteCommitHere(), log: console.log });
 }
 

@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
+    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, isKnownShape,
 } from '../js/rubinview.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { funFact } from '../js/funfacts.js';
@@ -175,9 +175,7 @@ function card(entry, { extra } = {}) {
         : 'None released by NASA yet');
     const checked = crossCheckText(entry);
     if (checked) fact('Checked', checked);
-    fact('Brightness', entry.hSource.startsWith('Rubin')
-        ? `from Rubin's own detections (${entry.detections})`
-        : 'from the catalogue (JPL)');
+    fact('Brightness', brightnessText(entry));
     box.append(facts);
     const fun = funFactLine(displayName(entry));
     if (fun) box.append(fun);

@@ -6,7 +6,7 @@
  * layout of the rubin-data repo these produce.
  */
 import { assessObject } from './verdict.js';
-import { packDesignation, provisionalFrom, bandH, visualH, seenByRubin, FINK_H_LIMIT, CATALOGUE_H_ERR, RUBIN_STATION } from './sources.js';
+import { packDesignation, provisionalFrom, bandH, reportedBandH, visualH, seenByRubin, FINK_H_LIMIT, CATALOGUE_H_ERR, RUBIN_STATION } from './sources.js';
 import { CALIBRATION, READINGS, fitEquilibrium, diameterAt } from './equilibrium.js';
 import { TNO_ALBEDOS_MODIFIED } from './tnoalbedos.js';
 import { darkAlbedo } from './brightness.js';
@@ -54,31 +54,59 @@ export function selectForFink(tnos, { rubinList = null, skip = new Set() } = {})
     return { chosen, unpackable };
 }
 
+/* How an H from Rubin's observations at the Minor Planet Center is labelled. It still
+   starts with "Rubin", which is what marks an H as Rubin's own everywhere else. */
+export const RUBIN_VIA_MPC = 'Rubin via the MPC';
+
+const JD_UNIX_EPOCH = 2440587.5;
+
+/* How long Rubin's reported observations span, and when the last one was. */
+function reportedSpan(observations) {
+    const jds = observations.map((o) => Date.parse(o.time) / 86400000 + JD_UNIX_EPOCH).filter(Number.isFinite);
+    if (!jds.length) return null;
+    const first = Math.min(...jds), last = Math.max(...jds);
+    return { arcDays: last - first, lastJd: last };
+}
+
 /* Rubin is the source of truth (the project owner's direction, 2026-10-02); JPL and the
    others are validation and fallback.
 
    For each object: its brightness from Rubin's own photometry where Rubin has measured
    it, else the catalogue's, with its larger uncertainty; its orbit from Rubin's own
    position and velocity where Rubin has a record, else JPL's; and what Rubin has seen of
-   it. An object Rubin has not measured is kept, labelled not yet confirmed by Rubin.
+   it. An object Rubin has not measured is kept, labelled as Rubin's measurements not yet public.
    JPL's elements and H are kept beside Rubin's for the cross-check. Objects with no H
    anywhere are left out and counted. */
 /* jd (optional): the run's date, to tell which objects are too bright for Rubin to
    measure (js/orbit.js, RUBIN_SATURATION). Those keep their catalogue H whatever Rubin
-   reports, since saturated detections clip the brightness. */
-export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = null, jd = null } = {}) {
+   reports, since saturated detections clip the brightness.
+
+   reported (optional): Rubin's observations as it reported them to the Minor Planet
+   Center, by designation (reportedByRubin, below). Rubin's measurements reach the public
+   by two routes, and either confirms an object: its alerts, through Fink, which are
+   preferred because they carry Rubin's own distances, flags and orbit; and the MPC, which
+   has objects the alerts have not reached. rubin.via says which was used ('alerts' or
+   'MPC'), and the digest counts them together (the owner's choice, 2026-11-11). By the
+   MPC route the orbit stays JPL's: it is fitted to those same observations. */
+export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = null, jd = null, reported = null } = {}) {
     const objects = [], withoutH = [];
     for (const o of tnos) {
         const rows = detectionsByProvisional?.get?.(o.provisional) ?? detectionsByProvisional?.[o.provisional] ?? [];
+        const atMpc = reported?.[o.designation] ?? [];
         const tooBright = jd !== null && o.H !== null && o.elements ? tooBrightForRubin(observe(o.elements, o.H, jd).V) : false;
-        const photometry = rows.length && !tooBright ? visualH(bandH(rows)) : null;
+        const fromAlerts = rows.length && !tooBright ? visualH(bandH(rows)) : null;
+        const fromMpc = !fromAlerts && atMpc.length && !tooBright && o.elements ? visualH(reportedBandH(atMpc, o.elements)) : null;
+        const photometry = fromAlerts ?? fromMpc;
         const state = rows.length ? rubinState(rows) : null;
+        const span = fromMpc ? reportedSpan(atMpc) : state ? { arcDays: state.arcDays, lastJd: state.lastJd } : null;
+        const used = fromMpc ? atMpc.length : rows.length;
         const rubin = {
-            seen: rubinList ? seenByRubin(rubinList, o) : rows.length > 0,
+            seen: (rubinList ? seenByRubin(rubinList, o) : rows.length > 0) || atMpc.length > 0,
             confirmed: Boolean(photometry),
-            detections: rows.length,
-            arcDays: state ? state.arcDays : null,
-            lastSeenJd: state ? state.lastJd : null,
+            ...(photometry ? { via: fromMpc ? 'MPC' : 'alerts' } : {}),
+            detections: used,
+            arcDays: span ? span.arcDays : null,
+            lastSeenJd: span ? span.lastJd : null,
             ...(tooBright ? { tooBright: true } : {}),
         };
         const base = {
@@ -87,7 +115,7 @@ export function choosePhotometry(tnos, detectionsByProvisional, { rubinList = nu
             orbitFrom: state ? 'Rubin' : 'JPL',
         };
         if (photometry) {
-            objects.push({ ...base, Hv: photometry.H, errH: photometry.errH, hSource: `Rubin: ${photometry.from}`, detections: rows.length });
+            objects.push({ ...base, Hv: photometry.H, errH: photometry.errH, hSource: `${fromMpc ? RUBIN_VIA_MPC : 'Rubin'}: ${photometry.from}`, detections: used });
         } else if (o.H !== null) {
             objects.push({ ...base, Hv: o.H, errH: CATALOGUE_H_ERR, hSource: 'catalogue (JPL)', detections: rows.length });
         } else {
@@ -153,7 +181,7 @@ function entry(o, v) {
         orbitFrom: o.orbitFrom ?? 'JPL',
         orbitQuality: o.quality ?? null,
         rubin: o.rubin ? {
-            confirmed: o.rubin.confirmed, seen: o.rubin.seen, detections: o.rubin.detections,
+            confirmed: o.rubin.confirmed, seen: o.rubin.seen, ...(o.rubin.via ? { via: o.rubin.via } : {}), detections: o.rubin.detections,
             arcDays: round(o.rubin.arcDays, 1),
             lastSeen: o.rubin.lastSeenJd ? new Date((o.rubin.lastSeenJd - 2440587.5) * 86400000).toISOString().slice(0, 10) : null,
             ...(o.rubin.tooBright ? { tooBright: true } : {}),
@@ -187,7 +215,8 @@ export function provenance({ siteCommit, sources }) {
    most promising first. */
 export function buildDigest({ objects, jd, date, provenance: made, notes = [], observing = null }) {
     const entries = [];
-    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0, implausiblyBright: 0, confirmedByRubin: 0, seenByRubin: 0, orbitFromRubin: 0, jplDisagrees: 0 };
+    /* confirmedByRubin counts both routes; confirmedViaMpc says how many came by the MPC. */
+    const counts = { assessed: 0, passes: 0, disputed: 0, largeIfDark: 0, watch: 0, nearMiss: 0, withRubinH: 0, measuredSize: 0, uncertainOrbit: 0, implausiblyBright: 0, confirmedByRubin: 0, confirmedViaMpc: 0, seenByRubin: 0, orbitFromRubin: 0, jplDisagrees: 0 };
     const offset = catalogueOffset(objects);
     for (const o of objects) {
         const v = assessObject({
@@ -199,6 +228,7 @@ export function buildDigest({ objects, jd, date, provenance: made, notes = [], o
         counts.assessed++;
         if (o.hSource.startsWith('Rubin')) counts.withRubinH++;
         if (o.rubin?.confirmed) counts.confirmedByRubin++;
+        if (o.rubin?.via === 'MPC') counts.confirmedViaMpc++;
         if (o.rubin?.seen) counts.seenByRubin++;
         if (o.orbitFrom === 'Rubin') counts.orbitFromRubin++;
         if (v.flags.includes('jplDisagrees')) counts.jplDisagrees++;
@@ -257,7 +287,11 @@ export function stringifyLines(value) {
    asked once per object and kept in rubin-data's discovery.json. Only objects in the
    digest are asked about, most interesting first, at most DISCOVERY_PER_RUN per run, so
    the first backfill of a few hundred spreads over several weekly runs. An object the MPC
-   could not answer for is tried again the next month, not every week. */
+   could not answer for is tried again the next month, not every week.
+
+   Since 2026-11-11 the same request also brings Rubin's observations, so the collector
+   asks through mpcQueue (below), which covers both; discoveryQueue is the discovery half
+   of that rule on its own. */
 export const DISCOVERY_PER_RUN = 40;
 export const STATION_NAMES_PER_RUN = 10;
 
@@ -273,6 +307,83 @@ export function discoveryQueue(digest, store, month) {
 /* Observatory codes seen in discoveries but not yet named. */
 export const unnamedStations = (store) =>
     [...new Set(Object.values(store.objects).map((d) => d.station))].filter((code) => !(code in store.stations));
+
+/* ---- Rubin's observations at the Minor Planet Center ---------------------------------- */
+
+/* The same MPC answer that names an object's discoverer holds Rubin's observations of it,
+   and those are kept in rubin-data's mpc-rubin.json: for each object asked about, the
+   month it was last asked and Rubin's observations as [time, band, magnitude, error].
+   Unlike a discovery they grow, so objects are asked about again: monthly while the MPC
+   is the only route to Rubin's measurements and has some (or Rubin found the object, so
+   more are likely), every three months otherwise. An object Rubin's alerts already cover
+   is asked once, for its discovery, and not again. One request an object, at most
+   MPC_PER_RUN a run, so the first fill of a few hundred takes several weekly runs:
+   passes first, then Rubin's own discoveries and objects it has reported, then the rest,
+   each in the digest's order. */
+export const MPC_PER_RUN = 80;
+export const MPC_REFRESH_MONTHS = { reported: 1, other: 3 };
+
+export const emptyMpcStore = () => ({ format: 1, objects: {} });
+
+export const monthsBetween = (a, b) => {
+    const [ya, ma] = a.split('-').map(Number), [yb, mb] = b.split('-').map(Number);
+    return (yb - ya) * 12 + (mb - ma);
+};
+
+/* Whether Rubin's observations of a digest entry should be asked for this month. */
+export function mpcDue(entry, record, month, { byRubin = false } = {}) {
+    if (!record) return true;
+    if (record.failed === month) return false;
+    if (!record.asked) return true;
+    if (entry.rubin?.via === 'alerts') return false;
+    const every = record.obs?.length || byRubin ? MPC_REFRESH_MONTHS.reported : MPC_REFRESH_MONTHS.other;
+    return monthsBetween(record.asked, month) >= every;
+}
+
+/* The digest's objects to ask the MPC about this run: those whose discovery is not yet
+   known and those whose observations are due. */
+export function mpcQueue(digest, discoveryStore, mpcStore, month) {
+    const queue = [];
+    digest.entries.forEach((e, index) => {
+        const record = mpcStore.objects[e.designation];
+        const found = discoveryStore.objects[e.designation];
+        const byRubin = found?.station === RUBIN_STATION;
+        const wantsDiscovery = !found && discoveryStore.failed[e.designation] !== month && record?.failed !== month;
+        if (!wantsDiscovery && !mpcDue(e, record, month, { byRubin })) return;
+        const tier = e.passes ? 0 : byRubin || record?.obs?.length ? 1 : 2;
+        queue.push({ designation: e.designation, provisional: provisionalFrom(e.name, e.designation), tier, index });
+    });
+    return queue.sort((x, y) => x.tier - y.tier || x.index - y.index)
+        .map(({ designation, provisional }) => ({ designation, provisional }));
+}
+
+/* Keeps what a run's MPC answers said. An object that answered has its observations
+   replaced and is marked asked this month; one that could not be asked keeps what it had
+   and is left alone until next month. Returns whether any object's observations changed,
+   which is when the digest has to be worked out again. */
+export function recordMpc(mpcStore, { observations = {}, failed = [] }, month) {
+    let changed = false;
+    for (const [designation, list] of Object.entries(observations)) {
+        const obs = list.map((o) => [o.time, o.band, o.mag, o.rmsMag]);
+        if (JSON.stringify(obs) !== JSON.stringify(mpcStore.objects[designation]?.obs ?? [])) changed = true;
+        mpcStore.objects[designation] = { asked: month, obs };
+    }
+    for (const { designation } of failed) {
+        if (designation in observations) continue;
+        const before = mpcStore.objects[designation];
+        mpcStore.objects[designation] = { asked: before?.asked ?? null, obs: before?.obs ?? [], failed: month };
+    }
+    return changed;
+}
+
+/* Rubin's reported observations by designation, as choosePhotometry reads them. */
+export function reportedByRubin(mpcStore) {
+    const out = {};
+    for (const [designation, record] of Object.entries(mpcStore?.objects ?? {})) {
+        if (record.obs?.length) out[designation] = record.obs.map(([time, band, mag, rmsMag]) => ({ time, band, mag, rmsMag }));
+    }
+    return out;
+}
 
 /* Each digest entry gets its discovery, where known, and the counts say how many Rubin
    found. */

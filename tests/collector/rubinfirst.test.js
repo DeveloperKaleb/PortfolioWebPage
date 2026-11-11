@@ -97,7 +97,7 @@ describe('Rubin first, JPL as the check', () => {
         expect(eris.hSource).toBe('catalogue (JPL)');
         expect(eris.orbitFrom).toBe('JPL');
         expect(eris.rubin).toMatchObject({ seen: false, confirmed: false });
-        expect(rubinStatus({ rubin: eris.rubin }).text).toBe('Not yet confirmed by Rubin');
+        expect(rubinStatus({ rubin: eris.rubin }).text).toBe("Rubin's measurements not yet public");
     });
 
     test('checks Rubin against JPL: Gonggong agrees, within the margins', () => {
@@ -214,6 +214,6 @@ describe('Too bright for Rubin', () => {
     test('the card says so, from the entry or from its brightness alone', () => {
         expect(rubinStatus({ rubin: { tooBright: true }, now: { V: 15.2 } }).text).toBe('Too bright for Rubin to measure');
         expect(rubinStatus({ rubin: { confirmed: false }, now: { V: 15.15 } }).text).toBe('Too bright for Rubin to measure');
-        expect(rubinStatus({ rubin: { confirmed: false }, now: { V: 17.11 } }).text).toBe('Not yet confirmed by Rubin');
+        expect(rubinStatus({ rubin: { confirmed: false }, now: { V: 17.11 } }).text).toBe("Rubin's measurements not yet public");
     });
 });

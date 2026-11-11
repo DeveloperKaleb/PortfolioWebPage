@@ -147,9 +147,10 @@ under Vitest without a browser:
 - `js/polite.js` — the courtesy layer every Rubin data request goes through: one at a
   time, gaps, budgets, backoff, Retry-After, size caps. `fetch`, `sleep` and `now` are
   passed in, so it is tested with a fake network and clock.
-- `js/sources.js` — the JPL, Fink and MPC (discovery) clients and the photometry that turns Rubin
-  detections into a visual H. Tested against recorded responses; never calls a live
-  service in tests.
+- `js/sources.js` — the JPL, Fink and MPC clients and the photometry that turns Rubin
+  detections into a visual H. Rubin's measurements come by two routes: its alerts (Fink)
+  and its own observations as reported to the MPC, for objects the alerts have not
+  reached. Tested against recorded responses; never calls a live service in tests.
 - `js/collector.js` — the collector's logic: what a run fetches, one H per object, the
   digest and the changes. `tools/rubin-collect.mjs` does the files and fetching around
   it (`npm run collect -- --data <dir>`; a dry run on recorded data unless `--live`).

@@ -13,11 +13,18 @@
  * Fink's own name lookup can fail for an object (it failed for Quaoar, 50000), which
  * rejects the whole batch; fetchDetections sets that object aside and asks again.
  *
+ * - The Minor Planet Center: who discovered each object, and Rubin's own observations of
+ *   it as Rubin reported them (station X05). Fink only holds what went out as alerts,
+ *   and Rubin sends alerts only where it has template images, so an object can be
+ *   measured by Rubin and absent from every broker: 2026 ED138, which Rubin discovered,
+ *   was. The MPC is the one public place those measurements are, and it issues the
+ *   designations, so its lookup cannot fail on a name the way Fink's does.
+ *
  * Every request goes through the courtesy layer (js/polite.js), passed in as `polite`.
  * Parsing and the photometry are pure and tested against recorded responses; the
  * fetching functions are tested with a fake network. No DOM.
  */
-import { apparentMagnitude, TYPICAL_V_MINUS_R } from './orbit.js';
+import { apparentMagnitude, observe, jdFromDate, TYPICAL_V_MINUS_R } from './orbit.js';
 
 /* ---- Designations ------------------------------------------------------------------ */
 
@@ -195,7 +202,10 @@ export function rejectedIn(body, batch) {
  *
  * Nothing already fetched is ever thrown away. The first live run lost every batch to one
  * error it could not read, so now:
- *   - an object Fink rejects by name is set aside and the rest of its batch asked again;
+ *   - an object Fink rejects by name is set aside and the rest of its batch asked again.
+ *     It gets one more request of its own, by provisional designation, which Fink's
+ *     lookup accepts for some objects whose packed form it rejects ("2002 LM60" where
+ *     50000 failed); only if that fails too is it unresolved;
  *   - a batch that fails any other way is skipped, with the reason, and the next batch
  *     asked;
  *   - if the run has to stop (out of request budget, response too large, network gone),
@@ -206,6 +216,13 @@ export async function fetchDetections(polite, objects, { batchSize = FINK_BATCH 
     const unresolved = [];
     const skipped = [];
     let stopped = null;
+    const keep = (rows) => {
+        for (const row of rows) {
+            const key = row['r:designation'];
+            if (!byProvisional.has(key)) byProvisional.set(key, []);
+            byProvisional.get(key).push(row);
+        }
+    };
     batches: for (let start = 0; start < objects.length; start += batchSize) {
         let batch = objects.slice(start, start + batchSize);
         while (batch.length) {
@@ -220,8 +237,21 @@ export async function fetchDetections(polite, objects, { batchSize = FINK_BATCH 
             if (response.status === 400) {
                 const index = rejectedIn(response.body, batch);
                 if (index >= 0) {
-                    unresolved.push(batch[index]);
+                    const rejected = batch[index];
                     batch = batch.filter((_, k) => k !== index);
+                    let rows = null;
+                    if (rejected.provisional && rejected.provisional !== rejected.packed) {
+                        try {
+                            const again = await polite(finkUrl([rejected.provisional]));
+                            if (again.ok) rows = JSON.parse(again.body);
+                        } catch (error) {
+                            stopped = error.message;
+                            skipped.push({ designations: objects.slice(start).map((o) => o.designation), reason: `stopped: ${error.message}` });
+                            break batches;
+                        }
+                    }
+                    if (rows) keep(rows);
+                    else unresolved.push(rejected);
                     continue;
                 }
             }
@@ -229,11 +259,7 @@ export async function fetchDetections(polite, objects, { batchSize = FINK_BATCH 
                 skipped.push({ designations: batch.map((o) => o.designation), reason: `HTTP ${response.status}: ${String(response.body).slice(0, 200)}` });
                 break;
             }
-            for (const row of JSON.parse(response.body)) {
-                const key = row['r:designation'];
-                if (!byProvisional.has(key)) byProvisional.set(key, []);
-                byProvisional.get(key).push(row);
-            }
+            keep(JSON.parse(response.body));
             break;
         }
     }
@@ -269,6 +295,32 @@ export function bandH(rows) {
         const sigma = 1.0857 * row['r:psfFluxErr'] / row['r:psfFlux'];
         (perBand[row['r:band']] ??= []).push({ H, w: 1 / (sigma * sigma) });
     }
+    return averageBands(perBand);
+}
+
+/* The same, from Rubin's observations as it reported them to the Minor Planet Center
+   (parseRubinObservations, below): a magnitude, its band and its error, but no distances,
+   so those come from the object's orbit at each observation's time. A two-body orbit is
+   ample here: a hundredth of an AU at 40 AU moves H by a thousandth of a magnitude.
+   Checked on 2026-11-11 against the MPC's live records: 2026 ED138's 30 observations give
+   H_V = 3.07 +- 0.04 (its discovery paper: 3.19 +- 0.04; the MPC: 2.93), and Gonggong's
+   51 give 2.27 +- 0.05 (published 2.34; from Fink's detections 2.17). */
+export const UNSTATED_MAG_ERR = 0.1;
+
+export function reportedBandH(observations, elements) {
+    const perBand = {};
+    for (const o of observations) {
+        const jd = jdFromDate(new Date(o.time));
+        if (!(Number.isFinite(jd) && Number.isFinite(o.mag))) continue;
+        const { r, delta, phase } = observe(elements, 0, jd);
+        const H = o.mag - apparentMagnitude(0, r, delta, phase);
+        const sigma = o.rmsMag > 0 ? o.rmsMag : UNSTATED_MAG_ERR;
+        (perBand[o.band] ??= []).push({ H, w: 1 / (sigma * sigma) });
+    }
+    return averageBands(perBand);
+}
+
+function averageBands(perBand) {
     const out = {};
     for (const [band, list] of Object.entries(perBand)) {
         const W = list.reduce((s, d) => s + d.w, 0);
@@ -315,14 +367,18 @@ const MPC_OBSCODES = 'https://data.minorplanetcenter.net/api/obscodes';
 
 /* The MPC's APIs take a GET with a JSON body, one object per request, and return its
    whole observation history - so the collector asks only about objects in the digest,
-   once each, and keeps the answer (discovery never changes). Only the 80-column format is
-   asked for. */
+   and keeps the answers (js/collector.js says how often it asks again). Two formats of
+   the same history: the 80-column one, where the discovery is marked, and the table one
+   (ADES), which has each observation's magnitude error. The largest answer seen was
+   Makemake's, about 12 MB. */
+export const MPC_MAX_BYTES = 40 * 1024 * 1024;
+
 export const mpcObsRequest = (designation) => ({
     url: MPC_OBS,
     options: {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ desigs: [designation], output_format: ['OBS80'] }),
+        body: JSON.stringify({ desigs: [designation], output_format: ['OBS80', 'ADES_DF'] }),
     },
 });
 
@@ -352,19 +408,43 @@ export const parseObscodeName = (responseText) => {
     return json.short_name || json.name || null;
 };
 
-/* Discovery circumstances for a list of objects ({ designation, provisional }), at most
-   `limit` of them, most interesting first (the caller orders them). Asks by provisional
-   designation, which the MPC resolves for numbered objects too. A failure for one object
-   is recorded and the rest carry on; running out of request budget stops early, keeping
-   what was found. */
+/* Rubin's own observations in the same answer: the table's rows from Rubin's station
+   that carry a magnitude in one of Rubin's six bands (the MPC writes them Lu, Lg, Lr,
+   Li, Lz, Ly), oldest first. Rows the MPC has marked deprecated are left out. An answer
+   without the table (an older recording, an object with no observations) has none. */
+const RUBIN_BAND = /^L?([ugrizy])$/;
+
+export function parseRubinObservations(responseText) {
+    const json = JSON.parse(responseText);
+    const record = Array.isArray(json) ? json[0] : json;
+    const out = [];
+    for (const row of record?.ADES_DF ?? []) {
+        if (row.stn !== RUBIN_STATION || row.deprecated) continue;
+        const band = String(row.band ?? '').match(RUBIN_BAND)?.[1];
+        const mag = row.mag === null || row.mag === undefined || row.mag === '' ? NaN : Number(row.mag);
+        if (!band || !Number.isFinite(mag) || !Number.isFinite(Date.parse(row.obstime))) continue;
+        const rms = Number(row.rmsmag);
+        out.push({ time: row.obstime, band, mag, rmsMag: row.rmsmag !== null && rms > 0 ? rms : null });
+    }
+    return out.sort((x, y) => Date.parse(x.time) - Date.parse(y.time));
+}
+
+/* What the MPC has for a list of objects ({ designation, provisional }), at most `limit`
+   of them, most interesting first (the caller orders them): each one's discovery
+   circumstances (found) and Rubin's observations of it (observations, an empty list when
+   Rubin has reported none), from one request each. Asks by provisional designation,
+   which the MPC resolves for numbered objects too. A failure for one object is recorded
+   and the rest carry on; running out of request budget stops early, keeping what was
+   found. An answer with no discovery marked still counts for the observations. */
 export async function fetchDiscoveries(polite, objects, { limit = Infinity } = {}) {
-    const found = {}, failed = [];
+    const found = {}, observations = {}, failed = [];
     let stopped = null;
     for (const o of objects.slice(0, limit)) {
         const { url, options } = mpcObsRequest(o.provisional ?? o.designation);
         try {
-            const response = await polite(url, { ...options, maxBytes: 20 * 1024 * 1024 });
+            const response = await polite(url, { ...options, maxBytes: MPC_MAX_BYTES });
             const discovery = response.ok ? parseDiscovery(response.body) : null;
+            if (response.ok) observations[o.designation] = parseRubinObservations(response.body);
             if (discovery) found[o.designation] = discovery;
             else failed.push({ designation: o.designation, reason: response.ok ? 'no discovery observation marked' : `HTTP ${response.status}` });
         } catch (error) {
@@ -372,7 +452,7 @@ export async function fetchDiscoveries(polite, objects, { limit = Infinity } = {
             failed.push({ designation: o.designation, reason: error.message });
         }
     }
-    return { found, failed, stopped };
+    return { found, observations, failed, stopped };
 }
 
 /* Names for observatory codes not yet known, asked once each and kept. */

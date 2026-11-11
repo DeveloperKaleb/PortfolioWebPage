@@ -113,18 +113,38 @@ describe('Fink', () => {
         expect(rejectedIn('the object 150000 is unknown', [{ packed: '15000', provisional: 'x', designation: '15000' }])).toBe(-1);
     });
 
-    test('sets aside an object Fink cannot resolve and asks again for the rest', async () => {
-        const objects = [
-            { packed: '50000', provisional: '2002 LM60', designation: '50000' },
-            { packed: 'M5088', provisional: '2007 OR10', designation: '225088' },
-        ];
-        const { polite, urls } = fakePolite((url) => (url.includes('50000')
+    const quaoarAndGonggong = [
+        { packed: '50000', provisional: '2002 LM60', designation: '50000' },
+        { packed: 'M5088', provisional: '2007 OR10', designation: '225088' },
+    ];
+    const asksAbout = (url) => new URL(url).searchParams.get('n_or_d');
+
+    test('sets aside an object Fink cannot resolve, tries it once by provisional designation, and asks again for the rest', async () => {
+        const { polite, urls } = fakePolite((url) => (/50000|2002 LM60/.test(asksAbout(url))
             ? { status: 400, body: FINK_UNRESOLVED }
             : { body: JSON.stringify(GONGGONG_DETECTIONS) }));
-        const { byProvisional, unresolved } = await fetchDetections(polite, objects);
+        const { byProvisional, unresolved } = await fetchDetections(polite, quaoarAndGonggong);
+        expect(urls.map(asksAbout)).toEqual(['50000,M5088', '2002 LM60', 'M5088']);
         expect(unresolved.map((o) => o.designation)).toEqual(['50000']);
         expect(byProvisional.get('2007 OR10')).toHaveLength(GONGGONG_DETECTIONS.length);
-        expect(urls).toHaveLength(2);
+    });
+
+    test('an object rejected in packed form but known by provisional designation is not unresolved', async () => {
+        const quaoarRow = { ...GONGGONG_DETECTIONS[0], 'r:designation': '2002 LM60' };
+        const { polite } = fakePolite((url) => {
+            const asked = asksAbout(url);
+            if (asked.includes('50000')) return { status: 400, body: FINK_UNRESOLVED };
+            return { body: JSON.stringify(asked === '2002 LM60' ? [quaoarRow] : GONGGONG_DETECTIONS) };
+        });
+        const { byProvisional, unresolved } = await fetchDetections(polite, quaoarAndGonggong);
+        expect(unresolved).toEqual([]);
+        expect(byProvisional.get('2002 LM60')).toHaveLength(1);
+        expect(byProvisional.get('2007 OR10')).toHaveLength(GONGGONG_DETECTIONS.length);
+    });
+
+    test('an answer with no detections by provisional designation still settles the name', async () => {
+        const { polite } = fakePolite((url) => (asksAbout(url).includes('50000') ? { status: 400, body: FINK_UNRESOLVED } : { body: '[]' }));
+        expect((await fetchDetections(polite, quaoarAndGonggong)).unresolved).toEqual([]);
     });
 
     test('asks in batches', async () => {

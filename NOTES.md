@@ -3442,7 +3442,7 @@ was the collector preferring clipped Rubin photometry for Pluto.
 `RUBIN_SATURATION` (js/orbit.js, r 16, between the two figures) and `tooBrightForRubin`: an
 object predicted brighter keeps its catalogue H whatever Rubin reports (`choosePhotometry` takes
 the run's `jd`), its entry records `rubin.tooBright`, and its card says "Too bright for Rubin to
-measure" instead of "Not yet confirmed by Rubin". The card also works it out from `now.V`, so
+measure" instead of "Rubin's measurements not yet public". The card also works it out from `now.V`, so
 older digests say it too. Only Pluto (r ~14.7) is caught; Makemake and Haumea (~16.7-16.9) are
 just clear and may saturate in poor seeing. Revisit the limit once Rubin publishes measured
 values.
@@ -3524,3 +3524,80 @@ did not support them: Triton's future break-up (NASA's page does not say it; gey
 instead) and Tethys's trojans (NASA's page covers Dione's; Dione got that fact). Common facts
 were avoided on purpose (Saturn floating, Venus's day longer than its year). Tests check every
 Known world has one, each fits a card (170 characters), and none says "dwarf planet".
+
+### "Rubin's measurements not yet public" (owner, 2026-11-09)
+
+The card label for objects without Rubin photometry was "Not yet confirmed by Rubin". It read
+wrong on 2026 ED138, which Rubin itself discovered (MPC station X05, 2026-03-04): the owner
+asked how Rubin could not have confirmed its own find. The label only ever meant that no Rubin
+measurements had reached the public data the tab reads (Fink), so it now says that. Nothing
+else changed: `rubin.confirmed` and the counts keep their names.
+
+Why ED138 has no Fink detections, checked 2026-11-09 (not a collector gap):
+- Fink looks names up with IMCCE's Quaero. Quaero returns nothing for 2026 ED138 or 2026
+  EE138 (it does know 2026 EA2), so Fink rejects both names and cannot link alerts to them.
+- Neither is on Fink's Rubin list (62,780 objects, only 110 with 2026 designations).
+- The collector loses no history: Fink's sso endpoint returns every detection each time, and
+  the November fetch went back to 2026-05-22. ED138's discovery images are from March, before
+  any Rubin detection Fink holds, so they reached the MPC by Rubin's own route, not alerts.
+Once Quaero ingests the designation, Fink should start linking it; the monthly list will
+then pick it up with no change here.
+
+Superseded 2026-11-11: the name lookup is not the real reason, and waiting would not have
+fixed it. See the next section.
+
+### Rubin's measurements by a second route: the Minor Planet Center (owner, 2026-11-11)
+
+The owner asked whether objects Fink has nothing for (2026 ED138 above all) could be reached
+by another identifier or another broker. Neither: the fix is a second source.
+
+**Why no broker has them.** Rubin makes an alert only where it has a template image of that
+sky to subtract, and in the survey's first year much of the sky has none. ED138 was found in
+Rubin's direct-image catalogues, not in alerts (Rubin forum, topics 12877 and 12892; arXiv
+2610.38693 section 9.2). Every broker reads the same alert stream, so none has it: a position
+search of Fink at ED138's place on 2026-07-11 returned nothing, and it is in neither Fink's
+bulk file nor its list. Fink rejects the name too, but that is beside the point. The gap
+closes "over months (or at worst a year)" as templates are built. Rubin's own archive holds
+the data, for data-rights holders only; its announcement says "Only the MPC observations are
+public."
+
+**What works.** The MPC answer the collector already asked for (who discovered each object)
+also holds Rubin's observations of it: station X05, with magnitude, band (Lu Lg Lr Li Lz Ly)
+and error. They were being thrown away. Now:
+- `mpcObsRequest` asks for the table format (ADES_DF) beside the 80-column one;
+  `parseRubinObservations` keeps Rubin's rows; `reportedBandH` turns them into H per band
+  with distances from the JPL orbit (the rows have none), and the usual `visualH` follows.
+- **Order of preference:** alerts (Fink), then the MPC, then the catalogue. Alerts stay first
+  because they carry Rubin's own distances, quality flags and orbit. When templates reach
+  these objects, Fink takes over with no change here.
+- **One count** (the owner's choice): either route makes an object "confirmed by Rubin".
+  `rubin.via` is `alerts` or `MPC`, `counts.confirmedViaMpc` says how many came by the
+  MPC, and each card's Brightness line names the route. `hSource` reads "Rubin via the MPC:
+  ..." and still starts with "Rubin", which is what the rest of the code tests.
+- The orbit stays JPL's by this route (it is fitted to those same observations), so
+  `orbitFrom` is 'JPL' and the cross-check compares brightness only.
+- **Kept in rubin-data's `mpc-rubin.json`**, like discovery.json, so a month the MPC cannot
+  be reached uses what was there. Asked again monthly where the MPC has Rubin observations or
+  Rubin found the object, every three months otherwise, never again once alerts cover it; at
+  most `MPC_PER_RUN` (80) a run, passes first. The first fill of about 390 objects takes
+  about five weekly runs. Observations fetched in a run are used in that run: the digest is
+  worked out a second time when any changed.
+
+Checked against the live MPC on 2026-11-11: ED138's 30 Rubin observations give H_V 3.07 +-
+0.04 (discovery paper 3.19 +- 0.04, MPC 2.93); Gonggong's 51 give 2.27 (published 2.34, from
+Fink 2.17); 2026 EE138 4.14; 2025 NE552 4.74 (r only).
+
+**What it does not fix.** The MPC only has what Rubin has reported. On 2026-11-11 it had no
+Rubin observations of Eris, Makemake or Sedna and three of Quaoar (July 2025); Fink has none
+of them either. Those keep "Rubin's measurements not yet public", which is true.
+
+**Rejected:** the Asteroid Institute's export of every Rubin observation at the MPC
+(b612.ai/rubin-mpc-downloads): about 1 GB, and they ask that it not be downloaded routinely.
+Other brokers (ALeRCE, Lasair, ANTARES): same alert stream, same gap.
+
+**Fink's name lookup, a smaller fix.** An object Fink rejects in packed form now gets one
+request of its own by provisional designation before it is called unresolved: "2002 LM60"
+resolves where 50000 did not. It matters little now that only objects on Fink's own list are
+asked about (November 2026: 87 asked, none rejected). The 162 names in fink-unresolved.json
+date from before that. Fink's API was answering 502 when this was to be tried live, so it is
+tested against a fake network only.

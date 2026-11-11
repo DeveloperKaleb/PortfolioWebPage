@@ -15,10 +15,16 @@ hand.
   objects and their orbits.
 - **[Fink](https://fink-broker.org/)**, a Rubin alert broker: Rubin's detections of those
   objects, from which their brightness is measured. Rubin's alerts are world-public.
+- **[Minor Planet Center](https://www.minorplanetcenter.net/)**: who discovered each
+  object, and Rubin's own observations of it as Rubin reported them. Rubin sends alerts
+  only where it has template images of the sky, so an object can be measured by Rubin
+  and absent from every alert broker (2026 ED138, which Rubin discovered, was). For
+  those, brightness is measured from the observations at the MPC instead.
 
 Requests are deliberately few and gentle: one at a time, seconds apart, a hard budget
 per run, backing off when asked, and identified with a contact address. A quiet week is
-one request to JPL; Fink is asked once a month.
+one request to JPL; Fink is asked once a month, and the Minor Planet Center about an
+object once a month at most, 80 objects a week at most.
 
 ## Layout
 
@@ -30,6 +36,8 @@ one request to JPL; Fink is asked once a month.
 | `digest/YYYY-MM.json` | That month's results: passes, near misses, flags |
 | `digest/latest.json` | The newest digest, which the site reads |
 | `changes/YYYY-MM.json` | What changed since the month before |
+| `discovery.json` | Who found each object in the digest, from the Minor Planet Center |
+| `mpc-rubin.json` | Rubin's observations at the Minor Planet Center, per object: when last asked, and each as [time, band, magnitude, error] |
 | `moons.json` | The round moons' orbits for the site's map, refitted from JPL Horizons once a year |
 
 Inputs are kept every month so any future filter can be re-run against the whole
@@ -45,9 +53,11 @@ JSON files put one object per line, so the history diffs cleanly.
 - `flags`: `disputed`, `largeIfDark`, and orbit flags (`extremeOrbit`, `detached`,
   `highlyInclined`, `retrograde`, `unbound`). `watch` marks a failing object that is both
   large-if-dark and on an unusual orbit.
-- `hSource`: whether H came from Rubin's own detections or the catalogue.
+- `hSource`: whether H came from Rubin's own detections or the catalogue. `rubin.via`
+  says by which route Rubin's came: `alerts` (Fink) or `MPC`. Both count as confirmed
+  by Rubin; `counts.confirmedViaMpc` is how many came by the MPC.
 
-Data: JPL/NASA and the Rubin Observatory via the Fink broker; TNO albedos from Johnston's
+Data: JPL/NASA, and the Rubin Observatory via the Fink broker and the Minor Planet Center; TNO albedos from Johnston's
 compilation (NASA PDS, doi:10.26033/y5sn-4t02).
 
 ## Maintenance windows (`maintenance.json`, edited by hand)

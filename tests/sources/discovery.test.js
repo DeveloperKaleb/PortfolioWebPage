@@ -27,11 +27,11 @@ describe('Reading the MPC', () => {
         expect(parseObscodeName(MPC_X05)).toMatch(/Rubin Observatory/);
     });
 
-    test('asks as the MPC wants: a GET with a JSON body, one object, 80-column format', () => {
+    test('asks as the MPC wants: a GET with a JSON body, one object, the 80-column format and the table', () => {
         const { url, options } = mpcObsRequest('2007 OR10');
         expect(url).toMatch(/data\.minorplanetcenter\.net\/api\/get-obs$/);
         expect(options.method).toBe('GET');
-        expect(JSON.parse(options.body)).toEqual({ desigs: ['2007 OR10'], output_format: ['OBS80'] });
+        expect(JSON.parse(options.body)).toEqual({ desigs: ['2007 OR10'], output_format: ['OBS80', 'ADES_DF'] });
         expect(JSON.parse(mpcObscodeRequest('X05').options.body)).toEqual({ obscode: 'X05' });
     });
 });
