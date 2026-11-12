@@ -2241,6 +2241,48 @@ main.rubin {
     font-variant-numeric: tabular-nums;
 }
 
+/* What shaped the far edge? The dial sits on the page's brown with its own dark disc. */
+.rubin-dial {
+    max-width: 420px;
+}
+
+.rubin-far-numbers p {
+    color: #e3e7af;
+    margin: 8px 0;
+}
+
+.rubin-far-joined {
+    color: #e3e7af;
+}
+
+/* Three columns of sentences: fixed shares of the width, so the last is never squeezed
+   off a phone's screen, and the source link may wrap. */
+.rubin-far-explain .rubin-table {
+    table-layout: fixed;
+}
+
+.rubin-far-explain th:first-child {
+    width: 22%;
+}
+
+.rubin-far-explain th:last-child {
+    width: 37%;
+}
+
+.rubin-far-explain .rubin-source {
+    display: block;
+    white-space: normal;
+}
+
+.rubin-far-published {
+    color: #e3e7af;
+    padding-left: 1.2em;
+}
+
+.rubin-far-published li {
+    margin: 4px 0;
+}
+
 .rubin-light-text.rubin-note {
     color: #b8bc93;
     margin-bottom: 8px;

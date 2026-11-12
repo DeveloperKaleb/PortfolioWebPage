@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The Solar System - Kaleb's Portfolio</title>
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261112-1533" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261112-1533" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261112-1546" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261112-1546" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -82,6 +82,45 @@
             <p class="rubin-note">They fail as typical objects of their brightness, but would pass if as dark as the darkest measured. Only a thermal measurement, an occultation or a moon could settle their size.</p>
             <div class="rubin-picker"></div>
             <div class="rubin-cards"></div>
+        </section>
+
+        <!-- What shaped the far edge? (js/faredge.js): filled by rubin.js from the digest,
+             and hidden until a digest carries the section. It gives no odds for any
+             explanation; see NOTES.md for the rules it is held to. -->
+        <section id="rubin-faredge" class="rubin-section" hidden>
+            <h3>What shaped the far edge?</h3>
+            <p>
+                Far beyond Neptune, a few objects travel on enormous, stretched orbits. Each
+                orbit has a long axis that points somewhere. Left alone, those directions
+                should be scattered. If something large and unseen is out there, its pull
+                would herd them together - which is the case for a hidden planet. This
+                section measures the herding every week, as Rubin finds more of them.
+            </p>
+            <figure class="rubin-figure">
+                <div class="rubin-plot"></div>
+                <figcaption class="rubin-note"></figcaption>
+            </figure>
+            <details class="rubin-table-view">
+                <summary>The dial as a table</summary>
+                <div class="rubin-table-wrap"></div>
+            </details>
+            <div class="rubin-far-numbers"></div>
+            <h4 class="rubin-subhead">How it has changed</h4>
+            <figure class="rubin-figure">
+                <div class="rubin-plot"></div>
+                <figcaption class="rubin-note"></figcaption>
+            </figure>
+            <p class="rubin-far-joined" hidden></p>
+            <details class="rubin-table-view">
+                <summary>The history as a table</summary>
+                <div class="rubin-table-wrap"></div>
+            </details>
+            <h4 class="rubin-subhead">What could explain it</h4>
+            <p class="rubin-note">Four explanations, what each predicts, and what this page measures beside it. The page gives no odds for any of them: that takes a model of where every telescope has looked, which this is not.</p>
+            <div class="rubin-table-wrap rubin-far-explain"></div>
+            <h4 class="rubin-subhead">What the published studies found</h4>
+            <p class="rubin-note">These allow for where telescopes looked; the number above does not, so it is not a rival to them.</p>
+            <div class="rubin-far-published-wrap"></div>
         </section>
 
         <section id="rubin-method" class="rubin-section">
@@ -166,10 +205,10 @@
         </div>
     </dialog>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261112-1533"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261112-1533"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261112-1533"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261112-1533"></script>
-    <script type="module" src="./rubin.js?v=20261112-1533"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261112-1546"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261112-1546"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261112-1546"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261112-1546"></script>
+    <script type="module" src="./rubin.js?v=20261112-1546"></script>
 </body>
 </html>

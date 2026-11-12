@@ -3644,8 +3644,21 @@ drifts as Rubin adds objects is something the tab can show first. The design, wi
 owner's answers written into it, is the Claude Doc "The far edge: design for a new Solar
 System tab section" (https://claude.ai/artifact/CTnyrXvtggnZN8Trr8U6vt).
 
-Built so far: the arithmetic (`js/faredge.js`) and the collector's part. The page does not
-show it yet.
+Built: the arithmetic and the page's words (`js/faredge.js`), the collector's part, and the
+section on the page (`drawFarEdge` in `rubin/rubin.js`), which stays hidden until a digest
+carries `farEdge`.
+
+- **The page: a dial, the numbers in sentences, the history, four explanations, the
+  published results.** The dial puts each orbit in the direction its long axis points,
+  turned as the map is, with the orbit's size on a log scale outward (`DIAL`); the arrow is
+  the mean direction and its length is the bunching, so a longer arrow is a tighter herd.
+  The ring labels run along 225 degrees, the emptiest side today. The explanations table has
+  fixed column shares and a wrapping source link: with the site's usual one-line source
+  link the third column was pushed off a phone's screen.
+- **Chrome's screenshots through the extension kept timing out on this page** (the map
+  redraws four times a second). What worked: headless Edge with `--screenshot`, a tall
+  `--window-size` and `--virtual-time-budget=6000`, against `npm run dev` and a preview
+  digest passed with `?digest=`.
 
 - **Who counts is fixed and dated (`CUTS`, 2026-11-12), and taken from the papers exactly.**
   Extreme: Brown & Batygin 2021, multi-opposition, 150 < a < 1000 AU, q > 42 AU. Sedna-like:
@@ -3677,4 +3690,5 @@ show it yet.
 - **Not yet reconciled:** the passing-star paper (Pfalzner et al. 2024) gives backwards
   orbits as 0.15% of trans-Neptunian objects now; JPL's TNO class with trusted orbits gives
   1.0% (39 of 3,892), so the definitions differ. Sedna-like agrees (0.10%, 4 objects). The
-  page should compare the trend, not the level, or say why they differ.
+  page therefore says the paper counts differently and that what matters is whether the
+  shares rise (`sharesText`).

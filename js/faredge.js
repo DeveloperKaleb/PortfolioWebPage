@@ -421,3 +421,75 @@ export const EXPLANATIONS = [
         evidence: 'chance',
     },
 ];
+
+/* ---- The words and geometry the page uses, from the section the digest carries -------------- */
+
+export function thinText(n, next) {
+    if (!next || n < MIN_SAMPLE) return null;
+    return `With ${n} objects the sample is thin: one more pointing with the group would make it ${next.withGroup.toFixed(2)}, one pointing the opposite way ${next.against.toFixed(2)}.`;
+}
+
+const listed = (names) => names.join(', ').replace(/, ([^,]*)$/, ' and $1');
+
+export function splitNamesText({ together, apart: away }) {
+    const n = together.length + away.length;
+    if (n === 0) return 'No Sedna-like object has a trusted orbit yet.';
+    if (away.length === 0) return `All ${n} Sedna-like objects point roughly the same way (${listed(together)}).`;
+    return `Of the ${n} Sedna-like objects, ${together.length} point roughly the same way (${listed(together)}) and ${away.length} ${away.length === 1 ? 'points' : 'point'} away from them (${listed(away)}).`;
+}
+
+export function waitingCountText({ count, recent, since }) {
+    if (count === 0) return 'No object is waiting for a longer run of observations.';
+    return `${groupThousands(count)} more ${count === 1 ? 'object is' : 'objects are'} waiting: on a distant orbit, but watched for under a year or with an orbit too uncertain to place on the dial. ${recent} of them were found since ${since}, the years of Rubin's first data. As they mature, the dial will change.`;
+}
+
+/* The passing star's number. JPL's list and the paper do not count the same things (the
+   paper's share of backwards orbits today is 0.15%; JPL's list gives about 1%), so the
+   sentence gives this page's count and says to watch its direction. */
+export function sharesText(s) {
+    if (!s || !s.total) return 'No trusted orbits to count yet.';
+    return `Of the ${groupThousands(s.total)} objects beyond Neptune with trusted orbits in JPL's list, ${s.sednaLike.count} ${s.sednaLike.count === 1 ? 'is' : 'are'} Sedna-like (${shareText(s.sednaLike.share)}) and ${s.backwards.count} orbit backwards (${shareText(s.backwards.share)}). The paper counts differently, so what matters here is whether these shares rise.`;
+}
+
+/* What the page sets against one explanation: the measurement, never a verdict. */
+export function evidenceText(kind, section) {
+    const { axes } = section;
+    if (kind === 'axes') {
+        return axes.n < MIN_SAMPLE ? `Only ${axes.n} extreme objects so far.` : `Long axes of ${axes.n} extreme objects bunched at ${axes.r.toFixed(2)}; tilts at ${section.tilts.r.toFixed(2)}.`;
+    }
+    if (kind === 'split') {
+        const { together, apart: away } = section.sednaLike;
+        return `${together.length} of ${together.length + away.length} Sedna-like objects point together today, ${away.length} away. The test is where they pointed long ago, which this page does not yet work out.`;
+    }
+    if (kind === 'shares') return sharesText(section.shares);
+    return axes.n < MIN_SAMPLE ? `Only ${axes.n} extreme objects so far.` : `Random directions would look as bunched as today's ${chanceText(axes.p)}, by this page's simple test.`;
+}
+
+/* A published result in a line. */
+export function publishedText(p) {
+    return p.chance === null
+        ? `${p.who} (${p.year}), ${p.objects} objects: consistent with random directions`
+        : `${p.who} (${p.year}), ${p.objects} objects: bunched; chance of a fluke ${shareText(p.chance)}`;
+}
+
+/* The dial. Direction is the long axis, counter-clockwise from the right as on the map;
+   distance from the centre is the orbit's size on a log scale, so the largest orbits do not
+   push the rest into the middle. Fractions of the dial's radius. */
+export const DIAL = { inner: 0.3, fromAU: 150, toAU: 2000, rings: [200, 500, 1000] };
+
+export function dialRadius(a) {
+    const t = (Math.log10(a) - Math.log10(DIAL.fromAU)) / (Math.log10(DIAL.toAU) - Math.log10(DIAL.fromAU));
+    return DIAL.inner + Math.min(1, Math.max(0, t)) * (1 - DIAL.inner);
+}
+
+/* Screen offsets from the centre, y downward, for a direction and a fraction of the radius. */
+export const dialXY = (angleDeg, fraction, radiusPx) => [
+    fraction * radiusPx * Math.cos(angleDeg * DEG),
+    -fraction * radiusPx * Math.sin(angleDeg * DEG),
+];
+
+/* A date as a year with a fraction, for the history's time axis. */
+export function yearFraction(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return y + ((m - 1) * 30.44 + (d - 1)) / 365.25;
+}

@@ -6,6 +6,7 @@ import {
     backfill, weekPoint, appendHistory, PASSING_STAR, isPfalznerSednaLike, isBackwards, shares, BIAS_WARNING, shareText,
     chanceText, bunchingText, oneMoreText, splitText, waitingText, PUBLISHED, EXPLANATIONS,
     PLANET_MASS, sunFromCentre, aboutCentre, fromCatalogue, shortName, buildSection, emptyStore, RUBIN_FROM,
+    thinText, splitNamesText, waitingCountText, sharesText, evidenceText, publishedText, DIAL, dialRadius, dialXY, yearFraction,
 } from '../../js/faredge.js';
 import { parseJplPage } from '../../js/sources.js';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -495,5 +496,66 @@ describe('The collector', () => {
         const block = tool.slice(tool.indexOf('What shaped the far edge?'), tool.indexOf('digest.provenance.sources.requests'));
         expect(block).toContain('buildFarEdge');
         expect(block).not.toMatch(/polite\(|fetch/);
+    });
+});
+
+describe("The page's words and geometry", () => {
+    const { section } = buildSection({ tnos: CATALOGUE, date: '2026-11-16' });
+
+    test('the same sentences from the digest as from the orbits', () => {
+        const g = groups(JPL.map((o) => ({ ...o, label: shortName(o.name) })));
+        expect(thinText(section.axes.n, section.oneMore)).toBe(oneMoreText(g.extreme.map(longAxis)));
+        expect(splitNamesText(section.sednaLike)).toBe(splitText(g.sednaLike));
+        expect(waitingCountText(section.waiting)).toBe(waitingText(g.waiting));
+        expect(bunchingText(section.axes, 'long axes', 'extreme')).toContain('bunched at 0.38');
+    });
+
+    test('too few objects: no thin-sample sentence', () => {
+        expect(thinText(3, { withGroup: 0.9, against: 0.4 })).toBeNull();
+        expect(thinText(18, null)).toBeNull();
+    });
+
+    test("the passing star's count says how it was counted", () => {
+        const text = sharesText({ total: 3892, sednaLike: { count: 4, share: 4 / 3892 }, backwards: { count: 39, share: 39 / 3892 } });
+        expect(text).toBe("Of the 3,892 objects beyond Neptune with trusted orbits in JPL's list, 4 are Sedna-like (0.10%) and 39 orbit backwards (1.0%). The paper counts differently, so what matters here is whether these shares rise.");
+        expect(sharesText({ total: 0 })).toBe('No trusted orbits to count yet.');
+    });
+
+    test('every explanation has a measurement beside it, and none a verdict', () => {
+        EXPLANATIONS.forEach((e) => {
+            const text = evidenceText(e.evidence, section);
+            expect(text.length).toBeGreaterThan(20);
+            expect(text).not.toMatch(/likel|odds|probab|support|favou?r|rules out/i);
+        });
+        expect(evidenceText('axes', section)).toBe('Long axes of 18 extreme objects bunched at 0.38; tilts at 0.36.');
+        expect(evidenceText('split', section)).toMatch(/^3 of 4 Sedna-like objects point together today, 1 away\./);
+    });
+
+    test('the published results, each in a line', () => {
+        expect(publishedText(PUBLISHED[0])).toBe('Batygin & Brown (2016), 6 objects: bunched; chance of a fluke under 0.01%');
+        expect(publishedText(PUBLISHED[1])).toBe('Shankman et al. (OSSOS) (2017), 8 objects: consistent with random directions');
+        expect(publishedText(PUBLISHED[4])).toBe('Brown & Batygin (2021), 11 objects: bunched; chance of a fluke 0.40%');
+    });
+
+    test('the dial: larger orbits further out, all within the rim', () => {
+        expect(dialRadius(DIAL.fromAU)).toBeCloseTo(DIAL.inner, 12);
+        expect(dialRadius(DIAL.toAU)).toBe(1);
+        expect(dialRadius(50000)).toBe(1);
+        expect(dialRadius(10)).toBe(DIAL.inner);
+        expect(dialRadius(506)).toBeGreaterThan(dialRadius(262));
+        section.objects.forEach((o) => expect(dialRadius(o.a)).toBeLessThanOrEqual(1));
+    });
+
+    test('the dial turns the way the map does: 0 to the right, 90 up', () => {
+        const [x0, y0] = dialXY(0, 1, 100);
+        expect([x0, Math.abs(y0)]).toEqual([100, 0]);
+        const [x90, y90] = dialXY(90, 1, 100);
+        expect(x90).toBeCloseTo(0, 9);
+        expect(y90).toBeCloseTo(-100, 9);
+    });
+
+    test('a date along the time axis', () => {
+        expect(yearFraction('2026-01-01')).toBe(2026);
+        expect(yearFraction('2026-11-16')).toBeCloseTo(2026.874, 2);
     });
 });

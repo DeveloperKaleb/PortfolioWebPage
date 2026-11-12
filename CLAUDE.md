@@ -148,7 +148,8 @@ under Vitest without a browser:
 - `js/faredge.js` — What shaped the far edge?: which of the most distant orbits count, how
   bunched their directions are, and the section the digest carries (built by the collector
   from JPL's list, with no request of its own). Held to honesty rules by its tests: no odds,
-  the count and the bias warning always beside the number. No page uses it yet. See NOTES.md.
+  the count and the bias warning always beside the number. Also the section's sentences and
+  the dial's geometry; `drawFarEdge` in `rubin/rubin.js` draws it. See NOTES.md.
 - `js/flags.js` — every flag the Rubin digest can raise, with the words it shows.
 - `js/verdict.js` — the whole verdict on one object: brightness and orbit together.
 - `js/polite.js` — the courtesy layer every Rubin data request goes through: one at a

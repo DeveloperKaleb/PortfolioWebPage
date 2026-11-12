@@ -20,6 +20,9 @@ import {
     lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, RULER_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow,
 } from '../js/light.js';
 import { SCOPE_AU } from '../js/orbit.js';
+import {
+    EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
+} from '../js/faredge.js';
 import { RUBIN_COLORS as C } from '../js/logic.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
@@ -726,6 +729,208 @@ function drawChart() {
     ));
 }
 
+/* ---- What shaped the far edge? ---------------------------------------------------------
+ *
+ * The most distant orbits' directions, from the section the digest carries (js/faredge.js,
+ * built by the collector). A dial, the numbers in words, the history, and the explanations
+ * side by side. The words carry everything the pictures show, and nothing here states the
+ * odds of any explanation: see NOTES.md for the rules this section is held to. */
+
+/* Sedna-like objects are diamonds, hollow when outside the extreme group; the rest dots. */
+function farMark(o, cx, cy, ground) {
+    if (o.sednaLike) {
+        const d = 6;
+        return svg('path', {
+            d: `M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`,
+            fill: o.extreme ? C.watch : ground, stroke: o.extreme ? ground : C.watch, 'stroke-width': 2,
+        });
+    }
+    return svg('circle', { cx, cy, r: 5, fill: C.evidence, stroke: ground, 'stroke-width': 2 });
+}
+
+function drawFarEdge(digest) {
+    const section = document.getElementById('rubin-faredge');
+    const far = digest.farEdge;
+    if (!far || !far.objects?.length) { section.hidden = true; return; }
+    const cuts = far.cuts;
+
+    /* The dial. */
+    const SIZE = 420, R = 170, cx = SIZE / 2, cy = SIZE / 2;
+    const dial = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-dial', role: 'group', 'aria-label': 'Which way the long axis of each extreme orbit points, seen from above' });
+    dial.append(svg('circle', { cx, cy, r: R, fill: C.space, stroke: C.grid, 'stroke-width': 1 }));
+    DIAL.rings.forEach((au) => {
+        const r = dialRadius(au) * R;
+        dial.append(svg('circle', { cx, cy, r, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
+        /* Labelled down to the left, the emptiest part of the dial. */
+        const [lx, ly] = dialXY(225, dialRadius(au), R);
+        dial.append(svg('text', { x: cx + lx - 4, y: cy + ly + 12, 'text-anchor': 'end', class: 'rubin-axis' }, `${groupAU(au)} AU`));
+    });
+    [[0, 'start', 6, 4], [90, 'middle', 0, -8], [180, 'end', -6, 4], [270, 'middle', 0, 18]].forEach(([deg, anchor, dx, dy]) => {
+        const [tx, ty] = dialXY(deg, 1, R);
+        const [ix, iy] = dialXY(deg, 0.97, R);
+        dial.append(svg('line', { x1: cx + ix, y1: cy + iy, x2: cx + tx, y2: cy + ty, stroke: C.muted, 'stroke-width': 1 }));
+        dial.append(svg('text', { x: cx + tx + dx, y: cy + ty + dy, 'text-anchor': anchor, class: 'rubin-axis' }, `${deg}°`));
+    });
+    /* A faint spoke to each object, so its direction reads from the centre. */
+    far.objects.forEach((o) => {
+        const [x, y] = dialXY(o.axis, dialRadius(o.a), R);
+        dial.append(svg('line', { x1: cx, y1: cy, x2: cx + x, y2: cy + y, stroke: C.grid, 'stroke-width': 1 }));
+    });
+    /* The average direction of the extreme group: an arrow whose length is the bunching,
+       reaching the rim only if every orbit pointed the same way. */
+    if (far.axes.toward !== null && far.axes.r !== null) {
+        const [ax, ay] = dialXY(far.axes.toward, far.axes.r, R);
+        dial.append(svg('line', { x1: cx, y1: cy, x2: cx + ax, y2: cy + ay, stroke: C.text, 'stroke-width': 2, 'stroke-linecap': 'round' }));
+        const [hx, hy] = dialXY(far.axes.toward + 150, 0.05, R);
+        const [kx, ky] = dialXY(far.axes.toward - 150, 0.05, R);
+        dial.append(svg('path', { d: `M${cx + ax + hx},${cy + ay + hy} L${cx + ax},${cy + ay} L${cx + ax + kx},${cy + ay + ky}`, fill: 'none', stroke: C.text, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+    }
+    dial.append(svg('circle', { cx, cy, r: 3, fill: C.text }));
+    far.objects.forEach((o) => {
+        const [x, y] = dialXY(o.axis, dialRadius(o.a), R);
+        const g = svg('g', { class: 'rubin-mark' });
+        g.append(svg('circle', { cx: cx + x, cy: cy + y, r: 12, fill: 'transparent' }));
+        g.append(farMark(o, cx + x, cy + y, C.space));
+        attachDetails(g, [
+            [o.name, o.sednaLike ? (o.extreme ? 'Sedna-like, in the extreme group' : 'Sedna-like, outside the extreme group') : 'extreme', o.sednaLike ? C.watch : C.evidence],
+            [`${Math.round(o.axis)}°`, 'long axis'],
+            [`${groupAU(o.a)} AU`, 'average distance'],
+            [`${o.q} AU`, 'closest approach'],
+            ...(o.found ? [[String(o.found), 'found']] : []),
+        ]);
+        dial.append(g);
+        /* The Sedna-like objects are few enough to name on the dial. */
+        if (o.sednaLike) {
+            const right = x >= 0;
+            dial.append(svg('text', { x: cx + x + (right ? 9 : -9), y: cy + y - 8, 'text-anchor': right ? 'start' : 'end', class: 'rubin-axis rubin-map-label' }, o.name));
+        }
+    });
+    const sample = (o) => { const key = svg('g'); key.append(farMark(o, 11, 7, C.surface)); return key; };
+    const arrow = svg('line', { x1: 2, x2: 20, y1: 7, y2: 7, stroke: C.text, 'stroke-width': 2, 'stroke-linecap': 'round' });
+    const [dialFigure, historyFigure] = section.querySelectorAll('.rubin-figure');
+    dialFigure.querySelector('.rubin-plot').replaceChildren(
+        legend([
+            { label: 'Extreme orbit', swatch: sample({ extreme: true }) },
+            { label: 'Sedna-like', swatch: sample({ sednaLike: true, extreme: true }) },
+            ...(far.objects.some((o) => o.sednaLike && !o.extreme) ? [{ label: 'Sedna-like, outside the extreme group', swatch: sample({ sednaLike: true, extreme: false }) }] : []),
+            { label: 'Average direction', swatch: arrow },
+        ]),
+        dial,
+    );
+    dialFigure.querySelector('figcaption').textContent =
+        `Each mark is one orbit, placed in the direction its long axis points, turned the same way as the map above; further from the centre is a larger orbit. The arrow is the extreme group's average direction, and its length is how bunched they are: it would reach the rim if every orbit pointed the same way. Extreme means an average distance between ${cuts.extreme.aMin} and ${groupAU(cuts.extreme.aMax)} AU and a closest approach beyond ${cuts.extreme.qMin} AU; Sedna-like, beyond ${cuts.sednaLike.aMin} AU and ${cuts.sednaLike.qMin} AU. Those rules were fixed on ${longDate(cuts.set)} and are other people's (see the sources). Orbits are measured about the Solar System's centre of mass.`;
+    const [dialTable, historyTable] = section.querySelectorAll('.rubin-table-wrap');
+    dialTable.replaceChildren(table(
+        ['Object', 'Group', 'Long axis points', 'Average distance', 'Closest approach', 'Tilt', 'Found'],
+        far.objects.map((o) => [o.name, o.sednaLike ? (o.extreme ? 'Extreme, Sedna-like' : 'Sedna-like only') : 'Extreme', `${Math.round(o.axis)}°`, `${groupAU(o.a)} AU`, `${o.q} AU`, `${o.i}°`, o.found ? String(o.found) : '']),
+    ));
+
+    /* The numbers, in words. */
+    const words = section.querySelector('.rubin-far-numbers');
+    const lines = [
+        bunchingText(far.axes, 'long axes', 'extreme'),
+        far.tilts.p !== null ? bunchingText(far.tilts, 'tilts', 'extreme') : null,
+        thinText(far.axes.n, far.oneMore),
+        splitNamesText(far.sednaLike),
+        waitingCountText(far.waiting),
+    ].filter(Boolean);
+    words.replaceChildren(...lines.map((text) => el('p', {}, text)));
+
+    /* The history: hindsight by year, then the weeks as they are recorded. */
+    const hind = far.backfill.filter((p) => p.r !== null);
+    const weeks = far.history.filter((p) => p.extreme?.r !== null && p.extreme?.r !== undefined);
+    const W = 640, H = 310, m = { left: 44, right: 20, top: 16, bottom: 50 };
+    const firstYear = (hind[0]?.year ?? Number(digest.date.slice(0, 4))) - 1;
+    const lastYear = Number(digest.date.slice(0, 4)) + 1;
+    const hx = (year) => m.left + (year - firstYear) / (lastYear - firstYear) * (W - m.left - m.right);
+    const hy = (r) => m.top + (1 - r) * (H - m.top - m.bottom);
+    const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'rubin-svg', role: 'group', 'aria-label': 'How bunched the extreme orbits have been, year by year' });
+    [0, 0.25, 0.5, 0.75, 1].forEach((r) => {
+        chart.append(svg('line', { x1: m.left, x2: W - m.right, y1: hy(r), y2: hy(r), stroke: C.grid, 'stroke-width': 1 }));
+        chart.append(svg('text', { x: m.left - 8, y: hy(r) + 4, 'text-anchor': 'end', class: 'rubin-axis' }, r.toFixed(2).replace(/\.?0+$/, '') || '0'));
+    });
+    for (let year = Math.ceil(firstYear / 2) * 2; year <= lastYear; year += 2) {
+        chart.append(svg('line', { x1: hx(year), x2: hx(year), y1: H - m.bottom, y2: H - m.bottom + 5, stroke: C.muted, 'stroke-width': 1 }));
+        chart.append(svg('text', { x: hx(year), y: H - m.bottom + 18, 'text-anchor': 'middle', class: 'rubin-axis' }, String(year)));
+    }
+    chart.append(svg('text', { x: (m.left + W - m.right) / 2, y: H - 12, 'text-anchor': 'middle', class: 'rubin-axis' }, 'Bunching of the long axes (0 none, 1 all the same), by year'));
+    /* 2016: Batygin & Brown propose the planet. */
+    if (firstYear < 2016 && lastYear > 2016) {
+        chart.append(svg('line', { x1: hx(2016), x2: hx(2016), y1: m.top, y2: H - m.bottom, stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
+        chart.append(svg('text', { x: hx(2016) + 5, y: m.top + 10, class: 'rubin-axis' }, '2016: a hidden planet is proposed'));
+    }
+    /* Each year's point sits at the year's end, where its count was reached. */
+    const hindX = (p) => hx(Math.min(p.year + 1, yearFraction(digest.date)));
+    if (hind.length > 1) {
+        chart.append(svg('path', { d: hind.map((p, k) => `${k ? 'L' : 'M'}${hindX(p).toFixed(1)},${hy(p.r).toFixed(1)}`).join(''), fill: 'none', stroke: C.muted, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    }
+    hind.forEach((p) => {
+        const g = svg('g', { class: 'rubin-mark' });
+        g.append(svg('circle', { cx: hindX(p), cy: hy(p.r), r: 12, fill: 'transparent' }));
+        g.append(svg('circle', { cx: hindX(p), cy: hy(p.r), r: 4, fill: C.surface, stroke: C.muted, 'stroke-width': 2 }));
+        attachDetails(g, [[p.r.toFixed(2), `in hindsight, end of ${p.year}`, C.muted], [String(p.n), 'extreme objects found by then']]);
+        chart.append(g);
+    });
+    if (weeks.length > 1) {
+        chart.append(svg('path', { d: weeks.map((p, k) => `${k ? 'L' : 'M'}${hx(yearFraction(p.date)).toFixed(1)},${hy(p.extreme.r).toFixed(1)}`).join(''), fill: 'none', stroke: C.evidence, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    }
+    /* Weeks crowd together at this scale; the newest takes the hover. */
+    weeks.forEach((p, k) => {
+        const x = hx(yearFraction(p.date)), y = hy(p.extreme.r);
+        const g = svg('g', { class: 'rubin-mark' });
+        if (k === weeks.length - 1) g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+        g.append(svg('circle', { cx: x, cy: y, r: 4, fill: C.evidence, stroke: C.surface, 'stroke-width': 2 }));
+        if (k === weeks.length - 1) attachDetails(g, [[p.extreme.r.toFixed(2), `recorded ${longDate(p.date)}`, C.evidence], [String(p.extreme.n), 'extreme objects']]);
+        chart.append(g);
+    });
+    const hollow = svg('g');
+    hollow.append(svg('line', { x1: 2, x2: 20, y1: 7, y2: 7, stroke: C.muted, 'stroke-width': 2 }), svg('circle', { cx: 11, cy: 7, r: 4, fill: C.surface, stroke: C.muted, 'stroke-width': 2 }));
+    historyFigure.querySelector('.rubin-plot').replaceChildren(
+        legend([
+            { label: 'In hindsight, with today\'s orbits', swatch: hollow },
+            { label: 'Recorded each week', swatch: svg('circle', { cx: 11, cy: 7, r: 4, fill: C.evidence }) },
+        ]),
+        chart,
+    );
+    const peak = hind.reduce((best, p) => (p.r > (best?.r ?? 0) && p.n >= 10 ? p : best), null);
+    const now = hind.at(-1);
+    historyFigure.querySelector('figcaption').textContent =
+        `The pale line is hindsight: what the dial would have shown at the end of each year, using today's orbits and counting only the objects found by then. Nobody had these orbits at the time, and no figure is given for fewer than five objects.${peak && now && peak.year !== now.year ? ` On that reckoning the bunching was strongest in ${peak.year}, at ${peak.r.toFixed(2)} with ${peak.n} objects, and is ${now.r.toFixed(2)} with ${now.n} now.` : ''} The blue points are this page's own record, one a week since ${longDate(far.history[0].date)}, and are never recalculated.`;
+    const joined = far.history.filter((p) => p.joined?.length);
+    historyTable.replaceChildren(table(
+        ['When', 'Extreme objects', 'Bunching', 'Kind'],
+        [
+            ...hind.map((p) => [`End of ${p.year}`, String(p.n), p.r.toFixed(2), 'Hindsight']),
+            ...far.history.map((p) => [longDate(p.date), String(p.extreme.n), p.extreme.r === null ? 'too few' : p.extreme.r.toFixed(2), p.joined?.length ? `Recorded; joined: ${p.joined.join(', ')}` : 'Recorded']),
+        ],
+    ));
+    const joinedLine = section.querySelector('.rubin-far-joined');
+    joinedLine.hidden = joined.length === 0;
+    if (joined.length) joinedLine.textContent = `Joined the extreme group since this record began: ${joined.map((p) => `${p.joined.join(', ')} (${longDate(p.date)})`).join('; ')}.`;
+
+    /* The explanations, side by side, each with its paper and the measurement beside it. */
+    const explain = table(
+        ['Explanation', 'What it predicts', 'What this page measures'],
+        EXPLANATIONS.map((e) => [e.name, e.predicts, evidenceText(e.evidence, far)]),
+    );
+    [...explain.tBodies[0].rows].forEach((row, k) => {
+        const e = EXPLANATIONS[k];
+        row.cells[1].append(' ', el('a', { class: 'rubin-source', href: e.url, target: '_blank', rel: 'noopener' }, `Source: ${e.source}`));
+    });
+    section.querySelector('.rubin-far-explain').replaceChildren(explain);
+
+    const published = el('ul', { class: 'rubin-far-published' });
+    PUBLISHED.forEach((p) => {
+        const item = el('li');
+        item.append(el('a', { href: p.url, target: '_blank', rel: 'noopener' }, `${p.who} (${p.year})`), publishedText(p).slice(`${p.who} (${p.year})`.length));
+        published.append(item);
+    });
+    section.querySelector('.rubin-far-published-wrap').replaceChildren(published);
+    section.hidden = false;
+}
+
+const groupAU = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
 /* ---- Is Rubin observing, and when does this page next change ------------------------ */
 
 /* Worked out now, from the digest's record of Rubin's alerts and the announced windows,
@@ -809,6 +1014,7 @@ async function render() {
     buildPicker('rubin-watch', watch, { onMap: true, extra: (e) => ({ extra: whyWatched(e) }) });
     buildPicker('rubin-dark', largeIfDark);
     drawMap(digest);
+    drawFarEdge(digest);
 
     try {
         const month = digest.date.slice(0, 7);
