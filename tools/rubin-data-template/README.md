@@ -39,6 +39,7 @@ object once a month at most, 80 objects a week at most.
 | `discovery.json` | Who found each object in the digest, from the Minor Planet Center |
 | `mpc-rubin.json` | Rubin's observations at the Minor Planet Center, per object: when last asked, and each as [time, band, magnitude, error] |
 | `moons.json` | The round moons' orbits for the site's map, refitted from JPL Horizons once a year |
+| `far-edge.json` | The far-edge section's memory: the date of its rules, last run's extreme group, and one line of history a run, never rewritten |
 
 Inputs are kept every month so any future filter can be re-run against the whole
 history. Each digest records the site commit, cutoffs and thresholds that produced it.

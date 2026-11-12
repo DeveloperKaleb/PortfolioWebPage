@@ -69,7 +69,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is twenty-nine modules, all free of `document`/DOM calls so they stay testable
+The pure layer is thirty modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -145,6 +145,10 @@ under Vitest without a browser:
 - `js/light.js` — sunlight on the Solar System tab's map at its real speed: how far light
   has got since the page opened (and since this browser's first visit), what it has passed,
   and each card's Sunlight line. No clock of its own. See NOTES.md.
+- `js/faredge.js` — What shaped the far edge?: which of the most distant orbits count, how
+  bunched their directions are, and the section the digest carries (built by the collector
+  from JPL's list, with no request of its own). Held to honesty rules by its tests: no odds,
+  the count and the bias warning always beside the number. No page uses it yet. See NOTES.md.
 - `js/flags.js` — every flag the Rubin digest can raise, with the words it shows.
 - `js/verdict.js` — the whole verdict on one object: brightness and orbit together.
 - `js/polite.js` — the courtesy layer every Rubin data request goes through: one at a

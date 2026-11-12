@@ -3634,3 +3634,47 @@ the page passes the times in), the drawing is `drawLight` in `rubin/rubin.js`.
 - The ring meets a dot on the map slightly before the sentence says the light reaches that
   object when the object is far out of the plane: the map is a projection, the sentence
   uses the true distance.
+
+## What shaped the far edge? (owner, 2026-11-12)
+
+A section in progress: a weekly record of whether the most distant orbits point the same
+way, which is what the case for an unseen planet rests on. The owner wants the tab to show
+things before the press does; a headline discovery can only be tied, but a statistic that
+drifts as Rubin adds objects is something the tab can show first. The design, with the
+owner's answers written into it, is the Claude Doc "The far edge: design for a new Solar
+System tab section" (https://claude.ai/artifact/CTnyrXvtggnZN8Trr8U6vt).
+
+Built so far: the arithmetic (`js/faredge.js`) and the collector's part. The page does not
+show it yet.
+
+- **Who counts is fixed and dated (`CUTS`, 2026-11-12), and taken from the papers exactly.**
+  Extreme: Brown & Batygin 2021, multi-opposition, 150 < a < 1000 AU, q > 42 AU. Sedna-like:
+  Chen et al. 2025, a > 200, q > 60. Wide comparison: a > 150, q > 30. The first draft's
+  "250 and 42" matched no paper (it mixed the 2016 and 2021 rules); the trial showed the
+  answer swings with the cut (37% against 11%), so they are never tuned. A change restarts
+  the history and the digest's notes say so.
+- **Orbits about the centre of mass, worked out here.** The catalogue's Sun-centred orbits
+  wobble for bodies this far out (Sedna: 544 AU by the catalogue, 506 about the centre of
+  mass; 2021 RR205 crosses the 1000 AU cut between the two). `aboutCentre` moves the origin
+  using the planets' places (js/planets.js) and masses, and matches JPL Horizons to 0.02 AU
+  for six objects (tests/rubin). So the section makes no request at all: it uses the TNO
+  list the collector already fetches. The design had planned about 60 Horizons requests a
+  week, which the run's budget of 200 could not have spared in an MPC-heavy week.
+- **The year found is read from the designation**, not JPL's first observation, which counts
+  archive images found afterwards (2012 VP113's first observation is 2007).
+- **The bunching test** is the Rayleigh test with Zar's approximation for the chance, checked
+  in the tests against 40,000 random draws at five sample sizes. No figure under five
+  objects.
+- **The digest carries the section** (`digest.farEdge`), so the page needs no second file
+  and the offline copy has it. rubin-data keeps `far-edge.json`: the cuts' date, last run's
+  extreme group (to name who joins), and the history, which only grows - a week already
+  recorded is never recomputed.
+- **Honesty rules, held by tests where a test can:** no odds for any explanation; a bunching
+  figure never without its count, a chance never without the warning that the test ignores
+  where telescopes looked; the hindsight backfill kept apart from the weekly points.
+- **Found on the way:** in hindsight the extreme group was most bunched in 2016, the year
+  the planet was proposed (0.66, 13 objects), and is 0.38 with today's 18.
+- **Not yet reconciled:** the passing-star paper (Pfalzner et al. 2024) gives backwards
+  orbits as 0.15% of trans-Neptunian objects now; JPL's TNO class with trusted orbits gives
+  1.0% (39 of 3,892), so the definitions differ. Sedna-like agrees (0.10%, 4 objects). The
+  page should compare the trend, not the level, or say why they differ.

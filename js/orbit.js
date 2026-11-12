@@ -199,9 +199,11 @@ const wrapDeg = (rad) => ((rad / DEG) % 360 + 360) % 360;
 
 /* Orbital elements, in the same form as JPL's (a in AU, negative when unbound; angles in
    degrees; epoch a JD), from a heliocentric ecliptic position (AU) and velocity
-   (AU/day) at a moment. Two-body, the Sun's mass alone, like the rest of this module. */
-export function elementsFromState(position, velocity, epoch) {
-    const mu = K * K;
+   (AU/day) at a moment. Two-body, the Sun's mass alone, like the rest of this module -
+   unless a central mass (in Suns) is given, as for an orbit about the Solar System's
+   centre of mass (js/faredge.js). */
+export function elementsFromState(position, velocity, epoch, mass = 1) {
+    const mu = K * K * mass;
     const r = norm(position);
     const h = cross(position, velocity);
     const n = [-h[1], h[0], 0];

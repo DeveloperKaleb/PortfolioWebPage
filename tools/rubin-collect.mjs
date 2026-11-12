@@ -25,6 +25,7 @@ import {
     emptyMpcStore, mpcQueue, recordMpc, reportedByRubin, monthsBetween, MPC_PER_RUN,
 } from '../js/collector.js';
 import { jdFromDate } from '../js/orbit.js';
+import { buildSection as buildFarEdge, emptyStore as emptyFarEdgeStore } from '../js/faredge.js';
 import { parseNightlyAlerts, lastAlertNight, observingStatus, shouldPullFink, pullNightFrom, closeWindows, latestStatusPost } from '../js/rubinstatus.js';
 
 /* How long a name Fink's lookup failed on is left alone before it is tried again. */
@@ -224,6 +225,22 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
         }
     }
     digest.moons = moons ? { epoch: moons.epoch, orbits: moons.orbits } : null;
+
+    /* What shaped the far edge? (js/faredge.js): the most distant orbits' directions, from
+       the list already in hand - no request. Its history is kept in far-edge.json and only
+       grows. A failure here never costs the run: the section is left out that week. */
+    try {
+        const kept = readJson(join(dataDir, 'far-edge.json')) ?? emptyFarEdgeStore();
+        const far = buildFarEdge({ tnos, date: digest.date, store: kept });
+        if (far.restarted) notes.push(`The far-edge history was restarted on ${digest.date}: the rules for which objects count changed.`);
+        writeJson(join(dataDir, 'far-edge.json'), far.store);
+        digest.farEdge = far.section;
+        log(`Far edge: ${far.section.axes.n} extreme objects, bunching ${far.section.axes.r ?? 'not measured'}, ${far.section.waiting.count} waiting, ${far.section.history.length} weeks of history`);
+    } catch (error) {
+        digest.farEdge = null;
+        notes.push(`The far-edge section could not be worked out this week (${error.message}).`);
+        log(`Far edge failed: ${error.message}`);
+    }
     digest.provenance.sources.requests = polite.used?.() ?? null;
 
     const changes = diffDigests(previousDigest(dataDir, plan.month), digest);
