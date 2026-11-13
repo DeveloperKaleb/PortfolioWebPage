@@ -259,9 +259,11 @@ export const MAP_WIDTH = 750;
 export const MAP_GUTTER = 16;
 export const mapSizeFor = (viewportPx) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * MAP_GUTTER)));
 
-export function initialView(radiusAU, sizePx) {
+/* A view that fits a radius about a home: the Sun unless told otherwise (the map can also
+   be at Alpha Centauri, or pulled back to hold both - js/centauri.js). */
+export function initialView(radiusAU, sizePx, [homeX, homeY] = [0, 0]) {
     const scale = (sizePx / 2 - 24) / radiusAU;
-    return { scale, cx: 0, cy: 0, fitScale: scale, radiusAU, sizePx };
+    return { scale, cx: homeX, cy: homeY, fitScale: scale, radiusAU, sizePx, homeX, homeY };
 }
 
 /* Map coordinates (AU, y up) to the drawing (pixels, y down), and back. */
@@ -270,18 +272,19 @@ export const toWorld = (view, sx, sy) => [view.cx + (sx - view.sizePx / 2) / vie
 
 const clampView = (view) => {
     const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale));
-    /* The centre stays where there is something to see. */
+    /* The centre stays where there is something to see: within the fitted radius of home. */
     const limit = view.radiusAU;
-    return { ...view, scale, cx: Math.max(-limit, Math.min(limit, view.cx)), cy: Math.max(-limit, Math.min(limit, view.cy)) };
+    const near = (value, home) => Math.max(home - limit, Math.min(home + limit, value));
+    return { ...view, scale, cx: near(view.cx, view.homeX ?? 0), cy: near(view.cy, view.homeY ?? 0) };
 };
 
 /* Zoom by a factor, keeping the point under the anchor (AU) where it is on screen. At
-   the widest it re-centres on the Sun, so zooming out always comes home. */
+   the widest it re-centres on its home, so zooming out always comes home. */
 export function zoomAt(view, factor, anchor = [view.cx, view.cy]) {
     const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale * factor));
     const k = view.scale / scale;
     const next = clampView({ ...view, scale, cx: anchor[0] - (anchor[0] - view.cx) * k, cy: anchor[1] - (anchor[1] - view.cy) * k });
-    return scale <= view.fitScale ? { ...next, cx: 0, cy: 0 } : next;
+    return scale <= view.fitScale ? { ...next, cx: view.homeX ?? 0, cy: view.homeY ?? 0 } : next;
 }
 
 /* Drag by some pixels; the map moves with the pointer. */
@@ -290,10 +293,69 @@ export const panBy = (view, dxPx, dyPx) => clampView({ ...view, cx: view.cx - dx
 export const zoomLevel = (view) => view.scale / view.fitScale;
 
 /* Distance rings at a round spacing for the zoom: about four across the visible radius. */
-const NICE = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+const NICE = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000,
+    10000, 20000, 50000, 100000, 200000, 500000];
 export function ringSpacing(view) {
     const visible = (view.sizePx / 2) / view.scale;
     return NICE.find((s) => visible / s <= 5) ?? NICE.at(-1);
+}
+
+/* The rings that cross the picture: radii at that spacing about a point whose distance
+   from the middle of the view is given, in AU. Rings wholly off the picture are left out,
+   which matters once the map can be 270,000 AU from the Sun - a ring that far off is
+   millions of pixels wide, and browsers draw such things badly. */
+export function ringRadii(view, distanceAU, most = 60) {
+    const spacing = ringSpacing(view);
+    const reach = (view.sizePx * Math.SQRT1_2) / view.scale;
+    const first = Math.max(1, Math.ceil((distanceAU - reach) / spacing));
+    const radii = [];
+    for (let n = first; n * spacing <= distanceAU + reach && radii.length < most; n++) radii.push(n * spacing);
+    return radii;
+}
+
+/* A ring's label: "30 AU", "0.05 AU", "100,000 AU". */
+export const ringLabel = (radiusAU) => `${String(Number(radiusAU.toPrecision(6))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} AU`;
+
+/* ---- Travelling between places -----------------------------------------------------------
+ *
+ * The map moves from one view to another the way a camera would: the scale changes evenly
+ * as a ratio, and the centre moves in step with how much is in view, so that leaving a
+ * place it stays in the picture until the end, and arriving it is in the picture from the
+ * start. A journey between the Sun and Alpha Centauri goes by way of the view that holds
+ * both. t runs from 0 to 1; nothing here keeps time. */
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2);
+
+export function glideView(from, to, t) {
+    const k = ease(Math.min(1, Math.max(0, t)));
+    if (k >= 1) return to;
+    const scale = from.scale * (to.scale / from.scale) ** k;
+    const span = 1 / to.scale - 1 / from.scale;
+    const w = Math.abs(span) < 1e-12 * (1 / from.scale) ? k : (1 / scale - 1 / from.scale) / span;
+    return { ...to, scale, cx: from.cx + (to.cx - from.cx) * w, cy: from.cy + (to.cy - from.cy) * w };
+}
+
+export function journeyView(from, via, to, t) {
+    return t < 0.5 ? glideView(from, via, t * 2) : glideView(via, to, t * 2 - 1);
+}
+
+/* ---- Where nothing has been seen -----------------------------------------------------------
+ *
+ * Beyond 1,000 AU from the Sun the map is hatched, except close about the other system's
+ * bodies (js/centauri.js). Given the clear zones as circles in AU, this answers what to
+ * draw: nothing when the whole picture is inside one, otherwise the circles, in pixels,
+ * that reach into the picture and so must be cut out of the hatching. */
+export function unseenHoles(view, zones) {
+    const half = view.sizePx / 2;
+    const corner = half * Math.SQRT2;
+    const holes = [];
+    for (const zone of zones) {
+        const [x, y] = toScreen(view, zone.x, zone.y);
+        const away = Math.hypot(x - half, y - half);
+        const r = zone.radiusAU * view.scale;
+        if (away + corner <= r) return null;
+        if (away - corner < r && r >= 0.5) holes.push({ x, y, r });
+    }
+    return holes;
 }
 
 /* A planet is drawn once its orbit is big enough on screen to tell from the Sun, and

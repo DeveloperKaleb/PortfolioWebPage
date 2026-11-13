@@ -3062,7 +3062,7 @@ where they are now (a map), what changed this month, could be large if dark, how
   rings every 50 AU and the planets' orbits.
 - **Both have a legend, a table view, 24px hover and focus targets, and the same details
   on keyboard focus.** Data reaches the DOM through textContent only.
-- **Colours** (`RUBIN_COLORS`, js/logic.js, mirrored in style.css and asserted in
+- **Colours** (`RUBIN_COLORS`, js/rubincolors.js, mirrored in style.css and asserted in
   tests/contrast) clear 4.5:1 worst-case on the page brown, and the three series are
   pairwise distinguishable. On the dataviz skill's validator they pass CVD separation
   (12.3 all-pairs), the normal-vision floor (18.2) and chroma. They deliberately exceed
@@ -3615,7 +3615,8 @@ the page passes the times in), the drawing is `drawLight` in `rubin/rubin.js`.
   is kept in localStorage under `rubin-first-visit`, in the visitor's browser only, and the
   page says so. Nothing is sent anywhere. With storage blocked there is one ring and no
   mention of remembering. The second ring appears once the older light has a minute's lead.
-- **The ruler under the map.** The map is about a hundred AU across and a week-old ring is
+- **The ruler under the map.** (Since 2026-11-13 it runs on to Alpha Centauri and is no
+  longer hidden from screen readers: see "The ruler runs to Alpha Centauri" below.) The map is about a hundred AU across and a week-old ring is
   over a thousand AU out, so both lights are also marked on a logarithmic ruler from
   0.001 AU to the page's 100,000 AU limit (`SCOPE_AU`), which light takes 1.58 years to
   reach. The first visit's mark is hollow and its ring dotted, so the two are told apart
@@ -3623,7 +3624,8 @@ the page passes the times in), the drawing is `drawLight` in `rubin/rubin.js`.
 - **The words carry it.** The rings and ruler are `aria-hidden` decoration; the sentences
   under the map say the same (how long ago it left, how far, what it has passed, what is next, how long to the
   limit) and are not a live region, so a screen reader is not interrupted every tick.
-- **Motion.** Redrawn four times a second; every ten seconds for a visitor who asked for
+- **Motion.** (Since 2026-11-13 only as often as it would look different: see "The Solar
+  System tab's speed" below.) Redrawn four times a second; every ten seconds for a visitor who asked for
   reduced motion; not at all while the tab is hidden. The rings sit on their own layer so
   the marks are not rebuilt under a pointer.
 - **"Find the light"** zooms on the Sun until this visit's ring fills about a third of the
@@ -3687,8 +3689,168 @@ carries `farEdge`.
   where telescopes looked; the hindsight backfill kept apart from the weekly points.
 - **Found on the way:** in hindsight the extreme group was most bunched in 2016, the year
   the planet was proposed (0.66, 13 objects), and is 0.38 with today's 18.
+- **The standing reservation, not to be forgotten (owner, 2026-11-12):** the test ignores
+  where and when telescopes looked, so the bunching figure and its chance are weaker than
+  they look. Surveys point at particular patches of sky in particular seasons, and that
+  alone can make orbits seem to line up; it is what the two "consistent with random" papers
+  argue. The page says so beside every chance, but saying so is not fixing it. This is the
+  limit most worth lifting: it needs a model of each survey's pointings and depth (Rubin
+  publishes its own, which is the realistic way in), and until then the page must not give
+  odds or be read as a rival to the published analyses.
 - **Not yet reconciled:** the passing-star paper (Pfalzner et al. 2024) gives backwards
   orbits as 0.15% of trans-Neptunian objects now; JPL's TNO class with trusted orbits gives
   1.0% (39 of 3,892), so the definitions differ. Sedna-like agrees (0.10%, 4 objects). The
   page therefore says the paper counts differently and that what matters is whether the
   shares rise (`sharesText`).
+
+## The Solar System tab's speed (performance review, 2026-11-13)
+
+Measured on the live page before changing anything (one warm load in Chrome, files from
+the service worker): the HTML arrived at 0.42 s, the modules came in three rounds ending at
+1.23 s, and the digest was not asked for until 1.26 s, arriving at 1.52 s. The wait was a
+queue, not a weight. Three changes, none of which alters what a visitor sees:
+
+- **The head says what the page needs.** `rubin.html` has a `modulepreload` line for every
+  module its two module scripts import, at any depth, and one inline script that asks for
+  the digest before anything else; `rubin.js` takes that answer (`window.rubinEarly`) when
+  the address matches and asks itself otherwise. On the local server the digest request
+  moved from about 230 ms to about 25 ms after the page, and the modules finished at about
+  70 ms instead of 205.
+  - `<link rel="preload" as="fetch">` was the obvious tool and was not used: whether a
+    preload is reused by a `fetch` with `cache: 'no-cache'` differs between browsers, and a
+    miss downloads the 262 KB digest twice. The inline script cannot double up.
+  - The inline script sits above the stylesheets on purpose. Below them it would wait for
+    them to load before running.
+  - It is the site's only inline script. A file of its own would have been one more
+    request to wait for, which is the thing being removed.
+  - `tests/rubin/loading.test.js` works out the real import graph and fails if the preload
+    list drifts from it either way, or if the inline address or timeout drift from
+    `rubin.js`. **A new import on this page needs a new line in the head.**
+- **The colours have a file of their own** (`js/rubincolors.js`). The tab used to import
+  `js/logic.js` (39 KB, the games' rules and palettes) and through it `js/strands.js`
+  (10 KB) for eight colours: 49 KB of about 240 KB of script. `logic.js` does not re-export
+  them, so the Entertainment page loads nothing extra either.
+- **The light is redrawn only when it would look different** (`lightTickMs`, js/light.js).
+  It was rebuilt four times a second, ruler and all, even with the map scrolled away.
+  - The ruler's fixed parts and each light's ring and mark are made once and moved; an
+    attribute or sentence is written only if it changed.
+  - Four times a second is kept while anything drawn moves a quarter of a pixel a second
+    or more (the ring when zoomed in on the Sun; the ruler's mark for about the first two
+    minutes of a visit) or while a distance is still in kilometres. After that the next
+    drawing is booked for the moment the words' next whole second shows, so the seconds
+    still tick exactly as before, at a quarter of the work.
+  - Nothing runs while the map is out of view (IntersectionObserver on the section) or the
+    tab is hidden; coming back draws at once.
+  - Measured: with the map off screen, no DOM changes at all (before: 4 rebuilds a second,
+    always). Ten minutes into a visit at the whole map, one drawing a second.
+- **To see the full-motion behaviour on a machine with reduced motion switched on** (this
+  one): in the page, replace `window.matchMedia` with one that answers false for the
+  reduced-motion query, then `import('/PortfolioWebPage/rubin/rubin.js?x=1')` to run the
+  page's script afresh. Shifting `Date.now` forward ages the visit without waiting.
+- **Looked at and left alone, because they measured fine:** a map redraw on pan or zoom is
+  4.3 ms for about 240 elements; saving the digest for offline visits is about 3 ms; the
+  margin landscape already paints only the rows on screen; the four table views built
+  inside closed `<details>` cost a few milliseconds and lazy-building them would add moving
+  parts.
+
+## The ruler runs to Alpha Centauri (owner, 2026-11-13)
+
+The owner asked how much further the page could look, and whether zooming the map out to
+four light years would show anything. It would not: everything ever seen in the Solar
+System is within about 200 AU and the next star is about 270,000 AU away, so on a map that
+wide all of it is under a pixel. The ruler under the map carries the idea instead.
+
+- **Two poles, logarithmic from each** (`rulerFraction`, `fromStarFraction`, js/light.js).
+  From the left each step is ten times further from the Sun; from the right, ten times
+  further from the far pole. The scales meet halfway, so the ruler opens out near each end
+  and squeezes the gap. It shows distance from a pole, never direction.
+- **The far pole is the centre of gravity of Alpha Centauri A and B**, by the owner's
+  choice, not Proxima: Proxima is nearer to us but orbits that pair, so it sits on the
+  ruler at its 12,947 AU from them. The first build had Proxima as the pole and was
+  changed the same day.
+- **Hatched from 1,000 AU from the Sun to Proxima**, the outermost known body of the other
+  system. Hovering or focusing the hatching says, in the owner's words and capitals, "More
+  science needed (MOSTLY BIGGER TELESCOPES)" (`UNSEEN_TEXT`; a test holds it to the
+  letter). The same words end the note under the ruler, so they do not depend on hover.
+  The hatching is a texture in `RUBIN_COLORS.muted`, 24px tall; no colour was added.
+- **The ruler is no longer `aria-hidden`**, because the hatching can be focused; it is a
+  labelled group, and its lines, names and light marks take no pointer events so they
+  never sit between a pointer and the hatching.
+- **Why 1,000 AU.** Nothing has been seen while it was that far out. Bodies whose orbits
+  reach thousands of AU (Sedna, long-period comets) are found near the Sun, and reflected
+  sunlight fades with the fourth power of distance: a Neptune at 1,000 AU is about at
+  Rubin's limit, a Pluto there a hundred times too faint. Infrared surveys have ruled out
+  anything Saturn-sized or larger out to about 10,000 AU.
+- **Figures and sources:** Alpha Centauri A and B at 274,700 AU, from the orbital parallax
+  of 750.81 mas (Akeson et al. 2021); Proxima 12,947 +/- 260 AU from them (Kervella et al.
+  2017 - its orbit in that paper was later corrected by the authors, the present
+  separation was not). Proxima's planets are not marked: with the pole at A and B they
+  cannot be told from Proxima itself. (The ruler's figure for Proxima became 12,050 AU
+  the same day, to agree with the map: see the next section.)
+- **Not done, and discussed:** a band showing the smallest thing we would have seen by now
+  at each distance, which would move as Rubin reports; marks for the heliopause, the
+  Voyagers and the Oort cloud's supposed extent. Each needs its figures checked first.
+- **The light sentences still stop at the page's own limit**, 100,000 AU. Only the ruler
+  goes further; a first-visit light older than 1.58 years keeps moving along it.
+
+## The map goes to Alpha Centauri (owner, 2026-11-13)
+
+The ruler could only place Proxima by distance, and the owner pointed out that everything
+else on the tab is where it really is. A line has no room for direction, so the fix was the
+map: the same map now reaches the nearest star system, with its stars in their true places.
+
+- **Three places** (`places`, js/centauri.js): the Sun, as before; Alpha Centauri; and
+  "Both systems", pulled back until the two are in one picture. A "Go to" row of three
+  buttons is always there with the current one marked, so keyboard focus is never left on
+  a button that has gone. At Alpha Centauri two more appear: "Zoom on" Proxima, and A and B.
+- **The stars are computed, not placed by hand** (`centauriOn`). A and B's centre of
+  gravity and Proxima come from their sky positions, drift and parallaxes, turned into the
+  map's frame; A and B from their orbit about each other (Akeson et al. 2021). Checks in
+  tests/rubin/centauri.test.js: the pair's separation on the sky matches published
+  measurements for 2016, 2019 and 2020; closest approach comes out at 11.2 AU in 2035;
+  the system lies at ecliptic longitude 239 degrees and 43 degrees south.
+- **Proxima is about 12,050 AU from the pair, not the 12,947 usually quoted.** That figure
+  (Kervella et al. 2017) used an older, smaller parallax for A and B. With Akeson's
+  parallax and Gaia DR3's for Proxima the two positions are 12,054 AU apart. The ruler's
+  constant was changed to match, and a test keeps ruler and map within 100 AU.
+- **Flattened like everything else.** The map looks down on the plane of Earth's orbit and
+  Alpha Centauri is 43 degrees below it, so it is drawn 3.0 light years out along the plane
+  though it is 4.34 away; tooltips and the table give both, as for tilted orbits.
+- **Planets as sizes only** (`PLANET_ORBITS`). Proxima b and d, and the unconfirmed
+  candidate at A, are dashed circles of the right radius about their star. Nobody has
+  measured how those orbits are tilted or where the planets are along them as seen from
+  above, so no planet dot is drawn and the caption says so. Proxima c is left out: disputed,
+  and not confirmed by the 2025 NIRPS work.
+- **Which way B is from A along our line of sight** follows the usual convention for an
+  orbit fitted with velocities (the node given is where B moves away from us). The
+  published sky positions cannot check that sign; if it were wrong, A and B would be
+  mirrored front to back, a few AU.
+- **The view has a home** (`initialView` takes a centre; js/rubinview.js). Zooming all the
+  way out returns to the home of the place the map is at, and dragging is held to that
+  neighbourhood. At the Sun this is exactly the old behaviour.
+- **Travelling** (`glideView`, `journeyView`). The scale changes evenly as a ratio and the
+  centre moves in step with how much is in view, so the place being left stays in the
+  picture until the end and the destination is in it from the start. Sun to Alpha Centauri
+  goes by way of the both-systems view, five seconds; other moves 1.8. Timed by the clock,
+  so a slow device drops frames, not time. Reduced motion: no animation, the map is simply
+  there. Pinch, scroll and the zoom buttons are ignored while travelling.
+- **Things 270,000 AU away must not be drawn.** At the far end the Sun is hundreds of
+  millions of pixels off the picture, and browsers draw shapes that far away badly. So the
+  Sun's own map is skipped unless it is near the picture, rings are only those that cross
+  it (`ringRadii`), and rings centre on whichever star is nearest the middle (rings about a
+  star 12,000 AU away crossed the Proxima close-up as a row of straight lines).
+- **One dot for a whole system.** Pulled back, all 60-odd objects of the Sun's map would
+  land on one pixel with sixty tooltips; below 14px the Sun is drawn as a single star mark
+  saying so, and Alpha Centauri likewise.
+- **Hatching on the map** (`unseenHoles`): everything beyond 1,000 AU from the Sun, with
+  clearings of 40 AU about the pair (their widest reach) and 0.1 AU about Proxima (its
+  planets). It carries the owner's words on hover and focus. Finer and fainter than the
+  ruler's, because it covers most of the picture.
+- **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
+  views could be photographed with headless Edge (which cannot click), and kept because a
+  link straight to Alpha Centauri is a fair thing to want.
+- **Known rough edges:** the light rings are circles about the Sun in the map's plane, so a
+  first-visit ring more than three years old would cross Alpha Centauri's flattened
+  position before the light truly arrives. The stars are shown where they are on the
+  digest's date, not where their four-year-old light shows them. The journey's frame rate
+  was not measured: the automation tab throttles animation to about one frame a second.

@@ -113,17 +113,67 @@ export function sunlightText(position, earth) {
 /* ---- The ruler -------------------------------------------------------------------------
  *
  * The map shows about a hundred AU; light from a visit a week ago is over a thousand AU
- * out. So both rings also sit on a ruler under the map whose scale is logarithmic: each
- * step along it is ten times further from the Sun, from a thousandth of an AU to the
- * page's limit. */
+ * out. So both rings also sit on a ruler under the map, and the ruler runs all the way from
+ * the Sun to the nearest star (owner, 2026-11-13).
+ *
+ * It has two poles, and is logarithmic from each. From the left, each step is ten times
+ * further from the Sun; from the right, ten times further from the centre of gravity of
+ * Alpha Centauri A and B, the two stars at the middle of that system (the owner's choice
+ * of pole: Proxima, though nearer to us, orbits them). The two scales meet halfway, so the
+ * ruler spreads out near either pole, where the known things are, and squeezes the gap
+ * between, where almost nothing is. It measures distance from a pole and says nothing of
+ * direction: Proxima sits where its distance from A and B puts it.
+ *
+ * Beyond 1,000 AU from the Sun nothing has been seen where it is - bodies whose orbits
+ * reach that far are found near the Sun - so from there to Proxima, the outermost known
+ * body of the other system, the ruler is hatched, and says why in the owner's words
+ * (UNSEEN_TEXT). */
 export const RULER_FROM_AU = 0.001;
 
-/* Where a distance sits along the ruler, 0 to 1, held to its ends. */
-export function rulerFraction(distanceAU, toAU) {
-    const span = Math.log10(toAU / RULER_FROM_AU);
-    const at = Math.log10(Math.max(distanceAU, RULER_FROM_AU) / RULER_FROM_AU) / span;
-    return Math.min(1, Math.max(0, at));
+/* Alpha Centauri A and B: 274,700 AU (4.344 light years), from the orbital parallax of
+   750.81 +/- 0.38 mas (Akeson et al. 2021, AJ 162, 14). The two are 11 to 36 AU apart, so
+   the ruler's last step, 1 AU from their centre of gravity, is inside the pair. Proxima is
+   about 12,050 AU from that centre: the figure js/centauri.js gets from the two positions
+   and parallaxes (Akeson's, and Gaia DR3's for Proxima), which the map draws, so ruler and
+   map agree. The often-quoted 12,947 +/- 260 AU (Kervella, Thevenin & Lovis 2017) used an
+   older, smaller parallax for A and B, which put them some 1,300 AU further off. */
+export const CENTAURI = {
+    name: 'Alpha Centauri A and B',
+    distanceAU: 274700,
+    floorAU: 1,
+    proxima: { name: 'Proxima Centauri', fromCentreAU: 12050 },
+};
+
+export const UNSEEN_FROM_AU = 1000;
+export const UNSEEN_TEXT = 'More science needed (MOSTLY BIGGER TELESCOPES)';
+
+const HALFWAY_AU = CENTAURI.distanceAU / 2;
+const SUN_DECADES = Math.log10(HALFWAY_AU / RULER_FROM_AU);
+const STAR_DECADES = Math.log10(HALFWAY_AU / CENTAURI.floorAU);
+const between = (value, low, high) => Math.min(high, Math.max(low, value));
+
+/* Where something sits along the ruler, 0 (the Sun) to 1 (the far pole), by its distance
+   from the far pole: for the other system's own bodies. Held to that pole's half. */
+export const fromStarFraction = (fromStarAU) => 1
+    - Math.log10(between(fromStarAU, CENTAURI.floorAU, HALFWAY_AU) / CENTAURI.floorAU) / (SUN_DECADES + STAR_DECADES);
+
+/* The same by distance from the Sun, on the straight line to the far pole: for everything
+   of ours, and for the light. Held to the ruler's ends. */
+export function rulerFraction(fromSunAU) {
+    if (fromSunAU > HALFWAY_AU) return fromStarFraction(CENTAURI.distanceAU - fromSunAU);
+    return Math.log10(between(fromSunAU, RULER_FROM_AU, HALFWAY_AU) / RULER_FROM_AU) / (SUN_DECADES + STAR_DECADES);
 }
+
+/* The ruler's tick marks: each power of ten from either end, as fractions along it. */
+export function rulerTicks() {
+    const ticks = [];
+    for (let k = 0; k <= Math.floor(SUN_DECADES + 1e-9); k++) ticks.push(k / (SUN_DECADES + STAR_DECADES));
+    for (let k = 0; k <= Math.floor(STAR_DECADES + 1e-9); k++) ticks.push(1 - k / (SUN_DECADES + STAR_DECADES));
+    return ticks;
+}
+
+/* The hatched stretch, as fractions along the ruler. */
+export const unseenStretch = () => [rulerFraction(UNSEEN_FROM_AU), fromStarFraction(CENTAURI.proxima.fromCentreAU)];
 
 /* ---- The first visit ---------------------------------------------------------------------
  *
@@ -143,4 +193,27 @@ export const hasEarlierVisit = (first, opened) => opened - first >= SECOND_RING_
 export function scaleToShow(radiusAU, sizePx, { fitScale, maxZoom }) {
     const wanted = (sizePx * 0.3) / Math.max(radiusAU, 1e-9);
     return Math.min(fitScale * maxZoom, Math.max(fitScale, wanted));
+}
+
+/* How long until the light is worth drawing again, in milliseconds. The picture is only
+   redrawn when a visitor could see a difference:
+   - four times a second while anything drawn moves a quarter of a pixel a second or more
+     (the ring when zoomed in on the Sun, the ruler's mark in a visit's first minutes), or
+     while a light's distance is still given in kilometres, which change faster than that;
+   - otherwise at the moment the next whole second shows in the words, for each light
+     young enough to be counted in seconds (durationText), and once a second after that;
+   - every ten seconds for a visitor who has asked for less motion.
+   ages: how long ago each light left, in milliseconds. */
+export const LIGHT_TICK = { movingMs: 250, reducedMs: 10000, movingFrom: 0.25, kmBelowAU: 0.1, secondsBelow: 3600 };
+
+export function lightTickMs({ ages, pxPerSecond = 0, reduced = false }) {
+    if (reduced) return LIGHT_TICK.reducedMs;
+    if (pxPerSecond >= LIGHT_TICK.movingFrom) return LIGHT_TICK.movingMs;
+    if (ages.some((ms) => lightTravelledAU(ms) < LIGHT_TICK.kmBelowAU)) return LIGHT_TICK.movingMs;
+    /* durationText rounds to the nearest second, so the words change on each half second
+       of a light's age; a few milliseconds past it, so the timer cannot land just short. */
+    const waits = ages
+        .filter((ms) => Math.round(ms / 1000) < LIGHT_TICK.secondsBelow)
+        .map((ms) => 1000 - ((Math.max(0, ms) + 500) % 1000) + 5);
+    return waits.length ? Math.min(...waits) : 1000;
 }

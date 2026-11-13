@@ -4,26 +4,27 @@
  *
  * Data from the digest goes in with textContent, never innerHTML. Every chart mark has a
  * hit target of at least 24px and the same details on keyboard focus as on hover, and
- * every chart has a table view beside it. Colours are RUBIN_COLORS (js/logic.js), held
+ * every chart has a table view beside it. Colours are RUBIN_COLORS (js/rubincolors.js), held
  * to the site's contrast rules by tests/contrast.
  *
  * Offline, or if the data repo cannot be reached, it shows the last digest this browser
  * saw, and says so.
  */
 import {
-    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringSpacing,
+    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
 } from '../js/rubinview.js';
 import {
-    lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, RULER_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow,
+    lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, fromStarFraction, rulerTicks, unseenStretch, CENTAURI, UNSEEN_TEXT, UNSEEN_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow, lightTickMs,
 } from '../js/light.js';
 import { SCOPE_AU } from '../js/orbit.js';
 import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
-import { RUBIN_COLORS as C } from '../js/logic.js';
+import { RUBIN_COLORS as C } from '../js/rubincolors.js';
+import { centauriOn, places, PLANET_ORBITS, SEEN_NEAR, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -345,7 +346,24 @@ function drawMap(digest) {
     /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. */
     const SIZE = mapSizeFor(document.documentElement.clientWidth);
     let view = initialView(data.radius, SIZE);
-    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above' });
+    /* The nearest star system on the digest's date, in the map's own frame, and the three
+       places the map can be: at the Sun, at Alpha Centauri, and far enough back to hold
+       both (js/centauri.js). */
+    const system = centauriOn(yearFraction(digest.date));
+    const PLACES = places(system, data.radius);
+    const homeView = (p) => initialView(p.radiusAU, SIZE, [p.cx, p.cy]);
+    let place = PLACES.sun;
+    /* The animation frame of a journey under way, or 0. */
+    let travelling = 0;
+    /* A whole system is drawn as one dot once its map is smaller than this on screen. */
+    const SYSTEM_DOT_PX = 14;
+    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri' });
+    /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
+    const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
+    mapHatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+    const mapDefs = svg('defs');
+    mapDefs.append(mapHatch);
+    plot.append(mapDefs);
     const layer = svg('g');
     /* The light rings are drawn over the map on their own layer, so they can move without
        the marks being rebuilt under a pointer. Decoration: the words under the map say
@@ -353,11 +371,11 @@ function drawMap(digest) {
     const lightLayer = svg('g', { class: 'rubin-light', 'aria-hidden': 'true' });
     plot.append(layer, lightLayer);
 
-    const RULER_HEIGHT = 74;
-    const ruler = svg('svg', { viewBox: `0 0 ${SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', 'aria-hidden': 'true' });
+    const RULER_HEIGHT = 88;
+    const ruler = svg('svg', { viewBox: `0 0 ${SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', role: 'group', 'aria-label': `A ruler from the Sun to ${CENTAURI.name}, the nearest star system` });
     const lightNow = el('p', { class: 'rubin-light-text' });
     const lightFirst = el('p', { class: 'rubin-light-text' });
-    const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, 'The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above with how long ago it left, where each step to the right is ten times further from the Sun.');
+    const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, `The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above with how long ago it left. The ruler runs from the Sun to ${CENTAURI.name}, the pair of stars at the centre of the nearest star system, 4.34 light years away. Each step from the left is ten times further from the Sun, and each step from the right ten times further from that pair's centre of gravity, so the gap between is squeezed into the middle; it shows distance from each end, not direction. The hatched stretch runs from 1,000 AU from the Sun, beyond which nothing has yet been seen where it is, to ${CENTAURI.proxima.name}, the small third star that orbits the pair. ${UNSEEN_TEXT}.`);
     const findLight = el('button', { type: 'button', class: 'rubin-tool' }, 'Find the light');
 
     const neptune = data.planets.find((p) => p.name === 'Neptune');
@@ -376,60 +394,114 @@ function drawMap(digest) {
         ...(earlier ? [{ since: firstOpened, label: `first visit, ${firstDate}`, short: 'first visit', dash: '3 5' }] : []),
     ];
 
+    /* The ruler's fixed parts are drawn once. Each light then has a ring on the map and a
+       mark on the ruler, made once and moved: the light is redrawn up to four times a
+       second, and rebuilding all of this each time was most of the page's idle work. */
+    const at = (fraction) => 8 + fraction * (SIZE - 16);
+    const lineY = 46;
+    /* The stretch where nothing has been seen where it is: hatched, a texture rather than
+       a colour, 24px tall so it can be pointed at, and it says why on hover and on focus. */
+    const hatch = svg('pattern', { id: 'rubin-unseen', width: 6, height: 6, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
+    hatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: C.muted, 'stroke-width': 2 }));
+    const defs = svg('defs');
+    defs.append(hatch);
+    const [unseenFrom, unseenTo] = unseenStretch().map(at);
+    const unseen = svg('rect', { x: unseenFrom, y: lineY - 12, width: unseenTo - unseenFrom, height: 24, fill: 'url(#rubin-unseen)', class: 'rubin-unseen' });
+    attachDetails(unseen, [[UNSEEN_TEXT]]);
+    ruler.append(defs, unseen);
+    ruler.append(svg('line', { x1: at(0), y1: lineY, x2: at(1), y2: lineY, stroke: C.muted, 'stroke-width': 1 }));
+    for (const tick of rulerTicks()) {
+        ruler.append(svg('line', { x1: at(tick), y1: lineY - 3, x2: at(tick), y2: lineY + 3, stroke: C.muted, 'stroke-width': 1 }));
+    }
+    /* Names in two rows, so neighbours do not collide on a phone. */
+    const named = (fraction, row, text, anchor = 'middle') => {
+        const x = at(fraction);
+        ruler.append(svg('line', { x1: x, y1: lineY + 3, x2: x, y2: lineY + 8 + 14 * row, stroke: C.muted, 'stroke-width': 1 }));
+        ruler.append(svg('text', { x, y: lineY + 20 + 14 * row, class: 'rubin-axis', 'text-anchor': anchor }, text));
+    };
+    named(0, 0, 'Sun', 'start');
+    named(rulerFraction(1), 1, 'Earth');
+    if (neptune) named(rulerFraction(neptune.r), 0, 'Neptune');
+    named(unseenStretch()[0], 1, '1,000 AU');
+    named(fromStarFraction(CENTAURI.proxima.fromCentreAU), 0, CENTAURI.proxima.name);
+    named(1, 1, CENTAURI.name, 'end');
+    lights.forEach((light, k) => {
+        const labelRow = 14 + 14 * k;
+        light.ring = svg('circle', { fill: 'none', stroke: C.text, 'stroke-width': 1.5, ...(light.dash ? { 'stroke-dasharray': light.dash } : {}) });
+        light.ringLabel = svg('text', { class: 'rubin-label', 'text-anchor': 'end' }, `light, ${light.label}`);
+        light.stem = svg('line', { y1: labelRow + 4, y2: lineY, stroke: C.text, 'stroke-width': 1, 'pointer-events': 'none' });
+        light.dot = svg('circle', { cy: lineY, r: 4.5, fill: light.dash ? C.space : C.text, stroke: C.text, 'stroke-width': 1.5, 'pointer-events': 'none' });
+        /* On the ruler each light says how long ago it left. */
+        light.ago = svg('text', { y: labelRow, class: 'rubin-label', 'pointer-events': 'none' });
+        lightLayer.append(light.ring, light.ringLabel);
+        ruler.append(light.stem, light.dot, light.ago);
+    });
+    /* Only what has changed is written, so a redraw that moves nothing touches nothing. */
+    const put = (node, attrs) => {
+        for (const [name, value] of Object.entries(attrs)) {
+            if (value === null) node.removeAttribute(name);
+            else if (node.getAttribute(name) !== String(value)) node.setAttribute(name, value);
+        }
+    };
+    const say = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+
+    /* Moves the light, and answers how fast the fastest thing it drew is moving, in pixels
+       a second - which is what decides how soon it is worth drawing again. */
     function drawLight() {
         const now = Date.now();
         const [sx, sy] = toScreen(view, 0, 0);
         const fromCentre = Math.hypot(sx - SIZE / 2, sy - SIZE / 2);
-        const rings = [];
-        const marks = [];
-        const at = (fraction) => 8 + fraction * (SIZE - 16);
-        const lineY = 46;
-        marks.push(svg('line', { x1: at(0), y1: lineY, x2: at(1), y2: lineY, stroke: C.muted, 'stroke-width': 1 }));
-        for (let decade = RULER_FROM_AU; decade <= SCOPE_AU * 1.01; decade *= 10) {
-            const x = at(rulerFraction(decade, SCOPE_AU));
-            marks.push(svg('line', { x1: x, y1: lineY - 3, x2: x, y2: lineY + 3, stroke: C.muted, 'stroke-width': 1 }));
-        }
-        marks.push(svg('text', { x: at(0), y: lineY + 20, class: 'rubin-axis' }, `${RULER_FROM_AU} AU`));
-        marks.push(svg('text', { x: at(rulerFraction(1, SCOPE_AU)), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'middle' }, 'Earth'));
-        if (neptune) marks.push(svg('text', { x: at(rulerFraction(neptune.r, SCOPE_AU)), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'middle' }, 'Neptune'));
-        marks.push(svg('text', { x: at(1), y: lineY + 20, class: 'rubin-axis', 'text-anchor': 'end' }, '100,000 AU'));
-
-        lights.forEach((light, k) => {
+        let fastest = 0;
+        for (const light of lights) {
             const travelled = lightTravelledAU(now - light.since);
             const r = travelled * view.scale;
             /* Drawn only where some of the ring crosses the picture. */
-            if (r >= 1 && r < 1e6 && Math.abs(fromCentre - r) <= SIZE * 0.71) {
-                rings.push(svg('circle', { cx: sx, cy: sy, r, fill: 'none', stroke: C.text, 'stroke-width': 1.5, ...(light.dash ? { 'stroke-dasharray': light.dash } : {}) }));
-                const labelY = sy - r - 4;
-                if (r > 14 && labelY > 12 && labelY < SIZE && sx > 60 && sx < SIZE) {
-                    rings.push(svg('text', { x: sx - 4, y: labelY, class: 'rubin-label', 'text-anchor': 'end' }, `light, ${light.label}`));
-                }
-            }
-            const x = at(rulerFraction(travelled, SCOPE_AU));
-            const labelRow = 14 + 14 * k;
-            marks.push(svg('line', { x1: x, y1: labelRow + 4, x2: x, y2: lineY, stroke: C.text, 'stroke-width': 1 }));
-            marks.push(svg('circle', { cx: x, cy: lineY, r: 4.5, fill: light.dash ? C.space : C.text, stroke: C.text, 'stroke-width': 1.5 }));
-            const left = x < SIZE / 2;
-            /* On the ruler each light says how long ago it left. */
-            marks.push(svg('text', { x: left ? x + 6 : x - 6, y: labelRow, class: 'rubin-label', 'text-anchor': left ? 'start' : 'end' }, `${light.short}, ${durationText((now - light.since) / 1000)} ago`));
-        });
-        lightLayer.replaceChildren(...rings);
-        ruler.replaceChildren(...marks);
+            const shown = r >= 1 && r < 1e6 && Math.abs(fromCentre - r) <= SIZE * 0.71;
+            const labelY = sy - r - 4;
+            put(light.ring, shown ? { cx: sx, cy: sy, r, display: null } : { display: 'none' });
+            put(light.ringLabel, shown && r > 14 && labelY > 12 && labelY < SIZE && sx > 60 && sx < SIZE
+                ? { x: sx - 4, y: labelY, display: null }
+                : { display: 'none' });
+            if (shown) fastest = Math.max(fastest, lightTravelledAU(1000) * view.scale);
 
-        lightNow.textContent = lightSentence({ since: 'as you opened this page', elapsedSeconds: (now - OPENED) / 1000, travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge });
+            const x = at(rulerFraction(travelled));
+            const left = x < SIZE / 2;
+            put(light.stem, { x1: x, x2: x });
+            put(light.dot, { cx: x });
+            put(light.ago, { x: left ? x + 6 : x - 6, 'text-anchor': left ? 'start' : 'end' });
+            say(light.ago, `${light.short}, ${durationText((now - light.since) / 1000)} ago`);
+            fastest = Math.max(fastest, at(rulerFraction(travelled + lightTravelledAU(1000))) - x);
+        }
+
+        say(lightNow, lightSentence({ since: 'as you opened this page', elapsedSeconds: (now - OPENED) / 1000, travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge }));
         if (earlier) {
-            lightFirst.textContent = `${lightSentence({ since: `when you first opened this page on ${firstDate}`, elapsedSeconds: (now - firstOpened) / 1000, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`;
+            say(lightFirst, `${lightSentence({ since: `when you first opened this page on ${firstDate}`, elapsedSeconds: (now - firstOpened) / 1000, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`);
         } else if (remembersVisits) {
-            lightFirst.textContent = 'This browser will remember when you first opened this page, so on a later visit you can see how far that light has got. The time is kept on your device and sent nowhere.';
+            say(lightFirst, 'This browser will remember when you first opened this page, so on a later visit you can see how far that light has got. The time is kept on your device and sent nowhere.');
         }
         lightFirst.hidden = !lightFirst.textContent;
+        return fastest;
     }
-    /* The light moves four times a second; for a visitor who asked for less motion it
-       steps every ten seconds instead. Nothing runs while the tab is hidden. */
-    (function tick() {
-        if (!document.hidden) drawLight();
-        setTimeout(tick, reducedMotion.matches ? 10000 : 250);
-    })();
+    /* Draws the light and books the next drawing for when something will have changed
+       (lightTickMs): four times a second while anything is visibly moving, otherwise as
+       each second turns over, and every ten seconds for a visitor who asked for less
+       motion. Nothing runs while the tab is hidden or the map is scrolled out of view;
+       coming back draws it at once. */
+    let lightTimer = 0;
+    let mapOnScreen = true;
+    function runLight() {
+        clearTimeout(lightTimer);
+        if (document.hidden || !mapOnScreen) return;
+        const pxPerSecond = drawLight();
+        const now = Date.now();
+        lightTimer = setTimeout(runLight, lightTickMs({ ages: lights.map((light) => now - light.since), pxPerSecond, reduced: reducedMotion.matches }));
+    }
+    document.addEventListener('visibilitychange', runLight);
+    reducedMotion.addEventListener('change', runLight);
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver((entries) => { mapOnScreen = entries.at(-1).isIntersecting; runLight(); }).observe(section);
+    }
+    runLight();
 
     const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
     const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
@@ -443,16 +515,44 @@ function drawMap(digest) {
         const parts = [];
         /* Names to place once every dot is drawn, in priority order (placeLabels). */
         const labels = [];
-        const spacing = ringSpacing(view);
-        const reach = Math.hypot(Math.abs(view.cx), Math.abs(view.cy)) + SIZE / view.scale;
-        for (let r = spacing, n = 0; r <= reach && n < 60; r += spacing, n++) {
-            parts.push(svg('circle', { cx: sx, cy: sy, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
-            const labelY = sy - r * view.scale - 4;
-            if (labelY > 12 && labelY < SIZE) parts.push(svg('text', { x: sx + 4, y: labelY, class: 'rubin-axis' }, `${r} AU`));
+        const reachAU = (SIZE * Math.SQRT1_2) / view.scale;
+
+        /* Where nothing has been seen: everything beyond 1,000 AU from the Sun, up to the
+           other system's bodies. Drawn first, under everything, and it says why on hover
+           and on focus, in the owner's words. */
+        const holes = unseenHoles(view, [
+            { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
+            { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
+            { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
+        ]);
+        if (holes) {
+            const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
+            const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', class: 'rubin-unseen' });
+            attachDetails(unseen, [[UNSEEN_TEXT]]);
+            parts.push(unseen);
         }
 
+        /* Distance rings about the star nearest the middle of the picture: the Sun, A and
+           B's centre of gravity, or Proxima. (Rings about a star thousands of AU off cross a
+           close-up as a row of straight lines, which says nothing.) Only the rings that
+           cross the picture (ringRadii). */
+        const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
+        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
+        const [rx, ry] = toScreen(view, ringsAbout.x, ringsAbout.y);
+        for (const r of ringRadii(view, fromMiddle(ringsAbout))) {
+            parts.push(svg('circle', { cx: rx, cy: ry, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
+            const labelY = ry - r * view.scale - 4;
+            if (labelY > 12 && labelY < SIZE && rx > -40 && rx < SIZE) parts.push(svg('text', { x: rx + 4, y: labelY, class: 'rubin-axis' }, ringLabel(r)));
+        }
+
+        /* The Sun's own map is drawn only where it is in the picture, and as a single dot
+           once the map is pulled back so far that all of it would land on one spot. */
+        const sunShown = Math.hypot(view.cx, view.cy) < reachAU + data.radius;
+        const sunAsDot = data.radius * view.scale < SYSTEM_DOT_PX;
+        const solar = sunShown && !sunAsDot;
+
         /* The planets and tundrs, on their real orbits, where they are on the digest's date. */
-        for (const p of data.planets) {
+        for (const p of solar ? data.planets : []) {
             const orbitPx = p.a * view.scale;
             if (orbitPx < PLANET_DRAW_PX) continue;
             const points = p.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
@@ -478,7 +578,7 @@ function drawMap(digest) {
         }
         /* The round moons, once zoomed in far enough to tell each from its parent. A click
            shows its card. */
-        for (const m of data.moons) {
+        for (const m of solar ? data.moons : []) {
             const ringPx = m.a * view.scale;
             if (ringPx < MOON_DRAW_PX) continue;
             const [mx, my] = toScreen(view, m.x, m.y);
@@ -501,9 +601,54 @@ function drawMap(digest) {
             parts.push(g);
             if (ringPx >= PLANET_LABEL_PX) labels.push({ x: mx, y: my, text: m.name, rank: 1e7 });
         }
-        parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
+        if (solar) parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
+        /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. */
+        const star = (body, name, radius, rows) => {
+            const [x, y] = toScreen(view, body.x, body.y);
+            if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
+            const g = svg('g', { class: 'rubin-mark' });
+            g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+            g.append(svg('circle', { cx: x, cy: y, r: radius, fill: C.text, stroke: C.space, 'stroke-width': 2 }));
+            attachDetails(g, [[name, 'star'], ...rows]);
+            parts.push(g);
+            labels.push({ x, y, text: name, rank: Infinity });
+        };
+        if (sunShown && sunAsDot) star({ x: 0, y: 0 }, 'The Sun', 4, [['With everything on its map:', `${ringLabel(data.radius)} out, too small to tell apart from here`]]);
 
-        for (const { entry, kind } of data.marks) {
+        /* Alpha Centauri: one dot from far off; then Proxima and the pair; then A and B
+           apart, on the paths they trace about their centre of gravity. The planets'
+           orbits are dashed circles of the right size only - their tilt is not known. */
+        const far = (body) => [[farDistanceText(body.r), 'from the Sun'], [farPlaneText(body)]];
+        const orbitOf = (body, o) => {
+            const r = o.a * view.scale;
+            if (r < PLANET_DRAW_PX) return;
+            const [x, y] = toScreen(view, body.x, body.y);
+            if (Math.hypot(x - SIZE / 2, y - SIZE / 2) > SIZE + r) return;
+            parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
+            if (r >= PLANET_LABEL_PX) labels.push({ x: x + r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: o.status === 'candidate' ? 'candidate planet (unconfirmed)' : `${o.name}'s orbit`, rank: 1e8 });
+        };
+        if (Math.hypot(view.cx - system.centre.x, view.cy - system.centre.y) < reachAU + PLACES.centauri.radiusAU) {
+            if (PLACES.centauri.radiusAU * view.scale < SYSTEM_DOT_PX) {
+                star(system.centre, 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
+            } else {
+                PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => orbitOf(system.proxima, o));
+                star(system.proxima, 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B']]);
+                const apartPx = Math.hypot(system.b.x - system.a.x, system.b.y - system.a.y) * view.scale;
+                if (apartPx < 12) {
+                    star(system.centre, 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
+                } else {
+                    for (const path of [system.paths.a, system.paths.b]) {
+                        const points = path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+                        parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+                    }
+                    PLANET_ORBITS.filter((o) => o.star === 'a').forEach((o) => orbitOf(system.a, o));
+                    star(system.a, 'Alpha Centauri A', 4.5, [...far(system.a), [farDistanceText(system.apart), 'from B on this date']]);
+                    star(system.b, 'Alpha Centauri B', 3.5, [...far(system.b), [farDistanceText(system.apart), 'from A on this date']]);
+                }
+            }
+        }
+
+        for (const { entry, kind } of solar ? data.marks : []) {
             const [x, y] = toScreen(view, entry.now.x, entry.now.y);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) continue;
             const chosen = selected.has(entry.designation);
@@ -539,16 +684,55 @@ function drawMap(digest) {
         layer.replaceChildren(...parts);
 
         const level = zoomLevel(view);
-        readout.textContent = level < 1.05 ? 'Whole map' : `${level < 10 ? level.toFixed(1) : Math.round(level)}× zoom`;
-        zoomIn.disabled = level >= MAP_ZOOM.max - 0.01;
-        zoomOut.disabled = level <= 1.0001;
-        reset.disabled = level <= 1.0001;
+        const where = { sun: '', both: 'Both systems: ', centauri: 'Alpha Centauri: ' }[place.id];
+        const whole = place.id === 'sun' ? 'Whole map' : 'whole view';
+        readout.textContent = travelling ? `Travelling to ${place.name}` : `${where}${level < 1.05 ? whole : `${level < 10 ? level.toFixed(1) : Math.round(level).toLocaleString('en-US')}× zoom`}`;
+        zoomIn.disabled = Boolean(travelling) || level >= MAP_ZOOM.max - 0.01;
+        zoomOut.disabled = Boolean(travelling) || level <= 1.0001;
+        reset.disabled = Boolean(travelling) || level <= 1.0001;
         /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. */
         plot.style.touchAction = level <= 1.0001 ? 'pan-y' : 'none';
-        drawLight();
+        runLight();
     }
 
-    const setView = (next) => { view = next; render(); };
+    /* A journey under way is not interrupted by a stray pinch or scroll. */
+    const setView = (next) => { if (travelling) return; view = next; render(); };
+
+    /* Going somewhere: the map glides there (glideView), by way of the view that holds both
+       systems when it is crossing between them (journeyView). For a visitor who asked for
+       less motion it is simply there. */
+    const goButtons = new Map();
+    const zoomOnRow = el('span', { class: 'rubin-map-zoom-on' });
+    function showPlace() {
+        for (const [id, button] of goButtons) button.setAttribute('aria-pressed', String(id === place.id));
+        zoomOnRow.hidden = place.id !== 'centauri';
+        findLight.hidden = place.id !== 'sun';
+        reset.textContent = place.id === 'sun' ? 'Whole map' : 'Whole view';
+    }
+    function goTo(target, toView = homeView(target)) {
+        cancelAnimationFrame(travelling);
+        travelling = 0;
+        const from = view;
+        const direct = place === target || place.id === 'both' || target.id === 'both';
+        const via = homeView(PLACES.both);
+        place = target;
+        showPlace();
+        hideTooltip();
+        if (reducedMotion.matches) { view = toView; render(); return; }
+        const ms = direct ? 1800 : 5000;
+        const began = performance.now();
+        const frame = (now) => {
+            const t = Math.min(1, (now - began) / ms);
+            view = t >= 1 ? toView : (direct ? glideView(from, toView, t) : journeyView(from, via, toView, t));
+            travelling = t >= 1 ? 0 : requestAnimationFrame(frame);
+            render();
+        };
+        travelling = requestAnimationFrame(frame);
+    }
+    const closeUp = (body, radiusAU) => {
+        const home = homeView(PLACES.centauri);
+        return { ...home, scale: Math.min(home.fitScale * MAP_ZOOM.max, (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y };
+    };
     /* The pointer in the drawing's own pixels. */
     const local = (e) => {
         const box = plot.getBoundingClientRect();
@@ -601,15 +785,36 @@ function drawMap(digest) {
 
     zoomIn.addEventListener('click', () => setView(zoomAt(view, MAP_ZOOM.step)));
     zoomOut.addEventListener('click', () => setView(zoomAt(view, 1 / MAP_ZOOM.step)));
-    reset.addEventListener('click', () => setView(initialView(data.radius, SIZE)));
+    reset.addEventListener('click', () => setView(homeView(place)));
     /* Zooms on the Sun until this visit's light fills about a third of the map. */
     findLight.addEventListener('click', () => {
+        if (travelling) return;
         const home = initialView(data.radius, SIZE);
         const scale = scaleToShow(lightTravelledAU(Date.now() - OPENED), SIZE, { fitScale: home.fitScale, maxZoom: MAP_ZOOM.max });
         setView(zoomAt(home, scale / home.fitScale, [0, 0]));
     });
     const controls = el('div', { class: 'rubin-map-controls' });
     controls.append(zoomIn, zoomOut, reset, findLight, readout);
+
+    /* Where the map can go. The three places are always there, the current one marked, so
+       a keyboard's focus is never left on a button that has gone; the two close-ups appear
+       on arriving at Alpha Centauri. */
+    const travel = el('div', { class: 'rubin-map-controls rubin-map-travel', role: 'group', 'aria-label': 'Go to another place on the map' });
+    travel.append(el('span', { class: 'rubin-map-travel-label' }, 'Go to:'));
+    for (const [target, label] of [[PLACES.sun, 'The Sun'], [PLACES.both, 'Both systems'], [PLACES.centauri, 'Alpha Centauri']]) {
+        const button = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, label);
+        button.addEventListener('click', () => goTo(target));
+        goButtons.set(target.id, button);
+        travel.append(button);
+    }
+    zoomOnRow.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
+    for (const [label, body, radiusAU] of [['Proxima', system.proxima, 0.07], ['A and B', system.centre, 45]]) {
+        const button = el('button', { type: 'button', class: 'rubin-tool' }, label);
+        button.addEventListener('click', () => goTo(PLACES.centauri, closeUp(body, radiusAU)));
+        zoomOnRow.append(button);
+    }
+    travel.append(zoomOnRow);
+    showPlace();
 
     const holder = section.querySelector('.rubin-plot');
     const present = [...new Set(data.marks.map((m) => m.kind))];
@@ -621,6 +826,7 @@ function drawMap(digest) {
             })),
         ]),
         controls,
+        travel,
         plot,
         ruler,
         lightNow,
@@ -630,7 +836,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to Alpha Centauri, the nearest star system, ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance: its three stars are where they are on that date, and A and B follow the paths drawn. The dashed circles there are planets' orbits at their right size; how they are tilted is not known, and the one at A is an unconfirmed candidate. The hatching covers everything beyond 1,000 AU from the Sun short of those stars, where nothing has yet been seen in place.`,
     );
 
     const mapTable = table(
@@ -644,8 +850,25 @@ function drawMap(digest) {
         name.addEventListener('click', () => toggle(entry.designation, { scrollTo: true }));
         row.cells[0].replaceChildren(name);
     });
-    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable);
+    const starsTable = table(
+        ['Star', 'From the Sun', 'Along the plane and out of it', 'Note'],
+        [
+            ['Alpha Centauri A', farDistanceText(system.a.r), farPlaneText(system.a), `${farDistanceText(system.apart)} from B on ${longDate(digest.date)}; a candidate planet about 2 AU out, unconfirmed`],
+            ['Alpha Centauri B', farDistanceText(system.b.r), farPlaneText(system.b), `Orbits A every 79.8 years, between 11.2 and 35.6 AU apart`],
+            ['Proxima Centauri', farDistanceText(system.proxima.r), farPlaneText(system.proxima), `${farDistanceText(system.proximaFromCentre)} from A and B; planets b and d, ${PLANET_ORBITS.filter((o) => o.star === 'proxima').map((o) => `${o.a.toFixed(3)} AU`).reverse().join(' and ')} out`],
+        ],
+    );
+    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest star system, where "Go to" takes the map. Between 1,000 AU from the Sun and these stars: ${UNSEEN_TEXT}.`), starsTable);
     section.hidden = false;
+    /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
+       with the latter &zoom=proxima or pair. */
+    const startAt = Object.hasOwn(PLACES, params.get('place') ?? '') ? PLACES[params.get('place')] : null;
+    if (startAt) {
+        place = startAt;
+        const zoom = startAt.id === 'centauri' ? params.get('zoom') : null;
+        view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45) : homeView(startAt);
+        showPlace();
+    }
     render();
 }
 
@@ -977,7 +1200,11 @@ const params = new URLSearchParams(location.search);
 
 async function loadDigest() {
     try {
-        const digest = await getJson(params.get('digest') ?? DIGEST_URL);
+        /* The page's head has usually asked for it already (see rubin.html), so the
+           digest travels while this file and its modules do; without that, ask now. */
+        const url = params.get('digest') ?? DIGEST_URL;
+        const early = window.rubinEarly;
+        const digest = await (early?.url === url ? early.digest : getJson(url));
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(digest)); } catch { /* storage full or blocked: fine */ }
         return { digest, stale: false };
     } catch {

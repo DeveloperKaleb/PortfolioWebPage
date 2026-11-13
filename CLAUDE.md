@@ -54,7 +54,10 @@ This means the site only fully works when served from that exact subpath (as on 
   the latest digest, read from `/rubin-data/` on the same origin (the `rubin-data`
   repo, published with GitHub Pages) - never from a third party. Its words and
   geometry are in `js/rubinview.js`. Preview it locally with
-  `?digest=<path>&changes=<path>`.
+  `?digest=<path>&changes=<path>`; `?place=both|centauri` (and `&zoom=proxima|pair`) opens
+  its map away from the Sun. Its head preloads every module it imports and asks
+  for the digest in an inline script; a new import needs a `modulepreload` line there
+  (`tests/rubin/loading.test.js` fails until it has one).
 - `entertainment/entertainment.html` — a hub page for seven browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, an "Array Grid" color-painting toy, and Pets). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`), Multiplayer (`#multi`) and Toys (`#toys`: Finger Paint `#toy` and Pets `#pets`) are hubs of thumbnail cards, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.
 - `scripts/nav.js` — injects the shared `<nav>` markup into `<header id="global-nav">` on every page and highlights the active link. Any new top-level page needs a `<header id="global-nav">` element and a `<script src="/PortfolioWebPage/scripts/nav.js">` include to get navigation.
 - `style.css` — single global stylesheet for every page, including the grid/game board styling (`.butMania`, `#tetrisDisplay`, etc.).
@@ -69,7 +72,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is thirty modules, all free of `document`/DOM calls so they stay testable
+The pure layer is thirty-two modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -144,7 +147,15 @@ under Vitest without a browser:
   rubin-data's hand-edited maintenance.json) and when the Rubin tab next changes.
 - `js/light.js` — sunlight on the Solar System tab's map at its real speed: how far light
   has got since the page opened (and since this browser's first visit), what it has passed,
-  and each card's Sunlight line. No clock of its own. See NOTES.md.
+  and each card's Sunlight line, and how soon the light is worth redrawing. No clock of
+  its own. See NOTES.md.
+- `js/centauri.js` — the far end of the Solar System tab's map: where Alpha Centauri A and
+  B and Proxima are on a date, in the map's frame, from their sky positions, parallaxes
+  and the pair's orbit; the three places the map can be; planets' orbits as sizes only.
+  Tested against published measurements. See NOTES.md.
+- `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
+  games' palettes in `logic.js` so the tab does not load the games' code. Held to the
+  contrast rules like the rest.
 - `js/faredge.js` — What shaped the far edge?: which of the most distant orbits count, how
   bunched their directions are, and the section the digest carries (built by the collector
   from JPL's list, with no request of its own). Held to honesty rules by its tests: no odds,

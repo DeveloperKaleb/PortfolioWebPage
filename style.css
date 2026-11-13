@@ -2229,6 +2229,23 @@ main.rubin {
     pointer-events: none;
 }
 
+/* The ruler's hatched stretch can be pointed at and focused; the light's marks over it
+   cannot, so they never get in the way. */
+.rubin-unseen {
+    cursor: help;
+}
+
+.rubin-ruler line,
+.rubin-ruler text,
+.rubin-ruler circle {
+    pointer-events: none;
+}
+
+.rubin-unseen:focus-visible {
+    outline: 2px solid #e3e7af;
+    outline-offset: 2px;
+}
+
 /* The ruler under the map: the same width as the map, on the page's brown. */
 #rubin-map .rubin-ruler {
     background: none;
@@ -2565,6 +2582,27 @@ main.rubin {
     justify-content: center;
     gap: 8px;
     margin: 0 0 8px;
+}
+
+/* The second row: where the map can go. The place it is at is marked like a chosen chip. */
+.rubin-map-travel-label {
+    color: #b8bc93;
+}
+
+.rubin-map-zoom-on {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.rubin-map-zoom-on[hidden] {
+    display: none;
+}
+
+.rubin-map-travel .rubin-tool[aria-pressed="true"] {
+    background: #e3e7af;
+    color: #3b3026;
 }
 
 .rubin-map-controls .rubin-tool {

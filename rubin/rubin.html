@@ -4,9 +4,44 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>The Solar System - Kaleb's Portfolio</title>
+    <!-- Asks for the digest before anything else on the page, so it travels while the
+         stylesheet, rubin.js and its modules do; rubin.js takes the answer from here
+         (loadDigest) and falls back to asking itself. It was the last thing requested,
+         about 0.85 s after the page arrived. Above the stylesheets on purpose: an inline
+         script below them waits for them. Inline, the only one on the site, because a
+         file of its own would be one more thing to wait for. ?digest= is the local
+         preview's (CLAUDE.md). tests/rubin/loading.test.js holds this to rubin.js. -->
+    <script>
+        try {
+            const url = new URLSearchParams(location.search).get('digest') ?? '/rubin-data/digest/latest.json';
+            const digest = fetch(url, { cache: 'no-cache', signal: AbortSignal.timeout(15000) })
+                .then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); });
+            digest.catch(() => {});
+            window.rubinEarly = { url, digest };
+        } catch { /* rubin.js asks for it instead */ }
+    </script>
+    <!-- Every module the page's two module scripts import, at any depth, so the browser
+         fetches them together instead of finding them a round at a time (they came in
+         three rounds). Unstamped, because that is the address an import asks for.
+         tests/rubin/loading.test.js fails if this list and the imports drift apart. -->
+    <link rel="modulepreload" href="/PortfolioWebPage/js/stream.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/rubinview.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/light.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/orbit.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/faredge.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/rubincolors.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/funfacts.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/rubinstatus.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/equilibrium.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/brightness.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/flags.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/planets.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/moons.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/tnoalbedos.js" />
+    <link rel="modulepreload" href="/PortfolioWebPage/js/centauri.js" />
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261112-1546" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261112-1546" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261113-1523" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261113-1523" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -205,10 +240,10 @@
         </div>
     </dialog>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261112-1546"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261112-1546"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261112-1546"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261112-1546"></script>
-    <script type="module" src="./rubin.js?v=20261112-1546"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261113-1523"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261113-1523"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261113-1523"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261113-1523"></script>
+    <script type="module" src="./rubin.js?v=20261113-1523"></script>
 </body>
 </html>

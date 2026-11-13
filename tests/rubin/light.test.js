@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     AU_KM, LIGHT_SECONDS_PER_AU, lightTravelledAU, lightSeconds, durationText, distanceText, milestones, lightProgress,
-    lightSentence, sunlightText, RULER_FROM_AU, rulerFraction, firstVisit, hasEarlierVisit, SECOND_RING_AFTER_MS, scaleToShow,
+    lightSentence, sunlightText, RULER_FROM_AU, rulerFraction, fromStarFraction, rulerTicks, unseenStretch, CENTAURI, UNSEEN_FROM_AU, UNSEEN_TEXT, firstVisit, hasEarlierVisit, SECOND_RING_AFTER_MS, scaleToShow, lightTickMs,
 } from '../../js/light.js';
 import { SCOPE_AU } from '../../js/orbit.js';
 
@@ -177,17 +177,83 @@ describe("A card's Sunlight line", () => {
     });
 });
 
-describe('The ruler', () => {
-    test('runs from a thousandth of an AU to the far end, a decade a step', () => {
-        expect(rulerFraction(RULER_FROM_AU, SCOPE_AU)).toBe(0);
-        expect(rulerFraction(SCOPE_AU, SCOPE_AU)).toBe(1);
-        expect(rulerFraction(1, SCOPE_AU)).toBeCloseTo(3 / 8, 9);
-        expect(rulerFraction(10, SCOPE_AU) - rulerFraction(1, SCOPE_AU)).toBeCloseTo(1 / 8, 9);
+describe('The ruler, from the Sun to Alpha Centauri', () => {
+    const D = CENTAURI.distanceAU;
+
+    test('starts a thousandth of an AU from the Sun and ends 1 AU from the centre of Alpha Centauri A and B', () => {
+        expect(rulerFraction(RULER_FROM_AU)).toBe(0);
+        expect(rulerFraction(D)).toBe(1);
+        expect(fromStarFraction(CENTAURI.floorAU)).toBe(1);
     });
 
     test('is held to its ends', () => {
-        expect(rulerFraction(0, SCOPE_AU)).toBe(0);
-        expect(rulerFraction(5e6, SCOPE_AU)).toBe(1);
+        expect(rulerFraction(0)).toBe(0);
+        expect(rulerFraction(5e6)).toBe(1);
+        expect(fromStarFraction(0)).toBe(1);
+    });
+
+    test('from the Sun, each step is ten times further', () => {
+        const step = rulerFraction(10) - rulerFraction(1);
+        expect(step).toBeGreaterThan(0);
+        expect(rulerFraction(1000) - rulerFraction(100)).toBeCloseTo(step, 12);
+        expect(rulerFraction(0.01) - rulerFraction(RULER_FROM_AU)).toBeCloseTo(step, 12);
+    });
+
+    test('from the star, each step is ten times further too, and the same size', () => {
+        const step = rulerFraction(10) - rulerFraction(1);
+        expect(fromStarFraction(1) - fromStarFraction(10)).toBeCloseTo(step, 12);
+        expect(fromStarFraction(1000) - fromStarFraction(10000)).toBeCloseTo(step, 12);
+    });
+
+    test('the two scales meet halfway between the stars, with no jump', () => {
+        expect(rulerFraction(D / 2)).toBeCloseTo(fromStarFraction(D / 2), 12);
+        expect(rulerFraction(D / 2 + 1) - rulerFraction(D / 2 - 1)).toBeLessThan(1e-4);
+    });
+
+    test('further from the Sun is never further left', () => {
+        let last = -1;
+        for (let au = RULER_FROM_AU; au < D; au *= 1.37) {
+            const at = rulerFraction(au);
+            expect(at).toBeGreaterThanOrEqual(last);
+            last = at;
+        }
+        expect(rulerFraction(D - 2)).toBeGreaterThan(rulerFraction(D - 500));
+    });
+
+    test('a place is the same whichever star it is measured from', () => {
+        expect(rulerFraction(D - 12050)).toBeCloseTo(fromStarFraction(12050), 12);
+    });
+
+    test('light takes 4.34 years to reach the far end', () => {
+        const years = D * LIGHT_SECONDS_PER_AU / (365.25 * 86400);
+        expect(years).toBeCloseTo(4.344, 2);
+        expect(rulerFraction(lightTravelledAU(4.4 * 365.25 * 86400 * 1000))).toBe(1);
+        expect(rulerFraction(lightTravelledAU(4.3 * 365.25 * 86400 * 1000))).toBeLessThan(1);
+    });
+
+    test('a tick at each power of ten from either end, all on the ruler', () => {
+        const ticks = rulerTicks();
+        expect(ticks).toHaveLength(9 + 6);
+        ticks.forEach((at) => { expect(at).toBeGreaterThanOrEqual(0); expect(at).toBeLessThanOrEqual(1); });
+        expect(ticks).toContain(0);
+        expect(ticks).toContain(1);
+        expect(ticks.some((at) => Math.abs(at - rulerFraction(1)) < 1e-12)).toBe(true);
+        expect(ticks.some((at) => Math.abs(at - fromStarFraction(1)) < 1e-12)).toBe(true);
+    });
+
+    test('the hatching runs from 1,000 AU to Proxima, the outermost known body of the other system', () => {
+        const [from, to] = unseenStretch();
+        expect(UNSEEN_FROM_AU).toBe(1000);
+        expect(from).toBe(rulerFraction(1000));
+        expect(to).toBe(fromStarFraction(CENTAURI.proxima.fromCentreAU));
+        expect(to).toBeGreaterThan(from);
+        /* Everything named on the ruler is outside it. */
+        expect(rulerFraction(30.1)).toBeLessThan(from);
+        expect(fromStarFraction(36)).toBeGreaterThan(to);
+    });
+
+    test("the hatching's words are the owner's, to the letter", () => {
+        expect(UNSEEN_TEXT).toBe('More science needed (MOSTLY BIGGER TELESCOPES)');
     });
 });
 
@@ -226,6 +292,61 @@ describe('Finding the light', () => {
 
     test('never wider than the whole map', () => {
         expect(scaleToShow(5000, 750, limits)).toBe(3.5);
+    });
+});
+
+describe('When the light is next worth drawing', () => {
+    const MINUTE = 60000;
+
+    test('four times a second while something is visibly moving', () => {
+        expect(lightTickMs({ ages: [10 * MINUTE], pxPerSecond: 3 })).toBe(250);
+        expect(lightTickMs({ ages: [10 * MINUTE], pxPerSecond: 0.25 })).toBe(250);
+    });
+
+    test('four times a second while a distance is still in kilometres', () => {
+        expect(distanceText(lightTravelledAU(40000))).toMatch(/km$/);
+        expect(lightTickMs({ ages: [40000], pxPerSecond: 0 })).toBe(250);
+        expect(lightTickMs({ ages: [10 * MINUTE, 40000], pxPerSecond: 0 })).toBe(250);
+    });
+
+    test('otherwise just after the words next change', () => {
+        /* 10 min 0.2 s old reads "10 min 0 s"; it reads "10 min 1 s" from 10 min 0.5 s. */
+        const age = 10 * MINUTE + 200;
+        const wait = lightTickMs({ ages: [age], pxPerSecond: 0.01 });
+        expect(wait).toBe(305);
+        expect(durationText((age + wait - 10) / 1000)).toBe('10 min 0 s');
+        expect(durationText((age + wait) / 1000)).toBe('10 min 1 s');
+    });
+
+    test('every second shown is drawn: no wait skips one', () => {
+        for (let age = 5 * MINUTE; age < 5 * MINUTE + 3000; age += 37) {
+            const wait = lightTickMs({ ages: [age], pxPerSecond: 0 });
+            expect(wait).toBeGreaterThan(0);
+            expect(wait).toBeLessThanOrEqual(1005);
+            expect(Math.round((age + wait) / 1000) - Math.round(age / 1000)).toBe(1);
+        }
+    });
+
+    test('with two lights counted in seconds, the sooner change wins', () => {
+        expect(lightTickMs({ ages: [10 * MINUTE + 200, 20 * MINUTE + 400], pxPerSecond: 0 })).toBe(105);
+    });
+
+    test('a light counted in hours or days does not set the pace', () => {
+        const days = 3 * 24 * 60 * MINUTE + 480;
+        expect(lightTickMs({ ages: [10 * MINUTE + 200, days], pxPerSecond: 0 })).toBe(305);
+        expect(lightTickMs({ ages: [days], pxPerSecond: 0 })).toBe(1000);
+    });
+
+    test('ten seconds for a visitor who asked for less motion, whatever is moving', () => {
+        expect(lightTickMs({ ages: [1000], pxPerSecond: 50, reduced: true })).toBe(10000);
+    });
+
+    test('never faster than before, never slower than a second without that request', () => {
+        for (const age of [0, 499, 500, 60000, 3599400, 3600000, 1e9]) {
+            const wait = lightTickMs({ ages: [age], pxPerSecond: 0 });
+            expect(wait).toBeGreaterThan(0);
+            expect(wait).toBeLessThanOrEqual(1005);
+        }
     });
 });
 
