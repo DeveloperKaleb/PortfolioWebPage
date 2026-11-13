@@ -3846,6 +3846,9 @@ map: the same map now reaches the nearest star system, with its stars in their t
   clearings of 40 AU about the pair (their widest reach) and 0.1 AU about Proxima (its
   planets). It carries the owner's words on hover and focus. Finer and fainter than the
   ruler's, because it covers most of the picture.
+  Round, not square (owner): the map is a round window, dark in the middle and fading into
+  the page by its edge, so the hatching is clipped to a circle a little wider than the dark,
+  nine tenths of the way to the edge. Whether to draw it at all is decided on that circle.
 - **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
   views could be photographed with headless Edge (which cannot click), and kept because a
   link straight to Alpha Centauri is a fair thing to want.

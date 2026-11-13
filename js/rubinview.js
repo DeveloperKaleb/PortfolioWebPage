@@ -343,10 +343,11 @@ export function journeyView(from, via, to, t) {
  * Beyond 1,000 AU from the Sun the map is hatched, except close about the other system's
  * bodies (js/centauri.js). Given the clear zones as circles in AU, this answers what to
  * draw: nothing when the whole picture is inside one, otherwise the circles, in pixels,
- * that reach into the picture and so must be cut out of the hatching. */
-export function unseenHoles(view, zones) {
+ * that reach into the picture and so must be cut out of the hatching. The hatching is
+ * round, `reachPx` from the middle (the whole square when not given). */
+export function unseenHoles(view, zones, reachPx) {
     const half = view.sizePx / 2;
-    const corner = half * Math.SQRT2;
+    const corner = reachPx ?? half * Math.SQRT2;
     const holes = [];
     for (const zone of zones) {
         const [x, y] = toScreen(view, zone.x, zone.y);

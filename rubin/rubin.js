@@ -361,8 +361,14 @@ function drawMap(digest) {
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
     mapHatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+    const UNSEEN_REACH_PX = (SIZE / 2) * 0.9;
+    /* The map is a round window (the stylesheet fades its dark centre into the page's brown
+       by the picture's edge), so the hatching is round too, and a little wider than the
+       dark: out to nine tenths of the way to the edge (owner, 2026-11-13). */
+    const mapWindow = svg('clipPath', { id: 'rubin-map-window' });
+    mapWindow.append(svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: UNSEEN_REACH_PX }));
     const mapDefs = svg('defs');
-    mapDefs.append(mapHatch);
+    mapDefs.append(mapHatch, mapWindow);
     plot.append(mapDefs);
     const layer = svg('g');
     /* The light rings are drawn over the map on their own layer, so they can move without
@@ -524,10 +530,10 @@ function drawMap(digest) {
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
             { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
             { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
-        ]);
+        ], UNSEEN_REACH_PX);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
-            const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', class: 'rubin-unseen' });
+            const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
             attachDetails(unseen, [[UNSEEN_TEXT]]);
             parts.push(unseen);
         }

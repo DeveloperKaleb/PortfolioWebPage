@@ -280,6 +280,13 @@ describe('The hatching on the map', () => {
         expect(unseenHoles({ ...home, scale: 351 / 10 }, zones)).toBeNull();
     });
 
+    test('the hatching is round: none when only the corners reach past the clearing', () => {
+        const home = initialView(P.centauri.radiusAU, 750, [P.centauri.cx, P.centauri.cy]);
+        const view = { ...home, scale: 10 }; // round window reaches 33.75 AU, the corners 53
+        expect(unseenHoles(view, zones)).toHaveLength(1);
+        expect(unseenHoles(view, zones, 375 * 0.9)).toBeNull();
+    });
+
     test('a clearing far off the picture is not drawn', () => {
         const home = initialView(P.centauri.radiusAU, 750, [P.centauri.cx, P.centauri.cy]);
         const holes = unseenHoles({ ...home, scale: 351 / 200 }, zones);
