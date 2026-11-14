@@ -54,7 +54,7 @@ This means the site only fully works when served from that exact subpath (as on 
   the latest digest, read from `/rubin-data/` on the same origin (the `rubin-data`
   repo, published with GitHub Pages) - never from a third party. Its words and
   geometry are in `js/rubinview.js`. Preview it locally with
-  `?digest=<path>&changes=<path>`; `?place=both|centauri` (and `&zoom=proxima|pair`) opens
+  `?digest=<path>&changes=<path>`; `?place=both|centauri|barnard|luhman16` (and `&zoom=proxima|pair`) opens
   its map away from the Sun. Its head preloads every module it imports and asks
   for the digest in an inline script; a new import needs a `modulepreload` line there
   (`tests/rubin/loading.test.js` fails until it has one).
@@ -151,7 +151,7 @@ under Vitest without a browser:
   its own. See NOTES.md.
 - `js/centauri.js` — the far end of the Solar System tab's map: where Alpha Centauri A and
   B and Proxima are on a date, in the map's frame, from their sky positions, parallaxes
-  and the pair's orbit, and Luhman 16 AB, the brown dwarfs in the view of both systems;
+  and the pair's orbit, and Luhman 16 AB, two hydrogen tundrs in the view of both systems;
   the three places the map can be; planets' orbits as sizes only.
   Tested against published measurements. See NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the

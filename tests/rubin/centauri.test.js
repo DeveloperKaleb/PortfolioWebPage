@@ -116,8 +116,8 @@ describe('Proxima, in its true place', () => {
 });
 
 describe('The planets: sizes only', () => {
-    test('two confirmed at Proxima, one candidate at A, and nothing claimed about their tilt', () => {
-        expect(PLANET_ORBITS.filter((o) => o.status === 'confirmed').map((o) => o.name)).toEqual(['Proxima d', 'Proxima b']);
+    test("two confirmed at Proxima, four at Barnard's Star, one candidate at A, and nothing claimed about their tilt", () => {
+        expect(PLANET_ORBITS.filter((o) => o.status === 'confirmed').map((o) => o.name)).toEqual(['Proxima d', 'Proxima b', 'Barnard d', 'Barnard b', 'Barnard c', 'Barnard e']);
         expect(PLANET_ORBITS.filter((o) => o.status === 'candidate')).toHaveLength(1);
         PLANET_ORBITS.forEach((o) => expect(Object.keys(o).sort()).toEqual(['a', 'name', 'star', 'status']));
     });
@@ -125,6 +125,14 @@ describe('The planets: sizes only', () => {
     test("the hatching stops outside Proxima's planets and outside the pair's widest reach", () => {
         PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => expect(o.a).toBeLessThan(SEEN_NEAR.proxima));
         expect(SEEN_NEAR.pair).toBeGreaterThan(35.6 * BINARY.massA / (BINARY.massA + BINARY.massB));
+        PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => expect(o.a).toBeLessThan(SEEN_NEAR.barnard));
+    });
+
+    test("Barnard's Star's planets: sizes from their periods (Basant et al. 2025) by Kepler's law", () => {
+        const days = { 'Barnard d': 2.340, 'Barnard b': 3.154, 'Barnard c': 4.124, 'Barnard e': 6.739 };
+        for (const o of PLANET_ORBITS.filter((p) => p.star === 'barnard')) {
+            expect(o.a).toBeCloseTo(Math.cbrt(0.162 * (days[o.name] / 365.25) ** 2), 4);
+        }
     });
 });
 
@@ -132,7 +140,7 @@ describe('The three places', () => {
     const P = places(system, 200);
 
     test('the Sun as it always was', () => {
-        expect(P.sun).toEqual({ id: 'sun', name: 'the Sun', cx: 0, cy: 0, radiusAU: 200, dark: 1 });
+        expect(P.sun).toEqual({ id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, radiusAU: 200, dark: 1 });
     });
 
     test('both systems seen from the Sun, in a smaller window than either system alone', () => {
@@ -150,7 +158,7 @@ describe('The three places', () => {
 
     test('both: every star inside the view that fits it', () => {
         const view = initialView(P.both.radiusAU, 750, [P.both.cx, P.both.cy]);
-        for (const body of [{ x: 0, y: 0 }, system.centre, system.proxima]) {
+        for (const body of [{ x: 0, y: 0 }, system.centre, system.proxima, system.luhman16, system.barnard]) {
             const [x, y] = toScreen(view, body.x, body.y);
             expect(Math.hypot(x - 375, y - 375)).toBeLessThan(375 - 24);
         }
@@ -325,7 +333,7 @@ describe('The page', () => {
     });
 });
 
-describe('Luhman 16, the nearest brown dwarfs', () => {
+describe('Luhman 16, two Hydrogen Tundrs', () => {
     const { luhman16 } = system;
 
     test('6.50 light years away, well below the plane', () => {
@@ -341,5 +349,27 @@ describe('Luhman 16, the nearest brown dwarfs', () => {
         expect(x).toBeLessThan(750);
         expect(y).toBeGreaterThan(0);
         expect(y).toBeLessThan(750);
+    });
+});
+
+describe("Barnard's Star, the nearest single star", () => {
+    const { barnard } = system;
+
+    test('5.96 light years away, a little above the plane', () => {
+        expect(barnard.r / AU_PER_LIGHT_YEAR).toBeCloseTo(5.96, 2);
+        expect(Math.asin(barnard.z / barnard.r) * 180 / Math.PI).toBeCloseTo(28, 0);
+    });
+
+    test('drifting about 19 AU a year across our sky', () => {
+        const later = centauriOn(YEAR + 1).barnard;
+        expect(Math.hypot(later.x - barnard.x, later.y - barnard.y, later.z - barnard.z)).toBeCloseTo(18.9, 0);
+    });
+
+    test('a place of its own, centred on it, with room for its planets', () => {
+        const P = places(system, 200);
+        expect([P.barnard.cx, P.barnard.cy]).toEqual([barnard.x, barnard.y]);
+        expect(P.barnard.radiusAU).toBeGreaterThan(Math.max(...PLANET_ORBITS.filter((o) => o.star === 'barnard').map((o) => o.a)));
+        expect([P.luhman16.cx, P.luhman16.cy]).toEqual([system.luhman16.x, system.luhman16.y]);
+        expect(P.luhman16.radiusAU).toBeGreaterThan(SEEN_NEAR.luhman16);
     });
 });

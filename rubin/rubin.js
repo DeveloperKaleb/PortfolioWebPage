@@ -355,8 +355,10 @@ function drawMap(digest) {
     let place = PLACES.sun;
     /* The animation frame of a journey under way, or 0. */
     let travelling = 0;
-    /* A whole system is drawn as one dot once its map is smaller than this on screen. */
-    const SYSTEM_DOT_PX = 14;
+    /* A whole system is drawn as one dot once its map is smaller than this on screen. (At
+       14, pulled back to the nearest bodies, Alpha Centauri came out as two dots with one
+       name between them.) */
+    const SYSTEM_DOT_PX = 20;
     const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri' });
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
@@ -539,6 +541,7 @@ function drawMap(digest) {
             { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
             { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
             { x: system.luhman16.x, y: system.luhman16.y, radiusAU: SEEN_NEAR.luhman16 },
+            { x: system.barnard.x, y: system.barnard.y, radiusAU: SEEN_NEAR.barnard },
         ], hatchPx);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
@@ -552,7 +555,7 @@ function drawMap(digest) {
            close-up as a row of straight lines, which says nothing.) Only the rings that
            cross the picture (ringRadii). */
         const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
-        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima, system.luhman16].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
+        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima, system.luhman16, system.barnard].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
         const [rx, ry] = toScreen(view, ringsAbout.x, ringsAbout.y);
         for (const r of ringRadii(view, fromMiddle(ringsAbout))) {
             parts.push(svg('circle', { cx: rx, cy: ry, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
@@ -618,7 +621,7 @@ function drawMap(digest) {
         }
         if (solar) parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
         /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. Luhman
-           16's brown dwarfs are marked the same way, fainter, and say what they are. */
+           16's two tundrs are marked the same way, fainter, and say what they are. */
         const star = (body, name, radius, rows, { kind = 'star', fill = C.text } = {}) => {
             const [x, y] = toScreen(view, body.x, body.y);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
@@ -665,9 +668,17 @@ function drawMap(digest) {
         }
 
         star(system.luhman16, 'Luhman 16 AB', 3, [
-            ['Too small to burn hydrogen as stars do;', 'found in 2013, the third-nearest system to the Sun'],
+            ["About 34 and 28 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
+            ['Found in 2013:', 'the third-nearest system to the Sun'],
             ...far(system.luhman16),
-        ], { kind: 'two brown dwarfs', fill: C.muted });
+        ], { kind: 'two Hydrogen Tundrs', fill: C.muted });
+        /* Barnard's Star, with its four planets' orbits once zoomed in on it. */
+        PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => orbitOf(system.barnard, o));
+        star(system.barnard, "Barnard's Star", 3, [
+            ['A single small star:', 'it crosses our sky faster than any other'],
+            ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
+            ...far(system.barnard),
+        ]);
 
         for (const { entry, kind } of solar ? data.marks : []) {
             const [x, y] = toScreen(view, entry.now.x, entry.now.y);
@@ -705,7 +716,7 @@ function drawMap(digest) {
         layer.replaceChildren(...parts);
 
         const level = zoomLevel(view);
-        const where = { sun: '', both: 'Both systems: ', centauri: 'Alpha Centauri: ' }[place.id];
+        const where = place.id === 'sun' ? '' : `${place.label}: `;
         const whole = place.id === 'sun' ? 'Whole map' : 'whole view';
         readout.textContent = travelling ? `Travelling to ${place.name}` : `${where}${level < 1.05 ? whole : `${level < 10 ? level.toFixed(1) : Math.round(level).toLocaleString('en-US')}× zoom`}`;
         zoomIn.disabled = Boolean(travelling) || level >= MAP_ZOOM.max - 0.01;
@@ -722,10 +733,12 @@ function drawMap(digest) {
     /* Going somewhere: the map glides there (glideView), by way of the view that holds both
        systems when it is crossing between them (journeyView). For a visitor who asked for
        less motion it is simply there. */
-    const goButtons = new Map();
+    const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
+    const bodyPicker = el('select', { class: 'rubin-tool rubin-map-go', 'aria-label': 'Go to one of the nearest bodies' });
     const zoomOnRow = el('span', { class: 'rubin-map-zoom-on' });
     function showPlace() {
-        for (const [id, button] of goButtons) button.setAttribute('aria-pressed', String(id === place.id));
+        nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
+        bodyPicker.value = place.id === 'both' ? '' : place.id;
         zoomOnRow.hidden = place.id !== 'centauri';
         findLight.hidden = place.id !== 'sun';
         reset.textContent = place.id === 'sun' ? 'Whole map' : 'Whole view';
@@ -821,17 +834,20 @@ function drawMap(digest) {
     const controls = el('div', { class: 'rubin-map-controls' });
     controls.append(zoomIn, zoomOut, reset, findLight, readout);
 
-    /* Where the map can go. The three places are always there, the current one marked, so
-       a keyboard's focus is never left on a button that has gone; the two close-ups appear
-       on arriving at Alpha Centauri. */
+    /* Where the map can go: a list of the bodies, nearest first, showing the one the map is
+       at, and a button for the view that holds them all, pressed while there, when the list
+       asks for a choice instead (owner, 2026-11-14). Both are always there, so a keyboard's
+       focus is never left on a control that has gone; the two close-ups appear on arriving
+       at Alpha Centauri. */
     const travel = el('div', { class: 'rubin-map-controls rubin-map-travel', role: 'group', 'aria-label': 'Go to another place on the map' });
     travel.append(el('span', { class: 'rubin-map-travel-label' }, 'Go to:'));
-    for (const [target, label] of [[PLACES.sun, 'The Sun'], [PLACES.both, 'Both systems'], [PLACES.centauri, 'Alpha Centauri']]) {
-        const button = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, label);
-        button.addEventListener('click', () => goTo(target));
-        goButtons.set(target.id, button);
-        travel.append(button);
+    bodyPicker.append(el('option', { value: '', disabled: '' }, 'Choose a body'));
+    for (const target of [PLACES.sun, PLACES.centauri, PLACES.barnard, PLACES.luhman16]) {
+        bodyPicker.append(el('option', { value: target.id }, target.label));
     }
+    bodyPicker.addEventListener('change', () => { if (PLACES[bodyPicker.value]) goTo(PLACES[bodyPicker.value]); });
+    nearestButton.addEventListener('click', () => goTo(PLACES.both));
+    travel.append(bodyPicker, nearestButton);
     zoomOnRow.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
     for (const [label, body, radiusAU] of [['Proxima', system.proxima, 0.07], ['A and B', system.centre, 45]]) {
         const button = el('button', { type: 'button', class: 'rubin-tool' }, label);
@@ -861,7 +877,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to Alpha Centauri, the nearest star system, ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance: its three stars are where they are on that date, and A and B follow the paths drawn. The dashed circles there are planets' orbits at their right size; how they are tilted is not known, and the one at A is an unconfirmed candidate. The fainter dot in the view of both systems is Luhman 16, two brown dwarfs 6.5 light years away. The hatching covers everything beyond 1,000 AU from the Sun short of those stars, where nothing has yet been seen in place.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place.`,
     );
 
     const mapTable = table(
@@ -876,15 +892,16 @@ function drawMap(digest) {
         row.cells[0].replaceChildren(name);
     });
     const starsTable = table(
-        ['Star', 'From the Sun', 'Along the plane and out of it', 'Note'],
+        ['Body', 'From the Sun', 'Along the plane and out of it', 'Note'],
         [
             ['Alpha Centauri A', farDistanceText(system.a.r), farPlaneText(system.a), `${farDistanceText(system.apart)} from B on ${longDate(digest.date)}; a candidate planet about 2 AU out, unconfirmed`],
             ['Alpha Centauri B', farDistanceText(system.b.r), farPlaneText(system.b), `Orbits A every 79.8 years, between 11.2 and 35.6 AU apart`],
             ['Proxima Centauri', farDistanceText(system.proxima.r), farPlaneText(system.proxima), `${farDistanceText(system.proximaFromCentre)} from A and B; planets b and d, ${PLANET_ORBITS.filter((o) => o.star === 'proxima').map((o) => `${o.a.toFixed(3)} AU`).reverse().join(' and ')} out`],
-            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), 'Two brown dwarfs, too small to burn hydrogen as stars do, about 3.5 AU apart; not part of Alpha Centauri, but far enough below the plane to land in the view of both systems'],
+            ["Barnard's Star", farDistanceText(system.barnard.r), farPlaneText(system.barnard), `The nearest single star, crossing our sky faster than any other; four small planets, ${PLANET_ORBITS.filter((o) => o.star === 'barnard').map((o) => o.a.toFixed(3)).join(', ')} AU out`],
+            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), "Two Hydrogen Tundrs, about 34 and 28 times Jupiter's mass (usually called brown dwarfs), about 3.5 AU apart; not part of Alpha Centauri, but the third-nearest system to the Sun"],
         ],
     );
-    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest star system, where "Go to" takes the map, and the nearest brown dwarfs. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
+    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest bodies beyond the Sun, where "Go to" takes the map. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
     section.hidden = false;
     /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
        with the latter &zoom=proxima or pair. */

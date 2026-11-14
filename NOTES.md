@@ -3856,12 +3856,42 @@ map: the same map now reaches the nearest star system, with its stars in their t
   only, the hatching runs to the picture's edges (the brown out to Alpha Centauri is no
   better seen), returning to the round window on the way to either system.
 - **Luhman 16 AB** (owner, 2026-11-14): asked whether other stars fall in the view of both
-  systems, the answer was one - the nearest brown dwarfs, 6.5 light years away but 54
+  systems, the answer was one - two brown dwarfs, 6.5 light years away but 54
   degrees below the plane, so drawn 3.8 light years out, inside the picture. Barnard's Star
   (5.96 ly) lands just off its bottom edge; Wolf 359, WISE 0855-0714, Lalande 21185 and
   Sirius well outside. Drawn as a fainter dot, with a 4 AU clearing in the hatching, a row
   in the stars table, and a line in the caption. Parallax from Lazorenko & Sahlmann 2018;
   position and drift from Wikipedia's infobox (see js/centauri.js).
+- **Brown dwarfs are tundrs** (owner, 2026-11-14). By the site's definition (round, no
+  surface, no fusion going on) Luhman 16 A and B are Hydrogen Tundrs, the heaviest kind.
+  Considered and rejected: a fourth kind of body for them. The reasoning: from Jupiter's
+  mass to about 80 times it these bodies are built alike (no surface, about Jupiter's size,
+  held up by electron pressure, slowly cooling); the deuterium burning above about 13
+  Jupiter masses is brief and leaves them the same kind of body, and the 13 line is a
+  convention; the real change is at the star line, where hydrogen burning sustains itself.
+  So: planets have a surface, tundrs have neither surface nor sustained fusion, stars have
+  sustained fusion - each a test of what a body is now. The dialog gained a paragraph, "Up
+  to the star line", saying the heaviest smoulder when young and are usually called brown
+  dwarfs; "never lit" became "never lit as a star". The map's details name the usual term
+  once, so it can be looked up. Masses about 34 and 28 Jupiters (Lazorenko & Sahlmann
+  2018).
+- **"Both systems" became "Nearest bodies"** (owner, 2026-11-14), since the view now holds
+  Luhman 16 too. Its id and `?place=both` are unchanged, so links keep working. The owner
+  expects Barnard's Star to join it eventually; it lands about 110px below the picture's
+  bottom edge at 750px, so the view would need pulling back by about a third.
+- **Barnard's Star, and a list of places** (owner, 2026-11-14). Barnard's Star joined the
+  map (Gaia DR3; 5.96 ly, 28 degrees above the plane, drifting about 19 AU a year), with
+  its four planets as orbit sizes (periods from Basant et al. 2025, sizes by Kepler's law
+  at 0.162 Suns, matching c's published 0.0274 AU). The nearest-bodies view pulls back to
+  hold it (radius from the farthest body, now 360,000 AU). "Go to" became a list of the
+  bodies, nearest first - The Sun, Alpha Centauri, Barnard's Star, Luhman 16 - showing the
+  one the map is at, beside the "Nearest bodies" button, which is pressed while there and
+  the list then reads "Choose a body". Each body has its own place (`places`), so
+  `?place=barnard|luhman16` work too. Luhman 16's place is 10 AU across its 4 AU clearing:
+  one dot, since where the two tundrs are on their orbit is not drawn. The list's arrow is
+  drawn in the text colour, as the games' lists do. A system now becomes one dot below
+  20px, not 14, or Alpha Centauri came out as two dots with one name in the pulled-back
+  view.
 - **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
   views could be photographed with headless Edge (which cannot click), and kept because a
   link straight to Alpha Centauri is a fair thing to want.

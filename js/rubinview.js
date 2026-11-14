@@ -395,9 +395,11 @@ export function planeText(entry) {
  *
  * The site's stance (NOTES.md): a planet is rounded by its own gravity, has a surface, and
  * has no fusion in its core. The four giants have no surface, so the site calls them
- * tundrs (Old Norse for tinder: ready but never lit), each kind named after what it is
- * mostly made of - never after where it formed, as "gas giant" and "ice giant" are. The
- * page explains this in a dialog wherever the word appears. */
+ * tundrs (Old Norse for tinder: ready but never lit as a star), each kind named after what
+ * it is mostly made of - never after where it formed, as "gas giant" and "ice giant" are.
+ * Brown dwarfs are the heaviest hydrogen tundrs, up to the star line at about 80 Jupiter
+ * masses (owner, 2026-11-14). The page explains this in a dialog wherever the word
+ * appears. */
 export const TUNDRS = { Jupiter: 'hydrogen', Saturn: 'hydrogen', Uranus: 'water', Neptune: 'water' };
 export const KIND_LABEL = { planet: 'Planet', hydrogen: 'Hydrogen Tundr', water: 'Water Tundr' };
 export const bodyKind = (name) => TUNDRS[name] ?? 'planet';

@@ -2602,6 +2602,26 @@ main.rubin {
     display: none;
 }
 
+/* The list of bodies to go to. The native arrow is drawn in the system's colour, which
+   on this brown can vanish, so a caret in the text colour is drawn instead, as the games'
+   lists do; the open list's options get the page's colours for the same reason. */
+.rubin-map-go {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 34px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, #e3e7af 50%),
+        linear-gradient(135deg, #e3e7af 50%, transparent 50%);
+    background-position: calc(100% - 20px) center, calc(100% - 14px) center;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.rubin-map-go option {
+    background: #3b3026;
+    color: #e3e7af;
+}
+
 .rubin-map-travel .rubin-tool[aria-pressed="true"] {
     background: #e3e7af;
     color: #3b3026;
