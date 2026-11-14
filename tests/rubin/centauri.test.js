@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     centauriOn, binaryOnSky, binaryOffset, places, BINARY, BINARY_A_AU, PLANET_ORBITS, SEEN_NEAR, AU_PER_LIGHT_YEAR,
-    farDistanceText, farPlaneText, yearOf,
+    farDistanceText, farPlaneText, yearOf, SAG_A, towardSagA, LUHMAN_ORBIT,
 } from '../../js/centauri.js';
 import { CENTAURI, UNSEEN_FROM_AU } from '../../js/light.js';
 import {
@@ -336,8 +336,8 @@ describe('The page', () => {
 describe('Luhman 16, two Hydrogen Tundrs', () => {
     const { luhman16 } = system;
 
-    test('6.50 light years away, well below the plane', () => {
-        expect(luhman16.r / AU_PER_LIGHT_YEAR).toBeCloseTo(6.50, 2);
+    test('6.51 light years away, well below the plane', () => {
+        expect(luhman16.r / AU_PER_LIGHT_YEAR).toBeCloseTo(6.51, 2);
         expect(Math.asin(luhman16.z / luhman16.r) * 180 / Math.PI).toBeCloseTo(-53.9, 0);
         expect(Math.hypot(luhman16.x, luhman16.y) / AU_PER_LIGHT_YEAR).toBeCloseTo(3.83, 1);
     });
@@ -371,5 +371,59 @@ describe("Barnard's Star, the nearest single star", () => {
         expect(P.barnard.radiusAU).toBeGreaterThan(Math.max(...PLANET_ORBITS.filter((o) => o.star === 'barnard').map((o) => o.a)));
         expect([P.luhman16.cx, P.luhman16.cy]).toEqual([system.luhman16.x, system.luhman16.y]);
         expect(P.luhman16.radiusAU).toBeGreaterThan(SEEN_NEAR.luhman16);
+    });
+});
+
+describe('Toward SagA', () => {
+    test('the centre of the galaxy lies at ecliptic longitude 267 degrees, 5.6 below the plane', () => {
+        const way = towardSagA();
+        expect(Math.hypot(way.x, way.y)).toBeCloseTo(1, 12);
+        expect((Math.atan2(way.y, way.x) * 180 / Math.PI + 360) % 360).toBeCloseTo(266.8, 0);
+        expect(way.below).toBeCloseTo(5.6, 0);
+    });
+
+    test("Barnard's Star lies almost the same way", () => {
+        const way = towardSagA();
+        const { x, y } = system.barnard;
+        const apart = Math.acos((way.x * x + way.y * y) / Math.hypot(x, y)) * 180 / Math.PI;
+        expect(apart).toBeLessThan(5);
+    });
+
+    test('26,670 light years away', () => {
+        expect(SAG_A.lightYears).toBe(26670);
+    });
+});
+
+describe('Luhman 16 A and B on their orbit (Bedin et al. 2024)', () => {
+    const { luhmanPair: pair } = system;
+    const { aAU, e, massA, massB } = LUHMAN_ORBIT;
+
+    test('closest at the 2018 periastron, 2.31 AU apart', () => {
+        expect(centauriOn(2018.009).luhmanPair.apart).toBeCloseTo(aAU * (1 - e), 3);
+    });
+
+    test('always between 2.3 and 4.6 AU apart, and back where they were after 25.5 years', () => {
+        expect(pair.apart).toBeGreaterThan(aAU * (1 - e) - 1e-9);
+        expect(pair.apart).toBeLessThan(aAU * (1 + e) + 1e-9);
+        const later = centauriOn(YEAR + LUHMAN_ORBIT.period).luhmanPair;
+        expect(later.apart).toBeCloseTo(pair.apart, 6);
+    });
+
+    test('about their centre of gravity, the heavier A closer to it', () => {
+        const from = (body) => Math.hypot(body.x - pair.centre.x, body.y - pair.centre.y, body.z - pair.centre.z);
+        expect(from(pair.a) / from(pair.b)).toBeCloseTo(massB / massA, 9);
+        expect(from(pair.a) + from(pair.b)).toBeCloseTo(pair.apart, 9);
+    });
+
+    test('inside the clearing in the hatching made for them', () => {
+        for (const body of [...pair.paths.a, ...pair.paths.b]) {
+            expect(Math.hypot(body.x - pair.centre.x, body.y - pair.centre.y)).toBeLessThan(SEEN_NEAR.luhman16);
+        }
+    });
+
+    test('far enough apart on screen at their own view to be told apart', () => {
+        const P = places(system, 200);
+        const view = initialView(P.luhman16.radiusAU, 750, [P.luhman16.cx, P.luhman16.cy]);
+        expect(Math.hypot(pair.b.x - pair.a.x, pair.b.y - pair.a.y) * view.scale).toBeGreaterThan(12);
     });
 });

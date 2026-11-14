@@ -10,10 +10,12 @@
  *   - Proxima's planets: b from Anglada-Escude et al. 2016, d from Faria et al. 2022; the
  *     candidate at A from Beichman, Sanghi et al. 2025 (arXiv:2508.03814).
  *   - Luhman 16 AB, two hydrogen tundrs (brown dwarfs, as usually called; the site counts
- *     them as the heaviest tundrs, owner 2026-11-14) and the one other body in the view of both
- *     systems: parallax from Lazorenko & Sahlmann 2018 (arXiv:1808.07835); position and
- *     drift from Wikipedia's infobox, read 2026-11-14. The position is taken as of 2000,
- *     which agrees with its WISE name (J104915.57-531906.1, a 2010 position) and its drift.
+ *     them as the heaviest tundrs, owner 2026-11-14): their centre of gravity, drift,
+ *     parallax, masses and orbit about each other from Bedin et al. 2024, AN 345, e20230158
+ *     (arXiv:2403.08865), tables 1 and 3 - the orbit is table 3's MCMC fit, the one table 2
+ *     whose numbers could be read. Table 1 does not print the position's epoch beside it;
+ *     2000 fits both its 2MASS and WISE names (positions of about 2000 and 2010), and a
+ *     wrong guess would move it about 90 AU, less than a pixel where it is not the centre.
  *   - Barnard's Star: Gaia DR3 (source 4472832130942575872), position at 2016.0, checked
  *     against Wikipedia's J2000 position and the drift between. Its four planets: periods
  *     from Basant et al. 2025 (ApJL 982, L1), orbit sizes from those by Kepler's third law
@@ -34,7 +36,7 @@ const OBLIQUITY = 23.4392911 * DEG;
 export const SKY = {
     centre: { ra: 219.85892215, dec: -60.83163195, epoch: 2019.5, pmRa: -3639.95, pmDec: 700.40, parallax: 750.81 },
     proxima: { ra: 217.428953, dec: -62.679484, epoch: 2000.0, pmRa: -3781.741, pmDec: 769.465, parallax: 768.0665 },
-    luhman16: { ra: 162.3282125, dec: -53.3194111, epoch: 2000.0, pmRa: -2768.511, pmDec: 358.472, parallax: 501.557 },
+    luhman16: { ra: 162.32821578, dec: -53.31941054, epoch: 2000.0, pmRa: -2768.511, pmDec: 358.472, parallax: 500.993 },
     barnard: { ra: 269.4485025, dec: 4.7394201, epoch: 2016.0, pmRa: -801.551, pmDec: 10362.394, parallax: 546.9759 },
 };
 
@@ -46,6 +48,16 @@ export const BINARY = {
     massA: 1.0788, massB: 0.9092,
 };
 export const BINARY_A_AU = BINARY.aArcsec / (SKY.centre.parallax / 1000);
+const ALPHA_CEN_ORBIT = { ...BINARY, aAU: BINARY_A_AU };
+
+/* Luhman 16 B's orbit about A (Bedin et al. 2024, table 3), the same way round; masses in
+   Jupiter's. Without a measured velocity, which node is which is assumed as for Alpha
+   Centauri: if it is the other way, A and B are mirrored front to back, a few AU. */
+export const LUHMAN_ORBIT = {
+    period: 25.508, periastron: 2018.009, e: 0.3262, aAU: 3.426,
+    i: 79.804, node: 130.143, peri: 135.13,
+    massA: 35.4, massB: 29.4,
+};
 
 /* The planets. Sizes of orbit only: their tilt, and where each planet is along its orbit
    as seen from above, are not known. */
@@ -104,15 +116,15 @@ function eccentricAnomaly(mean, e) {
 }
 
 /* B as seen from A in a year: across the sky (north and east, in AU) and along our line
-   of sight (away from us positive). */
-export function binaryOffset(year) {
-    const { period, periastron, e } = BINARY;
+   of sight (away from us positive). Alpha Centauri's pair unless another orbit is given. */
+export function binaryOffset(year, orbit = ALPHA_CEN_ORBIT) {
+    const { period, periastron, e } = orbit;
     const mean = 2 * Math.PI * (((year - periastron) / period) % 1);
     const E = eccentricAnomaly(mean, e);
-    const r = BINARY_A_AU * (1 - e * Math.cos(E));
+    const r = orbit.aAU * (1 - e * Math.cos(E));
     const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
-    const u = nu + BINARY.peri * DEG;
-    const node = BINARY.node * DEG, i = BINARY.i * DEG;
+    const u = nu + orbit.peri * DEG;
+    const node = orbit.node * DEG, i = orbit.i * DEG;
     return {
         north: r * (Math.cos(u) * Math.cos(node) - Math.sin(u) * Math.sin(node) * Math.cos(i)),
         east: r * (Math.cos(u) * Math.sin(node) + Math.sin(u) * Math.cos(node) * Math.cos(i)),
@@ -131,45 +143,72 @@ export function binaryOnSky(year) {
 }
 
 /* The pair's offsets from their centre of gravity, in the map's frame. */
-function pairAbout(centreSky, year) {
-    const { north, east, away } = binaryOffset(year);
+function pairAbout(centreSky, year, orbit) {
+    const { north, east, away } = binaryOffset(year, orbit);
     const frame = skyFrame(centreSky.ra, centreSky.dec);
     const relative = toEcliptic([0, 1, 2].map((k) => north * frame.north[k] + east * frame.east[k] + away * frame.out[k]));
-    const total = BINARY.massA + BINARY.massB;
+    const total = orbit.massA + orbit.massB;
     return {
-        a: relative.map((v) => -v * BINARY.massB / total),
-        b: relative.map((v) => v * BINARY.massA / total),
+        a: relative.map((v) => -v * orbit.massB / total),
+        b: relative.map((v) => v * orbit.massA / total),
+    };
+}
+
+/* A pair in a year: its centre of gravity, A and B, each { x, y, z, r } in AU from the
+   Sun, how far apart they are, and the paths A and B trace about their centre over one
+   orbit. */
+function pairOn(centreSky, orbit, year, pathSteps) {
+    const centre = place(centreSky, year);
+    const add = (offset) => point(centre.map((v, k) => v + offset[k]));
+    const now = pairAbout(centreSky, year, orbit);
+    const paths = { a: [], b: [] };
+    for (let k = 0; k < pathSteps; k++) {
+        const at = pairAbout(centreSky, year + (k / pathSteps) * orbit.period, orbit);
+        paths.a.push(add(at.a));
+        paths.b.push(add(at.b));
+    }
+    return {
+        centre: point(centre),
+        a: add(now.a),
+        b: add(now.b),
+        paths,
+        apart: Math.hypot(now.b[0] - now.a[0], now.b[1] - now.a[1], now.b[2] - now.a[2]),
     };
 }
 
 /* The system in a year: the pair's centre of gravity, A, B and Proxima, each { x, y, z, r }
    in AU from the Sun, and the paths A and B trace about their centre over one orbit. */
 export function centauriOn(year, { pathSteps = 96 } = {}) {
-    const centre = place(SKY.centre, year);
-    const add = (offset) => point(centre.map((v, k) => v + offset[k]));
-    const now = pairAbout(SKY.centre, year);
-    const paths = { a: [], b: [] };
-    for (let k = 0; k < pathSteps; k++) {
-        const at = pairAbout(SKY.centre, year + (k / pathSteps) * BINARY.period);
-        paths.a.push(add(at.a));
-        paths.b.push(add(at.b));
-    }
+    const pair = pairOn(SKY.centre, ALPHA_CEN_ORBIT, year, pathSteps);
+    const centre = [pair.centre.x, pair.centre.y, pair.centre.z];
     const proxima = point(place(SKY.proxima, year));
+    const luhman = pairOn(SKY.luhman16, LUHMAN_ORBIT, year, pathSteps);
     return {
-        centre: point(centre),
-        a: add(now.a),
-        b: add(now.b),
+        ...pair,
         proxima,
-        paths,
-        apart: Math.hypot(now.b[0] - now.a[0], now.b[1] - now.a[1], now.b[2] - now.a[2]),
         proximaFromCentre: Math.hypot(proxima.x - centre[0], proxima.y - centre[1], proxima.z - centre[2]),
         /* Not part of the system: 6.5 light years away, but far enough below the plane that
-           it lands inside the view of both. */
-        luhman16: point(place(SKY.luhman16, year)),
+           it lands inside the view of both. Its centre of gravity, and its pair as above. */
+        luhman16: luhman.centre,
+        luhmanPair: luhman,
         /* Nor this: the nearest single star, 5.96 light years away. Its drift across our
            sky, the fastest of any star, is about 19 AU a year at its distance. */
         barnard: point(place(SKY.barnard, year)),
     };
+}
+
+/* ---- Toward the centre of the galaxy -----------------------------------------------------
+ *
+ * Sagittarius A* ("SagA" on the map, the owner's word), the black hole at the centre of the
+ * Milky Way: its radio position (Reid & Brunthaler 2004, J2000), and its distance and mass
+ * from the GRAVITY collaboration (2019: 8.178 kpc; 2022: 4.30 million Suns). The map shows
+ * only which way it is: the direction along the plane, as a unit vector. */
+export const SAG_A = { ra: 266.4168371, dec: -29.0078106, lightYears: 26670, millionSuns: 4.3 };
+
+export function towardSagA() {
+    const [x, y, z] = toEcliptic(skyFrame(SAG_A.ra, SAG_A.dec).out);
+    const along = Math.hypot(x, y);
+    return { x: x / along, y: y / along, below: -Math.asin(z) / DEG };
 }
 
 /* ---- Places on the map --------------------------------------------------------------------
@@ -195,7 +234,7 @@ export function places(system, sunRadiusAU) {
         both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, dark: 0.65 },
         centauri: { id: 'centauri', name: 'Alpha Centauri', label: 'Alpha Centauri', cx: centre.x, cy: centre.y, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, dark: 1 },
         /* Room for the clearing about the two tundrs, and for Barnard's Star's planets. */
-        luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, radiusAU: 10, dark: 1 },
+        luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, radiusAU: 6, dark: 1 },
         barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, radiusAU: 0.05, dark: 1 },
     };
 }

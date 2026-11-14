@@ -24,7 +24,7 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C } from '../js/rubincolors.js';
-import { centauriOn, places, PLANET_ORBITS, SEEN_NEAR, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { centauriOn, places, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -355,6 +355,8 @@ function drawMap(digest) {
     let place = PLACES.sun;
     /* The animation frame of a journey under way, or 0. */
     let travelling = 0;
+    /* Which way the centre of the galaxy is, along the map's plane. */
+    const SAG_A_WAY = towardSagA();
     /* A whole system is drawn as one dot once its map is smaller than this on screen. (At
        14, pulled back to the nearest bodies, Alpha Centauri came out as two dots with one
        name between them.) */
@@ -667,11 +669,25 @@ function drawMap(digest) {
             }
         }
 
-        star(system.luhman16, 'Luhman 16 AB', 3, [
-            ["About 34 and 28 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
-            ['Found in 2013:', 'the third-nearest system to the Sun'],
-            ...far(system.luhman16),
-        ], { kind: 'two Hydrogen Tundrs', fill: C.muted });
+        /* Luhman 16: one dot until there is room, then A and B apart, on the paths they
+           trace about their centre of gravity (Bedin et al. 2024), as for Alpha Centauri. */
+        const luhman = system.luhmanPair;
+        const tundrs = { kind: 'Hydrogen Tundr', fill: C.muted };
+        if (Math.hypot(luhman.b.x - luhman.a.x, luhman.b.y - luhman.a.y) * view.scale < 12) {
+            star(luhman.centre, 'Luhman 16 AB', 3, [
+                ["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
+                ['Found in 2013:', 'the third-nearest system to the Sun'],
+                ...far(luhman.centre),
+            ], { ...tundrs, kind: 'two Hydrogen Tundrs' });
+        } else {
+            for (const path of [luhman.paths.a, luhman.paths.b]) {
+                const points = path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+                parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+            }
+            const apart = [farDistanceText(luhman.apart), 'apart on this date; round each other every 25.5 years'];
+            star(luhman.a, 'Luhman 16 A', 3.5, [["About 35 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.a), apart], tundrs);
+            star(luhman.b, 'Luhman 16 B', 3, [["About 29 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.b), apart], tundrs);
+        }
         /* Barnard's Star, with its four planets' orbits once zoomed in on it. */
         PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => orbitOf(system.barnard, o));
         star(system.barnard, "Barnard's Star", 3, [
@@ -679,6 +695,32 @@ function drawMap(digest) {
             ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
             ...far(system.barnard),
         ]);
+
+        /* In the view of the nearest bodies, which way the centre of the galaxy is (owner,
+           2026-11-14). A direction, not a place, so it sits in the corner rather than on the
+           line from the Sun - where it would land on Barnard's Star, almost the same way. */
+        if (place.id === 'both') {
+            const [ax, ay] = [SIZE - 48, SIZE - 64];
+            const [dx, dy] = [SAG_A_WAY.x, -SAG_A_WAY.y];
+            const end = (k) => [ax + dx * k, ay + dy * k];
+            const [hx, hy] = end(22);
+            const head = (turn) => {
+                const c = Math.cos(turn), s = Math.sin(turn);
+                return `${(hx + (dx * c - dy * s) * 9).toFixed(1)},${(hy + (dx * s + dy * c) * 9).toFixed(1)}`;
+            };
+            const g = svg('g', { class: 'rubin-mark rubin-toward' });
+            g.append(svg('rect', { x: ax - 120, y: ay - 34, width: 140, height: 68, fill: 'transparent' }));
+            g.append(svg('line', { x1: end(-22)[0], y1: end(-22)[1], x2: hx, y2: hy, stroke: C.text, 'stroke-width': 1.5 }));
+            g.append(svg('polyline', { points: `${head(Math.PI * 5 / 6)} ${hx.toFixed(1)},${hy.toFixed(1)} ${head(-Math.PI * 5 / 6)}`, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
+            g.append(svg('text', { x: ax - 14, y: ay + 4, 'text-anchor': 'end', class: 'rubin-axis' }, 'Toward SagA'));
+            attachDetails(g, [
+                ['Toward SagA:', 'Sagittarius A*, the supermassive black hole at the centre of the Milky Way'],
+                [`${SAG_A.lightYears.toLocaleString('en-US')} light years away,`, `about ${SAG_A.millionSuns} million times the Sun's mass`],
+                ['The Sun and its neighbours orbit it', 'once in about 230 million years'],
+                ["Barnard's Star lies almost the same way", 'on our sky'],
+            ]);
+            parts.push(g);
+        }
 
         for (const { entry, kind } of solar ? data.marks : []) {
             const [x, y] = toScreen(view, entry.now.x, entry.now.y);
@@ -877,7 +919,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place.`,
     );
 
     const mapTable = table(
@@ -898,7 +940,7 @@ function drawMap(digest) {
             ['Alpha Centauri B', farDistanceText(system.b.r), farPlaneText(system.b), `Orbits A every 79.8 years, between 11.2 and 35.6 AU apart`],
             ['Proxima Centauri', farDistanceText(system.proxima.r), farPlaneText(system.proxima), `${farDistanceText(system.proximaFromCentre)} from A and B; planets b and d, ${PLANET_ORBITS.filter((o) => o.star === 'proxima').map((o) => `${o.a.toFixed(3)} AU`).reverse().join(' and ')} out`],
             ["Barnard's Star", farDistanceText(system.barnard.r), farPlaneText(system.barnard), `The nearest single star, crossing our sky faster than any other; four small planets, ${PLANET_ORBITS.filter((o) => o.star === 'barnard').map((o) => o.a.toFixed(3)).join(', ')} AU out`],
-            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), "Two Hydrogen Tundrs, about 34 and 28 times Jupiter's mass (usually called brown dwarfs), about 3.5 AU apart; not part of Alpha Centauri, but the third-nearest system to the Sun"],
+            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), `Two Hydrogen Tundrs, about 35 and 29 times Jupiter's mass (usually called brown dwarfs), ${farDistanceText(system.luhmanPair.apart)} apart on ${longDate(digest.date)} and rounding each other every 25.5 years; not part of Alpha Centauri, but the third-nearest system to the Sun`],
         ],
     );
     section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest bodies beyond the Sun, where "Go to" takes the map. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);

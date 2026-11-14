@@ -3873,8 +3873,8 @@ map: the same map now reaches the nearest star system, with its stars in their t
   sustained fusion - each a test of what a body is now. The dialog gained a paragraph, "Up
   to the star line", saying the heaviest smoulder when young and are usually called brown
   dwarfs; "never lit" became "never lit as a star". The map's details name the usual term
-  once, so it can be looked up. Masses about 34 and 28 Jupiters (Lazorenko & Sahlmann
-  2018).
+  once, so it can be looked up. Masses about 35 and 29 Jupiters (Bedin et al. 2024; first
+  written as 34 and 28 from earlier work).
 - **"Both systems" became "Nearest bodies"** (owner, 2026-11-14), since the view now holds
   Luhman 16 too. Its id and `?place=both` are unchanged, so links keep working. The owner
   expects Barnard's Star to join it eventually; it lands about 110px below the picture's
@@ -3892,6 +3892,21 @@ map: the same map now reaches the nearest star system, with its stars in their t
   drawn in the text colour, as the games' lists do. A system now becomes one dot below
   20px, not 14, or Alpha Centauri came out as two dots with one name in the pulled-back
   view.
+- **Toward SagA** (owner, 2026-11-14). In the nearest-bodies view an arrow in the lower
+  right corner points along the plane toward Sagittarius A*, labelled in the owner's word,
+  "Toward SagA"; its details say what it is (the supermassive black hole at the centre of
+  the Milky Way, 26,670 light years, 4.3 million Suns - GRAVITY 2019 and 2022; position
+  Reid & Brunthaler 2004). It is a direction, not a place, so it sits in the corner: on the
+  line from the Sun it would land on Barnard's Star, which lies within 5 degrees of the
+  same way. `towardSagA` in js/centauri.js.
+- **Luhman 16 A and B apart** (owner, 2026-11-14: "I don't see any separation ever"). They
+  were one dot because no orbit was in the code. Now their orbit is from Bedin et al. 2024
+  table 3 (the MCMC fit; table 2, the paper's main fit, did not come out of the PDF as
+  text): 25.5 years, 3.43 AU, e 0.33, periastron 2018.0. The paper's barycentre, drift and
+  parallax replace the earlier ones (6.51 ly now). Drawn like Alpha Centauri - one dot
+  until 12px apart, then two on their paths - using the same orbit code (`pairOn`,
+  `binaryOffset(year, orbit)`). Which node is which is assumed as for Alpha Centauri. Their
+  own view is now 6 AU across, so the pair fills it.
 - **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
   views could be photographed with headless Edge (which cannot click), and kept because a
   link straight to Alpha Centauri is a fair thing to want.
