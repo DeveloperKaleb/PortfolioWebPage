@@ -9,6 +9,10 @@
  *   - Proxima: Gaia DR3, as given by SIMBAD and Wikipedia's infobox.
  *   - Proxima's planets: b from Anglada-Escude et al. 2016, d from Faria et al. 2022; the
  *     candidate at A from Beichman, Sanghi et al. 2025 (arXiv:2508.03814).
+ *   - Luhman 16 AB, the nearest brown dwarfs and the one other body in the view of both
+ *     systems: parallax from Lazorenko & Sahlmann 2018 (arXiv:1808.07835); position and
+ *     drift from Wikipedia's infobox, read 2026-11-14. The position is taken as of 2000,
+ *     which agrees with its WISE name (J104915.57-531906.1, a 2010 position) and its drift.
  * What is not known is said, not drawn: nobody has measured how the planets' orbits are
  * tilted, so they are given as sizes only (PLANET_ORBITS).
  */
@@ -25,6 +29,7 @@ const OBLIQUITY = 23.4392911 * DEG;
 export const SKY = {
     centre: { ra: 219.85892215, dec: -60.83163195, epoch: 2019.5, pmRa: -3639.95, pmDec: 700.40, parallax: 750.81 },
     proxima: { ra: 217.428953, dec: -62.679484, epoch: 2000.0, pmRa: -3781.741, pmDec: 769.465, parallax: 768.0665 },
+    luhman16: { ra: 162.3282125, dec: -53.3194111, epoch: 2000.0, pmRa: -2768.511, pmDec: 358.472, parallax: 501.557 },
 };
 
 /* B's orbit about A (Akeson et al. 2021): period in years, the year of a closest approach,
@@ -148,6 +153,9 @@ export function centauriOn(year, { pathSteps = 96 } = {}) {
         paths,
         apart: Math.hypot(now.b[0] - now.a[0], now.b[1] - now.a[1], now.b[2] - now.a[2]),
         proximaFromCentre: Math.hypot(proxima.x - centre[0], proxima.y - centre[1], proxima.z - centre[2]),
+        /* Not part of the system: 6.5 light years away, but far enough below the plane that
+           it lands inside the view of both. */
+        luhman16: point(place(SKY.luhman16, year)),
     };
 }
 
@@ -159,8 +167,9 @@ export function centauriOn(year, { pathSteps = 96 } = {}) {
  * picture's half-width. Both systems are seen from the Sun, with the rings about it and a
  * smaller window, so Alpha Centauri sits out near the edge (owner, 2026-11-14). */
 /* Around the other system's bodies the hatching stops: within the pair's widest reach of
-   their centre, and within Proxima's planets' orbits. */
-export const SEEN_NEAR = { pair: 40, proxima: 0.1 };
+   their centre, and within Proxima's planets' orbits. Likewise about Luhman 16's two brown
+   dwarfs, about 3.5 AU apart. */
+export const SEEN_NEAR = { pair: 40, proxima: 0.1, luhman16: 4 };
 
 export function places(system, sunRadiusAU) {
     const { centre, proxima } = system;

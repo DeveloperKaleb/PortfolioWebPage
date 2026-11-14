@@ -364,9 +364,13 @@ function drawMap(digest) {
     /* The map is a round window (the stylesheet fades its dark centre into the page's brown
        by the window's edge), so the hatching is round too, and a little wider than the
        dark: out to nine tenths of the window (owner, 2026-11-13). The window is smaller in
-       the view of both systems (places), and grows or shrinks on the way. */
+       the view of both systems (places), and grows or shrinks on the way. There the
+       hatching runs to the picture's edges instead, since the brown between the window
+       and Alpha Centauri is no better seen (owner, 2026-11-14). */
+    const hatchFor = (p) => (p.dark < 1 ? SIZE * Math.SQRT1_2 : (p.dark * SIZE / 2) * 0.9);
     let windowPx = SIZE / 2;
-    const windowCircle = svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: windowPx * 0.9 });
+    let hatchPx = hatchFor(PLACES.sun);
+    const windowCircle = svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: hatchPx });
     const mapWindow = svg('clipPath', { id: 'rubin-map-window' });
     mapWindow.append(windowCircle);
     const mapDefs = svg('defs');
@@ -525,7 +529,7 @@ function drawMap(digest) {
         const labels = [];
         const reachAU = (SIZE * Math.SQRT1_2) / view.scale;
         plot.style.setProperty('--map-window', `${windowPx.toFixed(1)}px`);
-        windowCircle.setAttribute('r', (windowPx * 0.9).toFixed(1));
+        windowCircle.setAttribute('r', hatchPx.toFixed(1));
 
         /* Where nothing has been seen: everything beyond 1,000 AU from the Sun, up to the
            other system's bodies. Drawn first, under everything, and it says why on hover
@@ -534,7 +538,8 @@ function drawMap(digest) {
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
             { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
             { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
-        ], windowPx * 0.9);
+            { x: system.luhman16.x, y: system.luhman16.y, radiusAU: SEEN_NEAR.luhman16 },
+        ], hatchPx);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
@@ -547,7 +552,7 @@ function drawMap(digest) {
            close-up as a row of straight lines, which says nothing.) Only the rings that
            cross the picture (ringRadii). */
         const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
-        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
+        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima, system.luhman16].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
         const [rx, ry] = toScreen(view, ringsAbout.x, ringsAbout.y);
         for (const r of ringRadii(view, fromMiddle(ringsAbout))) {
             parts.push(svg('circle', { cx: rx, cy: ry, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
@@ -612,14 +617,15 @@ function drawMap(digest) {
             if (ringPx >= PLANET_LABEL_PX) labels.push({ x: mx, y: my, text: m.name, rank: 1e7 });
         }
         if (solar) parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
-        /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. */
-        const star = (body, name, radius, rows) => {
+        /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. Luhman
+           16's brown dwarfs are marked the same way, fainter, and say what they are. */
+        const star = (body, name, radius, rows, { kind = 'star', fill = C.text } = {}) => {
             const [x, y] = toScreen(view, body.x, body.y);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
             const g = svg('g', { class: 'rubin-mark' });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
-            g.append(svg('circle', { cx: x, cy: y, r: radius, fill: C.text, stroke: C.space, 'stroke-width': 2 }));
-            attachDetails(g, [[name, 'star'], ...rows]);
+            g.append(svg('circle', { cx: x, cy: y, r: radius, fill, stroke: C.space, 'stroke-width': 2 }));
+            attachDetails(g, [[name, kind], ...rows]);
             parts.push(g);
             labels.push({ x, y, text: name, rank: Infinity });
         };
@@ -657,6 +663,11 @@ function drawMap(digest) {
                 }
             }
         }
+
+        star(system.luhman16, 'Luhman 16 AB', 3, [
+            ['Too small to burn hydrogen as stars do;', 'found in 2013, the third-nearest system to the Sun'],
+            ...far(system.luhman16),
+        ], { kind: 'two brown dwarfs', fill: C.muted });
 
         for (const { entry, kind } of solar ? data.marks : []) {
             const [x, y] = toScreen(view, entry.now.x, entry.now.y);
@@ -726,16 +737,18 @@ function drawMap(digest) {
         const direct = place === target || place.id === 'both' || target.id === 'both';
         const via = homeView(PLACES.both);
         const [fromWindow, toWindow] = [windowPx, (target.dark * SIZE) / 2];
+        const [fromHatch, toHatch] = [hatchPx, hatchFor(target)];
         place = target;
         showPlace();
         hideTooltip();
-        if (reducedMotion.matches) { view = toView; windowPx = toWindow; render(); return; }
+        if (reducedMotion.matches) { view = toView; windowPx = toWindow; hatchPx = toHatch; render(); return; }
         const ms = direct ? 1800 : 5000;
         const began = performance.now();
         const frame = (now) => {
             const t = Math.min(1, (now - began) / ms);
             view = t >= 1 ? toView : (direct ? glideView(from, toView, t) : journeyView(from, via, toView, t));
             windowPx = fromWindow + (toWindow - fromWindow) * t;
+            hatchPx = fromHatch + (toHatch - fromHatch) * t;
             travelling = t >= 1 ? 0 : requestAnimationFrame(frame);
             render();
         };
@@ -848,7 +861,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to Alpha Centauri, the nearest star system, ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance: its three stars are where they are on that date, and A and B follow the paths drawn. The dashed circles there are planets' orbits at their right size; how they are tilted is not known, and the one at A is an unconfirmed candidate. The hatching covers everything beyond 1,000 AU from the Sun short of those stars, where nothing has yet been seen in place.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to Alpha Centauri, the nearest star system, ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance: its three stars are where they are on that date, and A and B follow the paths drawn. The dashed circles there are planets' orbits at their right size; how they are tilted is not known, and the one at A is an unconfirmed candidate. The fainter dot in the view of both systems is Luhman 16, two brown dwarfs 6.5 light years away. The hatching covers everything beyond 1,000 AU from the Sun short of those stars, where nothing has yet been seen in place.`,
     );
 
     const mapTable = table(
@@ -868,9 +881,10 @@ function drawMap(digest) {
             ['Alpha Centauri A', farDistanceText(system.a.r), farPlaneText(system.a), `${farDistanceText(system.apart)} from B on ${longDate(digest.date)}; a candidate planet about 2 AU out, unconfirmed`],
             ['Alpha Centauri B', farDistanceText(system.b.r), farPlaneText(system.b), `Orbits A every 79.8 years, between 11.2 and 35.6 AU apart`],
             ['Proxima Centauri', farDistanceText(system.proxima.r), farPlaneText(system.proxima), `${farDistanceText(system.proximaFromCentre)} from A and B; planets b and d, ${PLANET_ORBITS.filter((o) => o.star === 'proxima').map((o) => `${o.a.toFixed(3)} AU`).reverse().join(' and ')} out`],
+            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), 'Two brown dwarfs, too small to burn hydrogen as stars do, about 3.5 AU apart; not part of Alpha Centauri, but far enough below the plane to land in the view of both systems'],
         ],
     );
-    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest star system, where "Go to" takes the map. Between 1,000 AU from the Sun and these stars: ${UNSEEN_TEXT}.`), starsTable);
+    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest star system, where "Go to" takes the map, and the nearest brown dwarfs. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
     section.hidden = false;
     /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
        with the latter &zoom=proxima or pair. */
@@ -880,6 +894,7 @@ function drawMap(digest) {
         const zoom = startAt.id === 'centauri' ? params.get('zoom') : null;
         view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45) : homeView(startAt);
         windowPx = (startAt.dark * SIZE) / 2;
+        hatchPx = hatchFor(startAt);
         showPlace();
     }
     render();

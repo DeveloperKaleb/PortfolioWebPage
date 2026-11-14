@@ -321,6 +321,25 @@ describe('The page', () => {
 
     test('a journey leaves visitors who asked for less motion where they are going, at once', () => {
         const page = readFileSync(resolve(root, 'rubin/rubin.js'), 'utf8');
-        expect(page).toContain('if (reducedMotion.matches) { view = toView; windowPx = toWindow; render(); return; }');
+        expect(page).toContain('if (reducedMotion.matches) { view = toView; windowPx = toWindow; hatchPx = toHatch; render(); return; }');
+    });
+});
+
+describe('Luhman 16, the nearest brown dwarfs', () => {
+    const { luhman16 } = system;
+
+    test('6.50 light years away, well below the plane', () => {
+        expect(luhman16.r / AU_PER_LIGHT_YEAR).toBeCloseTo(6.50, 2);
+        expect(Math.asin(luhman16.z / luhman16.r) * 180 / Math.PI).toBeCloseTo(-53.9, 0);
+        expect(Math.hypot(luhman16.x, luhman16.y) / AU_PER_LIGHT_YEAR).toBeCloseTo(3.83, 1);
+    });
+
+    test('inside the picture of both systems', () => {
+        const P = places(system, 200);
+        const [x, y] = toScreen(initialView(P.both.radiusAU, 750, [P.both.cx, P.both.cy]), luhman16.x, luhman16.y);
+        expect(x).toBeGreaterThan(0);
+        expect(x).toBeLessThan(750);
+        expect(y).toBeGreaterThan(0);
+        expect(y).toBeLessThan(750);
     });
 });

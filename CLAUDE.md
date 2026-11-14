@@ -151,7 +151,8 @@ under Vitest without a browser:
   its own. See NOTES.md.
 - `js/centauri.js` — the far end of the Solar System tab's map: where Alpha Centauri A and
   B and Proxima are on a date, in the map's frame, from their sky positions, parallaxes
-  and the pair's orbit; the three places the map can be; planets' orbits as sizes only.
+  and the pair's orbit, and Luhman 16 AB, the brown dwarfs in the view of both systems;
+  the three places the map can be; planets' orbits as sizes only.
   Tested against published measurements. See NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
   games' palettes in `logic.js` so the tab does not load the games' code. Held to the

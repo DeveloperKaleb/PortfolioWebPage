@@ -3852,7 +3852,16 @@ map: the same map now reaches the nearest star system, with its stars in their t
 - **Both systems is seen from the Sun** (owner, 2026-11-14): the view is centred on the
   Sun, so the rings are about it, with Alpha Centauri out near the edge, and the dark
   window is smaller there (0.65 of the half-width; `dark` in `places`). The map sets the
-  window's radius (`--map-window`), and it grows or shrinks over a journey.
+  window's radius (`--map-window`), and it grows or shrinks over a journey. In that view
+  only, the hatching runs to the picture's edges (the brown out to Alpha Centauri is no
+  better seen), returning to the round window on the way to either system.
+- **Luhman 16 AB** (owner, 2026-11-14): asked whether other stars fall in the view of both
+  systems, the answer was one - the nearest brown dwarfs, 6.5 light years away but 54
+  degrees below the plane, so drawn 3.8 light years out, inside the picture. Barnard's Star
+  (5.96 ly) lands just off its bottom edge; Wolf 359, WISE 0855-0714, Lalande 21185 and
+  Sirius well outside. Drawn as a fainter dot, with a 4 AU clearing in the hatching, a row
+  in the stars table, and a line in the caption. Parallax from Lazorenko & Sahlmann 2018;
+  position and drift from Wikipedia's infobox (see js/centauri.js).
 - **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
   views could be photographed with headless Edge (which cannot click), and kept because a
   link straight to Alpha Centauri is a fair thing to want.
