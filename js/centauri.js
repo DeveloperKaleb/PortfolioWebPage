@@ -155,7 +155,9 @@ export function centauriOn(year, { pathSteps = 96 } = {}) {
  *
  * The map can be in three places: at the Sun, as it always was; at Alpha Centauri; and
  * pulled back until both are in view. Each is a centre and a radius to fit, in AU along
- * the map's plane. */
+ * the map's plane, and how wide the map's dark window is there (dark), as a share of the
+ * picture's half-width. Both systems are seen from the Sun, with the rings about it and a
+ * smaller window, so Alpha Centauri sits out near the edge (owner, 2026-11-14). */
 /* Around the other system's bodies the hatching stops: within the pair's widest reach of
    their centre, and within Proxima's planets' orbits. */
 export const SEEN_NEAR = { pair: 40, proxima: 0.1 };
@@ -163,11 +165,11 @@ export const SEEN_NEAR = { pair: 40, proxima: 0.1 };
 export function places(system, sunRadiusAU) {
     const { centre, proxima } = system;
     const reach = Math.hypot(proxima.x - centre.x, proxima.y - centre.y);
-    const half = Math.hypot(centre.x, centre.y) / 2;
+    const away = Math.hypot(centre.x, centre.y);
     return {
-        sun: { id: 'sun', name: 'the Sun', cx: 0, cy: 0, radiusAU: sunRadiusAU },
-        both: { id: 'both', name: 'both systems', cx: centre.x / 2, cy: centre.y / 2, radiusAU: Math.ceil((half + reach) * 1.08 / 10000) * 10000 },
-        centauri: { id: 'centauri', name: 'Alpha Centauri', cx: centre.x, cy: centre.y, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000 },
+        sun: { id: 'sun', name: 'the Sun', cx: 0, cy: 0, radiusAU: sunRadiusAU, dark: 1 },
+        both: { id: 'both', name: 'both systems', cx: 0, cy: 0, radiusAU: Math.ceil((away + reach) * 1.08 / 10000) * 10000, dark: 0.65 },
+        centauri: { id: 'centauri', name: 'Alpha Centauri', cx: centre.x, cy: centre.y, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, dark: 1 },
     };
 }
 

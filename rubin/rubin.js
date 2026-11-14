@@ -361,12 +361,14 @@ function drawMap(digest) {
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
     mapHatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-    const UNSEEN_REACH_PX = (SIZE / 2) * 0.9;
     /* The map is a round window (the stylesheet fades its dark centre into the page's brown
-       by the picture's edge), so the hatching is round too, and a little wider than the
-       dark: out to nine tenths of the way to the edge (owner, 2026-11-13). */
+       by the window's edge), so the hatching is round too, and a little wider than the
+       dark: out to nine tenths of the window (owner, 2026-11-13). The window is smaller in
+       the view of both systems (places), and grows or shrinks on the way. */
+    let windowPx = SIZE / 2;
+    const windowCircle = svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: windowPx * 0.9 });
     const mapWindow = svg('clipPath', { id: 'rubin-map-window' });
-    mapWindow.append(svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: UNSEEN_REACH_PX }));
+    mapWindow.append(windowCircle);
     const mapDefs = svg('defs');
     mapDefs.append(mapHatch, mapWindow);
     plot.append(mapDefs);
@@ -522,6 +524,8 @@ function drawMap(digest) {
         /* Names to place once every dot is drawn, in priority order (placeLabels). */
         const labels = [];
         const reachAU = (SIZE * Math.SQRT1_2) / view.scale;
+        plot.style.setProperty('--map-window', `${windowPx.toFixed(1)}px`);
+        windowCircle.setAttribute('r', (windowPx * 0.9).toFixed(1));
 
         /* Where nothing has been seen: everything beyond 1,000 AU from the Sun, up to the
            other system's bodies. Drawn first, under everything, and it says why on hover
@@ -530,7 +534,7 @@ function drawMap(digest) {
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
             { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
             { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
-        ], UNSEEN_REACH_PX);
+        ], windowPx * 0.9);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
@@ -721,15 +725,17 @@ function drawMap(digest) {
         const from = view;
         const direct = place === target || place.id === 'both' || target.id === 'both';
         const via = homeView(PLACES.both);
+        const [fromWindow, toWindow] = [windowPx, (target.dark * SIZE) / 2];
         place = target;
         showPlace();
         hideTooltip();
-        if (reducedMotion.matches) { view = toView; render(); return; }
+        if (reducedMotion.matches) { view = toView; windowPx = toWindow; render(); return; }
         const ms = direct ? 1800 : 5000;
         const began = performance.now();
         const frame = (now) => {
             const t = Math.min(1, (now - began) / ms);
             view = t >= 1 ? toView : (direct ? glideView(from, toView, t) : journeyView(from, via, toView, t));
+            windowPx = fromWindow + (toWindow - fromWindow) * t;
             travelling = t >= 1 ? 0 : requestAnimationFrame(frame);
             render();
         };
@@ -873,6 +879,7 @@ function drawMap(digest) {
         place = startAt;
         const zoom = startAt.id === 'centauri' ? params.get('zoom') : null;
         view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45) : homeView(startAt);
+        windowPx = (startAt.dark * SIZE) / 2;
         showPlace();
     }
     render();

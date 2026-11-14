@@ -132,7 +132,13 @@ describe('The three places', () => {
     const P = places(system, 200);
 
     test('the Sun as it always was', () => {
-        expect(P.sun).toEqual({ id: 'sun', name: 'the Sun', cx: 0, cy: 0, radiusAU: 200 });
+        expect(P.sun).toEqual({ id: 'sun', name: 'the Sun', cx: 0, cy: 0, radiusAU: 200, dark: 1 });
+    });
+
+    test('both systems seen from the Sun, in a smaller window than either system alone', () => {
+        expect(P.both).toMatchObject({ cx: 0, cy: 0 });
+        expect(P.both.dark).toBeLessThan(P.sun.dark);
+        expect(P.both.dark).toBeLessThan(P.centauri.dark);
     });
 
     test('Alpha Centauri, with room for Proxima', () => {
@@ -189,8 +195,8 @@ describe('Rings that cross the picture', () => {
     test('pulled back to both systems, the spacing is still round and the rings few', () => {
         const P = places(system, 200);
         const view = initialView(P.both.radiusAU, 750, [P.both.cx, P.both.cy]);
-        expect(ringSpacing(view)).toBe(50000);
-        const radii = ringRadii(view, Math.hypot(P.both.cx, P.both.cy));
+        expect(ringSpacing(view)).toBe(100000);
+        const radii = ringRadii(view, 0);
         expect(radii.length).toBeGreaterThan(2);
         expect(radii.length).toBeLessThan(10);
     });
@@ -315,6 +321,6 @@ describe('The page', () => {
 
     test('a journey leaves visitors who asked for less motion where they are going, at once', () => {
         const page = readFileSync(resolve(root, 'rubin/rubin.js'), 'utf8');
-        expect(page).toContain('if (reducedMotion.matches) { view = toView; render(); return; }');
+        expect(page).toContain('if (reducedMotion.matches) { view = toView; windowPx = toWindow; render(); return; }');
     });
 });

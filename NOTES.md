@@ -3849,6 +3849,10 @@ map: the same map now reaches the nearest star system, with its stars in their t
   Round, not square (owner): the map is a round window, dark in the middle and fading into
   the page by its edge, so the hatching is clipped to a circle a little wider than the dark,
   nine tenths of the way to the edge. Whether to draw it at all is decided on that circle.
+- **Both systems is seen from the Sun** (owner, 2026-11-14): the view is centred on the
+  Sun, so the rings are about it, with Alpha Centauri out near the edge, and the dark
+  window is smaller there (0.65 of the half-width; `dark` in `places`). The map sets the
+  window's radius (`--map-window`), and it grows or shrinks over a journey.
 - **`?place=both|centauri` and `&zoom=proxima|pair`** open the map there. Added so the far
   views could be photographed with headless Edge (which cannot click), and kept because a
   link straight to Alpha Centauri is a fair thing to want.

@@ -2203,7 +2203,9 @@ main.rubin {
     /* The fade eases in and out (a smoothstep curve between the two colours, in six
        in-between steps, evenly spaced over the outer 30%), so it leaves the dark slowly and arrives at the brown slowly
        instead of a straight blend. */
-    background: radial-gradient(circle closest-side,
+    /* The window's radius is set by the map (--map-window): smaller in the view of both
+       systems. */
+    background: radial-gradient(circle var(--map-window, closest-side),
         #17120e 0%, #17120e 70%, #19140f 74.3%, #1e1813 78.6%, #251e17 82.9%,
         #2d241d 87.1%, #342a21 91.4%, #392e25 95.7%, #3b3026 100%);
 }
