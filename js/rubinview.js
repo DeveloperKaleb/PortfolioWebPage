@@ -159,8 +159,12 @@ export function mapData(digest) {
     const planets = worldsOn(jd);
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
+    /* In 3D an object far above or below the plane can reach further across the picture
+       than its distance along the plane, so that view fits the true distances instead. */
+    const furthest3D = Math.max(furthest, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y, m.entry.now.z ?? 0)));
+    const radius3D = Math.ceil(furthest3D / 50) * 50;
     /* The digest carries the collector's latest moon fit; an older digest, the built-in one. */
-    return { marks, radius, planets, moons: moonsOn(jd, planets, known, digest.moons ?? BUILT_IN_MOONS) };
+    return { marks, radius, radius3D, planets, moons: moonsOn(jd, planets, known, digest.moons ?? BUILT_IN_MOONS) };
 }
 
 /* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
@@ -260,10 +264,11 @@ export const MAP_GUTTER = 16;
 export const mapSizeFor = (viewportPx) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * MAP_GUTTER)));
 
 /* A view that fits a radius about a home: the Sun unless told otherwise (the map can also
-   be at Alpha Centauri, or pulled back to hold both - js/centauri.js). */
-export function initialView(radiusAU, sizePx, [homeX, homeY] = [0, 0]) {
+   be at Alpha Centauri, or pulled back to hold both - js/centauri.js). The home's height
+   above the plane matters only in 3D, where the picture turns about it. */
+export function initialView(radiusAU, sizePx, [homeX, homeY, homeZ = 0] = [0, 0]) {
     const scale = (sizePx / 2 - 24) / radiusAU;
-    return { scale, cx: homeX, cy: homeY, fitScale: scale, radiusAU, sizePx, homeX, homeY };
+    return { scale, cx: homeX, cy: homeY, cz: homeZ, fitScale: scale, radiusAU, sizePx, homeX, homeY, homeZ };
 }
 
 /* Map coordinates (AU, y up) to the drawing (pixels, y down), and back. */
@@ -284,7 +289,7 @@ export function zoomAt(view, factor, anchor = [view.cx, view.cy]) {
     const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale * factor));
     const k = view.scale / scale;
     const next = clampView({ ...view, scale, cx: anchor[0] - (anchor[0] - view.cx) * k, cy: anchor[1] - (anchor[1] - view.cy) * k });
-    return scale <= view.fitScale ? { ...next, cx: view.homeX ?? 0, cy: view.homeY ?? 0 } : next;
+    return scale <= view.fitScale ? { ...next, cx: view.homeX ?? 0, cy: view.homeY ?? 0, cz: view.homeZ ?? 0 } : next;
 }
 
 /* Drag by some pixels; the map moves with the pointer. */
@@ -304,12 +309,15 @@ export function ringSpacing(view) {
    from the middle of the view is given, in AU. Rings wholly off the picture are left out,
    which matters once the map can be 270,000 AU from the Sun - a ring that far off is
    millions of pixels wide, and browsers draw such things badly. */
-export function ringRadii(view, distanceAU, most = 60) {
+export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
     const spacing = ringSpacing(view);
+    /* In 3D a ring is squashed top to bottom (stretch is one over the cosine of the tilt),
+       so a ring too wide to cross the picture side to side can still cross it at the top
+       or bottom. */
     const reach = (view.sizePx * Math.SQRT1_2) / view.scale;
     const first = Math.max(1, Math.ceil((distanceAU - reach) / spacing));
     const radii = [];
-    for (let n = first; n * spacing <= distanceAU + reach && radii.length < most; n++) radii.push(n * spacing);
+    for (let n = first; n * spacing <= (distanceAU + reach) * stretch && radii.length < most; n++) radii.push(n * spacing);
     return radii;
 }
 
@@ -331,11 +339,51 @@ export function glideView(from, to, t) {
     const scale = from.scale * (to.scale / from.scale) ** k;
     const span = 1 / to.scale - 1 / from.scale;
     const w = Math.abs(span) < 1e-12 * (1 / from.scale) ? k : (1 / scale - 1 / from.scale) / span;
-    return { ...to, scale, cx: from.cx + (to.cx - from.cx) * w, cy: from.cy + (to.cy - from.cy) * w };
+    const [fz, tz] = [from.cz ?? 0, to.cz ?? 0];
+    return { ...to, scale, cx: from.cx + (to.cx - from.cx) * w, cy: from.cy + (to.cy - from.cy) * w, cz: fz + (tz - fz) * w };
 }
 
 export function journeyView(from, via, to, t) {
     return t < 0.5 ? glideView(from, via, t * 2) : glideView(via, to, t * 2 - 1);
+}
+
+/* ---- Flat or 3D --------------------------------------------------------------------------
+ *
+ * The map can be turned and tipped to show depth (owner, 2026-11-16), drawn by hand with no
+ * 3D library. A camera is a turn about the plane's pole, then a tilt of the plane away from
+ * the reader, both in radians; flat is straight down from above, the map as it always
+ * was. The projection is parallel, not in perspective, so the scale is the same at every
+ * depth: a ring in the plane becomes an ellipse, a ball (the light, the clear zones about
+ * each star) stays a circle, and the AU rings still measure what they cross. */
+export const FLAT = { turn: 0, tilt: 0 };
+export const TILT_3D = 55 * Math.PI / 180;
+/* Short of edge-on, where every ring would be a line. */
+export const TILT_MAX = 85 * Math.PI / 180;
+
+/* A camera's maths, once per drawing: where a point lands in the picture, which way a
+   direction points there (direction), and how much a ring in the plane is squashed top
+   to bottom (squash). */
+export function projector(view, cam = FLAT) {
+    const [ct, st, cr, sr] = [Math.cos(cam.tilt), Math.sin(cam.tilt), Math.cos(cam.turn), Math.sin(cam.turn)];
+    const half = view.sizePx / 2;
+    const cz = view.cz ?? 0;
+    /* Across the picture, and up it: the turn spins the plane, the tilt tips it away. */
+    const across = (dx, dy) => dx * cr - dy * sr;
+    const up = (dx, dy, dz) => (dx * sr + dy * cr) * ct + dz * st;
+    const project = (x, y, z = 0) => {
+        const [dx, dy, dz] = [x - view.cx, y - view.cy, z - cz];
+        return [half + across(dx, dy) * view.scale, half - up(dx, dy, dz) * view.scale];
+    };
+    project.direction = (dx, dy, dz = 0) => [across(dx, dy), -up(dx, dy, dz)];
+    project.squash = ct;
+    return project;
+}
+
+/* Dragging turns the map and tips it: each pixel across is a third of a degree of turn,
+   and each one down tips it a third of a degree further toward edge-on. */
+export function turnBy(cam, dxPx, dyPx) {
+    const step = Math.PI / 540;
+    return { turn: cam.turn - dxPx * step, tilt: Math.min(TILT_MAX, Math.max(0, cam.tilt + dyPx * step)) };
 }
 
 /* ---- Where nothing has been seen -----------------------------------------------------------
@@ -344,13 +392,14 @@ export function journeyView(from, via, to, t) {
  * bodies (js/centauri.js). Given the clear zones as circles in AU, this answers what to
  * draw: nothing when the whole picture is inside one, otherwise the circles, in pixels,
  * that reach into the picture and so must be cut out of the hatching. The hatching is
- * round, `reachPx` from the middle (the whole square when not given). */
-export function unseenHoles(view, zones, reachPx) {
+ * round, `reachPx` from the middle (the whole square when not given). Each zone is a ball,
+ * so in 3D (project, from projector) it is still a circle of the same size. */
+export function unseenHoles(view, zones, reachPx, project = (x, y) => toScreen(view, x, y)) {
     const half = view.sizePx / 2;
     const corner = reachPx ?? half * Math.SQRT2;
     const holes = [];
     for (const zone of zones) {
-        const [x, y] = toScreen(view, zone.x, zone.y);
+        const [x, y] = project(zone.x, zone.y, zone.z ?? 0);
         const away = Math.hypot(x - half, y - half);
         const r = zone.radiusAU * view.scale;
         if (away + corner <= r) return null;
@@ -511,7 +560,7 @@ export function worldsOn(jd, { samples = 120 } = {}) {
     const period = 365.25 * CERES_ELEMENTS.a ** 1.5;
     const path = Array.from({ length: samples }, (_, k) => {
         const p = positionAt(CERES_ELEMENTS, jd + (period * k) / samples);
-        return { x: p.x, y: p.y };
+        return { x: p.x, y: p.y, z: p.z };
     });
     const ceres = { name: 'Ceres', a: CERES_ELEMENTS.a, x: at.x, y: at.y, z: at.z, r: at.r, path };
     return [...planetsOn(jd, { samples }), ceres].sort((p, q) => p.a - q.a).map((p) => ({ ...p, kind: bodyKind(p.name) }));
@@ -593,15 +642,16 @@ export const MOON_DRAW_PX = 8;
 export function moonsOn(jd, planets, known = [], set = BUILT_IN_MOONS) {
     const parents = new Map([
         ...planets.map((p) => [p.name, p]),
-        ...known.filter((e) => Number.isFinite(e.now?.x)).map((e) => [displayName(e), { x: e.now.x, y: e.now.y }]),
+        ...known.filter((e) => Number.isFinite(e.now?.x)).map((e) => [displayName(e), { x: e.now.x, y: e.now.y, z: e.now.z ?? 0 }]),
     ]);
     return Object.entries(MOON_PARENTS).filter(([, parent]) => parents.has(parent)).map(([name, parent]) => {
         const at = parents.get(parent);
         const [dx, dy] = moonOffset(name, jd, set);
         return {
             name, parent, a: moonDistance(name, set),
-            x: at.x + dx, y: at.y + dy,
-            path: moonRing(name, jd, 72, set).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry })),
+            /* Fitted as circles in the plane, so drawn in the plane through the parent. */
+            x: at.x + dx, y: at.y + dy, z: at.z ?? 0,
+            path: moonRing(name, jd, 72, set).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry, z: at.z ?? 0 })),
         };
     });
 }

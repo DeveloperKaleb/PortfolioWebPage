@@ -55,7 +55,8 @@ This means the site only fully works when served from that exact subpath (as on 
   repo, published with GitHub Pages) - never from a third party. Its words and
   geometry are in `js/rubinview.js`. Preview it locally with
   `?digest=<path>&changes=<path>`; `?place=both|centauri|barnard|luhman16` (and `&zoom=proxima|pair`) opens
-  its map away from the Sun. Its head preloads every module it imports and asks
+  its map away from the Sun, and `&view=3d` (`&turn=<degrees>`) opens it in 3D (the
+  hand-written projection is `projector` in `js/rubinview.js`). Its head preloads every module it imports and asks
   for the digest in an inline script; a new import needs a `modulepreload` line there
   (`tests/rubin/loading.test.js` fails until it has one).
 - `entertainment/entertainment.html` — a hub page for seven browser-based toy/game systems (Tetris, Snake, Minesweeper, Sequence, Tic-Tac-Toe, an "Array Grid" color-painting toy, and Pets). Most render into `.butMania` grid containers of `<button>` cells; Minesweeper, Sequence and Tic-Tac-Toe have their own containers. The page opens on a dashboard (Single Player, Multiplayer, Toys). Single Player (`#single`), Multiplayer (`#multi`) and Toys (`#toys`: Finger Paint `#toy` and Pets `#pets`) are hubs of thumbnail cards, and each card shows its section (`.game-view`) full-screen with a Back button to its parent. View switching is a plain URL-hash router: the table of every hash, the section it shows and where Back goes lives in `js/routes.js`, and `entertainment.js` applies it — no routing library. `#tictactoe-pass` is the Tic-Tac-Toe view for two players on one phone.

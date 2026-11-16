@@ -3915,3 +3915,45 @@ map: the same map now reaches the nearest star system, with its stars in their t
   position before the light truly arrives. The stars are shown where they are on the
   digest's date, not where their four-year-old light shows them. The journey's frame rate
   was not measured: the automation tab throttles animation to about one frame a second.
+
+## The map in 3D (owner, 2026-11-16)
+
+"Flat" and "3D" buttons above the map. The owner chose hand-written 3D over three.js:
+the scene is dots, rings and paths with no meshes or lighting, so a library (about 650 KB,
+roughly the tab's whole code again) would have bought nothing. The 3D costs a few KB.
+
+- **One projection for both.** `projector(view, cam)` in js/rubinview.js: a turn about the
+  plane's pole, then a tilt of the plane away from the reader. Flat is `FLAT` (no turn, no
+  tilt) and lands every point exactly where `toScreen` did, so the flat map is unchanged;
+  tests/rubin/threed.test.js holds that. Everything the map draws goes through it.
+- **Parallel, not perspective.** Scale is the same at every depth, so the AU rings still
+  measure, a ring in the plane becomes an ellipse (squashed by the cosine of the tilt), and
+  a ball stays a circle of the same size: the light's edge, and the clear zones about each
+  star in the hatching (`unseenHoles` takes the projector). Perspective would make distances
+  read differently by depth across a picture spanning 8 orders of magnitude.
+- **Drop lines.** In 3D a dashed line runs from each star and each listed object to the
+  plane of the rings (the plane through the star the rings are about, parallel to Earth's),
+  with a tick at its foot: above or below the plane at a glance. Planets and moons have none:
+  they are near enough the plane that the lines would be noise.
+- **Heights.** Planet and Ceres orbit paths now carry z, so tilted orbits are drawn tilted.
+  Moons are fitted as circles in the plane (js/moons.js), so they are drawn in the plane
+  through their parent. Each place has `cz`, the height its home turns about, and
+  `radius3D`, a fit to true distances: turned the right way, Luhman 16 (6.51 ly, 5.3 of them
+  below the plane) would otherwise leave the nearest-bodies picture. The tests turn that
+  view all the way round at four tilts and check every body stays in.
+- **Control.** In 3D a drag (one finger on a phone) turns and tips the map instead of
+  moving it, so in 3D the picture takes every touch (`touch-action: none`); the page still
+  scrolls from anywhere else. Zooming keeps to the middle, since a point in the picture is
+  not one place on the map. The picture takes the arrow keys and is focusable only in 3D.
+  Tilt stops at 85 degrees, short of edge-on. The switch tips the map over in 0.7 s, or at
+  once for reduced motion; going back to flat also turns north back to the top. At the
+  whole view the switch refits; zoomed in, it keeps the zoom.
+- **Rings in 3D** reach further (`ringRadii`'s stretch), since a ring too wide to cross the
+  picture side to side can cross it top and bottom. Only the rings that would cross the flat
+  picture are named, or their names stacked up the top.
+- **SagA's arrow** turns with the map and takes in the 5.6 degrees it lies below the plane;
+  its label moves above it in 3D, where it can point any way.
+- **`&view=3d`** (and `&turn=<degrees>`) open the map in 3D, for headless screenshots.
+- **Not done:** marks are not sorted by depth (overlaps are rare at these sizes); a pair
+  turned edge-on to the reader becomes one dot, as it would look; the flat map's "along the
+  plane" wording in the details stays, since the details give both distances anyway.

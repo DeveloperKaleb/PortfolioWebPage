@@ -2622,7 +2622,14 @@ main.rubin {
     color: #e3e7af;
 }
 
-.rubin-map-travel .rubin-tool[aria-pressed="true"] {
+/* Flat or 3D: two buttons as one control, the one in use pressed. */
+.rubin-map-depth {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.rubin-map-travel .rubin-tool[aria-pressed="true"],
+.rubin-map-depth .rubin-tool[aria-pressed="true"] {
     background: #e3e7af;
     color: #3b3026;
 }

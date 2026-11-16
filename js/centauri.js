@@ -208,7 +208,8 @@ export const SAG_A = { ra: 266.4168371, dec: -29.0078106, lightYears: 26670, mil
 export function towardSagA() {
     const [x, y, z] = toEcliptic(skyFrame(SAG_A.ra, SAG_A.dec).out);
     const along = Math.hypot(x, y);
-    return { x: x / along, y: y / along, below: -Math.asin(z) / DEG };
+    /* Along the plane (x, y), how far below it in degrees, and the whole direction (way), for 3D. */
+    return { x: x / along, y: y / along, below: -Math.asin(z) / DEG, way: [x, y, z] };
 }
 
 /* ---- Places on the map --------------------------------------------------------------------
@@ -224,18 +225,23 @@ export function towardSagA() {
    tundrs, about 3.5 AU apart. */
 export const SEEN_NEAR = { pair: 40, proxima: 0.1, luhman16: 4, barnard: 0.05 };
 
-export function places(system, sunRadiusAU) {
+/* In 3D (js/rubinview.js) the picture can be turned to show any body's true distance
+   across it, so each place also has a radius to fit then (radius3D), and the height of
+   its home above the plane (cz), which the picture turns about. */
+export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
     const { centre, proxima, luhman16, barnard } = system;
     const reach = Math.hypot(proxima.x - centre.x, proxima.y - centre.y);
+    const reach3D = Math.hypot(proxima.x - centre.x, proxima.y - centre.y, proxima.z - centre.z);
     const along = (body) => Math.hypot(body.x, body.y);
     const farthest = Math.max(along(centre) + reach, along(luhman16), along(barnard));
+    const farthest3D = Math.max(centre.r + reach3D, luhman16.r, barnard.r);
     return {
-        sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, radiusAU: sunRadiusAU, dark: 1 },
-        both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, dark: 0.65 },
-        centauri: { id: 'centauri', name: 'Alpha Centauri', label: 'Alpha Centauri', cx: centre.x, cy: centre.y, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, dark: 1 },
+        sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, dark: 1 },
+        both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000, dark: 0.65 },
+        centauri: { id: 'centauri', name: 'Alpha Centauri', label: 'Alpha Centauri', cx: centre.x, cy: centre.y, cz: centre.z, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, radius3D: Math.ceil(reach3D * 1.25 / 1000) * 1000, dark: 1 },
         /* Room for the clearing about the two tundrs, and for Barnard's Star's planets. */
-        luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, radiusAU: 6, dark: 1 },
-        barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, radiusAU: 0.05, dark: 1 },
+        luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, cz: luhman16.z, radiusAU: 6, radius3D: 6, dark: 1 },
+        barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, cz: barnard.z, radiusAU: 0.05, radius3D: 0.05, dark: 1 },
     };
 }
 

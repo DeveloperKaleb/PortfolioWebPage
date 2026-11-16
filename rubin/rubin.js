@@ -11,7 +11,8 @@
  * saw, and says so.
  */
 import {
-    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toScreen, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
+    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
+    projector, FLAT, TILT_3D, turnBy,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
@@ -350,8 +351,13 @@ function drawMap(digest) {
        places the map can be: at the Sun, at Alpha Centauri, and far enough back to hold
        both (js/centauri.js). */
     const system = centauriOn(yearFraction(digest.date));
-    const PLACES = places(system, data.radius);
-    const homeView = (p) => initialView(p.radiusAU, SIZE, [p.cx, p.cy]);
+    const PLACES = places(system, data.radius, data.radius3D);
+    /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
+       (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
+       middle, and each place is fitted to its bodies' true distances. */
+    let threeD = false;
+    let cam = FLAT;
+    const homeView = (p) => initialView(threeD ? p.radius3D : p.radiusAU, SIZE, [p.cx, p.cy, p.cz]);
     let place = PLACES.sun;
     /* The animation frame of a journey under way, or 0. */
     let travelling = 0;
@@ -465,7 +471,8 @@ function drawMap(digest) {
        a second - which is what decides how soon it is worth drawing again. */
     function drawLight() {
         const now = Date.now();
-        const [sx, sy] = toScreen(view, 0, 0);
+        /* The light fills a ball, so in 3D too its edge is a circle of the same size. */
+        const [sx, sy] = projector(view, cam)(0, 0, 0);
         const fromCentre = Math.hypot(sx - SIZE / 2, sy - SIZE / 2);
         let fastest = 0;
         for (const light of lights) {
@@ -519,6 +526,8 @@ function drawMap(digest) {
     }
     runLight();
 
+    const flatButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'true' }, 'Flat');
+    const threeDButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, '3D');
     const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
     const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
     const reset = el('button', { type: 'button', class: 'rubin-tool' }, 'Whole map');
@@ -527,11 +536,17 @@ function drawMap(digest) {
     /* Everything is redrawn from the view on each zoom or pan: rings, planets, objects.
        Marks keep their size in pixels at every zoom. */
     function render() {
-        const [sx, sy] = toScreen(view, 0, 0);
+        /* Where each point lands in the picture: flat, the map as it always was. */
+        const at3 = projector(view, cam);
+        const [sx, sy] = at3(0, 0, 0);
         const parts = [];
         /* Names to place once every dot is drawn, in priority order (placeLabels). */
         const labels = [];
-        const reachAU = (SIZE * Math.SQRT1_2) / view.scale;
+        /* Whether anything of a body, or of its map that far about it, is in the picture. */
+        const inPicture = (body, radiusAU) => {
+            const [x, y] = at3(body.x, body.y, body.z ?? 0);
+            return Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE * Math.SQRT1_2 + radiusAU * view.scale;
+        };
         plot.style.setProperty('--map-window', `${windowPx.toFixed(1)}px`);
         windowCircle.setAttribute('r', hatchPx.toFixed(1));
 
@@ -540,11 +555,11 @@ function drawMap(digest) {
            and on focus, in the owner's words. */
         const holes = unseenHoles(view, [
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
-            { x: system.centre.x, y: system.centre.y, radiusAU: SEEN_NEAR.pair },
-            { x: system.proxima.x, y: system.proxima.y, radiusAU: SEEN_NEAR.proxima },
-            { x: system.luhman16.x, y: system.luhman16.y, radiusAU: SEEN_NEAR.luhman16 },
-            { x: system.barnard.x, y: system.barnard.y, radiusAU: SEEN_NEAR.barnard },
-        ], hatchPx);
+            { ...system.centre, radiusAU: SEEN_NEAR.pair },
+            { ...system.proxima, radiusAU: SEEN_NEAR.proxima },
+            { ...system.luhman16, radiusAU: SEEN_NEAR.luhman16 },
+            { ...system.barnard, radiusAU: SEEN_NEAR.barnard },
+        ], hatchPx, at3);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
@@ -557,17 +572,36 @@ function drawMap(digest) {
            close-up as a row of straight lines, which says nothing.) Only the rings that
            cross the picture (ringRadii). */
         const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
-        const ringsAbout = [{ x: 0, y: 0 }, system.centre, system.proxima, system.luhman16, system.barnard].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
-        const [rx, ry] = toScreen(view, ringsAbout.x, ringsAbout.y);
-        for (const r of ringRadii(view, fromMiddle(ringsAbout))) {
-            parts.push(svg('circle', { cx: rx, cy: ry, r: r * view.scale, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
-            const labelY = ry - r * view.scale - 4;
-            if (labelY > 12 && labelY < SIZE && rx > -40 && rx < SIZE) parts.push(svg('text', { x: rx + 4, y: labelY, class: 'rubin-axis' }, ringLabel(r)));
+        const ringsAbout = [{ x: 0, y: 0, z: 0 }, system.centre, system.proxima, system.luhman16, system.barnard].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
+        /* The rings lie in the plane through that star, parallel to Earth's; in 3D they are
+           ellipses, and that plane is the ground each body's drop line reaches down to. */
+        const ground = ringsAbout.z;
+        const [rx, ry] = at3(ringsAbout.x, ringsAbout.y, ground);
+        const ringsFrom = Math.hypot(rx - SIZE / 2, ry - SIZE / 2) / view.scale;
+        /* The wider rings 3D adds only cross the top and bottom of the picture, where their
+           names would stack up, so only the rest are named. */
+        const named = ringsFrom + (SIZE * Math.SQRT1_2) / view.scale;
+        for (const r of ringRadii(view, ringsFrom, 60, 1 / at3.squash)) {
+            const [across, tall] = [r * view.scale, r * view.scale * at3.squash];
+            parts.push(svg('ellipse', { cx: rx, cy: ry, rx: across, ry: tall, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
+            const labelY = ry - tall - 4;
+            if (r <= named && labelY > 12 && labelY < SIZE && rx > -40 && rx < SIZE) parts.push(svg('text', { x: rx + 4, y: labelY, class: 'rubin-axis' }, ringLabel(r)));
         }
+        /* In 3D, a dashed line from a body to that plane, with a tick where it meets it: how
+           far above or below the plane it sits, at a glance. Drawn under the body's mark. */
+        const drop = (body, x, y) => {
+            if (!threeD) return;
+            const [fx, fy] = at3(body.x, body.y, ground);
+            if (Math.hypot(fx - x, fy - y) < 3) return;
+            parts.push(svg('line', { x1: x, y1: y, x2: fx, y2: fy, stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0.7, 'pointer-events': 'none' }));
+            parts.push(svg('line', { x1: fx - 3, y1: fy, x2: fx + 3, y2: fy, stroke: C.muted, 'stroke-width': 1, 'pointer-events': 'none' }));
+        };
+        /* How far apart two bodies are in the picture. */
+        const apartOnScreen = (p, q) => Math.hypot(...at3(p.x, p.y, p.z).map((v, k) => v - at3(q.x, q.y, q.z)[k]));
 
         /* The Sun's own map is drawn only where it is in the picture, and as a single dot
            once the map is pulled back so far that all of it would land on one spot. */
-        const sunShown = Math.hypot(view.cx, view.cy) < reachAU + data.radius;
+        const sunShown = inPicture({ x: 0, y: 0, z: 0 }, threeD ? data.radius3D : data.radius);
         const sunAsDot = data.radius * view.scale < SYSTEM_DOT_PX;
         const solar = sunShown && !sunAsDot;
 
@@ -575,9 +609,9 @@ function drawMap(digest) {
         for (const p of solar ? data.planets : []) {
             const orbitPx = p.a * view.scale;
             if (orbitPx < PLANET_DRAW_PX) continue;
-            const points = p.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+            const points = p.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
             parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-            const [px, py] = toScreen(view, p.x, p.y);
+            const [px, py] = at3(p.x, p.y, p.z);
             const designation = `world:${p.name}`;
             const chosen = selected.has(designation);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
@@ -601,9 +635,9 @@ function drawMap(digest) {
         for (const m of solar ? data.moons : []) {
             const ringPx = m.a * view.scale;
             if (ringPx < MOON_DRAW_PX) continue;
-            const [mx, my] = toScreen(view, m.x, m.y);
+            const [mx, my] = at3(m.x, m.y, m.z);
             if (mx < -20 || mx > SIZE + 20 || my < -20 || my > SIZE + 20) continue;
-            const points = m.path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+            const points = m.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
             parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.4 }));
             const designation = `world:${m.name}`;
             const chosen = selected.has(designation);
@@ -625,8 +659,9 @@ function drawMap(digest) {
         /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. Luhman
            16's two tundrs are marked the same way, fainter, and say what they are. */
         const star = (body, name, radius, rows, { kind = 'star', fill = C.text } = {}) => {
-            const [x, y] = toScreen(view, body.x, body.y);
+            const [x, y] = at3(body.x, body.y, body.z ?? 0);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
+            drop(body, x, y);
             const g = svg('g', { class: 'rubin-mark' });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: x, cy: y, r: radius, fill, stroke: C.space, 'stroke-width': 2 }));
@@ -634,7 +669,7 @@ function drawMap(digest) {
             parts.push(g);
             labels.push({ x, y, text: name, rank: Infinity });
         };
-        if (sunShown && sunAsDot) star({ x: 0, y: 0 }, 'The Sun', 4, [['With everything on its map:', `${ringLabel(data.radius)} out, too small to tell apart from here`]]);
+        if (sunShown && sunAsDot) star({ x: 0, y: 0, z: 0 }, 'The Sun', 4, [['With everything on its map:', `${ringLabel(data.radius)} out, too small to tell apart from here`]]);
 
         /* Alpha Centauri: one dot from far off; then Proxima and the pair; then A and B
            apart, on the paths they trace about their centre of gravity. The planets'
@@ -643,23 +678,22 @@ function drawMap(digest) {
         const orbitOf = (body, o) => {
             const r = o.a * view.scale;
             if (r < PLANET_DRAW_PX) return;
-            const [x, y] = toScreen(view, body.x, body.y);
+            const [x, y] = at3(body.x, body.y, body.z);
             if (Math.hypot(x - SIZE / 2, y - SIZE / 2) > SIZE + r) return;
             parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
             if (r >= PLANET_LABEL_PX) labels.push({ x: x + r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: o.status === 'candidate' ? 'candidate planet (unconfirmed)' : `${o.name}'s orbit`, rank: 1e8 });
         };
-        if (Math.hypot(view.cx - system.centre.x, view.cy - system.centre.y) < reachAU + PLACES.centauri.radiusAU) {
+        if (inPicture(system.centre, threeD ? PLACES.centauri.radius3D : PLACES.centauri.radiusAU)) {
             if (PLACES.centauri.radiusAU * view.scale < SYSTEM_DOT_PX) {
                 star(system.centre, 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
             } else {
                 PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => orbitOf(system.proxima, o));
                 star(system.proxima, 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B']]);
-                const apartPx = Math.hypot(system.b.x - system.a.x, system.b.y - system.a.y) * view.scale;
-                if (apartPx < 12) {
+                if (apartOnScreen(system.a, system.b) < 12) {
                     star(system.centre, 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
                 } else {
                     for (const path of [system.paths.a, system.paths.b]) {
-                        const points = path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+                        const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
                         parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
                     }
                     PLANET_ORBITS.filter((o) => o.star === 'a').forEach((o) => orbitOf(system.a, o));
@@ -673,7 +707,7 @@ function drawMap(digest) {
            trace about their centre of gravity (Bedin et al. 2024), as for Alpha Centauri. */
         const luhman = system.luhmanPair;
         const tundrs = { kind: 'Hydrogen Tundr', fill: C.muted };
-        if (Math.hypot(luhman.b.x - luhman.a.x, luhman.b.y - luhman.a.y) * view.scale < 12) {
+        if (apartOnScreen(luhman.a, luhman.b) < 12) {
             star(luhman.centre, 'Luhman 16 AB', 3, [
                 ["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
                 ['Found in 2013:', 'the third-nearest system to the Sun'],
@@ -681,7 +715,7 @@ function drawMap(digest) {
             ], { ...tundrs, kind: 'two Hydrogen Tundrs' });
         } else {
             for (const path of [luhman.paths.a, luhman.paths.b]) {
-                const points = path.map((q) => toScreen(view, q.x, q.y).map((v) => v.toFixed(1)).join(',')).join(' ');
+                const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
                 parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
             }
             const apart = [farDistanceText(luhman.apart), 'apart on this date; round each other every 25.5 years'];
@@ -701,7 +735,10 @@ function drawMap(digest) {
            line from the Sun - where it would land on Barnard's Star, almost the same way. */
         if (place.id === 'both') {
             const [ax, ay] = [SIZE - 48, SIZE - 64];
-            const [dx, dy] = [SAG_A_WAY.x, -SAG_A_WAY.y];
+            /* Flat, the way along the plane; in 3D it turns with the map, and takes in the
+               5.6 degrees it lies below the plane. */
+            const [wx, wy] = at3.direction(...SAG_A_WAY.way);
+            const [dx, dy] = [wx / (Math.hypot(wx, wy) || 1), wy / (Math.hypot(wx, wy) || 1)];
             const end = (k) => [ax + dx * k, ay + dy * k];
             const [hx, hy] = end(33);
             const head = (turn) => {
@@ -712,7 +749,8 @@ function drawMap(digest) {
             g.append(svg('rect', { x: ax - 120, y: ay - 45, width: 140, height: 90, fill: 'transparent' }));
             g.append(svg('line', { x1: end(-33)[0], y1: end(-33)[1], x2: hx, y2: hy, stroke: C.text, 'stroke-width': 1.5 }));
             g.append(svg('polyline', { points: `${head(Math.PI * 5 / 6)} ${hx.toFixed(1)},${hy.toFixed(1)} ${head(-Math.PI * 5 / 6)}`, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
-            g.append(svg('text', { x: ax - 14, y: ay + 4, 'text-anchor': 'end', class: 'rubin-axis' }, 'Toward SagA'));
+            /* Beside the arrow when flat; above it in 3D, where it can point any way. */
+            g.append(svg('text', { x: threeD ? ax + 20 : ax - 14, y: threeD ? ay - 42 : ay + 4, 'text-anchor': 'end', class: 'rubin-axis' }, 'Toward SagA'));
             attachDetails(g, [
                 ['Toward SagA:', 'Sagittarius A*, the supermassive black hole at the centre of the Milky Way'],
                 [`${SAG_A.lightYears.toLocaleString('en-US')} light years away,`, `about ${SAG_A.millionSuns} million times the Sun's mass`],
@@ -723,8 +761,9 @@ function drawMap(digest) {
         }
 
         for (const { entry, kind } of solar ? data.marks : []) {
-            const [x, y] = toScreen(view, entry.now.x, entry.now.y);
+            const [x, y] = at3(entry.now.x, entry.now.y, entry.now.z ?? 0);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) continue;
+            drop(entry.now, x, y);
             const chosen = selected.has(entry.designation);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': entry.designation });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
@@ -764,8 +803,10 @@ function drawMap(digest) {
         zoomIn.disabled = Boolean(travelling) || level >= MAP_ZOOM.max - 0.01;
         zoomOut.disabled = Boolean(travelling) || level <= 1.0001;
         reset.disabled = Boolean(travelling) || level <= 1.0001;
-        /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. */
-        plot.style.touchAction = level <= 1.0001 ? 'pan-y' : 'none';
+        flatButton.disabled = threeDButton.disabled = Boolean(travelling);
+        /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. In 3D
+           it always turns the map. */
+        plot.style.touchAction = !threeD && level <= 1.0001 ? 'pan-y' : 'none';
         runLight();
     }
 
@@ -811,8 +852,56 @@ function drawMap(digest) {
     }
     const closeUp = (body, radiusAU) => {
         const home = homeView(PLACES.centauri);
-        return { ...home, scale: Math.min(home.fitScale * MAP_ZOOM.max, (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y };
+        return { ...home, scale: Math.min(home.fitScale * MAP_ZOOM.max, (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y, cz: body.z };
     };
+
+    /* Between flat and 3D the map tips over (or back) in a moment, keeping its zoom about
+       the same middle; at the whole view it refits, since 3D fits true distances. Back to
+       flat, it turns back to north at the top too. For a visitor who asked for less motion
+       it is simply there. */
+    let tipping = 0;
+    const showDepth = () => {
+        flatButton.setAttribute('aria-pressed', String(!threeD));
+        threeDButton.setAttribute('aria-pressed', String(threeD));
+        /* In 3D the picture itself takes the arrow keys, so it can be reached by them. */
+        if (threeD) plot.setAttribute('tabindex', '0');
+        else plot.removeAttribute('tabindex');
+        plot.setAttribute('aria-label', threeD
+            ? 'Map in 3D of the listed objects, the Sun, the planets and the tundrs, reaching to the nearest stars. Drag, or use the arrow keys, to turn it and tip it'
+            : 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri');
+    };
+    function setDepth(on) {
+        if (on === threeD || travelling) return;
+        cancelAnimationFrame(tipping);
+        const whole = zoomLevel(view) <= 1.0001;
+        threeD = on;
+        const home = homeView(place);
+        view = whole ? home : { ...view, fitScale: home.fitScale, radiusAU: home.radiusAU, scale: Math.max(view.scale, home.fitScale) };
+        showDepth();
+        hideTooltip();
+        const from = { ...cam, turn: Math.atan2(Math.sin(cam.turn), Math.cos(cam.turn)) };
+        const to = on ? { turn: from.turn, tilt: TILT_3D } : FLAT;
+        if (reducedMotion.matches) { cam = to; render(); return; }
+        const began = performance.now();
+        const frame = (now) => {
+            const t = Math.min(1, (now - began) / 700);
+            const k = t * t * (3 - 2 * t);
+            cam = { turn: from.turn + (to.turn - from.turn) * k, tilt: from.tilt + (to.tilt - from.tilt) * k };
+            tipping = t >= 1 ? 0 : requestAnimationFrame(frame);
+            render();
+        };
+        tipping = requestAnimationFrame(frame);
+    }
+    const setCam = (next) => { if (travelling) return; cancelAnimationFrame(tipping); tipping = 0; cam = next; render(); };
+    flatButton.addEventListener('click', () => setDepth(false));
+    threeDButton.addEventListener('click', () => setDepth(true));
+    plot.addEventListener('keydown', (e) => {
+        if (!threeD || e.target !== plot) return;
+        const turns = { ArrowLeft: [-12, 0], ArrowRight: [12, 0], ArrowUp: [0, -12], ArrowDown: [0, 12] }[e.key];
+        if (!turns) return;
+        e.preventDefault();
+        setCam(turnBy(cam, ...turns));
+    });
     /* The pointer in the drawing's own pixels. */
     const local = (e) => {
         const box = plot.getBoundingClientRect();
@@ -840,7 +929,7 @@ function drawMap(digest) {
         if (pointers.size === 2 && pinch) {
             pointers.set(e.pointerId, [x, y]);
             const [a, b] = [...pointers.values()];
-            const mid = toWorld(pinch.view, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+            const mid = threeD ? [pinch.view.cx, pinch.view.cy] : toWorld(pinch.view, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
             setView(zoomAt(pinch.view, Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.distance, mid));
             dragged = true;
             return;
@@ -848,19 +937,22 @@ function drawMap(digest) {
         if (!dragged && Math.hypot(x - px, y - py) < 4) return;
         if (!dragged) { dragged = true; plot.setPointerCapture?.(e.pointerId); hideTooltip(); }
         pointers.set(e.pointerId, [x, y]);
-        if (zoomLevel(view) > 1.0001) setView(panBy(view, x - px, y - py));
+        if (threeD) setCam(turnBy(cam, x - px, y - py));
+        else if (zoomLevel(view) > 1.0001) setView(panBy(view, x - px, y - py));
     });
     const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
     plot.addEventListener('pointerup', release);
     plot.addEventListener('pointercancel', release);
     plot.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
-    plot.addEventListener('dblclick', (e) => setView(zoomAt(view, MAP_ZOOM.step, toWorld(view, ...local(e)))));
+    /* In 3D a point in the picture is not one place on the map, so zooming keeps to the middle. */
+    const anchorAt = (e) => (threeD ? undefined : toWorld(view, ...local(e)));
+    plot.addEventListener('dblclick', (e) => setView(zoomAt(view, MAP_ZOOM.step, anchorAt(e))));
     /* Ctrl + scroll (and a laptop trackpad's pinch, which arrives the same way) zooms;
        plain scrolling stays the page's. */
     plot.addEventListener('wheel', (e) => {
         if (!e.ctrlKey && !e.metaKey) return;
         e.preventDefault();
-        setView(zoomAt(view, Math.exp(-e.deltaY * 0.0025), toWorld(view, ...local(e))));
+        setView(zoomAt(view, Math.exp(-e.deltaY * 0.0025), anchorAt(e)));
     }, { passive: false });
 
     zoomIn.addEventListener('click', () => setView(zoomAt(view, MAP_ZOOM.step)));
@@ -869,12 +961,14 @@ function drawMap(digest) {
     /* Zooms on the Sun until this visit's light fills about a third of the map. */
     findLight.addEventListener('click', () => {
         if (travelling) return;
-        const home = initialView(data.radius, SIZE);
+        const home = homeView(PLACES.sun);
         const scale = scaleToShow(lightTravelledAU(Date.now() - OPENED), SIZE, { fitScale: home.fitScale, maxZoom: MAP_ZOOM.max });
         setView(zoomAt(home, scale / home.fitScale, [0, 0]));
     });
     const controls = el('div', { class: 'rubin-map-controls' });
-    controls.append(zoomIn, zoomOut, reset, findLight, readout);
+    const depth = el('span', { class: 'rubin-map-depth', role: 'group', 'aria-label': 'Flat map or 3D' });
+    depth.append(flatButton, threeDButton);
+    controls.append(depth, zoomIn, zoomOut, reset, findLight, readout);
 
     /* Where the map can go: a list of the bodies, nearest first, showing the one the map is
        at, and a button for the view that holds them all, pressed while there, when the list
@@ -919,7 +1013,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
     );
 
     const mapTable = table(
@@ -947,6 +1041,13 @@ function drawMap(digest) {
     section.hidden = false;
     /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
        with the latter &zoom=proxima or pair. */
+    /* &view=3d opens it in 3D, and &turn= turns it that many degrees. */
+    if (params.get('view') === '3d') {
+        threeD = true;
+        cam = { turn: (Number(params.get('turn')) || 0) * Math.PI / 180, tilt: TILT_3D };
+        view = homeView(place);
+        showDepth();
+    }
     const startAt = Object.hasOwn(PLACES, params.get('place') ?? '') ? PLACES[params.get('place')] : null;
     if (startAt) {
         place = startAt;

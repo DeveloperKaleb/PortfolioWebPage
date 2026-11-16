@@ -43,7 +43,7 @@ export function planetsOn(jd, { samples = 120 } = {}) {
         const period = 365.25 * el.a ** 1.5;
         const path = Array.from({ length: samples }, (_, k) => {
             const p = positionAt(el, jd + (period * k) / samples);
-            return { x: p.x, y: p.y };
+            return { x: p.x, y: p.y, z: p.z };
         });
         return { name, a: el.a, x: at.x, y: at.y, z: at.z, r: at.r, path };
     });
