@@ -3960,3 +3960,20 @@ roughly the tab's whole code again) would have bought nothing. The 3D costs a fe
 - **Not done:** marks are not sorted by depth (overlaps are rare at these sizes); a pair
   turned edge-on to the reader becomes one dot, as it would look; the flat map's "along the
   plane" wording in the details stays, since the details give both distances anyway.
+
+## The map stuck zoomed on a phone (owner, 2026-11-16)
+
+On a Pixel 8 Pro the map could get stuck zoomed, with swipes on it zooming instead of
+moving or scrolling, in flat and 3D, seemingly after a finger left the map. The map counts
+fingers by pointerdown and pointerup on the picture. Each redraw during a pinch replaces the
+shapes under the fingers, and Android Chrome can then deliver a finger's pointerup where
+the picture never hears it. The map went on counting that finger, so every later
+one-finger touch was the second finger of a pinch.
+
+Now the picture captures both fingers of a pinch (not a single tap, or a tap on a mark
+would no longer reach the mark), listens for pointerup and pointercancel on the whole
+window, and clears its count at the first finger of every new touch (`isPrimary`), so a
+lost finger cannot outlive its gesture. Checked with simulated touches (a pointerup on the
+page body, and one never sent at all); not yet on the phone itself. Zoomed in, or in 3D, a
+swipe on the map still moves it rather than scrolling the page, by design; in flat,
+"Whole map" gives the page back its swipe.

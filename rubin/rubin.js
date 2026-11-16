@@ -917,12 +917,21 @@ function drawMap(digest) {
     const pointers = new Map();
     let dragged = false;
     let pinch = null;
+    /* Every redraw replaces the shapes under the fingers, and a finger whose shape is gone
+       can be lifted without the map hearing of it (Android Chrome, owner's Pixel 8 Pro,
+       2026-11-16). A finger the map still counted then turned every later touch into half
+       a pinch: the map stuck zoomed, and a swipe zoomed instead of scrolling. So the map
+       holds on to both fingers of a pinch, hears a finger lifted anywhere on the page, and
+       starts its count afresh with the first finger of every new touch. */
+    const capture = (id) => { try { plot.setPointerCapture(id); } catch { /* already lifted */ } };
     plot.addEventListener('pointerdown', (e) => {
+        if (e.isPrimary) { pointers.clear(); pinch = null; }
         pointers.set(e.pointerId, local(e));
         dragged = false;
         if (pointers.size === 2) {
             const [a, b] = [...pointers.values()];
             pinch = { distance: Math.hypot(a[0] - b[0], a[1] - b[1]), view };
+            for (const id of pointers.keys()) capture(id);
         }
     });
     plot.addEventListener('pointermove', (e) => {
@@ -938,14 +947,14 @@ function drawMap(digest) {
             return;
         }
         if (!dragged && Math.hypot(x - px, y - py) < 4) return;
-        if (!dragged) { dragged = true; plot.setPointerCapture?.(e.pointerId); hideTooltip(); }
+        if (!dragged) { dragged = true; capture(e.pointerId); hideTooltip(); }
         pointers.set(e.pointerId, [x, y]);
         if (threeD) setCam(turnBy(cam, x - px, y - py));
         else if (zoomLevel(view) > 1.0001) setView(panBy(view, x - px, y - py));
     });
     const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
-    plot.addEventListener('pointerup', release);
-    plot.addEventListener('pointercancel', release);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
     plot.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
     /* In 3D a point in the picture is not one place on the map, so zooming keeps to the middle. */
     const anchorAt = (e) => (threeD ? undefined : toWorld(view, ...local(e)));
