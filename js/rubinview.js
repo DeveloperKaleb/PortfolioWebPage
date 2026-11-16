@@ -311,7 +311,7 @@ export function ringSpacing(view) {
    millions of pixels wide, and browsers draw such things badly. */
 export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
     const spacing = ringSpacing(view);
-    /* In 3D a ring is squashed top to bottom (stretch is one over the cosine of the tilt),
+    /* In 3D a ring is squashed top to bottom (stretch is one over its squash, ringStretch),
        so a ring too wide to cross the picture side to side can still cross it at the top
        or bottom. */
     const reach = (view.sizePx * Math.SQRT1_2) / view.scale;
@@ -357,12 +357,10 @@ export function journeyView(from, via, to, t) {
  * each star) stays a circle, and the AU rings still measure what they cross. */
 export const FLAT = { turn: 0, tilt: 0 };
 export const TILT_3D = 55 * Math.PI / 180;
-/* Short of edge-on, where every ring would be a line. */
-export const TILT_MAX = 85 * Math.PI / 180;
 
 /* A camera's maths, once per drawing: where a point lands in the picture, which way a
    direction points there (direction), and how much a ring in the plane is squashed top
-   to bottom (squash). */
+   to bottom (squash: 1 seen from straight above or below, 0 edge-on). */
 export function projector(view, cam = FLAT) {
     const [ct, st, cr, sr] = [Math.cos(cam.tilt), Math.sin(cam.tilt), Math.cos(cam.turn), Math.sin(cam.turn)];
     const half = view.sizePx / 2;
@@ -375,16 +373,23 @@ export function projector(view, cam = FLAT) {
         return [half + across(dx, dy) * view.scale, half - up(dx, dy, dz) * view.scale];
     };
     project.direction = (dx, dy, dz = 0) => [across(dx, dy), -up(dx, dy, dz)];
-    project.squash = ct;
+    project.squash = Math.abs(ct);
     return project;
 }
 
 /* Dragging turns the map and tips it: each pixel across is a third of a degree of turn,
-   and each one down tips it a third of a degree further toward edge-on. */
+   and each one down tips it a third of a degree further over - all the way round if the
+   reader likes, through edge-on to seeing the plane from below (owner, 2026-11-16). Both
+   angles are kept between minus and plus half a turn. */
+const wrap = (angle) => Math.atan2(Math.sin(angle), Math.cos(angle));
 export function turnBy(cam, dxPx, dyPx) {
     const step = Math.PI / 540;
-    return { turn: cam.turn - dxPx * step, tilt: Math.min(TILT_MAX, Math.max(0, cam.tilt + dyPx * step)) };
+    return { turn: wrap(cam.turn - dxPx * step), tilt: wrap(cam.tilt + dyPx * step) };
 }
+
+/* How much further the rings must reach for a squash, short of the endless rings edge-on
+   would ask for (ringRadii caps how many are drawn anyway). */
+export const ringStretch = (squash) => 1 / Math.max(squash, 0.05);
 
 /* ---- Where nothing has been seen -----------------------------------------------------------
  *

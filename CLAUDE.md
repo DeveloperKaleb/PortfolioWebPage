@@ -55,7 +55,7 @@ This means the site only fully works when served from that exact subpath (as on 
   repo, published with GitHub Pages) - never from a third party. Its words and
   geometry are in `js/rubinview.js`. Preview it locally with
   `?digest=<path>&changes=<path>`; `?place=both|centauri|barnard|luhman16` (and `&zoom=proxima|pair`) opens
-  its map away from the Sun, and `&view=3d` (`&turn=<degrees>`) opens it in 3D (the
+  its map away from the Sun, and `&view=3d` (`&turn=` and `&tilt=`, in degrees) opens it in 3D (the
   hand-written projection is `projector` in `js/rubinview.js`). Its head preloads every module it imports and asks
   for the digest in an inline script; a new import needs a `modulepreload` line there
   (`tests/rubin/loading.test.js` fails until it has one).

@@ -3945,15 +3945,18 @@ roughly the tab's whole code again) would have bought nothing. The 3D costs a fe
   moving it, so in 3D the picture takes every touch (`touch-action: none`); the page still
   scrolls from anywhere else. Zooming keeps to the middle, since a point in the picture is
   not one place on the map. The picture takes the arrow keys and is focusable only in 3D.
-  Tilt stops at 85 degrees, short of edge-on. The switch tips the map over in 0.7 s, or at
-  once for reduced motion; going back to flat also turns north back to the top. At the
+  The tilt goes all the way round (owner, 2026-11-16: it first stopped at 85 degrees):
+  through edge-on, where the rings are lines, to the plane seen from below, upside down. The
+  switch tips the map over in 0.7 s, or at
+  once for reduced motion; going back to flat also turns north back to the top, the short
+  way round. At the
   whole view the switch refits; zoomed in, it keeps the zoom.
 - **Rings in 3D** reach further (`ringRadii`'s stretch), since a ring too wide to cross the
   picture side to side can cross it top and bottom. Only the rings that would cross the flat
   picture are named, or their names stacked up the top.
 - **SagA's arrow** turns with the map and takes in the 5.6 degrees it lies below the plane;
   its label moves above it in 3D, where it can point any way.
-- **`&view=3d`** (and `&turn=<degrees>`) open the map in 3D, for headless screenshots.
+- **`&view=3d`** (and `&turn=`, `&tilt=`, in degrees) open the map in 3D, for headless screenshots.
 - **Not done:** marks are not sorted by depth (overlaps are rare at these sizes); a pair
   turned edge-on to the reader becomes one dot, as it would look; the flat map's "along the
   plane" wording in the details stays, since the details give both distances anyway.

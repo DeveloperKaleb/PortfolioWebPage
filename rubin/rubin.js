@@ -12,7 +12,7 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
-    projector, FLAT, TILT_3D, turnBy,
+    projector, FLAT, TILT_3D, turnBy, ringStretch,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
@@ -579,10 +579,12 @@ function drawMap(digest) {
         const [rx, ry] = at3(ringsAbout.x, ringsAbout.y, ground);
         const ringsFrom = Math.hypot(rx - SIZE / 2, ry - SIZE / 2) / view.scale;
         /* The wider rings 3D adds only cross the top and bottom of the picture, where their
-           names would stack up, so only the rest are named. */
-        const named = ringsFrom + (SIZE * Math.SQRT1_2) / view.scale;
-        for (const r of ringRadii(view, ringsFrom, 60, 1 / at3.squash)) {
-            const [across, tall] = [r * view.scale, r * view.scale * at3.squash];
+           names would stack up, so only the rest are named; and none near edge-on, where
+           every name would land on the same line. */
+        const named = at3.squash < 0.2 ? -1 : ringsFrom + (SIZE * Math.SQRT1_2) / view.scale;
+        for (const r of ringRadii(view, ringsFrom, 60, ringStretch(at3.squash))) {
+            /* Edge-on a ring is a line; an ellipse no taller than nothing is not drawn at all. */
+            const [across, tall] = [r * view.scale, Math.max(0.5, r * view.scale * at3.squash)];
             parts.push(svg('ellipse', { cx: rx, cy: ry, rx: across, ry: tall, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
             const labelY = ry - tall - 4;
             if (r <= named && labelY > 12 && labelY < SIZE && rx > -40 && rx < SIZE) parts.push(svg('text', { x: rx + 4, y: labelY, class: 'rubin-axis' }, ringLabel(r)));
@@ -879,7 +881,8 @@ function drawMap(digest) {
         view = whole ? home : { ...view, fitScale: home.fitScale, radiusAU: home.radiusAU, scale: Math.max(view.scale, home.fitScale) };
         showDepth();
         hideTooltip();
-        const from = { ...cam, turn: Math.atan2(Math.sin(cam.turn), Math.cos(cam.turn)) };
+        /* The short way round, from wherever the reader left it. */
+        const from = { turn: Math.atan2(Math.sin(cam.turn), Math.cos(cam.turn)), tilt: Math.atan2(Math.sin(cam.tilt), Math.cos(cam.tilt)) };
         const to = on ? { turn: from.turn, tilt: TILT_3D } : FLAT;
         if (reducedMotion.matches) { cam = to; render(); return; }
         const began = performance.now();
@@ -1041,10 +1044,11 @@ function drawMap(digest) {
     section.hidden = false;
     /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
        with the latter &zoom=proxima or pair. */
-    /* &view=3d opens it in 3D, and &turn= turns it that many degrees. */
+    /* &view=3d opens it in 3D, and &turn= and &tilt= turn and tip it that many degrees. */
     if (params.get('view') === '3d') {
         threeD = true;
-        cam = { turn: (Number(params.get('turn')) || 0) * Math.PI / 180, tilt: TILT_3D };
+        const degrees = (name, fallback) => (Number.isFinite(Number(params.get(name))) && params.has(name) ? Number(params.get(name)) * Math.PI / 180 : fallback);
+        cam = { turn: degrees('turn', 0), tilt: degrees('tilt', TILT_3D) };
         view = homeView(place);
         showDepth();
     }

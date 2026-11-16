@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { centauriOn, places, towardSagA } from '../../js/centauri.js';
 import {
-    initialView, zoomAt, toScreen, ringRadii, glideView, unseenHoles, projector, turnBy, FLAT, TILT_3D, TILT_MAX,
+    initialView, zoomAt, toScreen, ringRadii, glideView, unseenHoles, projector, turnBy, ringStretch, FLAT, TILT_3D,
 } from '../../js/rubinview.js';
 import { planetsOn } from '../../js/planets.js';
 
@@ -58,7 +58,7 @@ describe('3D', () => {
     test('a ring in the plane is squashed by the cosine of the tilt, and its rings reach far enough', () => {
         expect(at3.squash).toBeCloseTo(Math.cos(TILT_3D), 12);
         const flat = ringRadii(view, 0);
-        const tipped = ringRadii(view, 0, 60, 1 / at3.squash);
+        const tipped = ringRadii(view, 0, 60, ringStretch(at3.squash));
         expect(tipped.length).toBeGreaterThan(flat.length);
         expect(tipped.slice(0, flat.length)).toEqual(flat);
     });
@@ -72,10 +72,23 @@ describe('3D', () => {
         expect(Math.hypot(u, v)).toBeLessThanOrEqual(1 + 1e-12);
     });
 
-    test('a drag turns the map and tips it, stopping short of edge-on and of upside down', () => {
-        expect(turnBy(FLAT, 0, -50).tilt).toBe(0);
-        expect(turnBy({ turn: 0, tilt: TILT_3D }, 0, 5000).tilt).toBe(TILT_MAX);
-        expect(turnBy(FLAT, 54, 0).turn).toBeCloseTo(-54 / 3 * deg, 12);
+    test('a drag turns the map and tips it all the way round, both ways', () => {
+        expect(turnBy(FLAT, 0, -54).tilt).toBeCloseTo(-18 * deg, 12);
+        expect(turnBy(FLAT, 54, 0).turn).toBeCloseTo(-18 * deg, 12);
+        /* A full turn of tipping (1,080 pixels) comes back to where it began. */
+        expect(turnBy({ turn: 0, tilt: TILT_3D }, 0, 1080).tilt).toBeCloseTo(TILT_3D, 9);
+        const over = turnBy(FLAT, 0, 540);
+        expect(Math.abs(over.tilt)).toBeCloseTo(Math.PI, 9);
+    });
+
+    test('tipped right over, the plane is seen from below: north is down the picture, and rings are round again', () => {
+        const below = projector(view, { turn: 0, tilt: Math.PI });
+        expect(below(0, 10, 0)[1]).toBeGreaterThan(375);
+        expect(below(10, 0, 0)[0]).toBeGreaterThan(375);
+        expect(below.squash).toBeCloseTo(1, 12);
+        const edge = projector(view, { turn: 0, tilt: Math.PI / 2 });
+        expect(edge.squash).toBeCloseTo(0, 12);
+        expect(ringStretch(edge.squash)).toBe(20);
     });
 });
 
@@ -92,7 +105,7 @@ describe('Places in 3D', () => {
     test('pulled back to the nearest bodies, every one stays in the picture however the map is turned', () => {
         const view = home(P.both, true);
         for (let turn = 0; turn < 360; turn += 15) {
-            for (const tilt of [0, 30, 55, 85]) {
+            for (const tilt of [0, 30, 55, 90, 135, 180, -60]) {
                 const at3 = projector(view, { turn: turn * deg, tilt: tilt * deg });
                 for (const body of [system.centre, system.proxima, system.barnard, system.luhman16, { x: 0, y: 0, z: 0 }]) {
                     const [x, y] = at3(body.x, body.y, body.z);
