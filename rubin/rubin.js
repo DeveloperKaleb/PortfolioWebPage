@@ -703,14 +703,14 @@ function drawMap(digest) {
             const [ax, ay] = [SIZE - 48, SIZE - 64];
             const [dx, dy] = [SAG_A_WAY.x, -SAG_A_WAY.y];
             const end = (k) => [ax + dx * k, ay + dy * k];
-            const [hx, hy] = end(22);
+            const [hx, hy] = end(33);
             const head = (turn) => {
                 const c = Math.cos(turn), s = Math.sin(turn);
                 return `${(hx + (dx * c - dy * s) * 9).toFixed(1)},${(hy + (dx * s + dy * c) * 9).toFixed(1)}`;
             };
             const g = svg('g', { class: 'rubin-mark rubin-toward' });
-            g.append(svg('rect', { x: ax - 120, y: ay - 34, width: 140, height: 68, fill: 'transparent' }));
-            g.append(svg('line', { x1: end(-22)[0], y1: end(-22)[1], x2: hx, y2: hy, stroke: C.text, 'stroke-width': 1.5 }));
+            g.append(svg('rect', { x: ax - 120, y: ay - 45, width: 140, height: 90, fill: 'transparent' }));
+            g.append(svg('line', { x1: end(-33)[0], y1: end(-33)[1], x2: hx, y2: hy, stroke: C.text, 'stroke-width': 1.5 }));
             g.append(svg('polyline', { points: `${head(Math.PI * 5 / 6)} ${hx.toFixed(1)},${hy.toFixed(1)} ${head(-Math.PI * 5 / 6)}`, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
             g.append(svg('text', { x: ax - 14, y: ay + 4, 'text-anchor': 'end', class: 'rubin-axis' }, 'Toward SagA'));
             attachDetails(g, [
