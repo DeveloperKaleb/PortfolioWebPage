@@ -12,7 +12,7 @@
  */
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
-    projector, FLAT, TILT_3D, turnBy, ringStretch,
+    projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
     zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
@@ -236,6 +236,8 @@ function card(entry, { extra } = {}) {
 
 const selected = new Set();
 const pickers = new Map(); // designation -> the section's picker state
+/* The map redraws on any change, since a picked object's orbit is drawn on it. */
+let onPick = () => {};
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function select(designation, on, { scrollTo = false } = {}) {
@@ -248,6 +250,7 @@ function select(designation, on, { scrollTo = false } = {}) {
         if (node.hasAttribute('aria-pressed')) node.setAttribute('aria-pressed', String(on));
     });
     renderCards(picker);
+    onPick();
     if (on && scrollTo) {
         picker.cards.get(designation)?.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
     }
@@ -361,6 +364,38 @@ function drawMap(digest) {
     let place = PLACES.sun;
     /* The animation frame of a journey under way, or 0. */
     let travelling = 0;
+    /* Picking something on the map centres the map on it and draws its orbit (owner,
+       2026-11-16). Objects with cards share the cards' selection; the stars and Luhman 16's
+       tundrs, which have none, are kept here. */
+    const bodiesPicked = new Set();
+    const isPicked = (key) => selected.has(key) || bodiesPicked.has(key);
+    /* The animation frame of a glide to centre a picked body, or 0. */
+    let centring = 0;
+    const orbits = new Map();
+    const orbitFor = (entry) => {
+        if (!orbits.has(entry.designation)) orbits.set(entry.designation, orbitOnMap(entry));
+        return orbits.get(entry.designation);
+    };
+    /* What can be drawn of each body's orbit without a card: its path or paths, or a note
+       saying why not. The Sun and Barnard's Star orbit only the centre of the galaxy, far
+       off this map; Proxima's orbit about A and B is known only roughly. */
+    const PICKABLE = (() => {
+        const sun = { x: 0, y: 0, z: 0 };
+        const galaxy = 'orbits the galaxy, far off this map';
+        const luhman = system.luhmanPair;
+        return {
+            'body:sun': { body: sun, note: galaxy },
+            'body:centauri': { body: system.centre, paths: [system.paths.a, system.paths.b] },
+            'body:ab': { body: system.centre, paths: [system.paths.a, system.paths.b] },
+            'body:a': { body: system.a, paths: [system.paths.a] },
+            'body:b': { body: system.b, paths: [system.paths.b] },
+            'body:proxima': { body: system.proxima, note: 'orbit about A and B known only roughly' },
+            'body:barnard': { body: system.barnard, note: galaxy },
+            'body:luhman16': { body: luhman.centre, paths: [luhman.paths.a, luhman.paths.b] },
+            'body:luhmanA': { body: luhman.a, paths: [luhman.paths.a] },
+            'body:luhmanB': { body: luhman.b, paths: [luhman.paths.b] },
+        };
+    })();
     /* Which way the centre of the galaxy is, along the map's plane. */
     const SAG_A_WAY = towardSagA();
     /* A whole system is drawn as one dot once its map is smaller than this on screen. (At
@@ -607,28 +642,47 @@ function drawMap(digest) {
         const sunAsDot = data.radius * view.scale < SYSTEM_DOT_PX;
         const solar = sunShown && !sunAsDot;
 
+        /* Each picked body's orbit, bright, under the marks; or, where it is not known well
+           enough to draw, or too small to see from here, a note beside the body saying so. */
+        const traced = (path, closed, stroke = C.text) => {
+            const points = path.map((q) => at3(q.x, q.y, q.z ?? 0).map((v) => v.toFixed(1)).join(',')).join(' ');
+            parts.push(svg(closed ? 'polygon' : 'polyline', { points, fill: 'none', stroke, 'stroke-width': 1.5, opacity: 0.9, 'pointer-events': 'none' }));
+        };
+        const noteBeside = (body, text) => {
+            const [x, y] = at3(body.x, body.y, body.z ?? 0);
+            labels.push({ x, y: y + 14, text, rank: Infinity });
+        };
+        for (const { entry, kind } of solar ? data.marks : []) {
+            if (!selected.has(entry.designation)) continue;
+            const orbit = orbitFor(entry);
+            if (orbit.path) traced(orbit.path, entry.orbit.e < 1, MARK_STYLE[kind].color);
+            else noteBeside(entry.now, orbit.note);
+        }
+        for (const key of bodiesPicked) {
+            if (!PICKABLE[key]) continue;
+            const { body, paths, note } = PICKABLE[key];
+            if (note) { noteBeside(body, note); continue; }
+            const across = Math.max(...paths.flat().map((q) => apartOnScreen(q, body)));
+            if (across < 3) noteBeside(body, 'orbit too small to see from here');
+            else paths.forEach((path) => traced(path, true));
+        }
+
         /* The planets and tundrs, on their real orbits, where they are on the digest's date. */
         for (const p of solar ? data.planets : []) {
             const orbitPx = p.a * view.scale;
             if (orbitPx < PLANET_DRAW_PX) continue;
-            const points = p.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
-            parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-            const [px, py] = at3(p.x, p.y, p.z);
             const designation = `world:${p.name}`;
-            const chosen = selected.has(designation);
+            const chosen = isPicked(designation);
+            const points = p.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
+            parts.push(svg('polygon', { points, fill: 'none', stroke: chosen ? C.text : C.muted, 'stroke-width': chosen ? 1.5 : 1, opacity: chosen ? 0.9 : 0.55 }));
+            const [px, py] = at3(p.x, p.y, p.z);
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
             g.append(svg('circle', { cx: px, cy: py, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: px, cy: py, r: 3.5, fill: C.muted, stroke: C.space, 'stroke-width': 2 }));
-            attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], ['Click to show or hide its card']]);
-            /* Like every object on the map, a click toggles its card; the card's "tundr"
+            attachDetails(g, [[p.name, KIND_LABEL[p.kind].toLowerCase()], [au(p.r), 'from the Sun'], CLICK_ROW]);
+            /* Like every object on the map, a click picks it (pickable); the card's "tundr"
                opens what a tundr is. */
-            g.setAttribute('role', 'button');
-            g.setAttribute('aria-pressed', String(chosen));
-            g.addEventListener('click', () => { hideTooltip(); toggle(designation, { scrollTo: true }); });
-            g.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(designation, { scrollTo: true }); }
-            });
-            g.addEventListener('dblclick', (e) => e.stopPropagation());
+            pickable(g, designation, p, chosen);
             parts.push(g);
             if (orbitPx >= PLANET_LABEL_PX) labels.push({ x: px, y: py, text: p.name, rank: Infinity });
         }
@@ -639,39 +693,37 @@ function drawMap(digest) {
             if (ringPx < MOON_DRAW_PX) continue;
             const [mx, my] = at3(m.x, m.y, m.z);
             if (mx < -20 || mx > SIZE + 20 || my < -20 || my > SIZE + 20) continue;
-            const points = m.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
-            parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.4 }));
             const designation = `world:${m.name}`;
-            const chosen = selected.has(designation);
+            const chosen = isPicked(designation);
+            const points = m.path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
+            parts.push(svg('polygon', { points, fill: 'none', stroke: chosen ? C.text : C.muted, 'stroke-width': chosen ? 1.5 : 1, opacity: chosen ? 0.9 : 0.4 }));
             const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable', 'data-object': designation });
             g.append(svg('circle', { cx: mx, cy: my, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: mx, cy: my, r: 2.5, fill: C.muted, stroke: C.space, 'stroke-width': 1.5 }));
-            attachDetails(g, [[m.name, `planet, orbiting ${m.parent}`], ['Click to show or hide its card']]);
-            g.setAttribute('role', 'button');
-            g.setAttribute('aria-pressed', String(chosen));
-            g.addEventListener('click', () => { hideTooltip(); toggle(designation, { scrollTo: true }); });
-            g.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(designation, { scrollTo: true }); }
-            });
-            g.addEventListener('dblclick', (e) => e.stopPropagation());
+            attachDetails(g, [[m.name, `planet, orbiting ${m.parent}`], CLICK_ROW]);
+            pickable(g, designation, m, chosen);
             parts.push(g);
             if (ringPx >= PLANET_LABEL_PX) labels.push({ x: mx, y: my, text: m.name, rank: 1e7 });
         }
-        if (solar) parts.push(svg('circle', { cx: sx, cy: sy, r: 4, fill: C.text }));
-        /* A star as a mark: the Sun from far off, and the three of Alpha Centauri. Luhman
-           16's two tundrs are marked the same way, fainter, and say what they are. */
-        const star = (body, name, radius, rows, { kind = 'star', fill = C.text } = {}) => {
+        /* A star as a mark: the Sun, and the three of Alpha Centauri. Luhman 16's two tundrs
+           are marked the same way, fainter, and say what they are. A click picks it. */
+        const star = (key, name, radius, rows, { kind = 'star', fill = C.text, named = true } = {}) => {
+            const { body } = PICKABLE[key];
             const [x, y] = at3(body.x, body.y, body.z ?? 0);
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
             drop(body, x, y);
-            const g = svg('g', { class: 'rubin-mark' });
+            const chosen = bodiesPicked.has(key);
+            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
             g.append(svg('circle', { cx: x, cy: y, r: radius, fill, stroke: C.space, 'stroke-width': 2 }));
-            attachDetails(g, [[name, kind], ...rows]);
+            attachDetails(g, [[name, kind], ...rows, ['Click to centre the map on it', 'and show its orbit']]);
+            pickable(g, key, body, chosen);
             parts.push(g);
-            labels.push({ x, y, text: name, rank: Infinity });
+            if (named) labels.push({ x, y, text: name, rank: Infinity });
         };
-        if (sunShown && sunAsDot) star({ x: 0, y: 0, z: 0 }, 'The Sun', 4, [['With everything on its map:', `${ringLabel(data.radius)} out, too small to tell apart from here`]]);
+        const galaxyRow = ['It orbits the centre of the galaxy,', 'once in about 230 million years'];
+        if (solar) star('body:sun', 'The Sun', 4, [galaxyRow], { named: false });
+        if (sunShown && sunAsDot) star('body:sun', 'The Sun', 4, [['With everything on its map:', `${ringLabel(data.radius)} out, too small to tell apart from here`]]);
 
         /* Alpha Centauri: one dot from far off; then Proxima and the pair; then A and B
            apart, on the paths they trace about their centre of gravity. The planets'
@@ -687,20 +739,20 @@ function drawMap(digest) {
         };
         if (inPicture(system.centre, threeD ? PLACES.centauri.radius3D : PLACES.centauri.radiusAU)) {
             if (PLACES.centauri.radiusAU * view.scale < SYSTEM_DOT_PX) {
-                star(system.centre, 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
+                star('body:centauri', 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
             } else {
                 PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => orbitOf(system.proxima, o));
-                star(system.proxima, 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B']]);
+                star('body:proxima', 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B'], ['Its orbit about A and B is known only roughly:', 'once round in about 550,000 years']]);
                 if (apartOnScreen(system.a, system.b) < 12) {
-                    star(system.centre, 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
+                    star('body:ab', 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
                 } else {
                     for (const path of [system.paths.a, system.paths.b]) {
                         const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
                         parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
                     }
                     PLANET_ORBITS.filter((o) => o.star === 'a').forEach((o) => orbitOf(system.a, o));
-                    star(system.a, 'Alpha Centauri A', 4.5, [...far(system.a), [farDistanceText(system.apart), 'from B on this date']]);
-                    star(system.b, 'Alpha Centauri B', 3.5, [...far(system.b), [farDistanceText(system.apart), 'from A on this date']]);
+                    star('body:a', 'Alpha Centauri A', 4.5, [...far(system.a), [farDistanceText(system.apart), 'from B on this date']]);
+                    star('body:b', 'Alpha Centauri B', 3.5, [...far(system.b), [farDistanceText(system.apart), 'from A on this date']]);
                 }
             }
         }
@@ -710,7 +762,7 @@ function drawMap(digest) {
         const luhman = system.luhmanPair;
         const tundrs = { kind: 'Hydrogen Tundr', fill: C.muted };
         if (apartOnScreen(luhman.a, luhman.b) < 12) {
-            star(luhman.centre, 'Luhman 16 AB', 3, [
+            star('body:luhman16', 'Luhman 16 AB', 3, [
                 ["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
                 ['Found in 2013:', 'the third-nearest system to the Sun'],
                 ...far(luhman.centre),
@@ -721,13 +773,14 @@ function drawMap(digest) {
                 parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
             }
             const apart = [farDistanceText(luhman.apart), 'apart on this date; round each other every 25.5 years'];
-            star(luhman.a, 'Luhman 16 A', 3.5, [["About 35 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.a), apart], tundrs);
-            star(luhman.b, 'Luhman 16 B', 3, [["About 29 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.b), apart], tundrs);
+            star('body:luhmanA', 'Luhman 16 A', 3.5, [["About 35 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.a), apart], tundrs);
+            star('body:luhmanB', 'Luhman 16 B', 3, [["About 29 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.b), apart], tundrs);
         }
         /* Barnard's Star, with its four planets' orbits once zoomed in on it. */
         PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => orbitOf(system.barnard, o));
-        star(system.barnard, "Barnard's Star", 3, [
+        star('body:barnard', "Barnard's Star", 3, [
             ['A single small star:', 'it crosses our sky faster than any other'],
+            galaxyRow,
             ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
             ...far(system.barnard),
         ]);
@@ -775,17 +828,10 @@ function drawMap(digest) {
                 [au(entry.now.r), 'from the Sun'],
                 ...(planeText(entry) ? [[planeText(entry)]] : []),
                 [sizeOf(entry).text, sizeOf(entry).measured ? 'measured' : 'from brightness'],
-                ['Click to show or hide its card'],
+                ...orbitFor(entry).rows,
+                CLICK_ROW,
             ]);
-            /* Clicking a mark toggles its card, and scrolls to it when it appears. */
-            g.setAttribute('role', 'button');
-            g.setAttribute('aria-pressed', String(chosen));
-            g.addEventListener('click', () => { hideTooltip(); toggle(entry.designation, { scrollTo: true }); });
-            g.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(entry.designation, { scrollTo: true }); }
-            });
-            /* A double-click on an object is two clicks on it, not a zoom. */
-            g.addEventListener('dblclick', (e) => e.stopPropagation());
+            pickable(g, entry.designation, entry.now, chosen);
             parts.push(g);
             const name = properName(entry);
             if (name) labels.push({ x, y, text: name, rank: sizeOf(entry).km });
@@ -804,7 +850,8 @@ function drawMap(digest) {
         readout.textContent = travelling ? `Travelling to ${place.name}` : `${where}${level < 1.05 ? whole : `${level < 10 ? level.toFixed(1) : Math.round(level).toLocaleString('en-US')}× zoom`}`;
         zoomIn.disabled = Boolean(travelling) || level >= MAP_ZOOM.max - 0.01;
         zoomOut.disabled = Boolean(travelling) || level <= 1.0001;
-        reset.disabled = Boolean(travelling) || level <= 1.0001;
+        /* A pick can move the whole map off its middle, so it can be put back. */
+        reset.disabled = Boolean(travelling) || (level <= 1.0001 && atHome(view));
         flatButton.disabled = threeDButton.disabled = Boolean(travelling);
         /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. In 3D
            it always turns the map. */
@@ -812,8 +859,48 @@ function drawMap(digest) {
         runLight();
     }
 
-    /* A journey under way is not interrupted by a stray pinch or scroll. */
-    const setView = (next) => { if (travelling) return; view = next; render(); };
+    /* A journey under way is not interrupted by a stray pinch or scroll. Anything else the
+       reader does stops a glide to a picked body where it is. */
+    const setView = (next) => { if (travelling) return; cancelAnimationFrame(centring); centring = 0; view = next; render(); };
+
+    /* Picking: a click (or Enter) on something on the map picks it, or, picked already, lets
+       it go. Picking it centres the map on it, so zooming and turning go about it rather
+       than its system's centre of gravity, and draws its orbit; an object with a card shows
+       its card too, without leaving the map (the map's table still goes to it). */
+    const CLICK_ROW = ['Click to centre the map on it,', 'and show its orbit and its card'];
+    function centreOn(body) {
+        if (travelling) return;
+        cancelAnimationFrame(centring);
+        const from = view;
+        const to = centredOn(view, [body.x, body.y, body.z ?? 0]);
+        if (reducedMotion.matches) { centring = 0; view = to; render(); return; }
+        const began = performance.now();
+        const frame = (now) => {
+            const t = Math.min(1, (now - began) / 600);
+            view = glideView(from, to, t);
+            centring = t >= 1 ? 0 : requestAnimationFrame(frame);
+            render();
+        };
+        centring = requestAnimationFrame(frame);
+    }
+    function pickOnMap(key, body, options) {
+        hideTooltip();
+        const on = !isPicked(key);
+        if (pickers.has(key)) select(key, on, options);
+        else { if (on) bodiesPicked.add(key); else bodiesPicked.delete(key); render(); }
+        if (on) centreOn(body);
+    }
+    const pickable = (g, key, body, chosen) => {
+        g.setAttribute('role', 'button');
+        g.setAttribute('aria-pressed', String(chosen));
+        g.addEventListener('click', () => pickOnMap(key, body));
+        g.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickOnMap(key, body); }
+        });
+        /* A double-click on an object is two clicks on it, not a zoom. */
+        g.addEventListener('dblclick', (e) => e.stopPropagation());
+    };
+    onPick = () => render();
 
     /* Going somewhere: the map glides there (glideView), by way of the view that holds both
        systems when it is crossing between them (journeyView). For a visitor who asked for
@@ -830,7 +917,8 @@ function drawMap(digest) {
     }
     function goTo(target, toView = homeView(target)) {
         cancelAnimationFrame(travelling);
-        travelling = 0;
+        cancelAnimationFrame(centring);
+        travelling = centring = 0;
         const from = view;
         const direct = place === target || place.id === 'both' || target.id === 'both';
         const via = homeView(PLACES.both);
@@ -875,6 +963,8 @@ function drawMap(digest) {
     function setDepth(on) {
         if (on === threeD || travelling) return;
         cancelAnimationFrame(tipping);
+        cancelAnimationFrame(centring);
+        centring = 0;
         const whole = zoomLevel(view) <= 1.0001;
         threeD = on;
         const home = homeView(place);
@@ -1025,18 +1115,19 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
     );
 
     const mapTable = table(
         ['Object', 'Listed as', 'From the Sun', 'Along the plane and out of it', 'Size'],
         data.marks.map(({ entry, kind }) => [displayName(entry), MARK_STYLE[kind].label, au(entry.now.r), planeText(entry) ?? 'in the plane', sizeOf(entry).text]),
     );
-    /* Each name in the table is a button doing what clicking its map mark does. */
+    /* Each name in the table is a button doing what clicking its map mark does, and then
+       goes to the card. */
     [...mapTable.tBodies[0].rows].forEach((row, k) => {
         const { entry } = data.marks[k];
         const name = el('button', { type: 'button', class: 'rubin-row-pick', 'aria-pressed': 'false', 'data-object': entry.designation }, displayName(entry));
-        name.addEventListener('click', () => toggle(entry.designation, { scrollTo: true }));
+        name.addEventListener('click', () => pickOnMap(entry.designation, entry.now, { scrollTo: true }));
         row.cells[0].replaceChildren(name);
     });
     const starsTable = table(

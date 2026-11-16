@@ -76,6 +76,11 @@ describe('The digest', () => {
         expect(digest.entries[1]).toMatchObject({ passes: false, watch: true });
     });
 
+    test("keeps the angles that turn each orbit, so the map can draw it", () => {
+        const { om, w } = OBJECTS.Eris.elements;
+        expect(digest.entries[0].orbit).toMatchObject({ om: Number(om.toFixed(3)), w: Number(w.toFixed(3)) });
+    });
+
     test('records near misses', () => {
         const near = choosePhotometry([tno('near', 4.6, ordinary)], {}).objects;
         const d = buildDigest({ objects: near, date, jd: jdFromDate(date), provenance: made });

@@ -93,12 +93,62 @@ export function positionAt(el, jd) {
         xv = a * (Math.cosh(F) - e);
         yv = -a * Math.sqrt(e * e - 1) * Math.sinh(F);
     }
+    const [x, y, z] = orbitFrame(el)(xv, yv);
+    return { x, y, z, r: Math.hypot(x, y, z) };
+}
+
+/* From the orbit's own plane (x toward perihelion) to heliocentric ecliptic J2000, and
+   back (inverse). */
+function orbitFrame(el) {
     const [O, w, i] = [el.om * DEG, el.w * DEG, el.i * DEG];
     const [cO, sO, cw, sw, ci, si] = [Math.cos(O), Math.sin(O), Math.cos(w), Math.sin(w), Math.cos(i), Math.sin(i)];
-    const x = (cO * cw - sO * sw * ci) * xv + (-cO * sw - sO * cw * ci) * yv;
-    const y = (sO * cw + cO * sw * ci) * xv + (-sO * sw + cO * cw * ci) * yv;
-    const z = (sw * si) * xv + (cw * si) * yv;
-    return { x, y, z, r: Math.hypot(x, y, z) };
+    const P = [cO * cw - sO * sw * ci, sO * cw + cO * sw * ci, sw * si];
+    const Q = [-cO * sw - sO * cw * ci, -sO * sw + cO * cw * ci, cw * si];
+    const to = (xv, yv) => [P[0] * xv + Q[0] * yv, P[1] * xv + Q[1] * yv, P[2] * xv + Q[2] * yv];
+    to.inverse = ([x, y, z]) => [P[0] * x + P[1] * y + P[2] * z, Q[0] * x + Q[1] * y + Q[2] * z];
+    return to;
+}
+
+/* An orbit as a path for drawing (heliocentric ecliptic AU), from elements as for
+   positionAt; ma and epoch are not needed. Sampled evenly in eccentric anomaly, which
+   crowds the points near perihelion, where the orbit bends most. An unbound orbit is the
+   arm of its hyperbola out to reachAU from the Sun.
+
+   Given where the object is now (through), the path is made to pass exactly through it:
+   its points crowd in close either side, so the line runs through the object's mark at
+   any zoom, and the whole path is moved by the little the rounded elements put it off. */
+export function orbitPath(el, { steps = 180, through = null, reachAU } = {}) {
+    const { a, e } = el;
+    const frame = orbitFrame(el);
+    const bound = e < 1;
+    /* A point in the orbit's plane from its eccentric (or hyperbolic) anomaly. */
+    const inPlane = bound
+        ? (E) => [a * (Math.cos(E) - e), a * Math.sqrt(1 - e * e) * Math.sin(E)]
+        : (F) => [a * (Math.cosh(F) - e), -a * Math.sqrt(e * e - 1) * Math.sinh(F)];
+    const reach = reachAU ?? 3 * Math.max(Math.abs(a * (1 - e)), through ? Math.hypot(through.x, through.y, through.z) : 0);
+    const widest = bound ? Math.PI : Math.acosh((reach / Math.abs(a) + 1) / e);
+    const anomalies = Array.from({ length: bound ? steps : steps + 1 }, (_, k) => (bound ? (2 * Math.PI * k) / steps - Math.PI : -widest + (2 * widest * k) / steps));
+    let shift = [0, 0, 0];
+    if (through) {
+        const [px, py] = frame.inverse([through.x, through.y, through.z]);
+        const nu = Math.atan2(py, px);
+        const now = bound
+            ? 2 * Math.atan2(Math.sqrt(1 - e) * Math.sin(nu / 2), Math.sqrt(1 + e) * Math.cos(nu / 2))
+            : 2 * Math.atanh(Math.sqrt((e - 1) / (e + 1)) * Math.tan(nu / 2));
+        if (Number.isFinite(now)) {
+            const exact = frame(...inPlane(now));
+            shift = [through.x - exact[0], through.y - exact[1], through.z - exact[2]];
+            for (const d of [0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2]) {
+                for (const s of d ? [now - d, now + d] : [now]) if (bound || Math.abs(s) <= widest) anomalies.push(s);
+            }
+            if (bound) for (let k = 0; k < anomalies.length; k++) anomalies[k] = Math.atan2(Math.sin(anomalies[k]), Math.cos(anomalies[k]));
+            anomalies.sort((p, q) => p - q);
+        }
+    }
+    return anomalies.map((E) => {
+        const [x, y, z] = frame(...inPlane(E));
+        return { x: x + shift[0], y: y + shift[1], z: z + shift[2] };
+    });
 }
 
 /* Earth's heliocentric ecliptic J2000 position (AU), from the low-precision solar

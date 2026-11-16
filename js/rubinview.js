@@ -9,7 +9,7 @@ import { CALIBRATION, READINGS, SHAPED, fitEquilibrium, chanceShaped, diameterAt
 import { albedosNear, diameterFromH } from './brightness.js';
 import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
-import { jdFromDate, positionAt, tooBrightForRubin } from './orbit.js';
+import { jdFromDate, positionAt, orbitPath, tooBrightForRubin } from './orbit.js';
 import { moonOffset, moonRing, moonDistance, MOON_PARENTS, BUILT_IN_MOONS } from './moons.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
@@ -166,6 +166,37 @@ export function mapData(digest) {
     /* The digest carries the collector's latest moon fit; an older digest, the built-in one. */
     return { marks, radius, radius3D, planets, moons: moonsOn(jd, planets, known, digest.moons ?? BUILT_IN_MOONS) };
 }
+
+/* What the map draws of an object's orbit once it is picked (owner, 2026-11-16): the
+   path, through where it is now; or, where the orbit is not pinned down yet (the
+   uncertainOrbit flag), no path but a note saying so - a path drawn from a poor orbit would
+   show the reader something nobody knows. A digest from before the collector kept the
+   orbit's two turning angles (om and w) cannot draw it either. */
+export function orbitOnMap(entry) {
+    const o = entry.orbit;
+    if (entry.flags.includes('uncertainOrbit')) {
+        const q = entry.orbitQuality;
+        const rows = [['Orbit not yet pinned down:', 'not drawn until it is']];
+        if (q?.arcDays !== null && q?.arcDays !== undefined) {
+            const span = q.arcDays < 730 ? `${Math.round(q.arcDays)} days` : `${Math.round(q.arcDays / 365.25)} years`;
+            rows.push([`${q.nObs ? `${q.nObs} sightings` : 'Seen'} over ${span};`, `uncertainty ${q.conditionCode ?? '?'} on the 0 (well known) to 9 scale`]);
+        }
+        return { path: null, note: 'orbit not yet known', rows };
+    }
+    if (!Number.isFinite(o?.om) || !Number.isFinite(o?.w) || !Number.isFinite(entry.now?.z)) {
+        return { path: null, note: 'orbit with the next update', rows: [['Orbit:', 'drawn once the next weekly update arrives']] };
+    }
+    return { path: orbitPath(o, { through: entry.now }), note: null, rows: [] };
+}
+
+/* The view moved so a point is in the middle of the picture, keeping its zoom: what the
+   map does when something on it is picked, so zooming and turning go about that body
+   rather than the centre of its system (owner, 2026-11-16). Kept as near as the view
+   allows (clampView). */
+export const centredOn = (view, [x, y, z = 0]) => ({ ...clampView({ ...view, cx: x, cy: y }), cz: z });
+
+/* Whether a view is at its home: the place's own middle. */
+export const atHome = (view) => view.cx === (view.homeX ?? 0) && view.cy === (view.homeY ?? 0) && (view.cz ?? 0) === (view.homeZ ?? 0);
 
 /* Who found it, when the collector has looked it up: "17 July 2007 at Palomar
    Mountain", or "... by Rubin Observatory" for Rubin's own discoveries. Null while the

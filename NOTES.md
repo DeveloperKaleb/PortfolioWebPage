@@ -3977,3 +3977,33 @@ lost finger cannot outlive its gesture. Checked with simulated touches (a pointe
 page body, and one never sent at all); not yet on the phone itself. Zoomed in, or in 3D, a
 swipe on the map still moves it rather than scrolling the page, by design; in flat,
 "Whole map" gives the page back its swipe.
+
+## Picking a body on the map (owner, 2026-11-16)
+
+Owner's request: clicking an object on the map selects it, and selecting does two things:
+the map centres on the object, not on its system's centre of gravity, and its orbit is
+drawn if it is known; if it is not, the map says so.
+
+- **Centring** (`centredOn` in js/rubinview.js) keeps the zoom and moves the middle,
+  including its height (`cz`), so zooming and 3D turning go about the picked body. It
+  glides over 0.6 s (instant with reduced motion), and any pan, pinch or zoom stops it
+  where it is. It stays within the reach a drag is allowed (`clampView`). "Whole map"
+  stays enabled while the middle is off home, even at the widest zoom.
+- **Rubin's objects:** the path comes from `orbitPath` (js/orbit.js), which needs the node
+  (om) and the argument of perihelion (w). The collector has always fetched these but
+  did not keep them; it does now (`orbit.om`, `orbit.w`, 3 decimals). The digest's rounded
+  elements would put the path a little off the mark at deep zoom, so the path is moved to
+  run exactly through the object's position, with points packed close on either side.
+  An object flagged `uncertainOrbit` (an arc under a year, or U of 6 or more) gets no
+  path but the note "orbit not yet known", and its hover text gives the sightings, the
+  arc and U. A digest without om and w says "orbit with the next update".
+- **Planets, tundrs and moons:** their existing orbit is drawn bright.
+- **Stars** (which have no cards) are now pickable too:
+  - A and B, and Luhman 16 A and B: their paths about their centre of gravity. A pair's
+    or system's single dot shows both paths, or "orbit too small to see from here".
+  - Proxima: "orbit about A and B known only roughly", about 550,000 years (Kervella et
+    al. 2017). Not drawn, since our parallaxes put it ~12,050 AU from A and B, which such
+    an orbit would not match.
+  - The Sun and Barnard's Star: "orbits the galaxy, far off this map".
+- A click on the map no longer scrolls the page to the card; the card still appears in
+  its section. The map's table still scrolls to it, and now centres the map too.

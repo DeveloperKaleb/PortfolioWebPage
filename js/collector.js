@@ -168,7 +168,7 @@ const round = (value, places) => (value === null || value === undefined ? value 
 
 /* The digest's line for one assessed object. */
 function entry(o, v) {
-    const { a, e, i } = o.elements;
+    const { a, e, i, om, w } = o.elements;
     return {
         designation: o.designation,
         name: o.fullName,
@@ -177,7 +177,8 @@ function entry(o, v) {
         ...(v.sizeFrom === 'measured' ? { diameterKm: round(v.diameterKm, 0), measured: { H: v.measured.H, albedo: v.measured.albedo, method: v.measured.method, source: v.measured.source } } : {}),
         chance: round(v.evidence, 3), chanceGrundy: round(v.grundy, 3), chanceIfDark: round(v.ifDark.evidence, 3),
         passes: v.passes, flags: v.flags, watch: v.watch,
-        orbit: { a: round(a, 2), e: round(e, 3), i: round(i, 2), q: round(a * (1 - e), 2) },
+        /* om and w turn the orbit to face the right way, so the map can draw it. */
+        orbit: { a: round(a, 2), e: round(e, 3), i: round(i, 2), q: round(a * (1 - e), 2), om: round(om, 3), w: round(w, 3) },
         orbitFrom: o.orbitFrom ?? 'JPL',
         orbitQuality: o.quality ?? null,
         rubin: o.rubin ? {
