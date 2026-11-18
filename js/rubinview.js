@@ -286,6 +286,13 @@ export function matchesQuery(entry, query) {
 /* Zoomed all the way in, Charon (13,000 km from Pluto) is a few pixels clear of it. */
 export const MAP_ZOOM = { max: 50000, step: 2 };
 
+/* From far out, zooming goes deeper still: in until the middle of the picture is this many
+   AU from its edge, whatever the view's reach - so a body picked in the view of the nearest
+   bodies, hundreds of thousands of AU across, can be zoomed in on until its planets show
+   (owner, 2026-11-18: Barnard's Star's four lie within 0.04 AU of it). */
+export const DEEPEST_AU = 0.005;
+export const maxZoomOf = (view) => Math.max(MAP_ZOOM.max, (view.radiusAU ?? 0) / DEEPEST_AU);
+
 /* The map is the tab's centrepiece, so it is wider than the text (owner, 2026-10-05): 750px,
    125% of the 600px column, reaching into the margins. On a narrower screen it takes the
    screen's width less a 16px gutter each side. The drawing is made at the size it is shown,
@@ -320,7 +327,7 @@ export const toScreen = (view, x, y) => [view.sizePx / 2 + (x - view.cx) * view.
 export const toWorld = (view, sx, sy) => [view.cx + (sx - view.sizePx / 2) / view.scale, view.cy - (sy - view.sizePx / 2) / view.scale];
 
 const clampView = (view) => {
-    const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale));
+    const scale = Math.min(view.fitScale * maxZoomOf(view), Math.max(view.fitScale, view.scale));
     /* The centre stays where there is something to see: within the fitted radius of home. */
     const limit = view.radiusAU;
     const near = (value, home) => Math.max(home - limit, Math.min(home + limit, value));
@@ -330,7 +337,7 @@ const clampView = (view) => {
 /* Zoom by a factor, keeping the point under the anchor (AU) where it is on screen. At
    the widest it re-centres on its home, so zooming out always comes home. */
 export function zoomAt(view, factor, anchor = [view.cx, view.cy]) {
-    const scale = Math.min(view.fitScale * MAP_ZOOM.max, Math.max(view.fitScale, view.scale * factor));
+    const scale = Math.min(view.fitScale * maxZoomOf(view), Math.max(view.fitScale, view.scale * factor));
     const k = view.scale / scale;
     const next = clampView({ ...view, scale, cx: anchor[0] - (anchor[0] - view.cx) * k, cy: anchor[1] - (anchor[1] - view.cy) * k });
     return scale <= view.fitScale ? { ...next, cx: view.homeX ?? 0, cy: view.homeY ?? 0, cz: view.homeZ ?? 0 } : next;

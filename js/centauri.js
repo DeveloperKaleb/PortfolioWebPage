@@ -24,6 +24,8 @@
  * tilted, so they are given as sizes only (PLANET_ORBITS).
  */
 
+import { elementsFromState, orbitPath, KM_S_TO_AU_PER_DAY } from './orbit.js';
+
 const DEG = Math.PI / 180;
 const MAS = DEG / 3600000;
 export const AU_PER_PARSEC = 648000 / Math.PI;
@@ -70,6 +72,67 @@ export const PLANET_ORBITS = [
     { star: 'barnard', name: 'Barnard c', a: 0.0274, status: 'confirmed' },
     { star: 'barnard', name: 'Barnard e', a: 0.0381, status: 'confirmed' },
 ];
+
+/* Mercury's orbit about the Sun (its semi-major axis, AU): drawn about Barnard's Star for
+   scale, around that star's four planets. */
+export const MERCURY_AU = 0.3871;
+
+/* Proxima's orbit about A and B (owner, 2026-11-18: a star orbiting another should show
+   its orbit). From Kervella, Thevenin & Lovis 2017 (A&A 598, L7; arXiv:1611.03495), table
+   B.1: Proxima's place and velocity relative to A and B's centre of gravity, at the
+   Hipparcos epoch, in the Galactic frame (X toward the Galactic centre, Y the way the
+   Galaxy turns, Z to its north pole; pc and km/s); and the three stars' mass, 2.165 Suns.
+   The orbit is worked out from these rather than from the paper's table 3, whose angles,
+   Kervella has since written, are in the Galactic frame and not comparable with A and B's
+   orbit (Centauri Dreams, 2023-11-24). Worked out so, it gives the paper's own numbers:
+   8,650 AU across its long half, eccentricity 0.50, 547,000 years round, near its far end
+   now. A revised orbit from the same team is awaited. */
+export const PROXIMA_ORBIT = {
+    position: [-0.05622, -0.00198, -0.02785], // pc, Proxima less A and B
+    velocity: [-0.099, 0.173, 0.188], // km/s
+    year: 1991.25,
+    massSuns: 2.165,
+};
+/* Galactic to equatorial (ICRS): the transpose of the Hipparcos matrix from equatorial to
+   Galactic (ESA 1997, vol. 1, section 1.5.3). */
+const GALACTIC = [
+    [-0.0548755604, -0.8734370902, -0.4838350155],
+    [0.4941094279, -0.4448296300, 0.7469822445],
+    [-0.8676661490, -0.1980763734, 0.4559837762],
+];
+const galacticToMap = (g) => toEcliptic([0, 1, 2].map((k) => GALACTIC[0][k] * g[0] + GALACTIC[1][k] * g[1] + GALACTIC[2][k] * g[2]));
+
+/* The orbit, as elements about A and B (orbit.js's form), and its path in the map's frame.
+   Today's Gaia parallaxes put Proxima about 12,050 AU from A and B and a little to one
+   side of where the paper had it (12,950 AU), so the path is turned and shrunk about A
+   and B's centre, the least that brings it through where Proxima is: its shape and
+   period are the paper's, its size about 7% smaller. */
+export function proximaOrbit(system, { steps = 240 } = {}) {
+    const { position, velocity, massSuns } = PROXIMA_ORBIT;
+    const was = galacticToMap(position).map((v) => v * AU_PER_PARSEC);
+    const moving = galacticToMap(velocity).map((v) => v * KM_S_TO_AU_PER_DAY);
+    const elements = elementsFromState(was, moving, 2451545.0 + (PROXIMA_ORBIT.year - 2000) * 365.25, massSuns);
+    const { centre, proxima } = system;
+    const now = [proxima.x - centre.x, proxima.y - centre.y, proxima.z - centre.z];
+    const [lw, ln] = [Math.hypot(...was), Math.hypot(...now)];
+    const [u, v] = [was.map((c) => c / lw), now.map((c) => c / ln)];
+    /* The turn taking one direction to the other, about the line square to both (Rodrigues). */
+    const axis = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const sin = Math.hypot(...axis);
+    const cos = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    const k = sin > 1e-12 ? axis.map((c) => c / sin) : [0, 0, 1];
+    const turn = (p) => {
+        const kxp = [k[1] * p[2] - k[2] * p[1], k[2] * p[0] - k[0] * p[2], k[0] * p[1] - k[1] * p[0]];
+        const kdp = k[0] * p[0] + k[1] * p[1] + k[2] * p[2];
+        return [0, 1, 2].map((j) => p[j] * cos + kxp[j] * sin + k[j] * kdp * (1 - cos));
+    };
+    const shrink = ln / lw;
+    const path = orbitPath(elements, { steps, through: { x: was[0], y: was[1], z: was[2] } }).map((q) => {
+        const [x, y, z] = turn([q.x, q.y, q.z]).map((c) => c * shrink);
+        return { x: centre.x + x, y: centre.y + y, z: centre.z + z };
+    });
+    return { elements, path, shrink, turnDeg: Math.atan2(sin, cos) / DEG, periodYears: 2 * Math.PI / (0.01720209895 * Math.sqrt(massSuns) / elements.a ** 1.5) / 365.25 };
+}
 
 /* A decimal year from a Julian date, and back to the date's own year. */
 export const yearOf = (jd) => 2000 + (jd - 2451545.0) / 365.25;
@@ -239,9 +302,11 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
         sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, dark: 1 },
         both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000, dark: 0.65 },
         centauri: { id: 'centauri', name: 'Alpha Centauri', label: 'Alpha Centauri', cx: centre.x, cy: centre.y, cz: centre.z, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, radius3D: Math.ceil(reach3D * 1.25 / 1000) * 1000, dark: 1 },
-        /* Room for the clearing about the two tundrs, and for Barnard's Star's planets. */
+        /* Room for the clearing about the two tundrs. */
         luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, cz: luhman16.z, radiusAU: 6, radius3D: 6, dark: 1 },
-        barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, cz: barnard.z, radiusAU: 0.05, radius3D: 0.05, dark: 1 },
+        /* Out to Mercury's orbit, drawn there for scale (owner, 2026-11-18), with the four
+           planets bunched in the middle; "Zoom on" steps in to them. */
+        barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, cz: barnard.z, radiusAU: 0.45, radius3D: 0.45, dark: 1 },
     };
 }
 

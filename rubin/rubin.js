@@ -13,7 +13,7 @@
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
-    zoomLevel, MAP_ZOOM, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
 } from '../js/rubinview.js';
@@ -25,7 +25,7 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C } from '../js/rubincolors.js';
-import { centauriOn, places, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, MERCURY_AU, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -385,6 +385,7 @@ function drawMap(digest) {
     /* What can be drawn of each body's orbit without a card: its path or paths, or a note
        saying why not. The Sun and Barnard's Star orbit only the centre of the galaxy, far
        off this map; Proxima's orbit about A and B is known only roughly. */
+    const PROXIMA = proximaOrbit(system);
     const PICKABLE = (() => {
         const sun = { x: 0, y: 0, z: 0 };
         const galaxy = 'orbits the galaxy, far off this map';
@@ -395,7 +396,8 @@ function drawMap(digest) {
             'body:ab': { body: system.centre, paths: [system.paths.a, system.paths.b] },
             'body:a': { body: system.a, paths: [system.paths.a] },
             'body:b': { body: system.b, paths: [system.paths.b] },
-            'body:proxima': { body: system.proxima, note: 'orbit about A and B known only roughly' },
+            /* Roughly known, so dashed. */
+            'body:proxima': { body: system.proxima, paths: [PROXIMA.path], dashed: true },
             'body:barnard': { body: system.barnard, note: galaxy },
             'body:luhman16': { body: luhman.centre, paths: [luhman.paths.a, luhman.paths.b] },
             'body:luhmanA': { body: luhman.a, paths: [luhman.paths.a] },
@@ -408,6 +410,9 @@ function drawMap(digest) {
        14, pulled back to the nearest bodies, Alpha Centauri came out as two dots with one
        name between them.) */
     const SYSTEM_DOT_PX = 20;
+    /* Barnard's Star's steps in from its whole view: label, the reach in AU, and its name in
+       a link (&zoom=). */
+    const BARNARD_RUNGS = [['The four planets', 0.045, 'planets'], ['Barnard d, the innermost', 0.021, 'innermost']];
     const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri' });
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
@@ -651,9 +656,9 @@ function drawMap(digest) {
 
         /* Each picked body's orbit, bright, under the marks; or, where it is not known well
            enough to draw, or too small to see from here, a note beside the body saying so. */
-        const traced = (path, closed, stroke = C.text) => {
+        const traced = (path, closed, stroke = C.text, dashed = false) => {
             const points = path.map((q) => at3(q.x, q.y, q.z ?? 0).map((v) => v.toFixed(1)).join(',')).join(' ');
-            parts.push(svg(closed ? 'polygon' : 'polyline', { points, fill: 'none', stroke, 'stroke-width': 1.5, opacity: 0.9, 'pointer-events': 'none' }));
+            parts.push(svg(closed ? 'polygon' : 'polyline', { points, fill: 'none', stroke, 'stroke-width': 1.5, opacity: 0.9, 'pointer-events': 'none', ...(dashed ? { 'stroke-dasharray': '6 5' } : {}) }));
         };
         const noteBeside = (body, text) => {
             const [x, y] = at3(body.x, body.y, body.z ?? 0);
@@ -667,11 +672,11 @@ function drawMap(digest) {
         }
         for (const key of bodiesPicked) {
             if (!PICKABLE[key]) continue;
-            const { body, paths, note } = PICKABLE[key];
+            const { body, paths, note, dashed } = PICKABLE[key];
             if (note) { noteBeside(body, note); continue; }
             const across = Math.max(...paths.flat().map((q) => apartOnScreen(q, body)));
             if (across < 3) noteBeside(body, 'orbit too small to see from here');
-            else paths.forEach((path) => traced(path, true));
+            else paths.forEach((path) => traced(path, true, C.text, dashed));
         }
 
         /* The planets and tundrs, on their real orbits, where they are on the digest's date. */
@@ -749,7 +754,7 @@ function drawMap(digest) {
                 star('body:centauri', 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
             } else {
                 PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => orbitOf(system.proxima, o));
-                star('body:proxima', 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B'], ['Its orbit about A and B is known only roughly:', 'once round in about 550,000 years']]);
+                star('body:proxima', 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B'], ['Orbits A and B once in about 550,000 years,', 'now near its farthest; the orbit is known only roughly, so it is drawn dashed']]);
                 if (apartOnScreen(system.a, system.b) < 12) {
                     star('body:ab', 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
                 } else {
@@ -783,8 +788,18 @@ function drawMap(digest) {
             star('body:luhmanA', 'Luhman 16 A', 3.5, [["About 35 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.a), apart], tundrs);
             star('body:luhmanB', 'Luhman 16 B', 3, [["About 29 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.b), apart], tundrs);
         }
-        /* Barnard's Star, with its four planets' orbits once zoomed in on it. */
+        /* Barnard's Star, with its four planets' orbits once zoomed in on it, and Mercury's
+           orbit about the Sun beside them for scale: all four would fit inside it ten times
+           over. */
         PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => orbitOf(system.barnard, o));
+        {
+            const r = MERCURY_AU * view.scale;
+            const [x, y] = at3(system.barnard.x, system.barnard.y, system.barnard.z);
+            if (r >= PLANET_DRAW_PX && r < 1e5 && Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE + r) {
+                parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.text, 'stroke-width': 1.5, 'stroke-dasharray': '2 5', opacity: 0.85, 'pointer-events': 'none' }));
+                if (r >= PLANET_LABEL_PX) labels.push({ x: x - r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: "Mercury's orbit about the Sun, for scale", rank: 1e8 });
+            }
+        }
         star('body:barnard', "Barnard's Star", 3, [
             ['A single small star:', 'it crosses our sky faster than any other'],
             galaxyRow,
@@ -855,7 +870,7 @@ function drawMap(digest) {
         const where = place.id === 'sun' ? '' : `${place.label}: `;
         const whole = place.id === 'sun' ? 'Whole map' : 'whole view';
         readout.textContent = travelling ? `Travelling to ${place.name}` : `${where}${level < 1.05 ? whole : `${level < 10 ? level.toFixed(1) : Math.round(level).toLocaleString('en-US')}× zoom`}`;
-        zoomIn.disabled = Boolean(travelling) || level >= MAP_ZOOM.max - 0.01;
+        zoomIn.disabled = Boolean(travelling) || level >= maxZoomOf(view) - 0.01;
         zoomOut.disabled = Boolean(travelling) || level <= 1.0001;
         /* A pick can move the whole map off its middle, so it can be put back. */
         reset.disabled = Boolean(travelling) || (level <= 1.0001 && atHome(view));
@@ -916,10 +931,12 @@ function drawMap(digest) {
     const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
     const bodyPicker = el('select', { class: 'rubin-tool rubin-map-go', 'aria-label': 'Go to one of the nearest bodies' });
     const zoomOnRow = el('span', { class: 'rubin-map-zoom-on' });
+    const zoomOnBarnard = el('span', { class: 'rubin-map-zoom-on' });
     function showPlace() {
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
         bodyPicker.value = place.id === 'both' ? '' : place.id;
         zoomOnRow.hidden = place.id !== 'centauri';
+        zoomOnBarnard.hidden = place.id !== 'barnard';
         findLight.hidden = place.id !== 'sun';
         reset.textContent = place.id === 'sun' ? 'Whole map' : 'Whole view';
     }
@@ -949,9 +966,9 @@ function drawMap(digest) {
         };
         travelling = requestAnimationFrame(frame);
     }
-    const closeUp = (body, radiusAU) => {
-        const home = homeView(PLACES.centauri);
-        return { ...home, scale: Math.min(home.fitScale * MAP_ZOOM.max, (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y, cz: body.z };
+    const closeUp = (body, radiusAU, at = PLACES.centauri) => {
+        const home = homeView(at);
+        return { ...home, scale: Math.min(home.fitScale * maxZoomOf(home), (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y, cz: body.z };
     };
 
     /* Between flat and 3D the map tips over (or back) in a moment, keeping its zoom about
@@ -1102,6 +1119,16 @@ function drawMap(digest) {
         zoomOnRow.append(button);
     }
     travel.append(zoomOnRow);
+    /* At Barnard's Star the whole view holds Mercury's orbit for scale, with the four
+       planets bunched at its middle; two steps in show them, then the innermost (owner,
+       2026-11-18: "to really show the degree to which those planets are CLOSE"). */
+    zoomOnBarnard.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
+    for (const [label, radiusAU] of BARNARD_RUNGS) {
+        const button = el('button', { type: 'button', class: 'rubin-tool' }, label);
+        button.addEventListener('click', () => goTo(PLACES.barnard, closeUp(system.barnard, radiusAU, PLACES.barnard)));
+        zoomOnBarnard.append(button);
+    }
+    travel.append(zoomOnBarnard);
     showPlace();
 
     /* Full screen (owner, 2026-11-18): the map and its controls fill the screen, drawn
@@ -1188,7 +1215,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. About Barnard's Star, Mercury's orbit about the Sun is drawn for scale: all four of its planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
     );
 
     const mapTable = table(
@@ -1229,7 +1256,9 @@ function drawMap(digest) {
     if (startAt) {
         place = startAt;
         const zoom = startAt.id === 'centauri' ? params.get('zoom') : null;
-        view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45) : homeView(startAt);
+        const rung = startAt.id === 'barnard' ? BARNARD_RUNGS.find(([, , id]) => id === params.get('zoom')) : null;
+        view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45)
+            : rung ? closeUp(system.barnard, rung[1], startAt) : homeView(startAt);
         windowPx = (startAt.dark * SIZE) / 2;
         hatchPx = hatchFor(startAt);
         showPlace();

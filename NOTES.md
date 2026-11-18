@@ -4031,3 +4031,30 @@ browser's own way out brings it back. The legend, ruler and light text stay on t
 - **Checked:** in Chrome, with the window-filling path (the automation's clicks could not
   start true full screen) at 1920 x 945, 412 x 860, 860 x 400, and turning between the last
   two. Not yet checked: true full screen on a phone.
+
+## Barnard's Star's planets, and Proxima's orbit (owner, 2026-11-18)
+
+**Barnard's Star.** The owner wanted to see its four planets and how close in they are.
+"Go to Barnard's Star" already showed them, but a body picked in the Nearest bodies view
+(360,000 AU across) could only be zoomed in to about 8 AU across.
+- `maxZoomOf` lets any view zoom in until 0.005 AU from the middle to the edge
+  (`DEEPEST_AU`): 72,000,000× in the Nearest bodies view. Views at the Sun keep the old
+  limit of 50,000×.
+- Barnard's Star's whole view now reaches 0.45 AU. Mercury's orbit about the Sun (0.387
+  AU) is drawn about the star for scale, with the four planets bunched in the middle.
+- "Zoom on: The four planets" (0.045 AU) and "Barnard d, the innermost" (0.021 AU) step
+  in. In a link: `?place=barnard&zoom=planets|innermost`.
+
+**Proxima's orbit.** The owner's rule: a star orbiting another star shows its orbit when
+picked. The Sun and Barnard's Star orbit no star, so they keep their note.
+- Source: Kervella, Thévenin & Lovis 2017 (A&A 598, L7). Kervella has since written that
+  the angles in their table 3 are in the Galactic frame, not comparable with A and B's
+  orbit (Centauri Dreams, 2023-11-24), with a revised orbit to come.
+- So the orbit is worked out from the paper's table B.1 instead: Proxima's position and
+  velocity relative to A and B, in Galactic coordinates. The PDF text loses minus signs,
+  so U was checked as the difference of the stars' own U (−29.390 − −29.291 = −0.099).
+  This reproduces the paper's results: a = 8,670 AU, e = 0.49, 548,000 years, near
+  apastron (12,950 AU).
+- Today's Gaia DR3 parallaxes put Proxima 12,050 AU from A and B. So the path is turned
+  6° and shrunk 7% about A and B's centre, which runs it through Proxima's dot
+  (`proximaOrbit`). It is drawn dashed because the orbit is rough.
