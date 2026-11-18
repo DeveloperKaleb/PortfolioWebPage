@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { sizeOf, sizeRange, sizeLineup, lineupText, widthText, STAR_SIZES, SIZE_REFERENCES, LINEUP_PX, SPECK_PX } from '../../js/rubinview.js';
 
-const estimated = { designation: '90377', name: '90377 Sedna (2003 VB12)', H: 1.5, sizeFrom: 'brightness' };
+const estimated = { designation: '999999', name: '999999 Unlisted (2099 AA1)', H: 1.5, sizeFrom: 'brightness' };
 const named = (lineup) => lineup.bodies.map((b) => b.name);
 
 describe('sizeRange', () => {
     it('keeps a measured size as it is, with no range', () => {
-        const entry = { sizeFrom: 'measured', diameterKm: 984 };
+        const entry = { name: '999999 Unlisted (2099 AA1)', sizeFrom: 'measured', diameterKm: 984 };
         expect(sizeRange(entry)).toEqual(sizeOf(entry));
         expect(sizeRange(entry).low).toBeUndefined();
     });
@@ -62,6 +62,31 @@ describe('sizeLineup', () => {
 
     it('shows every member of a system picked as one', () => {
         expect(named(sizeLineup(STAR_SIZES['body:centauri'])).slice(0, 3)).toEqual(['Alpha Centauri A', 'Alpha Centauri B', 'Proxima Centauri']);
+    });
+});
+
+describe('two picks', () => {
+    const ceres = { designation: 'world:Ceres', name: 'Ceres', km: 939.4, measured: true, pick: 0 };
+    const pluto = { designation: '134340', name: 'Pluto', km: 2377, measured: true, pick: 1 };
+
+    it('draws both, and leaves a picked familiar body out of the familiar ones', () => {
+        const names = named(sizeLineup([ceres, pluto]));
+        expect(names.slice(0, 2)).toEqual(['Ceres', 'Pluto']);
+        expect(names.slice(2)).not.toContain('Ceres');
+    });
+
+    it('gives each a sentence, and compares the newer with the older', () => {
+        const { lines } = lineupText([ceres, pluto], sizeLineup([ceres, pluto]));
+        expect(lines[0]).toMatch(/^Ceres is /);
+        expect(lines[1]).toMatch(/^Pluto is /);
+        expect(lines[2]).toBe('Pluto is 2.5 times as wide as Ceres.');
+    });
+
+    it("counts a system's members as one pick", () => {
+        const system = STAR_SIZES['body:ab'].map((m) => ({ ...m, pick: 0 }));
+        const { lines } = lineupText([...system, { ...pluto, pick: 1 }], sizeLineup([...system, { ...pluto, pick: 1 }]));
+        expect(lines.filter((l) => / is .+ as wide as /.test(l))).toHaveLength(3);
+        expect(lines[0]).toMatch(/^Alpha Centauri A is /);
     });
 });
 

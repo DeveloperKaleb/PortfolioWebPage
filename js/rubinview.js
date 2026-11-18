@@ -49,10 +49,19 @@ export function displayName(entry) {
     return named ? named[1] : entry.name.replace(/^\d+\s+/, '').replace(/[()]/g, '').trim();
 }
 
+/* The diameters the calibration list (js/equilibrium.js) gives for distant objects, each
+   measured directly and cited there: imaging, occultations or thermal emission. Preferred
+   over the digest's, which works a size out from H and a measured albedo, and so for Pluto
+   takes in Charon's light: 2,018 km, where New Horizons measured 2,377 (owner,
+   2026-11-18). By name, as the list has it, without a designation in brackets. */
+const LISTED_DIAMETERS = new Map(CALIBRATION.filter((b) => b.population === 'tno').map((b) => [b.name.replace(/\s*\(.*\)$/, ''), b.diameterKm]));
+
 /* Its size, said honestly: measured where it was, otherwise the size its brightness
    implies at the albedos typical of objects about as bright (the weighted median, from
    within SIZE_WIDTH magnitudes), marked as an estimate. */
 export function sizeOf(entry) {
+    const listed = LISTED_DIAMETERS.get(displayName(entry));
+    if (listed) return { km: listed, text: kilometres(listed), measured: true };
     if (entry.sizeFrom === 'measured') return { km: entry.diameterKm, text: `${kilometres(entry.diameterKm)}`, measured: true };
     const km = diameterFromH(entry.H, albedoQuantile(entry.H, 0.5));
     return { km, text: `about ${kilometres(Math.round(km / 10) * 10)}`, measured: false };
@@ -797,16 +806,30 @@ export const LINEUP_PX = 88;
 export const SPECK_PX = 2;
 export const EARTH_ROOM_PX = 4;
 
-/* The bodies to draw: the subjects (one body, or a system's members), then the two
-   familiar bodies nearest the largest subject in size (by ratio), and Earth where there is
-   room, largest first; each
-   with its drawn diameter in pixels (px), and for a range the dashed ring's (outerPx). */
+/* The picks shown at once: the last two (owner, 2026-11-18). */
+export const LINEUP_PICKS = 2;
+
+/* Each pick's largest member: the one its sentence is about. pick numbers a subject's pick
+   (a system picked as one has several members); subjects without one are one pick. */
+export function picksOf(subjects) {
+    const largest = new Map();
+    for (const s of subjects) {
+        const k = s.pick ?? 0;
+        if (!largest.has(k) || s.km > largest.get(k).km) largest.set(k, s);
+    }
+    return [...largest.values()];
+}
+
+/* The bodies to draw: the subjects (the last picks, each one body or a system's members),
+   then the two familiar bodies nearest any pick in size (by ratio), and Earth where there is
+   room, largest first; each with its drawn diameter in pixels (px), and for a range the
+   dashed ring's (outerPx). */
 export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFERENCES } = {}) {
     const own = new Set(subjects.map((s) => s.designation));
-    const largest = Math.max(...subjects.map((s) => s.km));
+    const mains = picksOf(subjects);
     const nearest = references
         .filter((r) => !own.has(r.designation))
-        .map((r) => ({ ...r, apart: Math.abs(Math.log(r.km / largest)) }))
+        .map((r) => ({ ...r, apart: Math.min(...mains.map((m) => Math.abs(Math.log(r.km / m.km)))) }))
         .sort((p, q) => p.apart - q.apart)
         .slice(0, 2);
     /* Earth too, as home, wherever it leaves everything at least EARTH_ROOM_PX across (an
@@ -828,11 +851,7 @@ export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFE
             ...(body.high ? { outerPx: Math.max(SPECK_PX, px(body.high)) } : {}),
         };
     };
-    return {
-        bodies: [...subjects.map((s) => drawn(s, true)), ...[...nearest].sort((p, q) => q.km - p.km).map((r) => drawn(r, false))],
-        /* The one the sentence compares with: the nearest in size. */
-        nearest: nearest[0],
-    };
+    return { bodies: [...subjects.map((s) => drawn(s, true)), ...[...nearest].sort((p, q) => q.km - p.km).map((r) => drawn(r, false))] };
 }
 
 /* How many times as wide, in words: "1.5 times", "12 times", "about as wide", "29%". */
@@ -845,17 +864,28 @@ export function widthText(ratio, called) {
 const roughly = (km) => (km >= 10000 ? Math.round(km / 1000) * 1000 : km >= 1000 ? Math.round(km / 100) * 100 : Math.round(km / 10) * 10);
 
 /* What the panel says: a title, and a sentence or two under the discs. */
-export function lineupText(subjects, { bodies, nearest }) {
+export function lineupText(subjects, { bodies }) {
     const names = subjects.map((s) => s.name);
     const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
-    const refs = bodies.filter((b) => !b.subject).map((b) => b.called);
-    const title = `${list(names)} beside ${list(refs)}, to one scale`;
+    const shown = bodies.filter((b) => !b.subject);
+    const title = `${list(names)} beside ${list(shown.map((b) => b.called))}, to one scale`;
     const lines = [];
-    const main = subjects.reduce((a, b) => (b.km > a.km ? b : a));
-    /* Beside the nearest in size, and beside Earth, home, where it is drawn too. */
-    const earth = bodies.find((b) => !b.subject && b.designation === 'world:Earth' && b.designation !== nearest.designation);
-    const also = earth ? `, and ${widthText(main.km / earth.km, earth.called)}` : '';
-    lines.push(`${main.name} is ${main.measured === false ? 'probably ' : ''}${widthText(main.km / nearest.km, nearest.called)}${also}.`);
+    const probably = (s) => (s.measured === false ? 'probably ' : '');
+    /* Each pick beside the familiar body nearest it in size, and beside Earth, home, where
+       it is drawn too. */
+    const mains = picksOf(subjects);
+    for (const main of mains) {
+        const nearest = shown.reduce((a, b) => (Math.abs(Math.log(b.km / main.km)) < Math.abs(Math.log(a.km / main.km)) ? b : a));
+        const earth = shown.find((b) => b.designation === 'world:Earth' && b !== nearest);
+        const also = earth ? `, and ${widthText(main.km / earth.km, earth.called)}` : '';
+        lines.push(`${main.name} is ${probably(main)}${widthText(main.km / nearest.km, nearest.called)}${also}.`);
+    }
+    /* Two picks: the newer beside the older. */
+    if (mains.length === 2) {
+        const [older, newer] = mains;
+        const either = older.measured === false || newer.measured === false ? 'probably ' : '';
+        lines.push(`${newer.name} is ${either}${widthText(newer.km / older.km, older.name)}.`);
+    }
     for (const s of subjects) {
         if (s.fromModels) lines.push(`${s.name}'s size is worked out from its light with models, not measured: about ${kilometres(roughly(s.km))} across, between ${kilometres(roughly(s.low))} and ${kilometres(roughly(s.high))} (solid disc to dashed ring).`);
         else if (s.low) lines.push(`${s.name}'s size is estimated from its brightness: about ${kilometres(roughly(s.km))} across, but anywhere from ${kilometres(roughly(s.low))} if its surface is bright (the solid disc) to ${kilometres(roughly(s.high))} if it is dark (the dashed ring).`);

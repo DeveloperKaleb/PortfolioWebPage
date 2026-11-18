@@ -65,12 +65,23 @@ describe('Words', () => {
 });
 
 describe('Sizes', () => {
+    /* The fixtures are real objects, which the calibration list also sizes; renamed, they
+       test the digest's own sizes. */
+    const unlisted = (entry) => ({ ...entry, name: '999999 Unlisted (2099 AA1)' });
+
     test('a measured size is given as measured', () => {
-        expect(sizeOf(digest.entries[1])).toMatchObject({ km: 984, measured: true });
+        expect(sizeOf(unlisted(digest.entries[1]))).toMatchObject({ km: 984, measured: true });
+    });
+
+    test("the calibration list's directly measured diameter is preferred to the digest's", () => {
+        // Salacia: the digest's 984 km is worked out from H and albedo; the list's is 838.
+        expect(sizeOf(digest.entries[1])).toMatchObject({ km: 838, text: '838 km', measured: true });
+        const pluto = { name: '134340 Pluto (1930 BM)', sizeFrom: 'measured', diameterKm: 2018 };
+        expect(sizeOf(pluto).km).toBe(2377);
     });
 
     test('a size from brightness is an estimate, rounded and marked "about"', () => {
-        const size = sizeOf(digest.entries[0]);
+        const size = sizeOf(unlisted(digest.entries[0]));
         expect(size.measured).toBe(false);
         expect(size.text).toMatch(/^about [\d,]+0 km$/);
         // Eris, from H alone: it should come out in the right range.

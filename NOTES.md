@@ -4083,12 +4083,13 @@ visit.
 
 The owner felt the map gave no sense of size; of three ideas they chose this one first.
 The map itself cannot show size: even Jupiter is far less than a pixel at the whole map.
-So the body picked last (`pickOrder` in `drawMap`) is drawn under the map beside familiar
-bodies, all to one scale. The maths and words are `sizeLineup`, `lineupText` and
+So the two bodies picked last (`pickOrder` in `drawMap`; `LINEUP_PICKS`, the owner's cap)
+are drawn under the map beside familiar bodies, all to one scale. Each gets a sentence
+against the familiar body nearest it, and a second pick is compared with the first. The maths and words are `sizeLineup`, `lineupText` and
 `sizeRange` in `js/rubinview.js`, tested in `tests/rubin/sizes.test.js`.
 
 - **Which familiar bodies.** The two from `SIZE_REFERENCES` (the Sun, Jupiter, Earth, the
-  Moon, Ceres) nearest in size by ratio, and Earth as well wherever it leaves every disc
+  Moon, Ceres) nearest either pick in size by ratio, and Earth as well wherever it leaves every disc
   at least 4px across. A body is never compared with itself. Anything under 2px is drawn
   as a 2px dot and the panel says it is smaller still.
 - **Estimated sizes show their range.** The solid disc is the size if the surface is as
@@ -4101,3 +4102,10 @@ bodies, all to one scale. The maths and words are `sizeLineup`, `lineupText` and
 - **Full screen.** The panel sits under the map, or at the foot of the controls when they
   stand beside it. Stacked, it has a fixed height (`min(30vh, 240px)`), so a pick never
   has to fit the map again.
+- **Directly measured diameters win.** `sizeOf` takes a distant object's diameter from the
+  calibration list (`js/equilibrium.js`, each one cited) where the list has it, ahead of
+  the digest's, which is worked out from H and a measured albedo. For Pluto that took in
+  Charon's light and gave 2,018 km against New Horizons' 2,377 (owner asked for the fix,
+  2026-11-18). It changes twelve objects' sizes on the cards, the table and the panel,
+  among them Makemake 1,667 to 1,430 km and Sedna 1,040 to 906 km. The filter's chances
+  are the collector's and are unchanged.
