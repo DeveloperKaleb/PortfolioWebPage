@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, centauriOn, places,
-    NEIGHBOURS, systemOn, reachOf, roundUp, seenNearOf, seenNearOfPair, SEEN_NEAR, MERCURY_AU,
+    NEIGHBOURS, systemOn, reachOf, roundUp, seenNearOf, seenNearOfPair, SEEN_NEAR, MERCURY_AU, binaryOffset,
 } from '../../js/centauri.js';
 import { STAR_SIZES } from '../../js/rubinview.js';
 import { STAR_TYPE_COLORS, RUBIN_COLORS } from '../../js/rubincolors.js';
@@ -169,9 +169,26 @@ describe('everything within 1,000,000 AU (js/nearstars.js)', () => {
             }
             for (const p of s.pairs ?? []) [p.a, p.b].forEach((id) => expect(mine.has(id)).toBe(true));
         }
-        const luyten = on.systems.find((s) => s.system.id === 'luyten7268');
-        expect(luyten.units).toBe(1);
-        expect(luyten.at.get('blCeti')).toBe(luyten.at.get('uvCeti'));
+        const ez = on.systems.find((s) => s.system.id === 'ezAqr');
+        expect(ez.units).toBe(1);
+        expect(ez.at.get('ezAqrA')).toBe(ez.at.get('ezAqrB'));
+    });
+
+    it('puts Luyten 726-8 and Wolf 424 where Gaia saw them in 2016: B 2.26 and 1.15 arcseconds from A', () => {
+        const orbitOf = (id) => NEIGHBOURS.find((s) => s.id === id).pairs[0].orbit;
+        for (const [id, arcsec, parallax] of [['luyten7268', 2.259, 371.92], ['wolf424', 1.149, 227.041]]) {
+            const { north, east } = binaryOffset(2016.0, orbitOf(id));
+            expect(Math.hypot(north, east) * parallax / 1000).toBeCloseTo(arcsec, 1);
+        }
+    });
+
+    it('draws Kruger 60 and Ross 614 on their orbits too, apart once zoomed in', () => {
+        for (const id of ['kruger60', 'ross614', 'luyten7268', 'wolf424']) {
+            const s = on.systems.find((x) => x.system.id === id);
+            expect(s.pairs).toHaveLength(1);
+            expect(s.pairs[0].apart).toBeGreaterThan(1);
+            expect(s.pairs[0].paths.a).toHaveLength(96);
+        }
     });
 
     it('draws Sirius B where its orbit puts it: 7.5 arcseconds out on average, 19.8 AU', () => {

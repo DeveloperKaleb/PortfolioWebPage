@@ -4195,6 +4195,24 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**Close pairs on their orbits (owner, 2026-11-18).** Luyten 726-8 (BL and UV Ceti), Wolf
+424, Kruger 60 and Ross 614 are now pairs. Their orbits come from Wikipedia's infoboxes,
+with the papers those cite. The pages were read gently, as the owner asked: six pages,
+one at a time, each once. `tools/nearstars/check_pairs.py` compares the first two orbits
+with Gaia, which measured both stars of each in 2016; they agree to 0.02". Its first run
+came out exactly half a turn wrong, which showed that A and B had been labelled the wrong
+way round in Gaia. Luyten 726-8 A is the brighter star; Wolf 424's two are near equal, so
+the orbit decides. Kruger 60's published ω is for A, so it is turned half round. The
+centres of gravity of Luyten 726-8 and Wolf 424 come from both Gaia places, weighted by
+mass. Kruger 60 and Ross 614 have only Hipparcos's single place, which may sit up to an
+arcsecond off: that moves each pair as a whole by about 4 AU, but not apart. These still
+stay groups:
+- EZ Aquarii: A is itself a 3.8-day pair.
+- Epsilon Indi Ba and Bb: the page gives no periastron date.
+- SCR 1845-6357: no orbit is known.
+- GJ 1245: B's orbit is loose. The page's footnote for A and C's size also has a slip:
+  0.8267" at 214.6 mas is 3.85 AU, not the 36.77 AU it prints.
+
 **Stage 2 (done).** Every system beyond the Sun is one entry in `NEIGHBOURS` in
 `js/centauri.js`: its sky place, members (type, size, mark size, hover rows, table blurb,
 own sky place for a wide companion), pairs on a known orbit, planets and "Zoom on" steps

@@ -8,8 +8,8 @@
  *   - Places, drifts and parallaxes: Gaia DR3 where it has the star; Hipparcos (van
  *     Leeuwen 2007) for the bright ones it lacks; and, for EZ Aquarii and four tundrs too
  *     faint for Gaia, the published values named beside each. Each place's source is noted
- *     beside it. Pairs Gaia measures badly (Luyten 726-8, Wolf 424) share the mean of their
- *     two parallaxes; a wide companion shares its primary's.
+ *     beside it. A wide companion shares its primary's parallax; a close pair takes the
+ *     parallax published with its orbit, as Gaia measures such pairs badly.
  *   - Sirius and Procyon: their orbits from Bond et al. 2017 (ApJ 840, 70) and 2015 (ApJ
  *     813, 106), with those papers' parallaxes and masses. Sirius's centre of gravity is
  *     tied to Gaia's B in 2016 and Hipparcos's A in 1991, which fixes its drift; Procyon's
@@ -24,8 +24,14 @@
  *     K, Mann et al. 2015's relation; how: 'brightness'); otherwise the size usual for the
  *     type ('typical'), a catalogue's adopted value ('catalogue'), or from models or light
  *     for tundrs. Each unmeasured size carries its range.
- *   - Close pairs and triples whose orbits are not in hand (groups) are one mark: their
- *     members are too close to tell apart at any zoom the map has a reason to reach.
+ *   - Luyten 726-8, Wolf 424, Kruger 60 and Ross 614 are pairs on published orbits:
+ *     GRAVITY Collaboration 2024, Ling et al. 2022, Mann et al. 2019 and Feng et al. 2022,
+ *     as Wikipedia's infoboxes give them (read 2026-11-18). The first two agree with where
+ *     Gaia saw both stars in 2016 to 0.02 arcseconds (tools/nearstars/check_pairs.py).
+ *   - Close pairs and triples whose orbits are not in hand (groups) are one mark: EZ
+ *     Aquarii (A is itself a 3.8-day pair), Epsilon Indi Ba and Bb (no periastron date
+ *     published beside the orbit), SCR 1845-6357 and GJ 1245 (B's orbit about A and C is
+ *     known only loosely).
  */
 
 export const NEARSTARS = [
@@ -67,12 +73,12 @@ export const NEARSTARS = [
     {
         id: "luyten7268",
         name: "Luyten 726-8",
-        sky: { ra: 24.771674208, dec: -17.94768286, epoch: 2016.0, pmRa: 3178.694257575, pmDec: 584.061335039, parallax: 370.778104225 } /* Gaia DR3 5140693571158946048 */,
+        sky: { ra: 24.771612739, dec: -17.947999151, epoch: 2016.0, pmRa: 3284.609507376, pmDec: 563.723755382, parallax: 371.92 } /* centre of gravity from Gaia DR3 A and B; parallax GRAVITY Collaboration 2024 */,
         members: [
             { id: "blCeti", name: "BL Ceti (Luyten 726-8 A)", type: "M5.5 V", markPx: 3, size: { suns: 0.15, plusMinus: 0.03, how: "typical" } },
             { id: "uvCeti", name: "UV Ceti (Luyten 726-8 B)", type: "M6 V", markPx: 3, size: { suns: 0.14, plusMinus: 0.03, how: "typical" }, blurb: "The flare star all flare stars of its kind are named after" },
         ],
-        groups: [{ key: "luyten7268", name: "Luyten 726-8 A and B", members: ["blCeti", "uvCeti"], seenNear: 9, apartText: "about 5.5 AU apart on average, round each other every 26.3 years" }],
+        pairs: [{ key: "luyten7268", name: "Luyten 726-8 A and B", a: "blCeti", b: "uvCeti", orbit: { period: 26.38, periastron: 1972.042436687, e: 0.6172, aAU: 5.5345, i: 128.0, node: 325.9, peri: 103.2, massA: 0.122, massB: 0.116 }, markPx: 3 }],
     },
     {
         id: "ross154",
@@ -261,7 +267,7 @@ export const NEARSTARS = [
             { id: "kruger60A", name: "Kruger 60 A", type: "M3 V", markPx: 3, size: { suns: 0.35, plusMinus: 0.05, how: "typical" } },
             { id: "kruger60B", name: "Kruger 60 B", type: "M4 V", markPx: 3, size: { suns: 0.25, plusMinus: 0.05, how: "typical" } },
         ],
-        groups: [{ key: "kruger60", name: "Kruger 60 A and B", members: ["kruger60A", "kruger60B"], seenNear: 15, apartText: "about 9.5 AU apart on average, round each other every 44.6 years" }],
+        pairs: [{ key: "kruger60", name: "Kruger 60 A and B", a: "kruger60A", b: "kruger60B", orbit: { period: 45.13, periastron: 2014.783025325, e: 0.4131, aAU: 9.8024, i: 165.41, node: 152.6, peri: 28.2, massA: 0.271, massB: 0.176 }, markPx: 3.5 }],
     },
     {
         id: "scr1845",
@@ -297,7 +303,7 @@ export const NEARSTARS = [
             { id: "ross614A", name: "Ross 614 A", type: "M4.5 V", markPx: 3, size: { suns: 0.2, plusMinus: 0.04, how: "typical" } },
             { id: "ross614B", name: "Ross 614 B", type: "M5.5 V", markPx: 3, size: { suns: 0.15, plusMinus: 0.03, how: "typical" } },
         ],
-        groups: [{ key: "ross614", name: "Ross 614 A and B", members: ["ross614A", "ross614B"], seenNear: 7, apartText: "about 4 AU apart, round each other every 16.6 years" }],
+        pairs: [{ key: "ross614", name: "Ross 614 A and B", a: "ross614A", b: "ross614B", orbit: { period: 16.586, periastron: 1982.701883641, e: 0.382, aAU: 4.5444, i: 52.918, node: 210.385, peri: 220.898, massA: 0.2228, massB: 0.090530262 }, markPx: 3 }],
     },
     {
         id: "wolf1061",
@@ -327,12 +333,12 @@ export const NEARSTARS = [
     {
         id: "wolf424",
         name: "Wolf 424",
-        sky: { ra: 188.314492802, dec: 9.022091625, epoch: 2016.0, pmRa: -1795.66090246, pmDec: 217.788566562, parallax: 227.297985813 } /* Gaia DR3 3902874650602495232 */,
+        sky: { ra: 188.31458901, dec: 9.021954396, epoch: 2016.0, pmRa: -1751.109711888, pmDec: 210.106141392, parallax: 227.041 } /* centre of gravity from Gaia DR3 A and B; parallax Chevalier et al. 2023 */,
         members: [
             { id: "wolf424A", name: "Wolf 424 A", type: "M5.5 V", markPx: 3, size: { suns: 0.15, plusMinus: 0.03, how: "typical" } },
             { id: "wolf424B", name: "Wolf 424 B", type: "M7 V", markPx: 3, size: { suns: 0.12, plusMinus: 0.03, how: "typical" } },
         ],
-        groups: [{ key: "wolf424", name: "Wolf 424 A and B", members: ["wolf424A", "wolf424B"], seenNear: 6, apartText: "about 4 AU apart, round each other every 15.5 years" }],
+        pairs: [{ key: "wolf424", name: "Wolf 424 A and B", a: "wolf424A", b: "wolf424B", orbit: { period: 15.811, periastron: 2008.12, e: 0.301, aAU: 4.0081, i: 102.8, node: 143.2, peri: 347.7, massA: 0.1379, massB: 0.1258 }, markPx: 3 }],
     },
     {
         id: "tzAri",
