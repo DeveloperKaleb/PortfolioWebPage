@@ -419,7 +419,9 @@ Worth knowing before adding more: the pads already use `pointerdown` with
 `-webkit-tap-highlight-color`. Between them these cover instant response, no scrolling or
 zooming from pad gestures, no text-selection callout and no grey tap flash.
 
-Added later for what those do not reach: `overscroll-behavior: none` on `html` for the
+Added later for what those do not reach: `overscroll-behavior: none` on `html` (since
+2026-11-18 only on the games page, `html.no-overscroll`, because it also turned off a
+phone's pull-down-to-refresh everywhere) for the
 rubber-band bounce at the ends of the page (mid-game it reads as the board lurching,
 since the pad is tapped rather than dragged), and `touch-action: manipulation` on
 `.butMania button` for the double-tap zoom on board cells — which also drops the ~300ms

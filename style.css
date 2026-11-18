@@ -66,9 +66,6 @@
    to spare for one. */
 html {
     background: #51553a;
-    /* Stops the rubber-band bounce at the ends of the page. Mid-game that bounce
-       reads as the board lurching, since the pad is being tapped, not dragged. */
-    overscroll-behavior: none;
     /* Room for the scrollbar on every page, whether it scrolls or not. Without it a
        page that scrolls (Home) is a scrollbar narrower than one that does not (the
        Entertainment dashboard), so the column shifts sideways between them and the
@@ -77,6 +74,14 @@ html {
        the view transition between the pages would show a different landscape instead
        of hiding the swap. Also steadies Entertainment as its views change height. */
     scrollbar-gutter: stable;
+}
+
+/* On the games page only, stops the rubber-band bounce at the ends of the page. Mid-game
+   that bounce reads as the board lurching, since the pad is being tapped, not dragged. It
+   also stops a phone's pull-down-to-refresh, which the other pages keep (owner,
+   2026-11-18: refreshing the Solar System tab on a phone did nothing). */
+html.no-overscroll {
+    overscroll-behavior: none;
 }
 
 body {
