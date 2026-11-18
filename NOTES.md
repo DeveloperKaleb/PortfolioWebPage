@@ -4191,6 +4191,27 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**AU rings: a Show checkbox, and every ring named (owner, 2026-11-18).** "AU rings" in
+Show turns the rings and their labels off. Before, a label only went at the top of its
+ring, so it went missing whenever that top was outside the picture, which was common for
+rings bigger than the map or about a star off to one side. In 3D the wider rings were
+left unnamed on purpose. `ringLabelSpot` (js/rubinview.js) now starts at the top and
+works round the ring both ways in 3.75° steps. It takes the first point whose label fits
+in the picture, right of the point or else left of it, without touching a ring label
+already placed. Past 12 rings (tipped near edge-on there can be 60), only every 2nd, 5th,
+10th or 20th ring from the star is named. A ring the 3D ring list includes but that never
+enters the square gets no name, since it isn't visible.
+
+**Unstamped modules are fetched network-first (2026-11-18).** After the push that removed
+the window, the owner's browser showed no Milky Way. The old service worker still answered
+the first visit: the page and `rubin.js?v=` came new from the network, but cache-first gave
+that new script the old `js/milkyway.js`, whose `paintSky` still expected a window size.
+Every pixel's alpha came out NaN, which draws as nothing. A reload fixed it. The same kind
+of mismatch happened with `js/rubinview.js` earlier that day. `sw.js` now fetches
+everything under `js/` network-first, keeping the copy for offline use, like the digest.
+This only helps once the new worker is installed, so the first visit after that push could
+still mix files one last time.
+
 **The map is the whole square (owner, 2026-11-18).** The round window, dark in the middle
 and fading to the page's brown, became less useful as the map grew, and the Milky Way now
 gives the depth it was for. The map's ground is the dark (#17120e) to the square's edges.

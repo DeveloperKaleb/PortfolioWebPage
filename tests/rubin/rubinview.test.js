@@ -4,6 +4,7 @@ import {
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
     KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons, MOON_DRAW_PX, initialView, MAP_ZOOM,
+    ringLabelSpot,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 import { MOON_ORBITS } from '../../js/moons.js';
@@ -409,4 +410,35 @@ describe('Moons on the map', () => {
 test("Luna's card links NASA's Moon page by NASA's name for it", () => {
     const luna = knownRow(digest).find((b) => b.name === 'Luna');
     expect(luna.images).toEqual({ url: 'https://science.nasa.gov/moon/', text: "NASA's Moon page, with its missions' images" });
+});
+
+describe('where a ring names its distance (owner, 2026-11-18)', () => {
+    test('names it at the top, as always, when the top is in the picture', () => {
+        expect(ringLabelSpot(300, 300, 100, 100, 600, 40)).toEqual({ x: 304, y: 196 });
+    });
+
+    test('still names a ring whose top is above the picture, on its way round', () => {
+        const spot = ringLabelSpot(300, 300, 380, 380, 600, 50);
+        expect(spot).not.toBeNull();
+        expect(spot.y).toBeGreaterThan(12);
+        expect(spot.x + 50).toBeLessThanOrEqual(598);
+    });
+
+    test('names rings about a star off the side of the picture', () => {
+        expect(ringLabelSpot(-200, 300, 400, 400, 600, 50)).not.toBeNull();
+    });
+
+    test('keeps names off each other, even edge-on, where every top is the same spot', () => {
+        const taken = [];
+        const spots = [100, 150, 200, 250].map((across) => ringLabelSpot(300, 300, across, 0.5, 600, 50, taken));
+        expect(spots.every(Boolean)).toBe(true);
+        for (let i = 0; i < taken.length; i++) for (let j = i + 1; j < taken.length; j++) {
+            const [a, b] = [taken[i], taken[j]];
+            expect(a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom).toBe(false);
+        }
+    });
+
+    test('gives up only when no place on the ring is in the picture', () => {
+        expect(ringLabelSpot(300, 300, 2000, 2000, 600, 50)).toBeNull();
+    });
 });

@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261118-1649';
+const VERSION = '20261118-1703';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -135,10 +135,16 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    /* The Rubin digest (rubin-data, published at /rubin-data/ on the same origin) changes
-       every week under the same URL, with no ?v= stamp, so cache-first would pin an old
-       one. Network first, keeping a copy; the copy is the offline case. */
-    if (url.pathname.startsWith('/rubin-data/')) {
+    /* Network first, keeping a copy; the copy is the offline case. For what changes under
+       the same URL, with no ?v= stamp:
+       - The Rubin digest (rubin-data, published at /rubin-data/ on the same origin), every
+         week; cache-first would pin an old one.
+       - The pure modules under js/. On the first visit after a push the old worker still
+         answers: the page and its stamped script came new from the network, but cache-first
+         handed that new script the old modules it imports. On 2026-11-18 the new rubin.js
+         called the old js/milkyway.js without the window it then needed, and the Milky Way
+         drew invisible until a reload. */
+    if (url.pathname.startsWith('/rubin-data/') || url.pathname.startsWith(`${BASE}/js/`)) {
         event.respondWith(
             fetch(request)
                 .then((response) => {
@@ -154,7 +160,8 @@ self.addEventListener('fetch', (event) => {
     }
 
     /* Everything else is cache-first. Safe because the stamped URLs change whenever
-       their contents do, so a hit is never a stale hit. */
+       their contents do, so a hit is never a stale hit; and the pictures, which carry no
+       stamp, are kept only until the next push (a new VERSION is a new cache). */
     event.respondWith(
         caches.match(request).then((hit) => hit || fetch(request).then((response) => {
             if (response.ok) {

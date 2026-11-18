@@ -406,6 +406,30 @@ export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
 /* A ring's label: "30 AU", "0.05 AU", "100,000 AU". */
 export const ringLabel = (radiusAU) => `${String(Number(radiusAU.toPrecision(6))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} AU`;
 
+/* Where a ring's label goes (owner, 2026-11-18: every ring that crosses the picture shows
+   its distance). At the top of the ring if that is in the picture, as it always was;
+   otherwise the nearest place round the ring, either way, that is, and that no label
+   already placed (taken, a list of boxes it adds to) is in the way of. The label sits just
+   above its point, to the right of it, or else to the left; x is where its text starts. A
+   ring centred at cx, cy, across wide and tall high in pixels; text about widthPx wide.
+   Null if no place on the ring will do. */
+export function ringLabelSpot(cx, cy, across, tall, sizePx, widthPx, taken = [], heightPx = 12) {
+    const PAD = 2;
+    const STEPS = 96;
+    for (let step = 0; step <= STEPS; step++) {
+        const turn = (Math.ceil(step / 2) * (step % 2 ? 1 : -1) * 2 * Math.PI) / STEPS;
+        const [px, y] = [cx + across * Math.sin(turn), cy - tall * Math.cos(turn) - 4];
+        for (const x of [px + 4, px - 4 - widthPx]) {
+            const box = { left: x, right: x + widthPx, top: y - heightPx, bottom: y };
+            if (box.left < PAD || box.right > sizePx - PAD || box.top < PAD || box.bottom > sizePx - PAD) continue;
+            if (taken.some((t) => box.left < t.right + PAD && t.left < box.right + PAD && box.top < t.bottom + PAD && t.top < box.bottom + PAD)) continue;
+            taken.push(box);
+            return { x, y };
+        }
+    }
+    return null;
+}
+
 /* ---- Travelling between places -----------------------------------------------------------
  *
  * The map moves from one view to another the way a camera would: the scale changes evenly
