@@ -294,6 +294,19 @@ export const MAP_WIDTH = 750;
 export const MAP_GUTTER = 16;
 export const mapSizeFor = (viewportPx) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * MAP_GUTTER)));
 
+/* Full screen (owner, 2026-11-18), the map stays round and square: as large as fits the
+   screen, less the gutter, and less the controls - above it (above, in pixels, with the
+   space round them), or beside it (beside) on a wide screen, whichever leaves it larger. */
+export const fullScreenSizeFor = (widthPx, heightPx, { above = 0, beside = 0 } = {}) => Math.max(240, Math.floor(Math.min(widthPx - 2 * MAP_GUTTER - beside, heightPx - above - MAP_GUTTER)));
+
+/* The same view drawn at another size: the same zoom, middle and reach, so the picture is
+   simply larger or smaller. The fitted scale leaves a 24px margin, so both scales move by
+   the ratio of what is inside it. */
+export function resizedView(view, sizePx) {
+    const k = (sizePx / 2 - 24) / (view.sizePx / 2 - 24);
+    return { ...view, sizePx, scale: view.scale * k, fitScale: view.fitScale * k };
+}
+
 /* A view that fits a radius about a home: the Sun unless told otherwise (the map can also
    be at Alpha Centauri, or pulled back to hold both - js/centauri.js). The home's height
    above the plane matters only in 3D, where the picture turns about it. */

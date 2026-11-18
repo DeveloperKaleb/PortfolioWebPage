@@ -2655,6 +2655,50 @@ main.rubin {
     user-select: none;
 }
 
+/* Full screen (owner, 2026-11-18): the map and its controls alone, on the page's brown,
+   the map centred under them at the size the script fits it to. The same when a browser
+   can only fill its window (an iPhone's Safari), so it sits over the page and the page
+   behind does not scroll. */
+.rubin-map-stage.is-filling {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    overflow: hidden;
+    background: #3b3026;
+}
+
+/* On a wide screen the controls stand in a column beside the map instead. */
+.rubin-map-stage.is-filling.is-side {
+    flex-direction: row;
+    gap: 16px;
+}
+
+.rubin-map-stage.is-side .rubin-map-panel {
+    width: 240px;
+    flex: none;
+}
+
+#rubin-map .rubin-map-stage.is-filling .rubin-svg {
+    flex: none;
+    left: auto;
+    transform: none;
+}
+
+html.rubin-filling,
+html.rubin-filling body {
+    overflow: hidden;
+}
+
+html.rubin-filling {
+    scrollbar-gutter: auto;
+}
+
 /* Whether Rubin is observing, and when the page next changes. Off-sky, it gains a
    heavier rule and the word says why; never colour alone. */
 .rubin-notice {

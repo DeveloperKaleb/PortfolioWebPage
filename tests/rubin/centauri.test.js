@@ -329,7 +329,8 @@ describe('The page', () => {
 
     test('a journey leaves visitors who asked for less motion where they are going, at once', () => {
         const page = readFileSync(resolve(root, 'rubin/rubin.js'), 'utf8');
-        expect(page).toContain('if (reducedMotion.matches) { view = toView; windowPx = toWindow; hatchPx = toHatch; render(); return; }');
+        expect(page).toContain('arrive = () => { view = toView; windowPx = toWindow; hatchPx = toHatch; };');
+        expect(page).toContain('if (reducedMotion.matches) { arrive(); render(); return; }');
     });
 });
 

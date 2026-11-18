@@ -13,7 +13,7 @@
 import {
     DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, glideView, journeyView, unseenHoles,
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
-    zoomLevel, MAP_ZOOM, mapSizeFor, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
 } from '../js/rubinview.js';
@@ -347,8 +347,11 @@ function drawMap(digest) {
     const section = document.getElementById('rubin-map');
     const data = mapData(digest);
     if (!data.marks.length) { section.hidden = true; return; }
-    /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. */
-    const SIZE = mapSizeFor(document.documentElement.clientWidth);
+    /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. Full
+       screen draws it again, larger (resize). */
+    let SIZE = mapSizeFor(document.documentElement.clientWidth);
+    /* The ruler keeps the size it was made at: full screen leaves it out. */
+    const RULER_SIZE = SIZE;
     let view = initialView(data.radius, SIZE);
     /* The nearest star system on the digest's date, in the map's own frame, and the three
        places the map can be: at the Sun, at Alpha Centauri, and far enough back to hold
@@ -362,8 +365,11 @@ function drawMap(digest) {
     let cam = FLAT;
     const homeView = (p) => initialView(threeD ? p.radius3D : p.radiusAU, SIZE, [p.cx, p.cy, p.cz]);
     let place = PLACES.sun;
-    /* The animation frame of a journey under way, or 0. */
+    /* The animation frame of a journey under way, or 0, and how to finish it at once. */
     let travelling = 0;
+    let arrive = () => {};
+    /* Whether the map fills the screen. */
+    let filling = false;
     /* Picking something on the map centres the map on it and draws its orbit (owner,
        2026-11-16). Objects with cards share the cards' selection; the stars and Luhman 16's
        tundrs, which have none, are kept here. */
@@ -429,7 +435,7 @@ function drawMap(digest) {
     plot.append(layer, lightLayer);
 
     const RULER_HEIGHT = 88;
-    const ruler = svg('svg', { viewBox: `0 0 ${SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', role: 'group', 'aria-label': `A ruler from the Sun to ${CENTAURI.name}, the nearest star system` });
+    const ruler = svg('svg', { viewBox: `0 0 ${RULER_SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', role: 'group', 'aria-label': `A ruler from the Sun to ${CENTAURI.name}, the nearest star system` });
     const lightNow = el('p', { class: 'rubin-light-text' });
     const lightFirst = el('p', { class: 'rubin-light-text' });
     const rulerNote = el('p', { class: 'rubin-note rubin-light-text' }, `The light is drawn as a ring on the map, at its true size and speed, and marked on the ruler above with how long ago it left. The ruler runs from the Sun to ${CENTAURI.name}, the pair of stars at the centre of the nearest star system, 4.34 light years away. Each step from the left is ten times further from the Sun, and each step from the right ten times further from that pair's centre of gravity, so the gap between is squeezed into the middle; it shows distance from each end, not direction. The hatched stretch runs from 1,000 AU from the Sun, beyond which nothing has yet been seen where it is, to ${CENTAURI.proxima.name}, the small third star that orbits the pair. ${UNSEEN_TEXT}.`);
@@ -454,7 +460,7 @@ function drawMap(digest) {
     /* The ruler's fixed parts are drawn once. Each light then has a ring on the map and a
        mark on the ruler, made once and moved: the light is redrawn up to four times a
        second, and rebuilding all of this each time was most of the page's idle work. */
-    const at = (fraction) => 8 + fraction * (SIZE - 16);
+    const at = (fraction) => 8 + fraction * (RULER_SIZE - 16);
     const lineY = 46;
     /* The stretch where nothing has been seen where it is: hatched, a texture rather than
        a colour, 24px tall so it can be pointed at, and it says why on hover and on focus. */
@@ -523,7 +529,7 @@ function drawMap(digest) {
             if (shown) fastest = Math.max(fastest, lightTravelledAU(1000) * view.scale);
 
             const x = at(rulerFraction(travelled));
-            const left = x < SIZE / 2;
+            const left = x < RULER_SIZE / 2;
             put(light.stem, { x1: x, x2: x });
             put(light.dot, { cx: x });
             put(light.ago, { x: left ? x + 6 : x - 6, 'text-anchor': left ? 'start' : 'end' });
@@ -566,6 +572,7 @@ function drawMap(digest) {
     const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
     const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
     const reset = el('button', { type: 'button', class: 'rubin-tool' }, 'Whole map');
+    const fullButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, 'Full screen');
     const readout = el('span', { class: 'rubin-zoom-readout', 'aria-live': 'polite' });
 
     /* Everything is redrawn from the view on each zoom or pan: rings, planets, objects.
@@ -854,8 +861,9 @@ function drawMap(digest) {
         reset.disabled = Boolean(travelling) || (level <= 1.0001 && atHome(view));
         flatButton.disabled = threeDButton.disabled = Boolean(travelling);
         /* At the whole map a finger drag scrolls the page; zoomed in, it moves the map. In 3D
-           it always turns the map. */
-        plot.style.touchAction = !threeD && level <= 1.0001 ? 'pan-y' : 'none';
+           it always turns the map, and in full screen, with no page to scroll, every drag
+           is the map's. */
+        plot.style.touchAction = !threeD && !filling && level <= 1.0001 ? 'pan-y' : 'none';
         runLight();
     }
 
@@ -927,7 +935,8 @@ function drawMap(digest) {
         place = target;
         showPlace();
         hideTooltip();
-        if (reducedMotion.matches) { view = toView; windowPx = toWindow; hatchPx = toHatch; render(); return; }
+        arrive = () => { view = toView; windowPx = toWindow; hatchPx = toHatch; };
+        if (reducedMotion.matches) { arrive(); render(); return; }
         const ms = direct ? 1800 : 5000;
         const began = performance.now();
         const frame = (now) => {
@@ -1070,7 +1079,7 @@ function drawMap(digest) {
     const controls = el('div', { class: 'rubin-map-controls' });
     const depth = el('span', { class: 'rubin-map-depth', role: 'group', 'aria-label': 'Flat map or 3D' });
     depth.append(flatButton, threeDButton);
-    controls.append(depth, zoomIn, zoomOut, reset, findLight, readout);
+    controls.append(depth, zoomIn, zoomOut, reset, findLight, fullButton, readout);
 
     /* Where the map can go: a list of the bodies, nearest first, showing the one the map is
        at, and a button for the view that holds them all, pressed while there, when the list
@@ -1095,6 +1104,72 @@ function drawMap(digest) {
     travel.append(zoomOnRow);
     showPlace();
 
+    /* Full screen (owner, 2026-11-18): the map and its controls fill the screen, drawn
+       again as large as fits (fullScreenSizeFor), keeping the zoom, the place, the turn and
+       what is picked. Where a browser cannot put a page's part in full screen (an
+       iPhone's Safari), it fills the window instead. Esc, the button, or leaving full
+       screen the browser's own way brings it back. */
+    const stage = el('div', { class: 'rubin-map-stage' });
+    const panel = el('div', { class: 'rubin-map-panel' });
+    panel.append(controls, travel);
+    stage.append(panel, plot);
+    const tooltipHome = tooltip.parentNode;
+    function resize(next) {
+        if (next === SIZE) return;
+        if (travelling) { cancelAnimationFrame(travelling); travelling = 0; arrive(); showPlace(); }
+        cancelAnimationFrame(centring);
+        centring = 0;
+        view = resizedView(view, next);
+        windowPx *= next / SIZE;
+        hatchPx *= next / SIZE;
+        SIZE = next;
+        plot.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
+        windowCircle.setAttribute('cx', SIZE / 2);
+        windowCircle.setAttribute('cy', SIZE / 2);
+        plot.style.width = filling ? `${SIZE}px` : '';
+        render();
+    }
+    /* The controls go above the map, or beside it on a wide screen, whichever leaves the
+       map larger (fullScreenSizeFor); the panel beside it is a fixed width. */
+    const fit = () => {
+        stage.classList.remove('is-side');
+        if (!filling) { plot.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth)); return; }
+        const [w, h] = [stage.clientWidth || innerWidth, stage.clientHeight || innerHeight];
+        const aboveSize = fullScreenSizeFor(w, h, { above: panel.offsetHeight + 24 });
+        stage.classList.add('is-side');
+        const sideSize = fullScreenSizeFor(w, h, { above: 16, beside: panel.offsetWidth + 16 });
+        stage.classList.toggle('is-side', sideSize > aboveSize);
+        resize(Math.max(aboveSize, sideSize));
+        plot.style.width = `${SIZE}px`;
+    };
+    function setFilling(on) {
+        if (on === filling) return;
+        filling = on;
+        hideTooltip();
+        stage.classList.toggle('is-filling', on);
+        /* The tooltip must be inside what is in full screen to be seen there. */
+        (on ? stage : tooltipHome).append(tooltip);
+        document.documentElement.classList.toggle('rubin-filling', on);
+        fullButton.textContent = on ? 'Exit full screen' : 'Full screen';
+        fullButton.setAttribute('aria-pressed', String(on));
+        fit();
+    }
+    fullButton.addEventListener('click', () => {
+        if (!filling) {
+            if (stage.requestFullscreen) stage.requestFullscreen().catch(() => setFilling(true));
+            else setFilling(true);
+        } else if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            setFilling(false);
+        }
+    });
+    document.addEventListener('fullscreenchange', () => setFilling(document.fullscreenElement === stage));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && filling && !document.fullscreenElement) setFilling(false); });
+    /* Turning a phone, or resizing the window, fits it again once the size settles. */
+    let fitting = 0;
+    addEventListener('resize', () => { if (!filling) return; cancelAnimationFrame(fitting); fitting = requestAnimationFrame(fit); });
+
     const holder = section.querySelector('.rubin-plot');
     const present = [...new Set(data.marks.map((m) => m.kind))];
     holder.replaceChildren(
@@ -1104,9 +1179,7 @@ function drawMap(digest) {
                 label: KIND_LABEL[kind], tundr: kind !== 'planet', swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }),
             })),
         ]),
-        controls,
-        travel,
-        plot,
+        stage,
         ruler,
         lightNow,
         lightFirst,

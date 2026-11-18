@@ -4007,3 +4007,27 @@ drawn if it is known; if it is not, the map says so.
   - The Sun and Barnard's Star: "orbits the galaxy, far off this map".
 - A click on the map no longer scrolls the page to the card; the card still appears in
   its section. The map's table still scrolls to it, and now centres the map too.
+
+## The map in full screen (owner, 2026-11-18)
+
+A "Full screen" button in the map's controls puts the map and its controls (the
+`.rubin-map-stage`) on the whole screen. Esc, the button ("Exit full screen"), or the
+browser's own way out brings it back. The legend, ruler and light text stay on the page.
+
+- **Same view:** the map is drawn again at the new size (`resize`, `resizedView`), keeping
+  the zoom, middle, place, 3D turn and picked bodies. A journey under way jumps to its
+  end, and a glide to a picked body stops where it is.
+- **Size:** the map stays round and square, as large as fits (`fullScreenSizeFor`). The
+  controls go above it, or in a 240px column beside it, whichever leaves the map larger.
+  Beside wins on a desktop (913px on a 1920 x 945 window) and on a phone held sideways;
+  above wins on a phone held upright. Turning the phone or resizing the window fits it
+  again. The ruler keeps the size it was made at (`RULER_SIZE`).
+- **Where true full screen is refused:** an iPhone's Safari (no element full screen) or
+  an iframe. The stage instead fills the window (`position: fixed`), and the page behind
+  stops scrolling (`html.rubin-filling`, which also drops the reserved scrollbar gutter).
+- **Touches and tooltip:** in full screen every drag belongs to the map, since there is no
+  page to scroll. The tooltip moves into the stage while filling, since only what is
+  inside the full-screen element is drawn.
+- **Checked:** in Chrome, with the window-filling path (the automation's clicks could not
+  start true full screen) at 1920 x 945, 412 x 860, 860 x 400, and turning between the last
+  two. Not yet checked: true full screen on a phone.
