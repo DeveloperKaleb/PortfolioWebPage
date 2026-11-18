@@ -26,7 +26,7 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, MERCURY_AU, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -105,6 +105,20 @@ function attachDetails(target, rows) {
     target.addEventListener('blur', hideTooltip);
 }
 
+/* The short name of a system's member beside the other: "A" for Alpha Centauri A. */
+const shortName = (system, member) => member.name.replace(system.name, '').trim() || member.name;
+const apartFrom = (p, q) => Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+/* A member's planets for the stars table: the confirmed, how far out; each candidate. */
+function planetsText(system, member) {
+    const mine = (system.planets ?? []).filter((o) => o.star === member.id);
+    const sure = mine.filter((o) => o.status === 'confirmed');
+    const words = [];
+    if (sure.length) words.push(`${COUNT_WORDS[sure.length] ?? sure.length} planet${sure.length > 1 ? 's' : ''}, ${sure.map((o) => o.a.toFixed(3)).join(', ')} AU out`);
+    for (const o of mine.filter((p) => p.status === 'candidate')) words.push(`a candidate planet about ${o.a} AU out, unconfirmed`);
+    return words.join('; ');
+}
+
 /* Hover alone, for parts of a control that is itself the thing focused and spoken (the
    pieces of a "Go to" symbol): the control's own label carries the same words. */
 function hoverDetails(target, rows) {
@@ -112,31 +126,73 @@ function hoverDetails(target, rows) {
     target.addEventListener('pointerleave', hideTooltip);
 }
 
-/* A system's symbol in "Go to": a disc for one star; for several, the disc cut into one
-   wedge per member, each with its own hover. Each member's piece is coloured for its
-   type and shaped for its kind (starKind): filled for a star, a ring for a tundr, a dot in
-   a ring for a white dwarf. */
-const SYMBOL_PX = 18;
+/* A system's symbol in "Go to" (owner, 2026-11-18): a cap at the left end of its row, as
+   tall as the row, cut into one band per member from the top, each with its own hover.
+   Each band is coloured for its member's type and textured for it (CAP_TEXTURES): stars
+   filled, tundrs and white dwarfs dark with the texture in their colour. */
+const CAP_W = 24;
+const CAP_H = 34;
+/* Textures, from what each kind looks like close up: the Sun's fine granulation, coarser
+   on an orange dwarf; a red dwarf's starspots; a tundr's cloud bands, as on Jupiter; a white
+   dwarf's dense grain; a hot white star smooth but for a faint sheen. Drawn over the colour,
+   so the colour still says the type; the texture says it again for anyone who cannot tell
+   the colours apart. Each is [pattern size, its marks]. */
+const CAP_TEXTURES = {
+    yellow: [4, [['circle', { cx: 1, cy: 1, r: 0.8 }], ['circle', { cx: 3, cy: 3, r: 0.8 }]]],
+    orange: [6, [['circle', { cx: 1.5, cy: 1.5, r: 1.3 }], ['circle', { cx: 4.5, cy: 4.5, r: 1.3 }]]],
+    red: [10, [['circle', { cx: 3, cy: 3, r: 2 }], ['circle', { cx: 7.5, cy: 7, r: 1.2 }], ['circle', { cx: 8, cy: 2, r: 0.7 }]]],
+    tundr: [4, [['rect', { x: 0, y: 0, width: 4, height: 1.6 }]]],
+    dwarf: [2, [['circle', { cx: 1, cy: 1, r: 0.55 }]]],
+    white: [6, [['path', { d: 'M0,6L6,0', 'stroke-width': 0.8, fill: 'none' }]]],
+};
+/* The patterns and the cap's outline are drawn once, in a hidden picture every symbol
+   refers to. */
+let capDefs = null;
+function ensureCapDefs() {
+    if (capDefs) return;
+    capDefs = svg('svg', { width: 0, height: 0, 'aria-hidden': 'true', style: 'position:absolute' });
+    const defs = svg('defs');
+    const clip = svg('clipPath', { id: 'rubin-go-cap' });
+    clip.append(svg('rect', { x: 0.5, y: 0.5, width: CAP_W - 1, height: CAP_H - 1, rx: 7 }));
+    defs.append(clip);
+    for (const [kind, [size, marks]] of Object.entries(CAP_TEXTURES)) {
+        /* Stars: dark marks on the colour. Tundrs and white dwarfs: the colour on dark. */
+        const onDark = kind === 'tundr' || kind === 'dwarf';
+        const ink = onDark ? STAR_TYPE_COLORS[kind === 'dwarf' ? 'white' : kind] : C.space;
+        const pattern = svg('pattern', { id: `rubin-go-tex-${kind}`, width: size, height: size, patternUnits: 'userSpaceOnUse' });
+        for (const [tag, attrs] of marks) pattern.append(svg(tag, { fill: ink, stroke: ink, 'stroke-width': 0, opacity: onDark ? 0.9 : 0.4, ...attrs }));
+        defs.append(pattern);
+    }
+    capDefs.append(defs);
+    document.body.append(capDefs);
+}
 function starSymbol(system) {
-    const r = SYMBOL_PX / 2 - 2;
-    const c = SYMBOL_PX / 2;
-    const box = svg('svg', { class: 'rubin-map-go-symbol', width: SYMBOL_PX, height: SYMBOL_PX, viewBox: `0 0 ${SYMBOL_PX} ${SYMBOL_PX}`, 'aria-hidden': 'true' });
+    ensureCapDefs();
+    const box = svg('svg', { class: 'rubin-map-go-symbol', width: CAP_W, height: CAP_H, viewBox: `0 0 ${CAP_W} ${CAP_H}`, 'aria-hidden': 'true' });
+    const cap = svg('g', { 'clip-path': 'url(#rubin-go-cap)' });
     const n = system.members.length;
-    const at = (radius, turn) => [c + radius * Math.sin(turn * 2 * Math.PI), c - radius * Math.cos(turn * 2 * Math.PI)].map((v) => v.toFixed(2)).join(',');
-    const wedge = (radius, k) => (n === 1
-        ? `M${c - radius},${c}a${radius},${radius} 0 1,0 ${2 * radius},0a${radius},${radius} 0 1,0 ${-2 * radius},0Z`
-        : `M${c},${c}L${at(radius, k / n)}A${radius},${radius} 0 0,1 ${at(radius, (k + 1) / n)}Z`);
+    const band = CAP_H / n;
     system.members.forEach((member, k) => {
         const { colour, shape } = starKind(member.type);
-        const ink = STAR_TYPE_COLORS[colour];
+        const texture = shape === 'dot' ? 'dwarf' : colour;
         const piece = svg('g', { class: 'rubin-map-go-piece' });
-        if (shape === 'disc') piece.append(svg('path', { d: wedge(r, k), fill: ink, stroke: C.space, 'stroke-width': n > 1 ? 1 : 0 }));
-        else {
-            piece.append(svg('path', { d: wedge(r - 0.75, k), fill: C.space, stroke: ink, 'stroke-width': 1.5 }));
-            if (shape === 'dot') piece.append(svg('path', { d: wedge(r / 2.2, k), fill: ink }));
-        }
+        const at = { x: 0, y: k * band, width: CAP_W, height: band };
+        piece.append(svg('rect', { ...at, fill: shape === 'disc' ? STAR_TYPE_COLORS[colour] : C.space }));
+        piece.append(svg('rect', { ...at, fill: `url(#rubin-go-tex-${texture})` }));
         hoverDetails(piece, [[member.name, memberTypeText(member)]]);
-        box.append(piece);
+        cap.append(piece);
+    });
+    /* A dark line between bands; and each dark band (a tundr or white dwarf) outlined in its
+       own colour, as its ring is on the map, so two dark bands read as two. */
+    for (let k = 1; k < n; k++) cap.append(svg('line', { x1: 0, x2: CAP_W, y1: k * band, y2: k * band, stroke: C.space, 'stroke-width': 1.5, 'pointer-events': 'none' }));
+    box.append(cap);
+    system.members.forEach((member, k) => {
+        const { colour, shape } = starKind(member.type);
+        if (shape === 'disc') return;
+        box.append(svg('rect', {
+            x: 0.75, y: k * band + 0.75, width: CAP_W - 1.5, height: band - 1.5, rx: Math.min(6.5, band / 2 - 1),
+            fill: 'none', stroke: STAR_TYPE_COLORS[colour], 'stroke-width': 1.5, 'pointer-events': 'none',
+        }));
     });
     return box;
 }
@@ -430,27 +486,34 @@ function drawMap(digest) {
         return orbits.get(entry.designation);
     };
     /* What can be drawn of each body's orbit without a card: its path or paths, or a note
-       saying why not. The Sun and Barnard's Star orbit only the centre of the galaxy, far
-       off this map; Proxima's orbit about A and B is known only roughly. */
+       saying why not, for every neighbour (NEIGHBOURS in js/centauri.js). A pair's members
+       trace their orbit about each other; a lone star orbits only the centre of the galaxy,
+       far off this map; Proxima's orbit about A and B is known only roughly. A whole
+       system drawn as one dot is its pair, if it has one. */
     const PROXIMA = proximaOrbit(system);
     const PICKABLE = (() => {
-        const sun = { x: 0, y: 0, z: 0 };
         const galaxy = 'orbits the galaxy, far off this map';
-        const luhman = system.luhmanPair;
-        return {
-            'body:sun': { body: sun, note: galaxy },
-            'body:centauri': { body: system.centre, paths: [system.paths.a, system.paths.b] },
-            'body:ab': { body: system.centre, paths: [system.paths.a, system.paths.b] },
-            'body:a': { body: system.a, paths: [system.paths.a] },
-            'body:b': { body: system.b, paths: [system.paths.b] },
-            /* Roughly known, so dashed. */
-            'body:proxima': { body: system.proxima, paths: [PROXIMA.path], dashed: true },
-            'body:barnard': { body: system.barnard, note: galaxy },
-            'body:luhman16': { body: luhman.centre, paths: [luhman.paths.a, luhman.paths.b] },
-            'body:luhmanA': { body: luhman.a, paths: [luhman.paths.a] },
-            'body:luhmanB': { body: luhman.b, paths: [luhman.paths.b] },
-        };
+        const out = { 'body:sun': { body: { x: 0, y: 0, z: 0 }, note: galaxy } };
+        for (const on of system.systems) {
+            const s = on.system;
+            for (const { pair, centre, a, b, paths } of on.pairs) {
+                out[`body:${pair.key}`] = { body: centre, paths: [paths.a, paths.b] };
+                out[`body:${pair.a}`] = { body: a, paths: [paths.a] };
+                out[`body:${pair.b}`] = { body: b, paths: [paths.b] };
+            }
+            for (const m of on.lone) {
+                const body = on.at.get(m.id);
+                /* Roughly known, so dashed. */
+                out[`body:${m.id}`] = m.roughOrbit ? { body, paths: [PROXIMA.path], dashed: true }
+                    : { body, note: m.sky ? `orbits ${s.centreName}; the orbit is not known` : galaxy };
+            }
+            out[`body:${s.id}`] ??= on.pairs.length ? { ...out[`body:${on.pairs[0].pair.key}`] } : { body: on.centre, note: galaxy };
+        }
+        return out;
     })();
+    /* A neighbour's "Zoom on" step as a view, from its rungs. */
+    const rungView = (id, rung) => closeUp(PICKABLE[`body:${rung.on}`].body, rung.radiusAU, PLACES[id]);
+    const rungsOf = (id) => system.systems.find((on) => on.system.id === id)?.system.rungs ?? [];
     /* Which way the centre of the galaxy is, along the map's plane. */
     const SAG_A_WAY = towardSagA();
     /* A whole system is drawn as one dot once its map is smaller than this on screen. (At
@@ -460,9 +523,6 @@ function drawMap(digest) {
     /* How far from the Sun the middle of the map must be to count as in another star system,
        for the arrow toward Earth: well past the Sun's own map, and short of the nearest star. */
     const ELSEWHERE_AU = 10000;
-    /* Barnard's Star's steps in from its whole view: label, the reach in AU, and its name in
-       a link (&zoom=). */
-    const BARNARD_RUNGS = [['The four planets', 0.045, 'planets'], ['Barnard d, the innermost', 0.021, 'innermost']];
     const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri' });
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
@@ -656,10 +716,10 @@ function drawMap(digest) {
            and on focus, in the owner's words. */
         const holes = unseenHoles(view, [
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
-            { ...system.centre, radiusAU: SEEN_NEAR.pair },
-            { ...system.proxima, radiusAU: SEEN_NEAR.proxima },
-            { ...system.luhman16, radiusAU: SEEN_NEAR.luhman16 },
-            { ...system.barnard, radiusAU: SEEN_NEAR.barnard },
+            ...system.systems.flatMap((on) => [
+                ...on.pairs.map((p) => ({ ...p.centre, radiusAU: seenNearOfPair(p.pair) })),
+                ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
+            ]),
         ], hatchPx, at3);
         if (holes) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
@@ -673,7 +733,10 @@ function drawMap(digest) {
            close-up as a row of straight lines, which says nothing.) Only the rings that
            cross the picture (ringRadii). */
         const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
-        const ringsAbout = [{ x: 0, y: 0, z: 0 }, system.centre, system.proxima, system.luhman16, system.barnard].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
+        const ringsAbout = [
+            { x: 0, y: 0, z: 0 },
+            ...system.systems.flatMap((on) => [...on.pairs.map((p) => p.centre), ...on.lone.map((m) => on.at.get(m.id))]),
+        ].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
         /* The rings lie in the plane through that star, parallel to Earth's; in 3D they are
            ellipses, and that plane is the ground each body's drop line reaches down to. */
         const ground = ringsAbout.z;
@@ -803,63 +866,59 @@ function drawMap(digest) {
             parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
             if (r >= PLANET_LABEL_PX) labels.push({ x: x + r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: o.status === 'candidate' ? 'candidate planet (unconfirmed)' : `${o.name}'s orbit`, rank: 1e8 });
         };
-        if (inPicture(system.centre, threeD ? PLACES.centauri.radius3D : PLACES.centauri.radiusAU)) {
-            if (PLACES.centauri.radiusAU * view.scale < SYSTEM_DOT_PX) {
-                star('body:centauri', 'Alpha Centauri', 4, [['Three stars:', 'A, B and Proxima'], ...far(system.centre)]);
-            } else {
-                PLANET_ORBITS.filter((o) => o.star === 'proxima').forEach((o) => orbitOf(system.proxima, o));
-                star('body:proxima', 'Proxima Centauri', 3, [...far(system.proxima), [farDistanceText(system.proximaFromCentre), 'from A and B'], ['Orbits A and B once in about 550,000 years,', 'now near its farthest; the orbit is known only roughly, so it is drawn dashed']]);
-                if (apartOnScreen(system.a, system.b) < 12) {
-                    star('body:ab', 'Alpha Centauri A and B', 4, [...far(system.centre), [farDistanceText(system.apart), 'apart on this date']]);
-                } else {
-                    for (const path of [system.paths.a, system.paths.b]) {
-                        const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
-                        parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-                    }
-                    PLANET_ORBITS.filter((o) => o.star === 'a').forEach((o) => orbitOf(system.a, o));
-                    star('body:a', 'Alpha Centauri A', 4.5, [...far(system.a), [farDistanceText(system.apart), 'from B on this date']]);
-                    star('body:b', 'Alpha Centauri B', 3.5, [...far(system.b), [farDistanceText(system.apart), 'from A on this date']]);
+        /* Every neighbour the same way (NEIGHBOURS in js/centauri.js): a system of several
+           marks is one dot from far off; then each lone member, and each pair as one mark
+           until its two are 12 pixels apart, then both, on the paths they trace about their
+           centre of gravity. A member's planets' orbits are drawn with it; a single star whose
+           planets all lie inside Mercury's orbit has that orbit about it for scale. Tundrs are
+           marked fainter, and say what they are. */
+        const looks = (members) => {
+            const tundr = members.filter((m) => starKind(m.type).colour === 'tundr').length;
+            const n = members.length;
+            const what = tundr === n ? (n === 1 ? 'Hydrogen Tundr' : 'Hydrogen Tundrs') : tundr ? 'stars and tundrs' : n === 1 ? 'star' : 'stars';
+            return { kind: n === 1 ? what : `${COUNT_WORDS[n] ?? n} ${what}`, fill: tundr === n ? C.muted : C.text };
+        };
+        for (const on of system.systems) {
+            const s = on.system;
+            const home = PLACES[s.id];
+            if (!inPicture(on.centre, threeD ? home.radius3D : home.radiusAU)) continue;
+            if (on.units > 1 && home.radiusAU * view.scale < SYSTEM_DOT_PX) {
+                star(`body:${s.id}`, s.name, s.markPx, [...(s.rows ?? []), ...far(on.centre)], looks(s.members));
+                continue;
+            }
+            if (on.forScale) {
+                const r = on.forScale * view.scale;
+                const [x, y] = at3(on.centre.x, on.centre.y, on.centre.z);
+                if (r >= PLANET_DRAW_PX && r < 1e5 && Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE + r) {
+                    parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.text, 'stroke-width': 1.5, 'stroke-dasharray': '2 5', opacity: 0.85, 'pointer-events': 'none' }));
+                    if (r >= PLANET_LABEL_PX) labels.push({ x: x - r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: "Mercury's orbit about the Sun, for scale", rank: 1e8 });
+                }
+            }
+            const planetsOf = (m) => (s.planets ?? []).filter((o) => o.star === m.id).forEach((o) => orbitOf(on.at.get(m.id), o));
+            for (const m of on.lone) {
+                const body = on.at.get(m.id);
+                const wide = m.sky ? [[farDistanceText(apartFrom(body, on.centre)), `from ${s.centreName}`]] : [];
+                planetsOf(m);
+                star(`body:${m.id}`, m.name, m.markPx, [...(m.rows ?? []), ...far(body), ...wide], looks([m]));
+            }
+            for (const p of on.pairs) {
+                const { pair } = p;
+                const [ma, mb] = [pair.a, pair.b].map((id) => s.members.find((m) => m.id === id));
+                const round = `they round each other every ${pair.orbit.period.toFixed(1)} years`;
+                if (apartOnScreen(p.a, p.b) < 12) {
+                    star(`body:${pair.key}`, pair.name, pair.markPx, [...(pair.rows ?? []), ...far(p.centre), [farDistanceText(p.apart), `apart on this date; ${round}`]], looks([ma, mb]));
+                    continue;
+                }
+                for (const path of [p.paths.a, p.paths.b]) {
+                    const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
+                    parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
+                }
+                for (const [m, body, other] of [[ma, p.a, mb], [mb, p.b, ma]]) {
+                    planetsOf(m);
+                    star(`body:${m.id}`, m.name, m.markPx, [...(m.rows ?? []), ...far(body), [farDistanceText(p.apart), `from ${shortName(s, other)} on this date; ${round}`]], looks([m]));
                 }
             }
         }
-
-        /* Luhman 16: one dot until there is room, then A and B apart, on the paths they
-           trace about their centre of gravity (Bedin et al. 2024), as for Alpha Centauri. */
-        const luhman = system.luhmanPair;
-        const tundrs = { kind: 'Hydrogen Tundr', fill: C.muted };
-        if (apartOnScreen(luhman.a, luhman.b) < 12) {
-            star('body:luhman16', 'Luhman 16 AB', 3, [
-                ["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'],
-                ['Found in 2013:', 'the third-nearest system to the Sun'],
-                ...far(luhman.centre),
-            ], { ...tundrs, kind: 'two Hydrogen Tundrs' });
-        } else {
-            for (const path of [luhman.paths.a, luhman.paths.b]) {
-                const points = path.map((q) => at3(q.x, q.y, q.z).map((v) => v.toFixed(1)).join(',')).join(' ');
-                parts.push(svg('polygon', { points, fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-            }
-            const apart = [farDistanceText(luhman.apart), 'apart on this date; round each other every 25.5 years'];
-            star('body:luhmanA', 'Luhman 16 A', 3.5, [["About 35 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.a), apart], tundrs);
-            star('body:luhmanB', 'Luhman 16 B', 3, [["About 29 times Jupiter's mass,", 'usually called a brown dwarf'], ...far(luhman.b), apart], tundrs);
-        }
-        /* Barnard's Star, with its four planets' orbits once zoomed in on it, and Mercury's
-           orbit about the Sun beside them for scale: all four would fit inside it ten times
-           over. */
-        PLANET_ORBITS.filter((o) => o.star === 'barnard').forEach((o) => orbitOf(system.barnard, o));
-        {
-            const r = MERCURY_AU * view.scale;
-            const [x, y] = at3(system.barnard.x, system.barnard.y, system.barnard.z);
-            if (r >= PLANET_DRAW_PX && r < 1e5 && Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE + r) {
-                parts.push(svg('circle', { cx: x, cy: y, r, fill: 'none', stroke: C.text, 'stroke-width': 1.5, 'stroke-dasharray': '2 5', opacity: 0.85, 'pointer-events': 'none' }));
-                if (r >= PLANET_LABEL_PX) labels.push({ x: x - r * Math.SQRT1_2, y: y - r * Math.SQRT1_2, text: "Mercury's orbit about the Sun, for scale", rank: 1e8 });
-            }
-        }
-        star('body:barnard', "Barnard's Star", 3, [
-            ['A single small star:', 'it crosses our sky faster than any other'],
-            galaxyRow,
-            ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
-            ...far(system.barnard),
-        ]);
 
         /* Which way things lie that the picture cannot hold. The centre of the galaxy, in the
            view of the nearest bodies (owner, 2026-11-14) and from another star system; and,
@@ -1049,13 +1108,12 @@ function drawMap(digest) {
         placeholder: `Type a name (${SYSTEMS.length} systems)`, 'aria-label': 'Go to a star system: type its name, or choose from the list',
     });
     const goList = el('ul', { id: 'rubin-map-go-list', class: 'rubin-map-go-list', role: 'listbox', 'aria-label': 'Star systems, nearest first' });
-    const zoomOnRow = el('span', { class: 'rubin-map-zoom-on' });
-    const zoomOnBarnard = el('span', { class: 'rubin-map-zoom-on' });
+    /* "Zoom on" steps for each neighbour that has them, shown while there. */
+    const zoomRows = new Map(system.systems.filter((on) => on.system.rungs).map((on) => [on.system.id, el('span', { class: 'rubin-map-zoom-on' })]));
     function showPlace() {
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
         for (const option of goList.children) option.classList.toggle('is-here', option.dataset.place === place.id);
-        zoomOnRow.hidden = place.id !== 'centauri';
-        zoomOnBarnard.hidden = place.id !== 'barnard';
+        for (const [id, row] of zoomRows) row.hidden = place.id !== id;
         findLight.hidden = place.id !== 'sun';
         reset.textContent = place.id === 'sun' ? 'Whole map' : 'Whole view';
     }
@@ -1085,7 +1143,7 @@ function drawMap(digest) {
         };
         travelling = requestAnimationFrame(frame);
     }
-    const closeUp = (body, radiusAU, at = PLACES.centauri) => {
+    const closeUp = (body, radiusAU, at) => {
         const home = homeView(at);
         return { ...home, scale: Math.min(home.fitScale * maxZoomOf(home), (SIZE / 2 - 24) / radiusAU), cx: body.x, cy: body.y, cz: body.z };
     };
@@ -1296,23 +1354,19 @@ function drawMap(digest) {
     });
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
     travel.append(goBox, nearestButton);
-    zoomOnRow.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
-    for (const [label, body, radiusAU] of [['Proxima', system.proxima, 0.07], ['A and B', system.centre, 45]]) {
-        const button = el('button', { type: 'button', class: 'rubin-tool' }, label);
-        button.addEventListener('click', () => goTo(PLACES.centauri, closeUp(body, radiusAU)));
-        zoomOnRow.append(button);
+    /* Each neighbour's steps in (its rungs): at Alpha Centauri, Proxima and the pair; at
+       Barnard's Star, whose whole view holds Mercury's orbit for scale with the four planets
+       bunched at its middle, those planets, then the innermost (owner, 2026-11-18: "to
+       really show the degree to which those planets are CLOSE"). */
+    for (const [id, row] of zoomRows) {
+        row.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
+        for (const rung of rungsOf(id)) {
+            const button = el('button', { type: 'button', class: 'rubin-tool' }, rung.label);
+            button.addEventListener('click', () => goTo(PLACES[id], rungView(id, rung)));
+            row.append(button);
+        }
+        travel.append(row);
     }
-    travel.append(zoomOnRow);
-    /* At Barnard's Star the whole view holds Mercury's orbit for scale, with the four
-       planets bunched at its middle; two steps in show them, then the innermost (owner,
-       2026-11-18: "to really show the degree to which those planets are CLOSE"). */
-    zoomOnBarnard.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
-    for (const [label, radiusAU] of BARNARD_RUNGS) {
-        const button = el('button', { type: 'button', class: 'rubin-tool' }, label);
-        button.addEventListener('click', () => goTo(PLACES.barnard, closeUp(system.barnard, radiusAU, PLACES.barnard)));
-        zoomOnBarnard.append(button);
-    }
-    travel.append(zoomOnBarnard);
     showPlace();
 
     /* Full screen (owner, 2026-11-18): the map and its controls fill the screen, drawn
@@ -1419,20 +1473,35 @@ function drawMap(digest) {
         name.addEventListener('click', () => pickOnMap(entry.designation, entry.now, { scrollTo: true }));
         row.cells[0].replaceChildren(name);
     });
+    /* One row per star and tundr of every neighbour, its note put together from the list:
+       what it is (blurb), how far from its pair's other member or from its system's centre,
+       and its planets. */
     const starsTable = table(
         ['Body', 'From the Sun', 'Along the plane and out of it', 'Note'],
-        [
-            ['Alpha Centauri A', farDistanceText(system.a.r), farPlaneText(system.a), `${farDistanceText(system.apart)} from B on ${longDate(digest.date)}; a candidate planet about 2 AU out, unconfirmed`],
-            ['Alpha Centauri B', farDistanceText(system.b.r), farPlaneText(system.b), `Orbits A every 79.8 years, between 11.2 and 35.6 AU apart`],
-            ['Proxima Centauri', farDistanceText(system.proxima.r), farPlaneText(system.proxima), `${farDistanceText(system.proximaFromCentre)} from A and B; planets b and d, ${PLANET_ORBITS.filter((o) => o.star === 'proxima').map((o) => `${o.a.toFixed(3)} AU`).reverse().join(' and ')} out`],
-            ["Barnard's Star", farDistanceText(system.barnard.r), farPlaneText(system.barnard), `The nearest single star, crossing our sky faster than any other; four small planets, ${PLANET_ORBITS.filter((o) => o.star === 'barnard').map((o) => o.a.toFixed(3)).join(', ')} AU out`],
-            ['Luhman 16 AB', farDistanceText(system.luhman16.r), farPlaneText(system.luhman16), `Two Hydrogen Tundrs, about 35 and 29 times Jupiter's mass (usually called brown dwarfs), ${farDistanceText(system.luhmanPair.apart)} apart on ${longDate(digest.date)} and rounding each other every 25.5 years; not part of Alpha Centauri, but the third-nearest system to the Sun`],
-        ],
+        system.systems.flatMap((on) => {
+            const s = on.system;
+            return s.members.map((m) => {
+                const body = on.at.get(m.id);
+                const notes = [m.blurb];
+                const p = on.pairs.find(({ pair }) => pair.a === m.id || pair.b === m.id);
+                if (p) {
+                    const { pair } = p;
+                    const other = s.members.find((o) => o.id === (pair.a === m.id ? pair.b : pair.a));
+                    const { aAU, e, period } = pair.orbit;
+                    notes.push(pair.a === m.id ? `${farDistanceText(p.apart)} from ${shortName(s, other)} on ${longDate(digest.date)}`
+                        : `orbits ${shortName(s, other)} every ${period.toFixed(1)} years, between ${(aAU * (1 - e)).toFixed(1)} and ${(aAU * (1 + e)).toFixed(1)} AU apart`);
+                } else if (m.sky) notes.push(`${farDistanceText(apartFrom(body, on.centre))} from ${s.centreName}`);
+                notes.push(planetsText(s, m));
+                const note = notes.filter(Boolean).join('; ');
+                return [m.name, farDistanceText(body.r), farPlaneText(body), note.charAt(0).toUpperCase() + note.slice(1)];
+            });
+        }),
     );
     section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest bodies beyond the Sun, where "Go to" takes the map. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
     section.hidden = false;
-    /* A link or a preview can open the map somewhere else: ?place=both or centauri, and
-       with the latter &zoom=proxima or pair. */
+    /* A link or a preview can open the map somewhere else: ?place=both, or a neighbour's
+       id, and &zoom= one of its rungs (centauri: proxima or pair; barnard: planets or
+       innermost). */
     /* &view=3d opens it in 3D, and &turn= and &tilt= turn and tip it that many degrees. */
     if (params.get('view') === '3d') {
         threeD = true;
@@ -1444,10 +1513,8 @@ function drawMap(digest) {
     const startAt = Object.hasOwn(PLACES, params.get('place') ?? '') ? PLACES[params.get('place')] : null;
     if (startAt) {
         place = startAt;
-        const zoom = startAt.id === 'centauri' ? params.get('zoom') : null;
-        const rung = startAt.id === 'barnard' ? BARNARD_RUNGS.find(([, , id]) => id === params.get('zoom')) : null;
-        view = zoom === 'proxima' ? closeUp(system.proxima, 0.07) : zoom === 'pair' ? closeUp(system.centre, 45)
-            : rung ? closeUp(system.barnard, rung[1], startAt) : homeView(startAt);
+        const rung = rungsOf(startAt.id).find((r) => r.id === params.get('zoom'));
+        view = rung ? rungView(startAt.id, rung) : homeView(startAt);
         windowPx = (startAt.dark * SIZE) / 2;
         hatchPx = hatchFor(startAt);
         showPlace();

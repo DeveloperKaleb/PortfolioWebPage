@@ -2651,7 +2651,7 @@ main.rubin {
     align-items: center;
     gap: 8px;
     min-height: 40px;
-    padding: 0 8px;
+    padding: 3px 8px 3px 3px;
     border-radius: 4px;
     color: #e3e7af;
     cursor: pointer;

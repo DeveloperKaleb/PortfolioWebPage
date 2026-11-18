@@ -11,6 +11,7 @@ import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
 import { jdFromDate, positionAt, orbitPath, tooBrightForRubin } from './orbit.js';
 import { moonOffset, moonRing, moonDistance, MOON_PARENTS, BUILT_IN_MOONS } from './moons.js';
+import { NEIGHBOURS } from './centauri.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -765,40 +766,30 @@ export const SIZE_REFERENCES = [
     { designation: 'world:Ceres', name: 'Ceres', called: 'Ceres', km: 939.4 },
 ];
 
-/* The stars' and Luhman 16's tundrs' sizes, from their radii. A and B: Kervella et al. 2017
-   (A&A 597, A137), interferometry. Proxima: 0.1542 +/- 0.0045 solar radii, as adopted by
-   Kervella, Thevenin & Lovis 2017. Barnard's Star: Lane, Boden & Kulkarni 2001 (ApJ 551,
-   L81), interferometry, 0.201 +/- 0.008. Luhman 16 A and B have not been measured; their
-   sizes are worked out from their light with models of how tundrs cool (Filippazzo et al.,
-   as used by the 2025 spectroscopic atlas, arXiv:2503.19322): 1.01 and 1.02 Jupiter radii,
-   +/- 0.07, drawn as a range. */
-const star = (designation, name, solarRadii, measured = true) => ({ designation, name, km: 2 * solarRadii * SUN_RADIUS_KM, measured });
-const tundr = (designation, name, jupiterRadii) => ({
-    designation, name, km: jupiterRadii * JUPITER_KM, measured: false, fromModels: true,
-    low: (jupiterRadii - 0.07) * JUPITER_KM, high: (jupiterRadii + 0.07) * JUPITER_KM,
-});
-const STARS = {
-    sun: { ...SIZE_REFERENCES[0], measured: true },
-    a: star('body:a', 'Alpha Centauri A', 1.2234),
-    b: star('body:b', 'Alpha Centauri B', 0.8632),
-    proxima: star('body:proxima', 'Proxima Centauri', 0.1542),
-    barnard: star('body:barnard', "Barnard's Star", 0.201),
-    luhmanA: tundr('body:luhmanA', 'Luhman 16 A', 1.01),
-    luhmanB: tundr('body:luhmanB', 'Luhman 16 B', 1.02),
-};
-/* What each star mark on the map stands for: one star, or a system's members together. */
-export const STAR_SIZES = {
-    'body:sun': [STARS.sun],
-    'body:a': [STARS.a],
-    'body:b': [STARS.b],
-    'body:ab': [STARS.a, STARS.b],
-    'body:centauri': [STARS.a, STARS.b, STARS.proxima],
-    'body:proxima': [STARS.proxima],
-    'body:barnard': [STARS.barnard],
-    'body:luhmanA': [STARS.luhmanA],
-    'body:luhmanB': [STARS.luhmanB],
-    'body:luhman16': [STARS.luhmanA, STARS.luhmanB],
-};
+/* The neighbours' stars' and tundrs' sizes, from the radii in NEIGHBOURS (js/centauri.js,
+   where each is sourced): in Suns, measured; or in Jupiters with a range either side,
+   modelled from their light and drawn as a range. */
+function sizeOfMember(m) {
+    const designation = `body:${m.id}`;
+    if (m.size.suns) return { designation, name: m.name, km: 2 * m.size.suns * SUN_RADIUS_KM, measured: true };
+    const { jupiters, plusMinus } = m.size;
+    return {
+        designation, name: m.name, km: jupiters * JUPITER_KM, measured: false, fromModels: true,
+        low: (jupiters - plusMinus) * JUPITER_KM, high: (jupiters + plusMinus) * JUPITER_KM,
+    };
+}
+/* What each star mark on the map stands for: one star; a pair drawn as one, both; a whole
+   system drawn as one dot, all its members. */
+export const STAR_SIZES = (() => {
+    const sizes = { 'body:sun': [{ ...SIZE_REFERENCES[0], measured: true }] };
+    for (const system of NEIGHBOURS) {
+        const members = new Map(system.members.map((m) => [m.id, sizeOfMember(m)]));
+        for (const [id, size] of members) sizes[`body:${id}`] = [size];
+        for (const pair of system.pairs ?? []) sizes[`body:${pair.key}`] = [members.get(pair.a), members.get(pair.b)];
+        sizes[`body:${system.id}`] ??= [...members.values()];
+    }
+    return sizes;
+})();
 
 /* How large the largest disc is drawn, and the least anything is drawn: a body smaller
    than that is a speck at this scale, and says so. */

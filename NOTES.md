@@ -4156,3 +4156,39 @@ Colour and shape come from `starKind`. Red, orange, yellow, white and pink
 (`STAR_TYPE_COLORS` in `js/rubincolors.js`) are held to the contrast rules in
 `tests/rubin/systems.test.js`. Stars are filled, tundrs are rings, white dwarfs are a dot
 in a ring. Phones have no hover, so each option's spoken label carries the same words.
+
+The symbol became a cap at the left end of each row (owner, 2026-11-18, from a sketch):
+24 by 34 pixels, one band per member from the top, each band textured for its type
+(`CAP_TEXTURES`): fine granulation for yellow, coarser for orange, starspots for red,
+cloud bands for tundrs, dense grain for white dwarfs, a faint sheen for other white
+stars. The texture repeats what the colour says, for anyone who cannot tell the colours
+apart. Stars are dark marks on the colour; tundrs and white dwarfs are the colour on dark,
+each band outlined so two dark bands read as two. The patterns and the cap's clip are
+drawn once in a hidden SVG (`ensureCapDefs`) that every symbol refers to by id.
+
+**Stage 2 (done).** Every system beyond the Sun is one entry in `NEIGHBOURS` in
+`js/centauri.js`: its sky place, members (type, size, mark size, hover rows, table blurb,
+own sky place for a wide companion), pairs on a known orbit, planets and "Zoom on" steps
+(`rungs`, which are also the `&zoom=` names). Everything else comes from it:
+- `systemOn` puts a system on a date: centre, each member, each pair with its paths, the
+  members on no known orbit (`lone`), how far it reaches, and `forScale` (Mercury's orbit,
+  for a single star whose planets all lie inside it).
+- `places` gives each system a view (`reachOf`): several marks, their reach plus a quarter;
+  a pair alone, half again its clearing; a single star, Mercury's orbit or its planets.
+  Rounded up to two figures (`roundUp`). The four old systems get exactly their old views
+  (15,000 / 0.45 / 6 AU), held by a test.
+- The hatching clearings (`seenNearOf`, `seenNearOfPair`) use a member's or pair's own
+  figure where given, else a rule: a pair's widest apart plus a tenth; a star's planets
+  plus 30%, never under 0.05 AU. Only lone members and pairs get clearings: a clearing
+  inside another would be hatched again by the even-odd fill.
+- `SYSTEMS` ("Go to"), `PLANET_ORBITS`, `STAR_SIZES` (the size panel), and in
+  `rubin/rubin.js` `PICKABLE`, the marks, the distance rings, the zoom rows, the `&zoom=`
+  link and the stars table (one row per member) are all built from the list. A test fails
+  if `rubin.js` names a system's mark or place again.
+
+Small visible changes from generating the text: a pair's hover gives how often its two
+round each other, Alpha Centauri B's widest separation in the table is the drawn orbit's
+35.4 AU rather than the published 35.6, Luhman 16's table has a row for each tundr, and
+Proxima's hover puts its orbit line before its distances. Proxima's dashed orbit is still
+its own calculation (`proximaOrbit`), switched on by `roughOrbit`; the caption under the
+map still describes the four systems by name, for stage 3 to rewrite.

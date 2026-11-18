@@ -61,21 +61,99 @@ export const LUHMAN_ORBIT = {
     massA: 35.4, massB: 29.4,
 };
 
-/* The planets. Sizes of orbit only: their tilt, and where each planet is along its orbit
-   as seen from above, are not known. */
-export const PLANET_ORBITS = [
-    { star: 'proxima', name: 'Proxima d', a: 0.02881, status: 'confirmed' },
-    { star: 'proxima', name: 'Proxima b', a: 0.04848, status: 'confirmed' },
-    { star: 'a', name: 'candidate planet at A', a: 2, status: 'candidate' },
-    { star: 'barnard', name: 'Barnard d', a: 0.0188, status: 'confirmed' },
-    { star: 'barnard', name: 'Barnard b', a: 0.0229, status: 'confirmed' },
-    { star: 'barnard', name: 'Barnard c', a: 0.0274, status: 'confirmed' },
-    { star: 'barnard', name: 'Barnard e', a: 0.0381, status: 'confirmed' },
+/* Mercury's orbit about the Sun (its semi-major axis, AU): drawn for scale about a single
+   star whose planets, if any, all lie inside it (systemOn's forScale) - Barnard's Star's
+   four would fit inside it ten times over. */
+export const MERCURY_AU = 0.3871;
+
+/* Around each system's bodies the hatching stops: within a pair's widest reach of their
+   centre, and within a star's planets' orbits. Alpha Centauri's pair, Proxima, Luhman 16's
+   two tundrs (about 3.5 AU apart) and Barnard's Star; a system without its own figure gets
+   one by rule (seenNearOf). */
+export const SEEN_NEAR = { pair: 40, proxima: 0.1, luhman16: 4, barnard: 0.05 };
+
+/* ---- The neighbours, as data -------------------------------------------------------------
+ *
+ * Every system beyond the Sun the map holds, nearest first, so that the map draws, picks,
+ * clears the hatching about and travels to each the same way (stage 2 of taking the map out
+ * to 1,000,000 AU, owner 2026-11-18; NOTES.md). A system has:
+ *   id - its place, and its mark when the whole system is one dot (body:<id>);
+ *   sky - where its centre is: the pair's centre of gravity, or the one star;
+ *   members - its stars and tundrs: id (its mark is body:<id>), name, spectral type, size
+ *     (radius in Suns or in Jupiters, with a range where only modelled), the mark's radius
+ *     in pixels (markPx), its own sky place if it is a wide companion, what its hover says
+ *     (rows) and the map's table (blurb), and its hatching clearing where the rule will not
+ *     do (seenNear);
+ *   pairs - two members on a known orbit about each other: key (their mark when too close
+ *     on screen to tell apart, body:<key>), the orbit, and the clearing about them;
+ *   planets - sizes of orbit only, about a member (star): their tilt, and where each planet
+ *     is along its orbit, are not known;
+ *   rungs - "Zoom on" steps in its view: label, what to centre on (a member or a pair), the
+ *     reach in AU, and its name in a link (&zoom=);
+ *   centreName - what a wide companion's distance is given from; a companion with
+ *     roughOrbit has its orbit about the pair drawn dashed (proximaOrbit, Proxima's alone).
+ * Sizes, read 2026-11-18: A and B, Kervella et al. 2017 (A&A 597, A137), interferometry;
+ * Proxima, 0.1542 Suns as adopted by Kervella, Thevenin & Lovis 2017; Barnard's Star, Lane,
+ * Boden & Kulkarni 2001 (ApJ 551, L81), interferometry; Luhman 16 A and B, not measured but
+ * modelled from their light (Filippazzo et al., as used by the 2025 spectroscopic atlas,
+ * arXiv:2503.19322), 1.01 and 1.02 Jupiters, +/- 0.07. */
+const GALAXY_ROW = ['It orbits the centre of the galaxy,', 'once in about 230 million years'];
+export const NEIGHBOURS = [
+    {
+        id: 'centauri', name: 'Alpha Centauri', sky: SKY.centre, markPx: 4, centreName: 'A and B',
+        rows: [['Three stars:', 'A, B and Proxima']],
+        members: [
+            { id: 'a', name: 'Alpha Centauri A', type: 'G2 V', markPx: 4.5, size: { suns: 1.2234 } },
+            { id: 'b', name: 'Alpha Centauri B', type: 'K1 V', markPx: 3.5, size: { suns: 0.8632 } },
+            {
+                id: 'proxima', name: 'Proxima Centauri', type: 'M5.5 Ve', markPx: 3, size: { suns: 0.1542 }, sky: SKY.proxima, seenNear: SEEN_NEAR.proxima, roughOrbit: true,
+                rows: [['Orbits A and B once in about 550,000 years,', 'now near its farthest; the orbit is known only roughly, so it is drawn dashed']],
+            },
+        ],
+        pairs: [{ key: 'ab', name: 'Alpha Centauri A and B', a: 'a', b: 'b', orbit: ALPHA_CEN_ORBIT, markPx: 4, seenNear: SEEN_NEAR.pair }],
+        planets: [
+            { star: 'proxima', name: 'Proxima d', a: 0.02881, status: 'confirmed' },
+            { star: 'proxima', name: 'Proxima b', a: 0.04848, status: 'confirmed' },
+            { star: 'a', name: 'candidate planet at A', a: 2, status: 'candidate' },
+        ],
+        rungs: [{ id: 'proxima', label: 'Proxima', on: 'proxima', radiusAU: 0.07 }, { id: 'pair', label: 'A and B', on: 'ab', radiusAU: 45 }],
+    },
+    {
+        id: 'barnard', name: "Barnard's Star", sky: SKY.barnard,
+        members: [{
+            id: 'barnard', name: "Barnard's Star", type: 'M4 V', markPx: 3, size: { suns: 0.201 }, seenNear: SEEN_NEAR.barnard,
+            blurb: 'The nearest single star, crossing our sky faster than any other',
+            rows: [
+                ['A single small star:', 'it crosses our sky faster than any other'],
+                GALAXY_ROW,
+                ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
+            ],
+        }],
+        planets: [
+            { star: 'barnard', name: 'Barnard d', a: 0.0188, status: 'confirmed' },
+            { star: 'barnard', name: 'Barnard b', a: 0.0229, status: 'confirmed' },
+            { star: 'barnard', name: 'Barnard c', a: 0.0274, status: 'confirmed' },
+            { star: 'barnard', name: 'Barnard e', a: 0.0381, status: 'confirmed' },
+        ],
+        /* Out to Mercury's orbit, drawn for scale (owner, 2026-11-18); "Zoom on" steps in to
+           the planets, to show how close they are. */
+        rungs: [{ id: 'planets', label: 'The four planets', on: 'barnard', radiusAU: 0.045 }, { id: 'innermost', label: 'Barnard d, the innermost', on: 'barnard', radiusAU: 0.021 }],
+    },
+    {
+        id: 'luhman16', name: 'Luhman 16', sky: SKY.luhman16,
+        members: [
+            { id: 'luhmanA', name: 'Luhman 16 A', type: 'L7.5', markPx: 3.5, size: { jupiters: 1.01, plusMinus: 0.07 }, rows: [["About 35 times Jupiter's mass,", 'usually called a brown dwarf']], blurb: "About 35 times Jupiter's mass (usually called a brown dwarf)" },
+            { id: 'luhmanB', name: 'Luhman 16 B', type: 'T0.5', markPx: 3, size: { jupiters: 1.02, plusMinus: 0.07 }, rows: [["About 29 times Jupiter's mass,", 'usually called a brown dwarf']], blurb: "About 29 times Jupiter's mass (usually called a brown dwarf)" },
+        ],
+        pairs: [{
+            key: 'luhman16', name: 'Luhman 16 AB', a: 'luhmanA', b: 'luhmanB', orbit: LUHMAN_ORBIT, markPx: 3, seenNear: SEEN_NEAR.luhman16,
+            rows: [["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'], ['Found in 2013:', 'the third-nearest system to the Sun']],
+        }],
+    },
 ];
 
-/* Mercury's orbit about the Sun (its semi-major axis, AU): drawn about Barnard's Star for
-   scale, around that star's four planets. */
-export const MERCURY_AU = 0.3871;
+/* Every planet's orbit, about which member. */
+export const PLANET_ORBITS = NEIGHBOURS.flatMap((s) => s.planets ?? []);
 
 /* Proxima's orbit about A and B (owner, 2026-11-18: a star orbiting another should show
    its orbit). From Kervella, Thevenin & Lovis 2017 (A&A 598, L7; arXiv:1611.03495), table
@@ -239,24 +317,69 @@ function pairOn(centreSky, orbit, year, pathSteps) {
     };
 }
 
-/* The system in a year: the pair's centre of gravity, A, B and Proxima, each { x, y, z, r }
-   in AU from the Sun, and the paths A and B trace about their centre over one orbit. */
-export function centauriOn(year, { pathSteps = 96 } = {}) {
-    const pair = pairOn(SKY.centre, ALPHA_CEN_ORBIT, year, pathSteps);
-    const centre = [pair.centre.x, pair.centre.y, pair.centre.z];
-    const proxima = point(place(SKY.proxima, year));
-    const luhman = pairOn(SKY.luhman16, LUHMAN_ORBIT, year, pathSteps);
+/* The clearing in the hatching about a pair (its figure, or a little past the widest the
+   two get apart) and about a member (its figure, or a little past its planets, and never
+   under 0.05 AU). */
+export const seenNearOfPair = (pair) => pair.seenNear ?? pair.orbit.aAU * (1 + pair.orbit.e) * 1.1;
+export function seenNearOf(system, member) {
+    const planets = (system.planets ?? []).filter((p) => p.star === member.id).map((p) => p.a);
+    return member.seenNear ?? Math.max(0.05, ...planets.map((a) => a * 1.3));
+}
+
+/* A system in a year: its centre, each member where it is ({ x, y, z, r } in AU from the
+   Sun), each pair with its centre of gravity, the paths its two trace over one orbit and
+   how far apart they are, the members on no orbit known (lone), how far its members reach
+   from its centre (along the plane, and in 3D), how many marks it breaks into (units: a
+   pair, or a lone member), and the orbit drawn about it for scale, if any (forScale). */
+export function systemOn(system, year, { pathSteps = 96 } = {}) {
+    const centre = point(place(system.sky, year));
+    const at = new Map();
+    const pairs = (system.pairs ?? []).map((pair) => {
+        const on = pairOn(pair.sky ?? system.sky, pair.orbit, year, pathSteps);
+        at.set(pair.a, on.a);
+        at.set(pair.b, on.b);
+        return { ...on, pair };
+    });
+    for (const m of system.members) if (!at.has(m.id)) at.set(m.id, m.sky ? point(place(m.sky, year)) : centre);
+    const inPair = new Set(pairs.flatMap((p) => [p.pair.a, p.pair.b]));
+    const lone = system.members.filter((m) => !inPair.has(m.id));
+    const reach = (flat) => Math.max(0, ...[...at.values()].map((p) => Math.hypot(p.x - centre.x, p.y - centre.y, flat ? 0 : p.z - centre.z)));
+    const planets = (system.planets ?? []).map((p) => p.a);
+    const single = pairs.length === 0 && lone.length === 1;
     return {
-        ...pair,
+        system, centre, at, pairs, lone,
+        extent: reach(true),
+        extent3D: reach(false),
+        units: pairs.length + lone.length,
+        forScale: single && planets.every((a) => a < MERCURY_AU) ? MERCURY_AU : null,
+    };
+}
+
+/* Every neighbour in a year, in NEIGHBOURS's order. */
+export const neighboursOn = (year, options) => NEIGHBOURS.map((s) => systemOn(s, year, options));
+
+/* The system in a year, as the map has always had it: Alpha Centauri's pair's centre of
+   gravity, A, B and Proxima, each { x, y, z, r } in AU from the Sun, and the paths A and B
+   trace about their centre over one orbit; Luhman 16 and its pair; Barnard's Star - and,
+   for drawing, every neighbour (systems, from neighboursOn). */
+export function centauriOn(year, { pathSteps = 96 } = {}) {
+    const systems = neighboursOn(year, { pathSteps });
+    const by = Object.fromEntries(systems.map((s) => [s.system.id, s]));
+    const { centauri, luhman16, barnard } = by;
+    const [pair] = centauri.pairs;
+    const proxima = centauri.at.get('proxima');
+    return {
+        centre: pair.centre, a: pair.a, b: pair.b, paths: pair.paths, apart: pair.apart,
         proxima,
-        proximaFromCentre: Math.hypot(proxima.x - centre[0], proxima.y - centre[1], proxima.z - centre[2]),
+        proximaFromCentre: Math.hypot(proxima.x - pair.centre.x, proxima.y - pair.centre.y, proxima.z - pair.centre.z),
         /* Not part of the system: 6.5 light years away, but far enough below the plane that
            it lands inside the view of both. Its centre of gravity, and its pair as above. */
-        luhman16: luhman.centre,
-        luhmanPair: luhman,
+        luhman16: luhman16.pairs[0].centre,
+        luhmanPair: luhman16.pairs[0],
         /* Nor this: the nearest single star, 5.96 light years away. Its drift across our
            sky, the fastest of any star, is about 19 AU a year at its distance. */
-        barnard: point(place(SKY.barnard, year)),
+        barnard: barnard.at.get('barnard'),
+        systems,
     };
 }
 
@@ -283,31 +406,48 @@ export function towardSagA() {
  * picture's half-width. Both systems are seen from the Sun ("Nearest bodies", since it also
  * holds Luhman 16; the id stays 'both' so links keep working), with the rings about it and a
  * smaller window, so Alpha Centauri sits out near the edge (owner, 2026-11-14). */
-/* Around the other system's bodies the hatching stops: within the pair's widest reach of
-   their centre, and within Proxima's planets' orbits. Likewise about Luhman 16's two
-   tundrs, about 3.5 AU apart. */
-export const SEEN_NEAR = { pair: 40, proxima: 0.1, luhman16: 4, barnard: 0.05 };
+/* Up to the next round figure of two digits: 15,070 to 16,000, 0.449 to 0.45. */
+export const roundUp = (x) => {
+    const step = 10 ** (Math.floor(Math.log10(x)) - 1);
+    return Number((Math.ceil(x / step - 1e-9) * step).toPrecision(2));
+};
 
-/* In 3D (js/rubinview.js) the picture can be turned to show any body's true distance
-   across it, so each place also has a radius to fit then (radius3D), and the height of
-   its home above the plane (cz), which the picture turns about. */
+/* How far a system's own view reaches (radiusAU along the plane, radius3D in 3D): with
+   room for all its members, a quarter again; a pair alone, half again its clearing; a
+   single star, its planets a quarter again - or, where they all lie inside Mercury's orbit,
+   that orbit, drawn for scale (forScale). */
+export function reachOf(on) {
+    const { system } = on;
+    if (system.radiusAU) return { radiusAU: system.radiusAU, radius3D: system.radius3D ?? system.radiusAU };
+    if (on.units > 1) return { radiusAU: roundUp(on.extent * 1.25), radius3D: roundUp(on.extent3D * 1.25) };
+    if (on.pairs.length) {
+        const r = roundUp(seenNearOfPair(on.pairs[0].pair) * 1.5);
+        return { radiusAU: r, radius3D: r };
+    }
+    const planets = (system.planets ?? []).map((p) => p.a);
+    const r = roundUp(on.forScale ? on.forScale * 1.16 : Math.max(...planets) * 1.25);
+    return { radiusAU: r, radius3D: r };
+}
+
+/* Where the map can be: at the Sun; pulled back to hold every neighbour ('both', kept for
+   links from when it held only Alpha Centauri and the Sun); and at each neighbour, by its
+   id. In 3D (js/rubinview.js) the picture can be turned to show any body's true distance
+   across it, so each place also has a radius to fit then (radius3D), and the height of its
+   home above the plane (cz), which the picture turns about. system: from centauriOn. */
 export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
-    const { centre, proxima, luhman16, barnard } = system;
-    const reach = Math.hypot(proxima.x - centre.x, proxima.y - centre.y);
-    const reach3D = Math.hypot(proxima.x - centre.x, proxima.y - centre.y, proxima.z - centre.z);
+    const { systems } = system;
     const along = (body) => Math.hypot(body.x, body.y);
-    const farthest = Math.max(along(centre) + reach, along(luhman16), along(barnard));
-    const farthest3D = Math.max(centre.r + reach3D, luhman16.r, barnard.r);
-    return {
+    const farthest = Math.max(...systems.map((on) => along(on.centre) + on.extent));
+    const farthest3D = Math.max(...systems.map((on) => on.centre.r + on.extent3D));
+    const out = {
         sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, dark: 1 },
         both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000, dark: 0.65 },
-        centauri: { id: 'centauri', name: 'Alpha Centauri', label: 'Alpha Centauri', cx: centre.x, cy: centre.y, cz: centre.z, radiusAU: Math.ceil(reach * 1.25 / 1000) * 1000, radius3D: Math.ceil(reach3D * 1.25 / 1000) * 1000, dark: 1 },
-        /* Room for the clearing about the two tundrs. */
-        luhman16: { id: 'luhman16', name: 'Luhman 16', label: 'Luhman 16', cx: luhman16.x, cy: luhman16.y, cz: luhman16.z, radiusAU: 6, radius3D: 6, dark: 1 },
-        /* Out to Mercury's orbit, drawn there for scale (owner, 2026-11-18), with the four
-           planets bunched in the middle; "Zoom on" steps in to them. */
-        barnard: { id: 'barnard', name: "Barnard's Star", label: "Barnard's Star", cx: barnard.x, cy: barnard.y, cz: barnard.z, radiusAU: 0.45, radius3D: 0.45, dark: 1 },
     };
+    for (const on of systems) {
+        const { id, name } = on.system;
+        out[id] = { id, name, label: name, cx: on.centre.x, cy: on.centre.y, cz: on.centre.z, ...reachOf(on), dark: 1 };
+    }
+    return out;
 }
 
 /* ---- The systems "Go to" lists ------------------------------------------------------------
@@ -316,20 +456,12 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
  * each with a symbol for its stars' types, the full type on hovering a name, and a system
  * of several stars split into one piece per star, each with its own). In order of distance;
  * id is the place it goes to, and each member's key is its mark on the map. Types are the
- * usual spectral classes: the Sun's by definition; A, B and Proxima from SIMBAD; Barnard's
- * Star from SIMBAD; Luhman 16 A and B from the 2025 spectroscopic atlas (arXiv:2503.19322). */
+ * usual spectral classes, from NEIGHBOURS: the Sun's by definition; A, B and Proxima from
+ * SIMBAD; Barnard's Star from SIMBAD; Luhman 16 A and B from the 2025 spectroscopic atlas
+ * (arXiv:2503.19322). */
 export const SYSTEMS = [
     { id: 'sun', name: 'The Sun', members: [{ key: 'body:sun', name: 'The Sun', type: 'G2 V' }] },
-    { id: 'centauri', name: 'Alpha Centauri', members: [
-        { key: 'body:a', name: 'Alpha Centauri A', type: 'G2 V' },
-        { key: 'body:b', name: 'Alpha Centauri B', type: 'K1 V' },
-        { key: 'body:proxima', name: 'Proxima Centauri', type: 'M5.5 Ve' },
-    ] },
-    { id: 'barnard', name: "Barnard's Star", members: [{ key: 'body:barnard', name: "Barnard's Star", type: 'M4 V' }] },
-    { id: 'luhman16', name: 'Luhman 16', members: [
-        { key: 'body:luhmanA', name: 'Luhman 16 A', type: 'L7.5' },
-        { key: 'body:luhmanB', name: 'Luhman 16 B', type: 'T0.5' },
-    ] },
+    ...NEIGHBOURS.map((s) => ({ id: s.id, name: s.name, members: s.members.map((m) => ({ key: `body:${m.id}`, name: m.name, type: m.type })) })),
 ];
 
 /* What a spectral type means, in words, and how its symbol is drawn: the colour's name in
