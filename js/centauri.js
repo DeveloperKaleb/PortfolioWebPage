@@ -130,7 +130,7 @@ export const NEIGHBOURS = [
             rows: [
                 ['A single small star:', 'it crosses our sky faster than any other'],
                 GALAXY_ROW,
-                ['Four small planets,', 'confirmed in 2024 and 2025, all within 0.04 AU of it'],
+                ['Its planets were confirmed in 2024 and 2025,', 'all within 0.04 AU of it'],
             ],
         }],
         planets: [
@@ -488,6 +488,28 @@ export function starKind(type) {
     if (letter === 'K') return { colour: 'orange', shape: 'disc', words: 'an orange dwarf: a star a little smaller and cooler than the Sun' };
     if (letter === 'G') return { colour: 'yellow', shape: 'disc', words: 'a yellow dwarf: a star like the Sun' };
     return { colour: 'white', shape: 'disc', words: 'a white star: larger and hotter than the Sun' };
+}
+
+/* What planets are known (owner, 2026-11-18: say whether each system has any), for the
+   map's hovers and "Go to": how many are confirmed and how many candidates, and in words,
+   each planet by what tells it apart from the others in the system ("b", or "A b" where
+   the system's stars each have some). systemName is taken off the front of each name. */
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+export function planetSummary(planets, systemName = '') {
+    const sure = planets.filter((p) => p.status === 'confirmed');
+    const maybe = planets.filter((p) => p.status !== 'confirmed');
+    const short = (p) => {
+        const rest = p.name.startsWith(systemName) && systemName ? p.name.slice(systemName.length).trim() : '';
+        return rest || p.name.split(' ').at(-1);
+    };
+    const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
+    const count = (n, what) => `${NUMBER_WORDS[n] ?? n} ${what}${n === 1 ? '' : 's'}`;
+    const candidates = maybe.length ? count(maybe.length, 'candidate').toLowerCase() + `, about ${list(maybe.map((p) => `${p.a} AU`))} out, unconfirmed` : '';
+    let rows;
+    if (sure.length) rows = [[`${count(sure.length, 'planet')} known:`, list(sure.map(short)) + (candidates ? `; and ${candidates}` : '')]];
+    else if (maybe.length) rows = [[`No planets confirmed;`, candidates]];
+    else rows = [['No planets known yet']];
+    return { confirmed: sure.length, candidates: maybe.length, rows, text: rows[0].join(' ') };
 }
 
 /* One member's type in full, for hovering its piece of the symbol. */

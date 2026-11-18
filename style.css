@@ -2692,6 +2692,22 @@ main.rubin {
     flex: none;
 }
 
+/* How many planets a system has, beside its distance. */
+.rubin-map-go-planets {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    margin-left: auto;
+    padding-left: 10px;
+    color: #b8bc93;
+    font-size: 0.85em;
+}
+
+.rubin-map-go-planets + .rubin-map-go-far {
+    margin-left: 0;
+}
+
 .rubin-map-go-far {
     margin-left: auto;
     padding-left: 12px;

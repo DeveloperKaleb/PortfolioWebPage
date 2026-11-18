@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
     SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, centauriOn, places,
-    NEIGHBOURS, systemOn, reachOf, roundUp, seenNearOf, seenNearOfPair, SEEN_NEAR, MERCURY_AU, binaryOffset,
+    NEIGHBOURS, systemOn, reachOf, roundUp, seenNearOf, seenNearOfPair, SEEN_NEAR, MERCURY_AU, binaryOffset, planetSummary,
 } from '../../js/centauri.js';
 import { STAR_SIZES } from '../../js/rubinview.js';
 import { STAR_TYPE_COLORS, RUBIN_COLORS } from '../../js/rubincolors.js';
@@ -222,5 +222,28 @@ describe('everything within 1,000,000 AU (js/nearstars.js)', () => {
         expect(wolf.measured).toBe(false);
         expect(wolf.estimatedBy).toBe('brightness');
         expect(STAR_SIZES['body:siriusA'][0].measured).toBe(true);
+    });
+});
+
+describe('whether a system has planets, in words (owner, 2026-11-18)', () => {
+    const planetsOf = (id) => NEIGHBOURS.find((s) => s.id === id).planets ?? [];
+
+    it('counts the confirmed and names each by its letter', () => {
+        const barnard = planetSummary(planetsOf('barnard'), "Barnard's Star");
+        expect(barnard).toMatchObject({ confirmed: 4, candidates: 0 });
+        expect(barnard.text).toBe('Four planets known: d, b, c and e');
+    });
+
+    it('keeps candidates apart, unconfirmed', () => {
+        expect(planetSummary(planetsOf('tauCet'), 'Tau Ceti').text).toBe('No planets confirmed; three candidates, about 0.133 AU, 0.243 AU and 1.334 AU out, unconfirmed');
+        expect(planetSummary(planetsOf('groombridge34'), 'Groombridge 34').text).toBe('One planet known: A c; and one candidate, about 0.072 AU out, unconfirmed');
+    });
+
+    it('names a planet by its star where a system has several', () => {
+        expect(planetSummary(planetsOf('struve2398'), 'Struve 2398').text).toBe('Two planets known: A b and B c');
+    });
+
+    it('says so when none are known', () => {
+        expect(planetSummary(planetsOf('wolf359'), 'Wolf 359')).toMatchObject({ confirmed: 0, candidates: 0, text: 'No planets known yet' });
     });
 });

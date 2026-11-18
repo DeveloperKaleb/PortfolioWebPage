@@ -4195,6 +4195,15 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**Planets, said everywhere (owner, 2026-11-18).** Each "Go to" row with planets shows a
+small ring with a planet on it. Beside it is the confirmed count, with "+n?" for
+candidates (dashed ring if there are only candidates). Its hover names them; the row's
+spoken label says the same. Every star, pair, group and whole-system hover on the map has
+a planets line from `planetSummary` in `js/centauri.js`, "No planets known yet" included.
+That line names each planet by what tells it apart in its system ("d", or "A b" where
+several stars have planets). Barnard's Star's own hover row no longer counts its planets,
+so they are not counted twice.
+
 **Close pairs on their orbits (owner, 2026-11-18).** Luyten 726-8 (BL and UV Ceti), Wolf
 424, Kruger 60 and Ross 614 are now pairs. Their orbits come from Wikipedia's infoboxes,
 with the papers those cite. The pages were read gently, as the owner asked: six pages,

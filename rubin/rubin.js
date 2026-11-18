@@ -26,7 +26,7 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -124,6 +124,20 @@ function planetsText(system, member) {
 function hoverDetails(target, rows) {
     target.addEventListener('pointermove', (e) => showTooltip(rows, e.clientX, e.clientY));
     target.addEventListener('pointerleave', hideTooltip);
+}
+
+/* The Sun's own, for its row in "Go to". */
+const SUN_PLANETS = { confirmed: 8, candidates: 0, rows: [['Eight planets:', 'Mercury out to Neptune']], text: 'Eight planets: Mercury out to Neptune' };
+/* A system's planets in "Go to": a ring with a planet on it, solid for confirmed, dashed
+   for candidates only, and the counts. */
+function planetMark(known) {
+    const box = el('span', { class: 'rubin-map-go-planets', 'aria-hidden': 'true' });
+    const icon = svg('svg', { width: 14, height: 14, viewBox: '0 0 14 14' });
+    icon.append(svg('circle', { cx: 7, cy: 7, r: 5, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.2, 'stroke-dasharray': known.confirmed ? 'none' : '2 2' }));
+    icon.append(svg('circle', { cx: 10.5, cy: 3.5, r: 1.8, fill: 'currentColor' }));
+    box.append(icon, `${known.confirmed || ''}${known.candidates ? `${known.confirmed ? '+' : ''}${known.candidates}?` : ''}`);
+    hoverDetails(box, known.rows);
+    return box;
 }
 
 /* A system's symbol in "Go to" (owner, 2026-11-18): a cap at the left end of its row, as
@@ -890,10 +904,12 @@ function drawMap(digest) {
         const about = (m) => m.rows ?? [[m.type, starKind(m.type).words], ...(m.blurb ? [[m.blurb]] : [])];
         for (const on of system.systems) {
             const s = on.system;
+            /* The planets known about some of the system's members, as hover rows. */
+            const planetRows = (members) => planetSummary((s.planets ?? []).filter((o) => members.some((m) => m.id === o.star)), s.name).rows;
             const home = PLACES[s.id];
             if (!inPicture(on.centre, threeD ? home.radius3D : home.radiusAU)) continue;
             if (on.units > 1 && home.radiusAU * view.scale < SYSTEM_DOT_PX) {
-                star(`body:${s.id}`, s.name, s.markPx ?? Math.max(...s.members.map((m) => m.markPx)), [...(s.rows ?? [[systemTypeText(s)]]), ...far(on.centre)], looks(s.members));
+                star(`body:${s.id}`, s.name, s.markPx ?? Math.max(...s.members.map((m) => m.markPx)), [...(s.rows ?? [[systemTypeText(s)]]), ...planetRows(s.members), ...far(on.centre)], looks(s.members));
                 continue;
             }
             if (on.forScale) {
@@ -909,12 +925,13 @@ function drawMap(digest) {
                 const body = on.at.get(m.id);
                 const wide = m.sky ? [[farDistanceText(apartFrom(body, on.centre)), `from ${s.centreName}`]] : [];
                 planetsOf(m);
-                star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...far(body), ...wide], looks([m]));
+                star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...planetRows([m]), ...far(body), ...wide], looks([m]));
             }
             for (const { group, centre, members } of on.groups) {
                 star(`body:${group.key}`, group.name, Math.max(...members.map((m) => m.markPx)), [
                     ...members.map((m) => [m.name, memberTypeText(m)]),
                     [`${group.apartText.charAt(0).toUpperCase()}${group.apartText.slice(1)};`, 'too close together to draw apart here'],
+                    ...planetRows(members),
                     ...far(centre),
                 ], looks(members));
             }
@@ -923,7 +940,7 @@ function drawMap(digest) {
                 const [ma, mb] = [pair.a, pair.b].map((id) => s.members.find((m) => m.id === id));
                 const round = `they round each other every ${pair.orbit.period.toFixed(1)} years`;
                 if (apartOnScreen(p.a, p.b) < 12) {
-                    star(`body:${pair.key}`, pair.name, pair.markPx, [...(pair.rows ?? []), ...far(p.centre), [farDistanceText(p.apart), `apart on this date; ${round}`]], looks([ma, mb]));
+                    star(`body:${pair.key}`, pair.name, pair.markPx, [...(pair.rows ?? []), ...planetRows([ma, mb]), ...far(p.centre), [farDistanceText(p.apart), `apart on this date; ${round}`]], looks([ma, mb]));
                     continue;
                 }
                 for (const path of [p.paths.a, p.paths.b]) {
@@ -932,7 +949,7 @@ function drawMap(digest) {
                 }
                 for (const [m, body, other] of [[ma, p.a, mb], [mb, p.b, ma]]) {
                     planetsOf(m);
-                    star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...far(body), [farDistanceText(p.apart), `from ${shortName(s, other)} on this date; ${round}`]], looks([m]));
+                    star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...planetRows([m]), ...far(body), [farDistanceText(p.apart), `from ${shortName(s, other)} on this date; ${round}`]], looks([m]));
                 }
             }
         }
@@ -1312,9 +1329,14 @@ function drawMap(digest) {
         const far = s.id === 'sun' ? 'home' : `${(Math.hypot(at.cx, at.cy, at.cz ?? 0) / AU_PER_LIGHT_YEAR).toFixed(1)} ly`;
         const name = el('span', { class: 'rubin-map-go-name' }, s.name);
         hoverDetails(name, [[s.name, systemTypeText(s)]]);
-        option.append(starSymbol(s), name, el('span', { class: 'rubin-map-go-far' }, far));
+        /* Its planets, if any: a ring with a dot and how many are confirmed, and "+n?" for
+           candidates; the hover says which. */
+        const known = s.id === 'sun' ? SUN_PLANETS : planetSummary(NEIGHBOURS.find((n) => n.id === s.id)?.planets ?? [], s.name);
+        option.append(starSymbol(s), name);
+        if (known.confirmed || known.candidates) option.append(planetMark(known));
+        option.append(el('span', { class: 'rubin-map-go-far' }, far));
         /* The option's spoken name says its types, for anyone not hovering. */
-        option.setAttribute('aria-label', `${s.name}, ${far.replace('ly', 'light years')}: ${systemTypeText(s)}`);
+        option.setAttribute('aria-label', `${s.name}, ${far.replace('ly', 'light years')}: ${systemTypeText(s)}. ${known.text}`);
         /* Pressing keeps the box's focus, so the list is not closed before the click lands. */
         option.addEventListener('pointerdown', (e) => e.preventDefault());
         option.addEventListener('click', () => chooseSystem(s));
