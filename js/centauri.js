@@ -25,6 +25,7 @@
  */
 
 import { elementsFromState, orbitPath, KM_S_TO_AU_PER_DAY } from './orbit.js';
+import { NEARSTARS } from './nearstars.js';
 
 const DEG = Math.PI / 180;
 const MAS = DEG / 3600000;
@@ -86,6 +87,9 @@ export const SEEN_NEAR = { pair: 40, proxima: 0.1, luhman16: 4, barnard: 0.05 };
  *     do (seenNear);
  *   pairs - two members on a known orbit about each other: key (their mark when too close
  *     on screen to tell apart, body:<key>), the orbit, and the clearing about them;
+ *   groups - two or three members close together whose orbits are not in hand: always one
+ *     mark (body:<key>), at the system's place or its own (sky), with how far apart they
+ *     are in words (apartText) and the clearing about them (seenNear);
  *   planets - sizes of orbit only, about a member (star): their tilt, and where each planet
  *     is along its orbit, are not known;
  *   rungs - "Zoom on" steps in its view: label, what to centre on (a member or a pair), the
@@ -150,6 +154,8 @@ export const NEIGHBOURS = [
             rows: [["About 35 and 29 times Jupiter's mass;", 'the heaviest kind of tundr, usually called brown dwarfs'], ['Found in 2013:', 'the third-nearest system to the Sun']],
         }],
     },
+    /* Every other system within 1,000,000 AU (stage 3, js/nearstars.js), nearest first. */
+    ...NEARSTARS,
 ];
 
 /* Every planet's orbit, about which member. */
@@ -330,7 +336,8 @@ export function seenNearOf(system, member) {
    Sun), each pair with its centre of gravity, the paths its two trace over one orbit and
    how far apart they are, the members on no orbit known (lone), how far its members reach
    from its centre (along the plane, and in 3D), how many marks it breaks into (units: a
-   pair, or a lone member), and the orbit drawn about it for scale, if any (forScale). */
+   pair, a group or a lone member), and the orbit drawn about it for scale, if any
+   (forScale). */
 export function systemOn(system, year, { pathSteps = 96 } = {}) {
     const centre = point(place(system.sky, year));
     const at = new Map();
@@ -340,17 +347,22 @@ export function systemOn(system, year, { pathSteps = 96 } = {}) {
         at.set(pair.b, on.b);
         return { ...on, pair };
     });
+    const groups = (system.groups ?? []).map((group) => {
+        const at3 = group.sky ? point(place(group.sky, year)) : centre;
+        for (const id of group.members) at.set(id, at3);
+        return { group, centre: at3, members: group.members.map((id) => system.members.find((m) => m.id === id)) };
+    });
     for (const m of system.members) if (!at.has(m.id)) at.set(m.id, m.sky ? point(place(m.sky, year)) : centre);
-    const inPair = new Set(pairs.flatMap((p) => [p.pair.a, p.pair.b]));
+    const inPair = new Set([...pairs.flatMap((p) => [p.pair.a, p.pair.b]), ...groups.flatMap((g) => g.group.members)]);
     const lone = system.members.filter((m) => !inPair.has(m.id));
     const reach = (flat) => Math.max(0, ...[...at.values()].map((p) => Math.hypot(p.x - centre.x, p.y - centre.y, flat ? 0 : p.z - centre.z)));
     const planets = (system.planets ?? []).map((p) => p.a);
-    const single = pairs.length === 0 && lone.length === 1;
+    const single = pairs.length === 0 && groups.length === 0 && lone.length === 1;
     return {
-        system, centre, at, pairs, lone,
+        system, centre, at, pairs, groups, lone,
         extent: reach(true),
         extent3D: reach(false),
-        units: pairs.length + lone.length,
+        units: pairs.length + groups.length + lone.length,
         forScale: single && planets.every((a) => a < MERCURY_AU) ? MERCURY_AU : null,
     };
 }
@@ -420,8 +432,8 @@ export function reachOf(on) {
     const { system } = on;
     if (system.radiusAU) return { radiusAU: system.radiusAU, radius3D: system.radius3D ?? system.radiusAU };
     if (on.units > 1) return { radiusAU: roundUp(on.extent * 1.25), radius3D: roundUp(on.extent3D * 1.25) };
-    if (on.pairs.length) {
-        const r = roundUp(seenNearOfPair(on.pairs[0].pair) * 1.5);
+    if (on.pairs.length || on.groups.length) {
+        const r = roundUp((on.pairs.length ? seenNearOfPair(on.pairs[0].pair) : on.groups[0].group.seenNear) * 1.5);
         return { radiusAU: r, radius3D: r };
     }
     const planets = (system.planets ?? []).map((p) => p.a);

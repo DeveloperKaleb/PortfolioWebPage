@@ -766,18 +766,28 @@ export const SIZE_REFERENCES = [
     { designation: 'world:Ceres', name: 'Ceres', called: 'Ceres', km: 939.4 },
 ];
 
-/* The neighbours' stars' and tundrs' sizes, from the radii in NEIGHBOURS (js/centauri.js,
-   where each is sourced): in Suns, measured; or in Jupiters with a range either side,
-   modelled from their light and drawn as a range. */
+/* The neighbours' stars' and tundrs' sizes, from the radii in NEIGHBOURS (js/centauri.js
+   and js/nearstars.js, where each is sourced): in Suns or Jupiters; measured where no
+   range is given, otherwise worked out some other way (how) and drawn as a range. */
 function sizeOfMember(m) {
     const designation = `body:${m.id}`;
-    if (m.size.suns) return { designation, name: m.name, km: 2 * m.size.suns * SUN_RADIUS_KM, measured: true };
-    const { jupiters, plusMinus } = m.size;
+    const { suns, jupiters, plusMinus, how = 'models' } = m.size;
+    const unit = suns ? 2 * SUN_RADIUS_KM : JUPITER_KM;
+    const radius = suns ?? jupiters;
+    if (!plusMinus) return { designation, name: m.name, km: radius * unit, measured: true };
     return {
-        designation, name: m.name, km: jupiters * JUPITER_KM, measured: false, fromModels: true,
-        low: (jupiters - plusMinus) * JUPITER_KM, high: (jupiters + plusMinus) * JUPITER_KM,
+        designation, name: m.name, km: radius * unit, measured: false, estimatedBy: how,
+        low: (radius - plusMinus) * unit, high: (radius + plusMinus) * unit,
     };
 }
+/* How an unmeasured star's or tundr's size was had, for the panel's words. */
+const ESTIMATED_BY = {
+    models: 'worked out from its light with models',
+    light: 'worked out from its light and temperature',
+    brightness: 'estimated from its brightness in infrared light',
+    typical: 'taken as the usual size for its type',
+    catalogue: "taken from a catalogue's adopted value",
+};
 /* What each star mark on the map stands for: one star; a pair drawn as one, both; a whole
    system drawn as one dot, all its members. */
 export const STAR_SIZES = (() => {
@@ -786,6 +796,7 @@ export const STAR_SIZES = (() => {
         const members = new Map(system.members.map((m) => [m.id, sizeOfMember(m)]));
         for (const [id, size] of members) sizes[`body:${id}`] = [size];
         for (const pair of system.pairs ?? []) sizes[`body:${pair.key}`] = [members.get(pair.a), members.get(pair.b)];
+        for (const group of system.groups ?? []) sizes[`body:${group.key}`] = group.members.map((id) => members.get(id));
         sizes[`body:${system.id}`] ??= [...members.values()];
     }
     return sizes;
@@ -907,7 +918,7 @@ export function lineupText(subjects, { bodies }) {
         lines.push(`${newer.name} is ${either}${widthText(newer.km / older.km, older.name)}.`);
     }
     for (const s of subjects) {
-        if (s.fromModels) lines.push(`${s.name}'s size is worked out from its light with models, not measured: about ${kilometres(roughly(s.km))} across, between ${kilometres(roughly(s.low))} and ${kilometres(roughly(s.high))} (solid disc to dashed ring).`);
+        if (s.estimatedBy) lines.push(`${s.name}'s size is ${ESTIMATED_BY[s.estimatedBy]}, not measured: about ${kilometres(roughly(s.km))} across, between ${kilometres(roughly(s.low))} and ${kilometres(roughly(s.high))} (solid disc to dashed ring).`);
         else if (s.low) lines.push(`${s.name}'s size is estimated from its brightness: about ${kilometres(roughly(s.km))} across, but anywhere from ${kilometres(roughly(s.low))} if its surface is bright (the solid disc) to ${kilometres(roughly(s.high))} if it is dark (the dashed ring).`);
     }
     const specks = bodies.filter((b) => b.speck).map((b) => b.name);

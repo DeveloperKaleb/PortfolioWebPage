@@ -501,6 +501,12 @@ function drawMap(digest) {
                 out[`body:${pair.a}`] = { body: a, paths: [paths.a] };
                 out[`body:${pair.b}`] = { body: b, paths: [paths.b] };
             }
+            /* A close group is one mark; picking any of it picks the mark. */
+            for (const { group, centre } of on.groups) {
+                const pick = { body: centre, note: 'too close together to draw their orbits here' };
+                out[`body:${group.key}`] = pick;
+                for (const id of group.members) out[`body:${id}`] = pick;
+            }
             for (const m of on.lone) {
                 const body = on.at.get(m.id);
                 /* Roughly known, so dashed. */
@@ -523,7 +529,7 @@ function drawMap(digest) {
     /* How far from the Sun the middle of the map must be to count as in another star system,
        for the arrow toward Earth: well past the Sun's own map, and short of the nearest star. */
     const ELSEWHERE_AU = 10000;
-    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri' });
+    const plot = svg('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'rubin-svg rubin-map-svg', role: 'group', 'aria-label': 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to every star system within a million AU' });
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
     mapHatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
@@ -718,6 +724,7 @@ function drawMap(digest) {
             { x: 0, y: 0, radiusAU: UNSEEN_FROM_AU },
             ...system.systems.flatMap((on) => [
                 ...on.pairs.map((p) => ({ ...p.centre, radiusAU: seenNearOfPair(p.pair) })),
+                ...on.groups.map((g) => ({ ...g.centre, radiusAU: g.group.seenNear })),
                 ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
             ]),
         ], hatchPx, at3);
@@ -735,7 +742,7 @@ function drawMap(digest) {
         const fromMiddle = (body) => Math.hypot(view.cx - body.x, view.cy - body.y);
         const ringsAbout = [
             { x: 0, y: 0, z: 0 },
-            ...system.systems.flatMap((on) => [...on.pairs.map((p) => p.centre), ...on.lone.map((m) => on.at.get(m.id))]),
+            ...system.systems.flatMap((on) => [...on.pairs.map((p) => p.centre), ...on.groups.map((g) => g.centre), ...on.lone.map((m) => on.at.get(m.id))]),
         ].reduce((a, b) => (fromMiddle(b) < fromMiddle(a) ? b : a));
         /* The rings lie in the plane through that star, parallel to Earth's; in 3D they are
            ellipses, and that plane is the ground each body's drop line reaches down to. */
@@ -878,12 +885,15 @@ function drawMap(digest) {
             const what = tundr === n ? (n === 1 ? 'Hydrogen Tundr' : 'Hydrogen Tundrs') : tundr ? 'stars and tundrs' : n === 1 ? 'star' : 'stars';
             return { kind: n === 1 ? what : `${COUNT_WORDS[n] ?? n} ${what}`, fill: tundr === n ? C.muted : C.text };
         };
+        /* What a member's hover says of it: its own words, or else its type in full and its
+           note from the stars table. */
+        const about = (m) => m.rows ?? [[m.type, starKind(m.type).words], ...(m.blurb ? [[m.blurb]] : [])];
         for (const on of system.systems) {
             const s = on.system;
             const home = PLACES[s.id];
             if (!inPicture(on.centre, threeD ? home.radius3D : home.radiusAU)) continue;
             if (on.units > 1 && home.radiusAU * view.scale < SYSTEM_DOT_PX) {
-                star(`body:${s.id}`, s.name, s.markPx, [...(s.rows ?? []), ...far(on.centre)], looks(s.members));
+                star(`body:${s.id}`, s.name, s.markPx ?? Math.max(...s.members.map((m) => m.markPx)), [...(s.rows ?? [[systemTypeText(s)]]), ...far(on.centre)], looks(s.members));
                 continue;
             }
             if (on.forScale) {
@@ -899,7 +909,14 @@ function drawMap(digest) {
                 const body = on.at.get(m.id);
                 const wide = m.sky ? [[farDistanceText(apartFrom(body, on.centre)), `from ${s.centreName}`]] : [];
                 planetsOf(m);
-                star(`body:${m.id}`, m.name, m.markPx, [...(m.rows ?? []), ...far(body), ...wide], looks([m]));
+                star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...far(body), ...wide], looks([m]));
+            }
+            for (const { group, centre, members } of on.groups) {
+                star(`body:${group.key}`, group.name, Math.max(...members.map((m) => m.markPx)), [
+                    ...members.map((m) => [m.name, memberTypeText(m)]),
+                    [`${group.apartText.charAt(0).toUpperCase()}${group.apartText.slice(1)};`, 'too close together to draw apart here'],
+                    ...far(centre),
+                ], looks(members));
             }
             for (const p of on.pairs) {
                 const { pair } = p;
@@ -915,7 +932,7 @@ function drawMap(digest) {
                 }
                 for (const [m, body, other] of [[ma, p.a, mb], [mb, p.b, ma]]) {
                     planetsOf(m);
-                    star(`body:${m.id}`, m.name, m.markPx, [...(m.rows ?? []), ...far(body), [farDistanceText(p.apart), `from ${shortName(s, other)} on this date; ${round}`]], looks([m]));
+                    star(`body:${m.id}`, m.name, m.markPx, [...about(m), ...far(body), [farDistanceText(p.apart), `from ${shortName(s, other)} on this date; ${round}`]], looks([m]));
                 }
             }
         }
@@ -1458,7 +1475,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. About Barnard's Star, Mercury's orbit about the Sun is drawn for scale: all four of its planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
     );
 
     const mapTable = table(
@@ -1484,7 +1501,11 @@ function drawMap(digest) {
                 const body = on.at.get(m.id);
                 const notes = [m.blurb];
                 const p = on.pairs.find(({ pair }) => pair.a === m.id || pair.b === m.id);
-                if (p) {
+                const g = on.groups.find(({ group }) => group.members.includes(m.id));
+                if (g) {
+                    notes.push(`with ${g.members.filter((o) => o !== m).map((o) => shortName(s, o)).join(' and ')}: ${g.group.apartText}`);
+                    if (g.group.sky) notes.push(`${farDistanceText(apartFrom(g.centre, on.centre))} from ${s.centreName}`);
+                } else if (p) {
                     const { pair } = p;
                     const other = s.members.find((o) => o.id === (pair.a === m.id ? pair.b : pair.a));
                     const { aAU, e, period } = pair.orbit;
@@ -1497,7 +1518,7 @@ function drawMap(digest) {
             });
         }),
     );
-    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `The nearest bodies beyond the Sun, where "Go to" takes the map. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
+    section.querySelector('.rubin-table-wrap').replaceChildren(mapTable, el('p', { class: 'rubin-note' }, `Every star and tundr within a million AU of the Sun, where "Go to" takes the map: sizes of orbit for their planets, from NASA's Exoplanet Archive. Between 1,000 AU from the Sun and these: ${UNSEEN_TEXT}.`), starsTable);
     section.hidden = false;
     /* A link or a preview can open the map somewhere else: ?place=both, or a neighbour's
        id, and &zoom= one of its rungs (centauri: proxima or pair; barnard: planets or

@@ -85,7 +85,7 @@ describe('every neighbour from one list', () => {
 
     it('gives the four systems the views they always had', () => {
         expect([P.centauri.radiusAU, P.barnard.radiusAU, P.luhman16.radiusAU]).toEqual([15000, 0.45, 6]);
-        expect(P.both.radiusAU).toBe(360000);
+        expect(P.both.radiusAU).toBe(1080000);
     });
 
     it('keeps the hatching clearings they always had', () => {
@@ -127,5 +127,83 @@ describe('every neighbour from one list', () => {
         const page = readFileSync(resolve(__dirname, '../../rubin/rubin.js'), 'utf8');
         expect(page).not.toMatch(/'body:(a|b|ab|proxima|barnard|luhman16|luhmanA|luhmanB)'/);
         expect(page).not.toMatch(/PLACES\.(centauri|barnard|luhman16)/);
+    });
+});
+
+describe('everything within 1,000,000 AU (js/nearstars.js)', () => {
+    const on = centauriOn(2026.88);
+    const LIMIT_MAS = 206.265;
+
+    it('holds every system nearer than a million AU, and only those', () => {
+        expect(NEIGHBOURS.length).toBe(47);
+        for (const s of NEIGHBOURS) expect(s.sky.parallax).toBeGreaterThan(LIMIT_MAS);
+        for (const s of on.systems) expect(s.centre.r).toBeLessThan(1e6);
+    });
+
+    it('gives every id once, every member a type the symbols know and a size', () => {
+        const ids = NEIGHBOURS.flatMap((s) => s.members.map((m) => m.id));
+        expect(new Set(ids).size).toBe(ids.length);
+        for (const m of NEIGHBOURS.flatMap((s) => s.members)) {
+            expect(STAR_TYPE_COLORS[starKind(m.type).colour]).toBeDefined();
+            expect(m.size.suns ?? m.size.jupiters).toBeGreaterThan(0);
+            if (m.size.plusMinus) expect(m.size.plusMinus).toBeLessThan(m.size.suns ?? m.size.jupiters);
+        }
+    });
+
+    it('says the type right for stars, white dwarfs and tundrs', () => {
+        const type = (id) => NEIGHBOURS.flatMap((s) => s.members).find((m) => m.id === id).type;
+        expect(starKind(type('siriusA')).colour).toBe('white');
+        expect(starKind(type('siriusB')).shape).toBe('dot');
+        expect(starKind(type('tauCet')).colour).toBe('yellow');
+        expect(starKind(type('epsEri')).colour).toBe('orange');
+        expect(starKind(type('wise0855')).shape).toBe('ring');
+    });
+
+    it('puts every member of a group or pair in its system, and each group one mark', () => {
+        for (const s of NEIGHBOURS) {
+            const mine = new Set(s.members.map((m) => m.id));
+            for (const g of s.groups ?? []) {
+                g.members.forEach((id) => expect(mine.has(id)).toBe(true));
+                expect(g.seenNear).toBeGreaterThan(0);
+                expect(STAR_SIZES[`body:${g.key}`]).toHaveLength(g.members.length);
+            }
+            for (const p of s.pairs ?? []) [p.a, p.b].forEach((id) => expect(mine.has(id)).toBe(true));
+        }
+        const luyten = on.systems.find((s) => s.system.id === 'luyten7268');
+        expect(luyten.units).toBe(1);
+        expect(luyten.at.get('blCeti')).toBe(luyten.at.get('uvCeti'));
+    });
+
+    it('draws Sirius B where its orbit puts it: 7.5 arcseconds out on average, 19.8 AU', () => {
+        const sirius = on.systems.find((s) => s.system.id === 'sirius');
+        expect(sirius.pairs[0].pair.orbit.aAU).toBeCloseTo(19.78, 1);
+        expect(sirius.pairs[0].apart).toBeGreaterThan(8);
+        expect(sirius.pairs[0].apart).toBeLessThan(32);
+    });
+
+    it("sets a wide companion its own place: 61 Cygni B about 110 AU from A (31 arcseconds), Epsilon Indi B about 1,460", () => {
+        const from = (sys, id) => {
+            const s = on.systems.find((x) => x.system.id === sys);
+            const [a, b] = [s.centre, s.at.get(id)];
+            return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+        };
+        expect(from('61cyg', '61cygB')).toBeGreaterThan(100);
+        expect(from('61cyg', '61cygB')).toBeLessThan(125);
+        expect(from('epsInd', 'epsIndBa')).toBeGreaterThan(1300);
+        expect(from('epsInd', 'epsIndBa')).toBeLessThan(1600);
+    });
+
+    it('labels disputed planets candidates', () => {
+        const status = (name) => NEIGHBOURS.flatMap((s) => s.planets ?? []).find((p) => p.name === name).status;
+        expect(status('Tau Ceti f')).toBe('candidate');
+        expect(status('Kapteyn c')).toBe('candidate');
+        expect(status('Epsilon Eridani b')).toBe('confirmed');
+    });
+
+    it('lets the size panel say how each unmeasured size was had', () => {
+        const wolf = STAR_SIZES['body:wolf359'][0];
+        expect(wolf.measured).toBe(false);
+        expect(wolf.estimatedBy).toBe('brightness');
+        expect(STAR_SIZES['body:siriusA'][0].measured).toBe(true);
     });
 });

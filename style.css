@@ -2635,7 +2635,9 @@ main.rubin {
     left: 0;
     min-width: 100%;
     max-height: min(50vh, 320px);
+    max-width: calc(100vw - 32px);
     overflow-y: auto;
+    overflow-x: hidden;
     margin: 0;
     padding: 4px;
     box-sizing: border-box;
@@ -2671,6 +2673,14 @@ main.rubin {
 .rubin-map-go-option[aria-selected="true"] {
     outline: 1px solid #e3e7af;
     outline-offset: -1px;
+}
+
+/* A long name ends in an ellipsis rather than widening the list past a phone's screen;
+   its hover and spoken label give it whole. */
+.rubin-map-go-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Where the map is now. */

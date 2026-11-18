@@ -117,8 +117,9 @@ describe('Proxima, in its true place', () => {
 
 describe('The planets: sizes only', () => {
     test("two confirmed at Proxima, four at Barnard's Star, one candidate at A, and nothing claimed about their tilt", () => {
-        expect(PLANET_ORBITS.filter((o) => o.status === 'confirmed').map((o) => o.name)).toEqual(['Proxima d', 'Proxima b', 'Barnard d', 'Barnard b', 'Barnard c', 'Barnard e']);
-        expect(PLANET_ORBITS.filter((o) => o.status === 'candidate')).toHaveLength(1);
+        const first = PLANET_ORBITS.filter((o) => ['proxima', 'a', 'barnard'].includes(o.star));
+        expect(first.filter((o) => o.status === 'confirmed').map((o) => o.name)).toEqual(['Proxima d', 'Proxima b', 'Barnard d', 'Barnard b', 'Barnard c', 'Barnard e']);
+        expect(first.filter((o) => o.status === 'candidate')).toHaveLength(1);
         PLANET_ORBITS.forEach((o) => expect(Object.keys(o).sort()).toEqual(['a', 'name', 'star', 'status']));
     });
 
@@ -203,7 +204,7 @@ describe('Rings that cross the picture', () => {
     test('pulled back to both systems, the spacing is still round and the rings few', () => {
         const P = places(system, 200);
         const view = initialView(P.both.radiusAU, 750, [P.both.cx, P.both.cy]);
-        expect(ringSpacing(view)).toBe(100000);
+        expect(ringSpacing(view)).toBe(500000);
         const radii = ringRadii(view, 0);
         expect(radii.length).toBeGreaterThan(2);
         expect(radii.length).toBeLessThan(10);
@@ -279,8 +280,14 @@ describe('The hatching on the map', () => {
         expect(unseenHoles(zoomAt(initialView(200, 750), 500, [30, 0]), zones)).toBeNull();
     });
 
-    test('with both systems in view, hatching everywhere but a small clearing at the Sun', () => {
+    test('pulled back to every neighbour, hatching everywhere: the clearing at the Sun is under a pixel', () => {
         const view = initialView(P.both.radiusAU, 750, [P.both.cx, P.both.cy]);
+        expect(1000 * view.scale).toBeLessThan(1);
+        expect(unseenHoles(view, zones)).toEqual([]);
+    });
+
+    test('nearer in, a small clearing at the Sun', () => {
+        const view = initialView(300000, 750);
         const holes = unseenHoles(view, zones);
         expect(holes).toHaveLength(1);
         expect(holes[0].r).toBeCloseTo(1000 * view.scale, 9);

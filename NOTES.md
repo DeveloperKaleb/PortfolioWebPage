@@ -4166,6 +4166,35 @@ apart. Stars are dark marks on the colour; tundrs and white dwarfs are the colou
 each band outlined so two dark bands read as two. The patterns and the cap's clip are
 drawn once in a hidden SVG (`ensureCapDefs`) that every symbol refers to by id.
 
+**Stage 3 (done).** `js/nearstars.js` holds the other 44 systems within 1,000,000 AU
+(parallax over 206.265 mas): 60 stars and tundrs and 41 planets, appended to `NEIGHBOURS`.
+It is generated, not hand-edited: `python tools/nearstars/build.py` rewrites it from the
+saved query results beside it (Gaia DR3 and Hipparcos from the Gaia archive, 2MASS K
+magnitudes, the NASA Exoplanet Archive) and a hand table in the script. Rerunning it makes
+no request. What to know:
+- SIMBAD was down (404) on 2026-11-18, so the census is Gaia DR3 plus Hipparcos for bright
+  stars Gaia lacks (Sirius A, Procyon, Kruger 60, Ross 614), plus Wikipedia infobox values
+  with their sources for EZ Aquarii and four tundrs too faint for Gaia. Spectral types
+  were not checked against SIMBAD.
+- The 2MASS crossmatch in the Gaia archive gives wrong, faint matches for these
+  fast-moving stars, so `ks.py` moves each star back to 2000.0 and takes the brightest
+  source within 8 arcseconds.
+- Red dwarfs' sizes come from Mann et al. 2015's radius and K-magnitude relation, held at
+  the ends of its range (M_K 4.6 to 9.8) with a wider spread. The size panel says how each
+  unmeasured size was had (`estimatedBy`: brightness, typical, catalogue, models, light).
+- Sirius and Procyon are pairs on their Bond et al. orbits. Sirius's centre of gravity is
+  tied to Gaia's B (2016) and Hipparcos's A (1991). The orbit alone put A within 1.2"
+  of Hipparcos, which is why both are used.
+- Close pairs and triples without orbits in hand are `groups`: one mark always, with the
+  separation in words. Wide companions (61 Cygni B, Struve 2398 B, Groombridge 34 B,
+  Epsilon Indi B) have their own measured places and share their primary's parallax.
+  Pairs whose two Gaia parallaxes are poor (RUWE over 4) share the mean.
+- The Exoplanet Archive's `sy_dist` is wrong for some hosts (GJ 411, GJ 273, Gl 725 B),
+  so planets were matched by parallax. Planets it flags as disputed are candidates.
+- The "Nearest bodies" view now reaches 1,080,000 AU. There the Sun's 1,000 AU clearing is
+  under a pixel, so the picture is hatched throughout.
+- A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
+
 **Stage 2 (done).** Every system beyond the Sun is one entry in `NEIGHBOURS` in
 `js/centauri.js`: its sky place, members (type, size, mark size, hover rows, table blurb,
 own sky place for a wide companion), pairs on a known orbit, planets and "Zoom on" steps
