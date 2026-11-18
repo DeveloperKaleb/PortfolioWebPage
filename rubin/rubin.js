@@ -35,8 +35,17 @@ const tooltip = document.getElementById('rubin-tooltip');
 
 /* The light rings on the map (js/light.js) start from two moments: when this page opened,
    and when this browser first opened it. The second is kept in this browser's storage
-   and sent nowhere; where storage is blocked there is just the one ring. */
-const OPENED = Date.now();
+   and sent nowhere; where storage is blocked there is just the one ring. The first is kept
+   for this tab only (sessionStorage), so a phone that reloads the page while it is locked
+   does not start this visit's light again (owner, 2026-11-18). */
+const OPENED = (() => {
+    const now = Date.now();
+    try {
+        const opened = firstVisit(sessionStorage.getItem('rubin-visit-opened'), now);
+        sessionStorage.setItem('rubin-visit-opened', String(opened));
+        return opened;
+    } catch { return now; /* storage blocked: this load is the visit */ }
+})();
 const FIRST_KEY = 'rubin-first-visit';
 let firstOpened = OPENED;
 let remembersVisits = false;
@@ -558,9 +567,13 @@ function drawMap(digest) {
        coming back draws it at once. */
     let lightTimer = 0;
     let mapOnScreen = true;
-    function runLight() {
+    /* A redraw of the map moves the light with it (always), even while its timer is
+       stopped: drawn only by the timer, a ring left behind sat beside whatever the map was
+       then centred on (owner's phone, 2026-11-18, in full screen, where the section can
+       count as off screen - so in full screen it never does). */
+    function runLight({ always = false } = {}) {
         clearTimeout(lightTimer);
-        if (document.hidden || !mapOnScreen) return;
+        if (document.hidden || !(mapOnScreen || filling)) { if (always) drawLight(); return; }
         const pxPerSecond = drawLight();
         const now = Date.now();
         lightTimer = setTimeout(runLight, lightTickMs({ ages: lights.map((light) => now - light.since), pxPerSecond, reduced: reducedMotion.matches }));
@@ -879,7 +892,7 @@ function drawMap(digest) {
            it always turns the map, and in full screen, with no page to scroll, every drag
            is the map's. */
         plot.style.touchAction = !threeD && !filling && level <= 1.0001 ? 'pan-y' : 'none';
-        runLight();
+        runLight({ always: true });
     }
 
     /* A journey under way is not interrupted by a stray pinch or scroll. Anything else the

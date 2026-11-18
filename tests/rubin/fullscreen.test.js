@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fullScreenSizeFor, resizedView, initialView, zoomAt, toScreen, zoomLevel, MAP_GUTTER } from '../../js/rubinview.js';
 
 describe('The map in full screen', () => {
@@ -31,5 +33,18 @@ describe('The map in full screen', () => {
     test('a home fitted at the new size is the same as the old home resized', () => {
         const home = initialView(100, 750);
         expect(resizedView(home, 1000).fitScale).toBeCloseTo(initialView(100, 1000).fitScale, 12);
+    });
+});
+
+describe("The light, through a phone's locks and reloads (owner, 2026-11-18)", () => {
+    const page = readFileSync(resolve(__dirname, '../../rubin/rubin.js'), 'utf8');
+
+    test('every redraw of the map moves the light with it, even while its timer is stopped', () => {
+        expect(page).toContain("if (document.hidden || !(mapOnScreen || filling)) { if (always) drawLight(); return; }");
+        expect(page).toContain('runLight({ always: true });');
+    });
+
+    test("this visit's light is kept for the tab, so a reload does not start it again", () => {
+        expect(page).toContain("firstVisit(sessionStorage.getItem('rubin-visit-opened'), now)");
     });
 });

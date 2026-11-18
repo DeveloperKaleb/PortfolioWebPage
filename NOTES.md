@@ -4058,3 +4058,21 @@ picked. The Sun and Barnard's Star orbit no star, so they keep their note.
 - Today's Gaia DR3 parallaxes put Proxima 12,050 AU from A and B. So the path is turned
   6° and shrunk 7% about A and B's centre, which runs it through Proxima's dot
   (`proximaOrbit`). It is drawn dashed because the orbit is rough.
+
+## The light after a phone locks (owner, 2026-11-18)
+
+Two reports from the owner's phone.
+
+**The ring left the Sun.** In full screen, after a lock and unlock, the "this visit" ring
+sat beside whatever was picked, even stars far from the Sun.
+- Cause: the light was drawn only by its own timer. That timer stops while the section
+  counts as off screen, and in full screen the section can count as off screen. So the
+  map moved and the ring stayed where it was last drawn.
+- Fix: every redraw of the map now draws the light too (`runLight({ always: true })`), and
+  in full screen the timer never stops for being off screen.
+- Seen only on the phone; the automation cannot start true full screen.
+
+**The ring started again.** A locked phone often throws the tab away and reloads it
+later (which also leaves full screen). The visit's start time is now kept in
+sessionStorage for that tab, so a reload carries on the same light. A new tab is a new
+visit.
