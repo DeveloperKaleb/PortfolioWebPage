@@ -4191,6 +4191,21 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**The SagA and Earth arrows sit in globes (owner, 2026-11-18).** Each arrow is drawn in a
+small glass globe (radius 30 px) in its bottom corner, so in 3D it's clear where it points:
+- The ring round the globe's middle is the plane of Earth's orbit: the near half solid,
+  the far half dashed and seen through the glass.
+- The arrow runs from the centre to the globe's surface and turns with the map. It fades
+  the more it points away from the reader (`skyBasis(cam).forward` from js/milkyway.js
+  gives the depth). Pointing straight out of the picture it is a dot; straight in, a
+  cross.
+- A dashed line drops from the tip to the plane, and a dotted one runs from the centre to
+  that foot, showing how far above or below the plane the way lies.
+
+Each hover adds the angle above or below the plane. A first try drew arrows that point
+away behind the glass. That hid SagA's arrow in the flat view, where it is only 6° below
+the plane, so arrows are now always drawn over the glass.
+
 **AU rings: a Show checkbox, and every ring named (owner, 2026-11-18).** "AU rings" in
 Show turns the rings and their labels off. Before, a label only went at the top of its
 ring, so it went missing whenever that top was outside the picture, which was common for

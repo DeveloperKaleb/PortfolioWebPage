@@ -28,7 +28,7 @@ import {
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
 import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
-import { paintSky } from '../js/milkyway.js';
+import { paintSky, skyBasis } from '../js/milkyway.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -1019,24 +1019,77 @@ function drawMap(digest) {
            they sit in the corners rather than on the line from the Sun - where SagA's would
            land on Barnard's Star, almost the same way. Flat, each points along the plane; in
            3D it turns with the map, and takes in how far it lies out of the plane. */
-        const arrow = (ax, ay, way, label, rows, side) => {
-            const [wx, wy] = at3.direction(...way);
-            const [dx, dy] = [wx / (Math.hypot(wx, wy) || 1), wy / (Math.hypot(wx, wy) || 1)];
-            const end = (k) => [ax + dx * k, ay + dy * k];
-            const [hx, hy] = end(33);
-            const head = (turn) => {
-                const c = Math.cos(turn), s = Math.sin(turn);
-                return `${(hx + (dx * c - dy * s) * 9).toFixed(1)},${(hy + (dx * s + dy * c) * 9).toFixed(1)}`;
+        /* Each arrow sits in a small glass globe (owner, 2026-11-18), so in 3D it is plain
+           where it points: the ring round the globe's middle is the plane of Earth's orbit,
+           its near half solid and its far half dashed; a dashed line drops from the arrow's
+           tip to that plane, for how far above or below it the way lies; and an arrow fades
+           the more it points away from the reader, into the glass. Pointing straight out of
+           the picture it is a dot, straight in a cross. Flat, the globe is seen from above. */
+        const GLOBE_R = 30;
+        const { forward } = skyBasis(cam);
+        const depthOf = (v) => v[0] * forward[0] + v[1] * forward[1] + v[2] * forward[2];
+        const arrow = (ax, ay, way, label, rows) => {
+            const n = Math.hypot(...way);
+            const unit = way.map((v) => v / n);
+            const onGlobe = (v, k = GLOBE_R) => {
+                const [x, y] = at3.direction(...v);
+                return [ax + x * k, ay + y * k];
             };
-            const left = side === 'left';
             const g = svg('g', { class: 'rubin-mark rubin-toward' });
-            g.append(svg('rect', { x: left ? ax - 20 : ax - 120, y: ay - 45, width: 140, height: 90, fill: 'transparent' }));
-            g.append(svg('line', { x1: end(-33)[0], y1: end(-33)[1], x2: hx, y2: hy, stroke: C.text, 'stroke-width': 1.5 }));
-            g.append(svg('polyline', { points: `${head(Math.PI * 5 / 6)} ${hx.toFixed(1)},${hy.toFixed(1)} ${head(-Math.PI * 5 / 6)}`, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
-            /* Beside the arrow when flat; above it in 3D, where it can point any way. */
-            const x = threeD ? (left ? ax - 20 : ax + 20) : (left ? ax + 14 : ax - 14);
-            g.append(svg('text', { x, y: threeD ? ay - 42 : ay + 4, 'text-anchor': left ? 'start' : 'end', class: 'rubin-axis' }, label));
-            attachDetails(g, rows);
+            g.append(svg('circle', { cx: ax, cy: ay, r: GLOBE_R + 12, fill: 'transparent' }));
+            /* The glass's back, dark, so the globe reads as a thing over the map. */
+            g.append(svg('circle', { cx: ax, cy: ay, r: GLOBE_R, fill: C.space, 'fill-opacity': 0.55 }));
+            /* The ring round the middle, in runs that are all near or all far. */
+            const ring = { near: [], far: [] };
+            let run = null;
+            for (let k = 0; k <= 96; k++) {
+                const t = (k / 96) * 2 * Math.PI;
+                const v = [Math.cos(t), Math.sin(t), 0];
+                const side = depthOf(v) > 1e-6 ? 'far' : 'near';
+                const [x, y] = onGlobe(v);
+                if (!run || run.side !== side) {
+                    if (run) run.points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+                    run = { side, points: [] };
+                    ring[side].push(run);
+                }
+                run.points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+            }
+            const ringLine = (r, near) => svg('polyline', { points: r.points.join(' '), fill: 'none', stroke: C.muted, 'stroke-width': 1, opacity: near ? 0.9 : 0.5, 'stroke-dasharray': near ? 'none' : '2 3' });
+            const [tx, ty] = onGlobe(unit);
+            const long = Math.hypot(tx - ax, ty - ay);
+            const away = depthOf(unit) > 0;
+            const pointer = () => {
+                const out = [];
+                if (long < 6) {
+                    /* Straight at the reader, a dot; straight away, a cross. */
+                    if (away) out.push(svg('path', { d: `M${ax - 5},${ay - 5}L${ax + 5},${ay + 5}M${ax - 5},${ay + 5}L${ax + 5},${ay - 5}`, stroke: C.text, 'stroke-width': 1.5 }));
+                    else out.push(svg('circle', { cx: ax, cy: ay, r: 3.5, fill: C.text }));
+                    return out;
+                }
+                const [dx, dy] = [(tx - ax) / long, (ty - ay) / long];
+                const head = (turn) => {
+                    const c = Math.cos(turn), s2 = Math.sin(turn);
+                    return `${(tx + (dx * c - dy * s2) * 8).toFixed(1)},${(ty + (dx * s2 + dy * c) * 8).toFixed(1)}`;
+                };
+                const look = { stroke: C.text, 'stroke-width': 1.5, opacity: (1 - 0.55 * Math.max(0, depthOf(unit))).toFixed(2) };
+                out.push(svg('line', { x1: ax, y1: ay, x2: tx, y2: ty, ...look }));
+                out.push(svg('polyline', { points: `${head(Math.PI * 5 / 6)} ${tx.toFixed(1)},${ty.toFixed(1)} ${head(-Math.PI * 5 / 6)}`, fill: 'none', ...look }));
+                return out;
+            };
+            for (const r of ring.far) g.append(ringLine(r, false));
+            g.append(svg('circle', { cx: ax, cy: ay, r: GLOBE_R, fill: C.space, 'fill-opacity': 0.7, stroke: C.muted, 'stroke-width': 1 }));
+            for (const r of ring.near) g.append(ringLine(r, true));
+            /* From the tip down (or up) to the plane, and from the middle out to that foot. */
+            const flatLength = Math.hypot(unit[0], unit[1]);
+            if (flatLength > 0.05 && Math.abs(unit[2]) > 0.02) {
+                const [fx, fy] = onGlobe([unit[0], unit[1], 0]);
+                g.append(svg('line', { x1: tx, y1: ty, x2: fx, y2: fy, stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '2 2' }));
+                g.append(svg('line', { x1: ax, y1: ay, x2: fx, y2: fy, stroke: C.muted, 'stroke-width': 1, opacity: 0.6, 'stroke-dasharray': '1 2' }));
+            }
+            g.append(...pointer());
+            g.append(svg('text', { x: ax, y: ay - GLOBE_R - 8, 'text-anchor': 'middle', class: 'rubin-axis' }, label));
+            const tilt = Math.asin(Math.max(-1, Math.min(1, unit[2]))) * 180 / Math.PI;
+            attachDetails(g, [...rows, [`${Math.abs(tilt).toFixed(0)}° ${tilt < 0 ? 'below' : 'above'} the plane of Earth's orbit,`, 'the ring round the globe']]);
             parts.push(g);
         };
         /* Centred in another star system: far from the Sun, with the Sun out of the picture. */
@@ -1045,7 +1098,7 @@ function drawMap(digest) {
         const [sunX, sunY] = at3(0, 0, 0);
         const elsewhere = away > ELSEWHERE_AU && (sunX < 0 || sunX > SIZE || sunY < 0 || sunY > SIZE);
         if (place.id === 'both' || elsewhere) {
-            arrow(SIZE - 48, SIZE - 64, SAG_A_WAY.way, 'Toward SagA', [
+            arrow(SIZE - 48, SIZE - 52, SAG_A_WAY.way, 'Toward SagA', [
                 ['Toward SagA:', 'Sagittarius A*, the supermassive black hole at the centre of the Milky Way'],
                 [`${SAG_A.lightYears.toLocaleString('en-US')} light years away,`, `about ${SAG_A.millionSuns} million times the Sun's mass`],
                 ['The Sun and its neighbours orbit it', 'once in about 230 million years'],
@@ -1053,10 +1106,10 @@ function drawMap(digest) {
             ]);
         }
         if (elsewhere) {
-            arrow(48, SIZE - 64, fromSun.map((v) => -v), 'Toward Earth', [
+            arrow(48, SIZE - 52, fromSun.map((v) => -v), 'Toward Earth', [
                 ['Toward Earth:', `${farDistanceText(away)} from the middle of the map`],
                 ['The Sun lies the same way:', 'from this far, Earth and the Sun are one point'],
-            ], 'left');
+            ]);
         }
 
         for (const { entry, kind } of solar ? data.marks : []) {
