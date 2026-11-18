@@ -4089,7 +4089,7 @@ against the familiar body nearest it, and a second pick is compared with the fir
 `sizeRange` in `js/rubinview.js`, tested in `tests/rubin/sizes.test.js`.
 
 - **Which familiar bodies.** The two from `SIZE_REFERENCES` (the Sun, Jupiter, Earth, the
-  Moon, Ceres) nearest either pick in size by ratio, and Earth as well wherever it leaves every disc
+  Moon, Ceres) nearest the newest pick in size by ratio (owner: bias to the newest), and Earth as well wherever it leaves every disc
   at least 4px across. A body is never compared with itself. Anything under 2px is drawn
   as a 2px dot and the panel says it is smaller still.
 - **Estimated sizes show their range.** The solid disc is the size if the surface is as

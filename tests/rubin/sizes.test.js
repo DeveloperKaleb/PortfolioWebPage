@@ -121,6 +121,14 @@ describe('four discs at most, each body once', () => {
     });
 });
 
+describe('the newest pick', () => {
+    it('chooses the familiar bodies for the newest pick', () => {
+        const subjects = lineupSubjects([STAR_SIZES['body:ab'], STAR_SIZES['body:proxima']]);
+        const { bodies } = sizeLineup(subjects);
+        expect(bodies.filter((b) => !b.subject).map((b) => b.name)).toEqual(['Jupiter']);
+    });
+});
+
 describe('the words', () => {
     it('says how many times as wide, in words', () => {
         expect(widthText(1.5, 'Jupiter')).toBe('1.5 times as wide as Jupiter');

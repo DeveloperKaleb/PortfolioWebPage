@@ -846,17 +846,19 @@ export function picksOf(subjects) {
 }
 
 /* The bodies to draw: the subjects (the last picks, each one body or a system's members),
-   then the two familiar bodies nearest any pick in size (by ratio), and Earth where there is
+   then the two familiar bodies nearest the newest pick in size (by ratio), and Earth where there is
    room - LINEUP_MAX discs at most - largest first; each with its drawn diameter in pixels (px), and for a range the
    dashed ring's (outerPx). */
 export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFERENCES, max = LINEUP_MAX } = {}) {
     const own = new Set(subjects.map((s) => s.designation));
-    const mains = picksOf(subjects);
+    /* The familiar bodies are chosen for the newest pick (owner, 2026-11-18: Alpha Centauri
+       A and B, then Proxima, should show what is nearest Proxima's size). */
+    const newest = picksOf([...subjects].sort((a, b) => (a.pick ?? 0) - (b.pick ?? 0))).at(-1);
     /* The discs left for familiar bodies: the nearest first, then Earth. */
     const slots = Math.max(1, max - subjects.length);
     const nearest = references
         .filter((r) => !own.has(r.designation))
-        .map((r) => ({ ...r, apart: Math.min(...mains.map((m) => Math.abs(Math.log(r.km / m.km)))) }))
+        .map((r) => ({ ...r, apart: Math.abs(Math.log(r.km / newest.km)) }))
         .sort((p, q) => p.apart - q.apart)
         .slice(0, Math.min(2, slots));
     /* Earth too, as home, wherever it leaves everything at least EARTH_ROOM_PX across (an
