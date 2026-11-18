@@ -2210,9 +2210,16 @@ main.rubin {
        instead of a straight blend. */
     /* The window's radius is set by the map (--map-window): smaller in the view of both
        systems. */
-    background: radial-gradient(circle var(--map-window, closest-side),
+    --map-ground: radial-gradient(circle var(--map-window, closest-side),
         #17120e 0%, #17120e 70%, #19140f 74.3%, #1e1813 78.6%, #251e17 82.9%,
         #2d241d 87.1%, #342a21 91.4%, #392e25 95.7%, #3b3026 100%);
+    background: var(--map-ground);
+}
+
+/* The Milky Way behind the map (js/milkyway.js), over its ground: painted by the map,
+   already faded out with the window. */
+#rubin-map .rubin-map-svg {
+    background: var(--map-sky, none) center / 100% 100% no-repeat, var(--map-ground);
 }
 
 /* Axis text wears the muted text colour, never a series colour. */

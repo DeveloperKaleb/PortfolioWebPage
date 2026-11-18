@@ -4195,6 +4195,29 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**The Milky Way behind the map (owner, 2026-11-18: "additional perspective when removing
+the lines").** The whole map lies deep inside the galaxy's disk (about 1,000 ly thick, the
+map 31 ly across), so the galaxy can't be drawn to scale behind it. What is drawn is the
+sky beyond the map, looking the way the camera looks, through a pretend lens 90° wide.
+Flat, that is the sky toward the south ecliptic pole (galactic 276°, −30°): the band runs
+along one side, and the Large Magellanic Cloud shows near the middle, as it really sits
+there. In 3D it turns with the map. Panning and zooming don't move it, since the sky is
+at infinity.
+- Data: one Gaia DR3 query (`tools/milkyway/fetch.py`): a 2% random sample (random_index),
+  G < 18, counted in half-degree cells of galactic l and b. Kept as `counts.csv.gz`.
+  The first run stopped at the archive's default 50,000 rows, so it asks with MAXREC now.
+- `tools/milkyway/build.py` (plain Python) writes `rubin/milkyway.png`, 720×360 grey,
+  about 150 KB. Each cell is divided by its area, softened over about 1°, and taken on a
+  log scale. The dust lanes are where Gaia counts fewer stars.
+- `js/milkyway.js` paints it, faded out with the map's window, as an image set in
+  `--map-sky` over the map's ground (`--map-ground` in style.css). It is redone only when
+  the turn, tilt or window changes, at 160 px, in about 6 ms on the desktop. Turning the
+  camera's directions into galactic coordinates once per paint cut that from 23 ms.
+- The faint end (EMPTY, 35% of the grey) counts as empty sky, so the window stays dark
+  away from the band. STRONGEST (0.42) caps the glow. These are the knobs to iterate on.
+- "Milky Way" is the first checkbox in Show. The picture is not precached: the site
+  keeps pictures out of the service worker (tests/markup/ids.test.js).
+
 **One control bar (owner, 2026-11-18, idea 1 of three offered).** The controls above the
 map are one bar in three groups, spaced apart so a narrow screen wraps a group at a time:
 - Go to and Nearest bodies;

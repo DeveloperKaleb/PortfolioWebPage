@@ -28,6 +28,7 @@ import {
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
 import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
+import { paintSky } from '../js/milkyway.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -48,10 +49,10 @@ const OPENED = (() => {
     } catch { return now; /* storage blocked: this load is the visit */ }
 })();
 const FIRST_KEY = 'rubin-first-visit';
-/* Whether the map draws its hatching and, in 3D, its plane lines: both unless this browser
-   was told otherwise. */
+/* Whether the map draws the Milky Way behind it, its hatching and, in 3D, its plane lines:
+   all unless this browser was told otherwise. */
 const SHOWN_KEY = 'rubin-map-shown';
-const shown = { hatching: true, planeLines: true };
+const shown = { milkyWay: true, hatching: true, planeLines: true };
 try {
     const saved = JSON.parse(localStorage.getItem(SHOWN_KEY));
     for (const key of Object.keys(shown)) if (typeof saved?.[key] === 'boolean') shown[key] = saved[key];
@@ -567,6 +568,34 @@ function drawMap(digest) {
     const windowCircle = svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: hatchPx });
     const mapWindow = svg('clipPath', { id: 'rubin-map-window' });
     mapWindow.append(windowCircle);
+    /* The Milky Way behind the map (js/milkyway.js), as the sky beyond it: its picture,
+       once loaded, is painted small and stretched over the map's ground, since it is soft
+       anyway, and painted again only when the map turns or its window changes. */
+    const SKY_PX = 160;
+    const skyCanvas = el('canvas', { width: SKY_PX, height: SKY_PX });
+    let skyTexture = null;
+    let skyKey = '';
+    const skyPicture = new Image();
+    skyPicture.addEventListener('load', () => {
+        const page = el('canvas', { width: skyPicture.naturalWidth, height: skyPicture.naturalHeight });
+        const pen = page.getContext('2d');
+        pen.drawImage(skyPicture, 0, 0);
+        skyTexture = pen.getImageData(0, 0, page.width, page.height);
+        render();
+    });
+    skyPicture.src = 'milkyway.png';
+    const paintSkyNow = () => {
+        const share = windowPx / (SIZE / 2);
+        const key = shown.milkyWay && skyTexture ? `${cam.turn.toFixed(4)},${cam.tilt.toFixed(4)},${share.toFixed(3)}` : 'off';
+        if (key === skyKey) return;
+        skyKey = key;
+        if (key === 'off') { plot.style.removeProperty('--map-sky'); return; }
+        const pen = skyCanvas.getContext('2d');
+        const image = pen.createImageData(SKY_PX, SKY_PX);
+        paintSky(image, skyTexture, cam, share);
+        pen.putImageData(image, 0, 0);
+        plot.style.setProperty('--map-sky', `url(${skyCanvas.toDataURL()})`);
+    };
     const mapDefs = svg('defs');
     mapDefs.append(mapHatch, mapWindow);
     plot.append(mapDefs);
@@ -731,6 +760,7 @@ function drawMap(digest) {
         item.append(box, el('span', {}, text));
         return { item, box };
     };
+    const milkyWay = showItem('milkyWay', 'Milky Way', 'The sky beyond the map, as Gaia counts its stars, turning with the map in 3D');
     const hatching = showItem('hatching', 'Hatching', 'Where nothing has been seen yet');
     const planeLines = showItem('planeLines', 'Plane lines (3D)', "Lines from each body down to the plane of Earth's orbit, in 3D");
     const threeDButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, '3D');
@@ -762,6 +792,7 @@ function drawMap(digest) {
             return Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE * Math.SQRT1_2 + radiusAU * view.scale;
         };
         plot.style.setProperty('--map-window', `${windowPx.toFixed(1)}px`);
+        paintSkyNow();
         windowCircle.setAttribute('r', hatchPx.toFixed(1));
 
         /* Where nothing has been seen: everything beyond 1,000 AU from the Sun, up to the
@@ -1346,7 +1377,7 @@ function drawMap(digest) {
     const showButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-expanded': 'false', 'aria-controls': 'rubin-map-show-menu' }, 'Show ▾');
     const showMenu = el('div', { class: 'rubin-map-show-menu', id: 'rubin-map-show-menu', role: 'group', 'aria-label': 'What the map shows' });
     showMenu.hidden = true;
-    showMenu.append(hatching.item, planeLines.item, findLight);
+    showMenu.append(milkyWay.item, hatching.item, planeLines.item, findLight);
     const showBox = el('span', { class: 'rubin-map-show' });
     showBox.append(showButton, showMenu);
     const openShow = (open) => {
@@ -1565,7 +1596,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the hatching and the plane lines on or off.`,
     );
 
     const mapTable = table(

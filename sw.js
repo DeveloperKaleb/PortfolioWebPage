@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261118-1621';
+const VERSION = '20261118-1641';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -67,6 +67,9 @@ const PRECACHE = [
     `${BASE}/js/rubincolors.js`,
     `${BASE}/js/centauri.js`,
     `${BASE}/js/nearstars.js`,
+    `${BASE}/js/milkyway.js`,
+    /* The picture of the sky behind the Solar System map is left to the browser's
+       own cache with every other picture (see below). */
 ];
 
 /* The family photo is deliberately NOT precached.

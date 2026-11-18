@@ -185,6 +185,12 @@ const GALACTIC = [
     [-0.8676661490, -0.1980763734, 0.4559837762],
 ];
 const galacticToMap = (g) => toEcliptic([0, 1, 2].map((k) => GALACTIC[0][k] * g[0] + GALACTIC[1][k] * g[1] + GALACTIC[2][k] * g[2]));
+/* And back: a direction in the map's frame to galactic (x toward the centre, z toward the
+   galaxy's north pole), for the Milky Way behind the map (js/milkyway.js). */
+export const mapToGalactic = ([x, y, z]) => {
+    const e = [x, y * Math.cos(OBLIQUITY) - z * Math.sin(OBLIQUITY), y * Math.sin(OBLIQUITY) + z * Math.cos(OBLIQUITY)];
+    return GALACTIC.map((row) => row[0] * e[0] + row[1] * e[1] + row[2] * e[2]);
+};
 
 /* The orbit, as elements about A and B (orbit.js's form), and its path in the map's frame.
    Today's Gaia parallaxes put Proxima about 12,050 AU from A and B and a little to one
