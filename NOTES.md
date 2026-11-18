@@ -4109,3 +4109,16 @@ against the familiar body nearest it, and a second pick is compared with the fir
   2026-11-18). It changes twelve objects' sizes on the cards, the table and the panel,
   among them Makemake 1,667 to 1,430 km and Sedna 1,040 to 906 km. The filter's chances
   are the collector's and are unchanged.
+- **Four discs at most, each body once** (owner, 2026-11-18). `lineupSubjects` keeps each
+  body in its newest pick only (Proxima, then Alpha Centauri as a whole, had shown Proxima
+  twice), the last two picks, and room for one familiar body; the older pick's members
+  give way first. The familiar bodies fill what is left: nearest first, then Earth.
+
+## Toward Earth (owner, 2026-11-18)
+
+Centred on another star system - the middle of the map over 10,000 AU from the Sun
+(`ELSEWHERE_AU`) with the Sun out of the picture - the map shows a "Toward Earth" arrow in
+the bottom-left corner beside "Toward SagA" in the bottom-right, which until then showed
+only in the nearest-bodies view. Both are drawn by `arrow` in `render`; the Earth arrow
+points from the middle of the map back to the Sun (from that far, Earth and the Sun are
+one point), and in 3D takes in how far it lies out of the plane.

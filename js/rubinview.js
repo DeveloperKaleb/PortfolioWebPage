@@ -806,8 +806,33 @@ export const LINEUP_PX = 88;
 export const SPECK_PX = 2;
 export const EARTH_ROOM_PX = 4;
 
-/* The picks shown at once: the last two (owner, 2026-11-18). */
+/* The picks shown at once: the last two; and the discs at most, picks and familiar bodies
+   together (owner, 2026-11-18). */
 export const LINEUP_PICKS = 2;
+export const LINEUP_MAX = 4;
+
+/* The subjects to draw, from each pick's members in the order picked (a system picked as
+   one has several): each body once, in its newest pick (Proxima, then Alpha Centauri as a
+   whole, is the whole system once), from the last LINEUP_PICKS picks, and leaving room for
+   at least one familiar body - the older pick's members give way first. Each is numbered
+   by its pick (pick), oldest first. */
+export function lineupSubjects(picks, { maxPicks = LINEUP_PICKS, max = LINEUP_MAX } = {}) {
+    const seen = new Set();
+    const kept = [];
+    for (const members of [...picks].reverse()) {
+        const fresh = members.filter((m) => !seen.has(m.designation));
+        fresh.forEach((m) => seen.add(m.designation));
+        if (fresh.length) kept.unshift(fresh);
+        if (kept.length === maxPicks) break;
+    }
+    let room = max - 1;
+    const shown = [...kept].reverse().map((members) => {
+        const taken = [...members].sort((a, b) => b.km - a.km).slice(0, Math.max(0, room));
+        room -= taken.length;
+        return members.filter((m) => taken.includes(m));
+    }).reverse().filter((members) => members.length);
+    return shown.flatMap((members, pick) => members.map((m) => ({ ...m, pick })));
+}
 
 /* Each pick's largest member: the one its sentence is about. pick numbers a subject's pick
    (a system picked as one has several members); subjects without one are one pick. */
@@ -822,20 +847,22 @@ export function picksOf(subjects) {
 
 /* The bodies to draw: the subjects (the last picks, each one body or a system's members),
    then the two familiar bodies nearest any pick in size (by ratio), and Earth where there is
-   room, largest first; each with its drawn diameter in pixels (px), and for a range the
+   room - LINEUP_MAX discs at most - largest first; each with its drawn diameter in pixels (px), and for a range the
    dashed ring's (outerPx). */
-export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFERENCES } = {}) {
+export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFERENCES, max = LINEUP_MAX } = {}) {
     const own = new Set(subjects.map((s) => s.designation));
     const mains = picksOf(subjects);
+    /* The discs left for familiar bodies: the nearest first, then Earth. */
+    const slots = Math.max(1, max - subjects.length);
     const nearest = references
         .filter((r) => !own.has(r.designation))
         .map((r) => ({ ...r, apart: Math.min(...mains.map((m) => Math.abs(Math.log(r.km / m.km)))) }))
         .sort((p, q) => p.apart - q.apart)
-        .slice(0, 2);
+        .slice(0, Math.min(2, slots));
     /* Earth too, as home, wherever it leaves everything at least EARTH_ROOM_PX across (an
        estimate at its usual size). */
     const earth = references.find((r) => r.designation === 'world:Earth');
-    if (earth && !own.has(earth.designation) && !nearest.some((r) => r === earth || r.designation === earth.designation)) {
+    if (earth && nearest.length < slots && !own.has(earth.designation) && !nearest.some((r) => r === earth || r.designation === earth.designation)) {
         const sizes = [...subjects.map((s) => s.km), ...nearest.map((r) => r.km), earth.km];
         if ((Math.min(...sizes) / Math.max(...sizes, ...subjects.map((s) => s.high ?? s.km))) * maxPx >= EARTH_ROOM_PX) nearest.push({ ...earth, apart: Infinity });
     }

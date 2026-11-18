@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sizeOf, sizeRange, sizeLineup, lineupText, widthText, STAR_SIZES, SIZE_REFERENCES, LINEUP_PX, SPECK_PX } from '../../js/rubinview.js';
+import { sizeOf, sizeRange, sizeLineup, lineupText, lineupSubjects, widthText, STAR_SIZES, SIZE_REFERENCES, LINEUP_PX, SPECK_PX } from '../../js/rubinview.js';
 
 const estimated = { designation: '999999', name: '999999 Unlisted (2099 AA1)', H: 1.5, sizeFrom: 'brightness' };
 const named = (lineup) => lineup.bodies.map((b) => b.name);
@@ -87,6 +87,37 @@ describe('two picks', () => {
         const { lines } = lineupText([...system, { ...pluto, pick: 1 }], sizeLineup([...system, { ...pluto, pick: 1 }]));
         expect(lines.filter((l) => / is .+ as wide as /.test(l))).toHaveLength(3);
         expect(lines[0]).toMatch(/^Alpha Centauri A is /);
+    });
+});
+
+describe('four discs at most, each body once', () => {
+    const ceres = { designation: 'world:Ceres', name: 'Ceres', km: 939.4 };
+    const pluto = { designation: '134340', name: 'Pluto', km: 2377 };
+
+    it('shows a body picked twice once, in its newer pick', () => {
+        const subjects = lineupSubjects([STAR_SIZES['body:proxima'], STAR_SIZES['body:centauri']]);
+        expect(subjects.map((s) => s.name)).toEqual(['Alpha Centauri A', 'Alpha Centauri B', 'Proxima Centauri']);
+        expect(new Set(subjects.map((s) => s.pick))).toEqual(new Set([0]));
+    });
+
+    it('keeps the last two picks', () => {
+        const subjects = lineupSubjects([[ceres], STAR_SIZES['body:sun'], [pluto]]);
+        expect(subjects.map((s) => [s.name, s.pick])).toEqual([['The Sun', 0], ['Pluto', 1]]);
+    });
+
+    it('never draws more than four discs, leaving room for a familiar body', () => {
+        for (const picks of [[[pluto]], [[ceres], [pluto]], [STAR_SIZES['body:centauri']], [[pluto], STAR_SIZES['body:centauri']], [STAR_SIZES['body:ab'], STAR_SIZES['body:luhman16']]]) {
+            const subjects = lineupSubjects(picks);
+            const { bodies } = sizeLineup(subjects);
+            expect(bodies.length).toBeLessThanOrEqual(4);
+            expect(bodies.some((b) => !b.subject)).toBe(true);
+            expect(new Set(bodies.map((b) => b.designation)).size).toBe(bodies.length);
+        }
+    });
+
+    it('lets the older pick give way first', () => {
+        const subjects = lineupSubjects([[pluto], STAR_SIZES['body:centauri']]);
+        expect(subjects.map((s) => s.name)).toEqual(['Alpha Centauri A', 'Alpha Centauri B', 'Proxima Centauri']);
     });
 });
 
