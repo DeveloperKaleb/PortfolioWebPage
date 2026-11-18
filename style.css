@@ -2194,10 +2194,10 @@ main.rubin {
    (owner, 2026-10-05; mapSizeFor in js/rubinview.js draws it at this size). It is centred on
    the column with left and a transform, since a block wider than its container cannot
    centre with auto margins. Positioned, it paints over the landscape, and its ground stops
-   the stream and forest cleanly at its edges. The ground is a soft vignette: a warm
-   near-black (RUBIN_COLORS.space) through the middle, fading to the page's brown at the
-   edges, so it reads as a window into space with no hard square edge. Pure black was too
-   harsh (owner, 2026-10-05). Every map colour passes on both ends of the fade. */
+   the stream and forest cleanly at its edges. The ground is a warm near-black
+   (RUBIN_COLORS.space) to the square's edges, with the Milky Way over it; pure black was
+   too harsh (owner, 2026-10-05). It was once a round window fading to the page's brown,
+   until the Milky Way came (owner, 2026-11-18). */
 #rubin-map .rubin-svg {
     max-width: none;
     width: min(750px, calc(100vw - 32px));
@@ -2205,19 +2205,11 @@ main.rubin {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
-    /* The fade eases in and out (a smoothstep curve between the two colours, in six
-       in-between steps, evenly spaced over the outer 30%), so it leaves the dark slowly and arrives at the brown slowly
-       instead of a straight blend. */
-    /* The window's radius is set by the map (--map-window): smaller in the view of both
-       systems. */
-    --map-ground: radial-gradient(circle var(--map-window, closest-side),
-        #17120e 0%, #17120e 70%, #19140f 74.3%, #1e1813 78.6%, #251e17 82.9%,
-        #2d241d 87.1%, #342a21 91.4%, #392e25 95.7%, #3b3026 100%);
+    --map-ground: #17120e;
     background: var(--map-ground);
 }
 
-/* The Milky Way behind the map (js/milkyway.js), over its ground: painted by the map,
-   already faded out with the window. */
+/* The Milky Way behind the map (js/milkyway.js), over its ground, to the square's edges. */
 #rubin-map .rubin-map-svg {
     background: var(--map-sky, none) center / 100% 100% no-repeat, var(--map-ground);
 }

@@ -3855,15 +3855,11 @@ map: the same map now reaches the nearest star system, with its stars in their t
   clearings of 40 AU about the pair (their widest reach) and 0.1 AU about Proxima (its
   planets). It carries the owner's words on hover and focus. Finer and fainter than the
   ruler's, because it covers most of the picture.
-  Round, not square (owner): the map is a round window, dark in the middle and fading into
-  the page by its edge, so the hatching is clipped to a circle a little wider than the dark,
-  nine tenths of the way to the edge. Whether to draw it at all is decided on that circle.
+  It once was clipped to a round window; since 2026-11-18 it runs to the square's edges
+  (see "The map is the whole square" below).
 - **Both systems is seen from the Sun** (owner, 2026-11-14): the view is centred on the
-  Sun, so the rings are about it, with Alpha Centauri out near the edge, and the dark
-  window is smaller there (0.65 of the half-width; `dark` in `places`). The map sets the
-  window's radius (`--map-window`), and it grows or shrinks over a journey. In that view
-  only, the hatching runs to the picture's edges (the brown out to Alpha Centauri is no
-  better seen), returning to the round window on the way to either system.
+  Sun, so the rings are about it, with Alpha Centauri out near the edge. (Its smaller
+  dark window, `dark` in `places`, went with the window itself on 2026-11-18.)
 - **Luhman 16 AB** (owner, 2026-11-14): asked whether other stars fall in the view of both
   systems, the answer was one - two brown dwarfs, 6.5 light years away but 54
   degrees below the plane, so drawn 3.8 light years out, inside the picture. Barnard's Star
@@ -4195,6 +4191,13 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**The map is the whole square (owner, 2026-11-18).** The round window, dark in the middle
+and fading to the page's brown, became less useful as the map grew, and the Milky Way now
+gives the depth it was for. The map's ground is the dark (#17120e) to the square's edges.
+The Milky Way and the hatching fill it too. Gone with it: `dark` in `places`, the window's
+radius (`--map-window`) and its growing and shrinking over a journey, the hatching's round
+clip, and the sky's fade (`windowFade`).
+
 **The Milky Way behind the map (owner, 2026-11-18: "additional perspective when removing
 the lines").** The whole map lies deep inside the galaxy's disk (about 1,000 ly thick, the
 map 31 ly across), so the galaxy can't be drawn to scale behind it. What is drawn is the
@@ -4209,12 +4212,11 @@ at infinity.
 - `tools/milkyway/build.py` (plain Python) writes `rubin/milkyway.png`, 720×360 grey,
   about 150 KB. Each cell is divided by its area, softened over about 1°, and taken on a
   log scale. The dust lanes are where Gaia counts fewer stars.
-- `js/milkyway.js` paints it, faded out with the map's window, as an image set in
-  `--map-sky` over the map's ground (`--map-ground` in style.css). It is redone only when
-  the turn, tilt or window changes, at 160 px, in about 6 ms on the desktop. Turning the
+- `js/milkyway.js` paints it as an image set in `--map-sky` over the map's ground
+  (`--map-ground` in style.css). It is redone only when the turn or tilt changes, at 160 px, in about 6 ms on the desktop. Turning the
   camera's directions into galactic coordinates once per paint cut that from 23 ms.
-- The faint end (EMPTY, 35% of the grey) counts as empty sky, so the window stays dark
-  away from the band. STRONGEST (0.42) caps the glow. These are the knobs to iterate on.
+- The faint end (EMPTY, 35% of the grey) counts as empty sky, so the map stays dark away
+  from the band. STRONGEST (0.42) caps the glow. These are the knobs to iterate on.
 - "Milky Way" is the first checkbox in Show. The picture is not precached: the site
   keeps pictures out of the service worker (tests/markup/ids.test.js).
 

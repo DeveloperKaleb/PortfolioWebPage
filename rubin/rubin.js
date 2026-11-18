@@ -556,21 +556,12 @@ function drawMap(digest) {
     /* The map's hatching is finer and fainter than the ruler's: it covers far more. */
     const mapHatch = svg('pattern', { id: 'rubin-unseen-map', width: 9, height: 9, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' });
     mapHatch.append(svg('line', { x1: 0, y1: 0, x2: 0, y2: 9, stroke: C.muted, 'stroke-width': 1, opacity: 0.55 }));
-    /* The map is a round window (the stylesheet fades its dark centre into the page's brown
-       by the window's edge), so the hatching is round too, and a little wider than the
-       dark: out to nine tenths of the window (owner, 2026-11-13). The window is smaller in
-       the view of both systems (places), and grows or shrinks on the way. There the
-       hatching runs to the picture's edges instead, since the brown between the window
-       and Alpha Centauri is no better seen (owner, 2026-11-14). */
-    const hatchFor = (p) => (p.dark < 1 ? SIZE * Math.SQRT1_2 : (p.dark * SIZE / 2) * 0.9);
-    let windowPx = SIZE / 2;
-    let hatchPx = hatchFor(PLACES.sun);
-    const windowCircle = svg('circle', { cx: SIZE / 2, cy: SIZE / 2, r: hatchPx });
-    const mapWindow = svg('clipPath', { id: 'rubin-map-window' });
-    mapWindow.append(windowCircle);
+    /* The map is the whole square, dark to its edges, and the hatching with it (owner,
+       2026-11-18: the round window it had, fading to the page's brown, is gone now the
+       Milky Way is behind the map). */
     /* The Milky Way behind the map (js/milkyway.js), as the sky beyond it: its picture,
        once loaded, is painted small and stretched over the map's ground, since it is soft
-       anyway, and painted again only when the map turns or its window changes. */
+       anyway, and painted again only when the map turns. */
     const SKY_PX = 160;
     const skyCanvas = el('canvas', { width: SKY_PX, height: SKY_PX });
     let skyTexture = null;
@@ -585,19 +576,18 @@ function drawMap(digest) {
     });
     skyPicture.src = 'milkyway.png';
     const paintSkyNow = () => {
-        const share = windowPx / (SIZE / 2);
-        const key = shown.milkyWay && skyTexture ? `${cam.turn.toFixed(4)},${cam.tilt.toFixed(4)},${share.toFixed(3)}` : 'off';
+        const key = shown.milkyWay && skyTexture ? `${cam.turn.toFixed(4)},${cam.tilt.toFixed(4)}` : 'off';
         if (key === skyKey) return;
         skyKey = key;
         if (key === 'off') { plot.style.removeProperty('--map-sky'); return; }
         const pen = skyCanvas.getContext('2d');
         const image = pen.createImageData(SKY_PX, SKY_PX);
-        paintSky(image, skyTexture, cam, share);
+        paintSky(image, skyTexture, cam);
         pen.putImageData(image, 0, 0);
         plot.style.setProperty('--map-sky', `url(${skyCanvas.toDataURL()})`);
     };
     const mapDefs = svg('defs');
-    mapDefs.append(mapHatch, mapWindow);
+    mapDefs.append(mapHatch);
     plot.append(mapDefs);
     const layer = svg('g');
     /* The light rings are drawn over the map on their own layer, so they can move without
@@ -791,9 +781,7 @@ function drawMap(digest) {
             const [x, y] = at3(body.x, body.y, body.z ?? 0);
             return Math.hypot(x - SIZE / 2, y - SIZE / 2) < SIZE * Math.SQRT1_2 + radiusAU * view.scale;
         };
-        plot.style.setProperty('--map-window', `${windowPx.toFixed(1)}px`);
         paintSkyNow();
-        windowCircle.setAttribute('r', hatchPx.toFixed(1));
 
         /* Where nothing has been seen: everything beyond 1,000 AU from the Sun, up to the
            other system's bodies. Drawn first, under everything, and it says why on hover
@@ -805,10 +793,10 @@ function drawMap(digest) {
                 ...on.groups.map((g) => ({ ...g.centre, radiusAU: g.group.seenNear })),
                 ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
             ]),
-        ], hatchPx, at3);
+        ], undefined, at3);
         if (holes && shown.hatching) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
-            const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
+            const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', class: 'rubin-unseen' });
             attachDetails(unseen, [[UNSEEN_TEXT]]);
             parts.push(unseen);
         }
@@ -1222,20 +1210,16 @@ function drawMap(digest) {
         const from = view;
         const direct = place === target || place.id === 'both' || target.id === 'both';
         const via = homeView(PLACES.both);
-        const [fromWindow, toWindow] = [windowPx, (target.dark * SIZE) / 2];
-        const [fromHatch, toHatch] = [hatchPx, hatchFor(target)];
         place = target;
         showPlace();
         hideTooltip();
-        arrive = () => { view = toView; windowPx = toWindow; hatchPx = toHatch; };
+        arrive = () => { view = toView; };
         if (reducedMotion.matches) { arrive(); render(); return; }
         const ms = direct ? 1800 : 5000;
         const began = performance.now();
         const frame = (now) => {
             const t = Math.min(1, (now - began) / ms);
             view = t >= 1 ? toView : (direct ? glideView(from, toView, t) : journeyView(from, via, toView, t));
-            windowPx = fromWindow + (toWindow - fromWindow) * t;
-            hatchPx = fromHatch + (toHatch - fromHatch) * t;
             travelling = t >= 1 ? 0 : requestAnimationFrame(frame);
             render();
         };
@@ -1521,12 +1505,8 @@ function drawMap(digest) {
         cancelAnimationFrame(centring);
         centring = 0;
         view = resizedView(view, next);
-        windowPx *= next / SIZE;
-        hatchPx *= next / SIZE;
         SIZE = next;
         plot.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
-        windowCircle.setAttribute('cx', SIZE / 2);
-        windowCircle.setAttribute('cy', SIZE / 2);
         plot.style.width = filling ? `${SIZE}px` : '';
         render();
     }
@@ -1657,8 +1637,6 @@ function drawMap(digest) {
         place = startAt;
         const rung = rungsOf(startAt.id).find((r) => r.id === params.get('zoom'));
         view = rung ? rungView(startAt.id, rung) : homeView(startAt);
-        windowPx = (startAt.dark * SIZE) / 2;
-        hatchPx = hatchFor(startAt);
         showPlace();
     }
     render();

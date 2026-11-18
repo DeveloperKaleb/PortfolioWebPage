@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { skyBasis, skyAt, windowFade, paintSky } from '../../js/milkyway.js';
+import { skyBasis, skyAt, paintSky } from '../../js/milkyway.js';
 import { FLAT, TILT_3D } from '../../js/rubinview.js';
 import { towardSagA } from '../../js/centauri.js';
 
@@ -30,21 +30,14 @@ describe('the Milky Way behind the map (owner, 2026-11-18)', () => {
         expect(dot(forward, forward)).toBeCloseTo(1, 12);
     });
 
-    it('fades out with the window, as the stylesheet does', () => {
-        expect(windowFade(0.5, 1)).toBe(1);
-        expect(windowFade(0.85, 1)).toBeCloseTo(0.5, 6);
-        expect(windowFade(1, 1)).toBe(0);
-        expect(windowFade(1.2, 1)).toBe(0);
-    });
-
-    it('paints the band where the galaxy is and nothing beyond the window', () => {
+    it('paints the band where the galaxy is, and nothing where the sky is empty', () => {
         /* A sky dark everywhere but a bright band 2 degrees either side of latitude 0. */
         const texture = { width: 36, height: 18, data: new Uint8Array(36 * 18).map((_, i) => (Math.floor(i / 36) === 8 || Math.floor(i / 36) === 9 ? 255 : 0)) };
         const size = 40;
         const image = { width: size, height: size, data: new Uint8ClampedArray(size * size * 4) };
-        paintSky(image, texture, FLAT, 1);
+        paintSky(image, texture, FLAT);
         const alpha = (x, y) => image.data[(y * size + x) * 4 + 3];
-        expect(alpha(0, 0)).toBe(0);
+        expect(Math.min(...Array.from({ length: size * size }, (_, k) => image.data[k * 4 + 3]))).toBe(0);
         const basis = skyBasis(FLAT);
         let brightest = 0;
         let where = null;

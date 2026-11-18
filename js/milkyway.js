@@ -9,8 +9,8 @@
  * with the map. Distance does not move it, so panning and zooming leave it be.
  *
  * The sky itself is rubin/milkyway.png, built by tools/milkyway from Gaia DR3's star counts:
- * galactic longitude across, latitude down from +90, grey for how crowded with stars. Only
- * the dark window of the map shows it, fading out with the window's own fade.
+ * galactic longitude across, latitude down from +90, grey for how crowded with stars. It
+ * fills the map's square.
  */
 import { mapToGalactic } from './centauri.js';
 
@@ -39,24 +39,16 @@ export function skyAt(basis, px, py, tanHalf = SKY_TAN_HALF) {
     return { l: ((Math.atan2(gy, gx) * DEG) % 360 + 360) % 360, b: Math.asin(Math.max(-1, Math.min(1, gz))) * DEG };
 }
 
-/* How the window fades, as the stylesheet draws it: dark to 70% of its radius, then a
-   smooth step to the page's brown at its edge. r and edge in the same units. */
-export function windowFade(r, edge) {
-    const t = Math.min(1, Math.max(0, (r - 0.7 * edge) / (0.3 * edge)));
-    return 1 - t * t * (3 - 2 * t);
-}
-
 /* The sky's colour, the map's pale text colour; how strongly it shows at its densest, so
    the faintest marks stay clear over it; and the share of the texture's grey that counts
-   as empty sky, so the sparse sky away from the band leaves the window dark. */
+   as empty sky, so the sparse sky away from the band leaves the map dark. */
 const GLOW = [227, 231, 175];
 const STRONGEST = 0.42;
 const EMPTY = 0.35;
 
 /* Paints the sky into image (an ImageData's data, width, height) from the sky texture
-   (data as grey or RGBA, its width and height), for a camera, with the window's radius as
-   a share of the picture's half-width. */
-export function paintSky(image, texture, cam, windowShare, tanHalf = SKY_TAN_HALF) {
+   (data as grey or RGBA, its width and height), for a camera. */
+export function paintSky(image, texture, cam, tanHalf = SKY_TAN_HALF) {
     const { width: w, height: h, data } = image;
     const { width: tw, height: th } = texture;
     const tex = texture.data;
@@ -73,8 +65,6 @@ export function paintSky(image, texture, cam, windowShare, tanHalf = SKY_TAN_HAL
         for (let x = 0; x < w; x++) {
             const px = (2 * (x + 0.5)) / w - 1;
             const i = (y * w + x) * 4;
-            const fade = windowFade(Math.sqrt(px * px + py * py), windowShare);
-            if (fade <= 0) { data[i + 3] = 0; continue; }
             const [a, c] = [tanHalf * px, tanHalf * py];
             const gx = F[0] + a * R[0] + c * U[0];
             const gy = F[1] + a * R[1] + c * U[1];
@@ -98,7 +88,7 @@ export function paintSky(image, texture, cam, windowShare, tanHalf = SKY_TAN_HAL
             data[i + 1] = GLOW[1];
             data[i + 2] = GLOW[2];
             const t = (g / 255 - EMPTY) / (1 - EMPTY);
-            data[i + 3] = t > 0 ? Math.round(255 * STRONGEST * t ** 1.4 * fade) : 0;
+            data[i + 3] = t > 0 ? Math.round(255 * STRONGEST * t ** 1.4) : 0;
         }
     }
 }

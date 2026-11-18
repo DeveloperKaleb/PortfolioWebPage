@@ -141,13 +141,11 @@ describe('The three places', () => {
     const P = places(system, 200);
 
     test('the Sun as it always was', () => {
-        expect(P.sun).toMatchObject({ id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, radiusAU: 200, dark: 1 });
+        expect(P.sun).toMatchObject({ id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, radiusAU: 200 });
     });
 
     test('both systems seen from the Sun, in a smaller window than either system alone', () => {
         expect(P.both).toMatchObject({ cx: 0, cy: 0 });
-        expect(P.both.dark).toBeLessThan(P.sun.dark);
-        expect(P.both.dark).toBeLessThan(P.centauri.dark);
     });
 
     test('Alpha Centauri, with room for Proxima', () => {
@@ -336,7 +334,7 @@ describe('The page', () => {
 
     test('a journey leaves visitors who asked for less motion where they are going, at once', () => {
         const page = readFileSync(resolve(root, 'rubin/rubin.js'), 'utf8');
-        expect(page).toContain('arrive = () => { view = toView; windowPx = toWindow; hatchPx = toHatch; };');
+        expect(page).toContain('arrive = () => { view = toView; };');
         expect(page).toContain('if (reducedMotion.matches) { arrive(); render(); return; }');
     });
 });

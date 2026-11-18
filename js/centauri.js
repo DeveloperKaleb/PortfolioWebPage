@@ -419,11 +419,9 @@ export function towardSagA() {
 /* ---- Places on the map --------------------------------------------------------------------
  *
  * The map can be at the Sun, as it always was; at each of the nearest bodies beyond it -
- * Alpha Centauri, Barnard's Star and Luhman 16; or pulled back until all are in view. Each is a centre and a radius to fit, in AU along
- * the map's plane, and how wide the map's dark window is there (dark), as a share of the
- * picture's half-width. Both systems are seen from the Sun ("Nearest bodies", since it also
- * holds Luhman 16; the id stays 'both' so links keep working), with the rings about it and a
- * smaller window, so Alpha Centauri sits out near the edge (owner, 2026-11-14). */
+ * every other system within a million AU; or pulled back until all are in view. Each is a
+ * centre and a radius to fit, in AU along the map's plane. All are seen from the Sun in
+ * "Nearest bodies" (the id stays 'both' so links keep working), with the rings about it. */
 /* Up to the next round figure of two digits: 15,070 to 16,000, 0.449 to 0.45. */
 export const roundUp = (x) => {
     const step = 10 ** (Math.floor(Math.log10(x)) - 1);
@@ -458,12 +456,12 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
     const farthest = Math.max(...systems.map((on) => along(on.centre) + on.extent));
     const farthest3D = Math.max(...systems.map((on) => on.centre.r + on.extent3D));
     const out = {
-        sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, dark: 1 },
-        both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000, dark: 0.65 },
+        sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, },
+        both: { id: 'both', name: 'the nearest bodies', label: 'Nearest bodies', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000 },
     };
     for (const on of systems) {
         const { id, name } = on.system;
-        out[id] = { id, name, label: name, cx: on.centre.x, cy: on.centre.y, cz: on.centre.z, ...reachOf(on), dark: 1 };
+        out[id] = { id, name, label: name, cx: on.centre.x, cy: on.centre.y, cz: on.centre.z, ...reachOf(on) };
     }
     return out;
 }
