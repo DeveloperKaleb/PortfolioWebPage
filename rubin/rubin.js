@@ -25,8 +25,8 @@ import { SCOPE_AU } from '../js/orbit.js';
 import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
-import { RUBIN_COLORS as C } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, MERCURY_AU, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, MERCURY_AU, PLANET_ORBITS, SEEN_NEAR, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -103,6 +103,42 @@ function attachDetails(target, rows) {
         showTooltip(rows, box.right, box.top);
     });
     target.addEventListener('blur', hideTooltip);
+}
+
+/* Hover alone, for parts of a control that is itself the thing focused and spoken (the
+   pieces of a "Go to" symbol): the control's own label carries the same words. */
+function hoverDetails(target, rows) {
+    target.addEventListener('pointermove', (e) => showTooltip(rows, e.clientX, e.clientY));
+    target.addEventListener('pointerleave', hideTooltip);
+}
+
+/* A system's symbol in "Go to": a disc for one star; for several, the disc cut into one
+   wedge per member, each with its own hover. Each member's piece is coloured for its
+   type and shaped for its kind (starKind): filled for a star, a ring for a tundr, a dot in
+   a ring for a white dwarf. */
+const SYMBOL_PX = 18;
+function starSymbol(system) {
+    const r = SYMBOL_PX / 2 - 2;
+    const c = SYMBOL_PX / 2;
+    const box = svg('svg', { class: 'rubin-map-go-symbol', width: SYMBOL_PX, height: SYMBOL_PX, viewBox: `0 0 ${SYMBOL_PX} ${SYMBOL_PX}`, 'aria-hidden': 'true' });
+    const n = system.members.length;
+    const at = (radius, turn) => [c + radius * Math.sin(turn * 2 * Math.PI), c - radius * Math.cos(turn * 2 * Math.PI)].map((v) => v.toFixed(2)).join(',');
+    const wedge = (radius, k) => (n === 1
+        ? `M${c - radius},${c}a${radius},${radius} 0 1,0 ${2 * radius},0a${radius},${radius} 0 1,0 ${-2 * radius},0Z`
+        : `M${c},${c}L${at(radius, k / n)}A${radius},${radius} 0 0,1 ${at(radius, (k + 1) / n)}Z`);
+    system.members.forEach((member, k) => {
+        const { colour, shape } = starKind(member.type);
+        const ink = STAR_TYPE_COLORS[colour];
+        const piece = svg('g', { class: 'rubin-map-go-piece' });
+        if (shape === 'disc') piece.append(svg('path', { d: wedge(r, k), fill: ink, stroke: C.space, 'stroke-width': n > 1 ? 1 : 0 }));
+        else {
+            piece.append(svg('path', { d: wedge(r - 0.75, k), fill: C.space, stroke: ink, 'stroke-width': 1.5 }));
+            if (shape === 'dot') piece.append(svg('path', { d: wedge(r / 2.2, k), fill: ink }));
+        }
+        hoverDetails(piece, [[member.name, memberTypeText(member)]]);
+        box.append(piece);
+    });
+    return box;
 }
 
 /* What a tundr is, in a native <dialog>. A click on the backdrop closes it, as Escape
@@ -1007,12 +1043,17 @@ function drawMap(digest) {
        systems when it is crossing between them (journeyView). For a visitor who asked for
        less motion it is simply there. */
     const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
-    const bodyPicker = el('select', { class: 'rubin-tool rubin-map-go', 'aria-label': 'Go to one of the nearest bodies' });
+    const goInput = el('input', {
+        type: 'text', class: 'rubin-tool rubin-map-go-input', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false',
+        'aria-controls': 'rubin-map-go-list', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'go',
+        placeholder: `Type a name (${SYSTEMS.length} systems)`, 'aria-label': 'Go to a star system: type its name, or choose from the list',
+    });
+    const goList = el('ul', { id: 'rubin-map-go-list', class: 'rubin-map-go-list', role: 'listbox', 'aria-label': 'Star systems, nearest first' });
     const zoomOnRow = el('span', { class: 'rubin-map-zoom-on' });
     const zoomOnBarnard = el('span', { class: 'rubin-map-zoom-on' });
     function showPlace() {
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
-        bodyPicker.value = place.id === 'both' ? '' : place.id;
+        for (const option of goList.children) option.classList.toggle('is-here', option.dataset.place === place.id);
         zoomOnRow.hidden = place.id !== 'centauri';
         zoomOnBarnard.hidden = place.id !== 'barnard';
         findLight.hidden = place.id !== 'sun';
@@ -1176,20 +1217,85 @@ function drawMap(digest) {
     depth.append(flatButton, threeDButton);
     controls.append(depth, zoomIn, zoomOut, reset, findLight, fullButton, readout);
 
-    /* Where the map can go: a list of the bodies, nearest first, showing the one the map is
-       at, and a button for the view that holds them all, pressed while there, when the list
-       asks for a choice instead (owner, 2026-11-14). Both are always there, so a keyboard's
+    /* Where the map can go: a list of the systems, nearest first, marking the one the map is
+       at, and a button for the view that holds them all, pressed while there (owner,
+       2026-11-14). Both are always there, so a keyboard's
        focus is never left on a control that has gone; the two close-ups appear on arriving
        at Alpha Centauri. */
     const travel = el('div', { class: 'rubin-map-controls rubin-map-travel', role: 'group', 'aria-label': 'Go to another place on the map' });
     travel.append(el('span', { class: 'rubin-map-travel-label' }, 'Go to:'));
-    bodyPicker.append(el('option', { value: '', disabled: '' }, 'Choose a body'));
-    for (const target of [PLACES.sun, PLACES.centauri, PLACES.barnard, PLACES.luhman16]) {
-        bodyPicker.append(el('option', { value: target.id }, target.label));
+    /* Every system (SYSTEMS), found by typing (owner, 2026-11-18): a text box with the list
+       under it, nearest first, narrowed as you type (findSystems). Each has a symbol for its
+       stars' types (starSymbol), its name, whose hover gives the whole system's type, and
+       how far it is. Arrow keys move through the list, Enter goes, Escape closes it. */
+    const goBox = el('span', { class: 'rubin-map-go' });
+    goBox.append(goInput, goList);
+    goList.hidden = true;
+    const goOptions = new Map(SYSTEMS.map((s) => {
+        const option = el('li', { id: `rubin-go-${s.id}`, class: 'rubin-map-go-option', role: 'option', 'aria-selected': 'false', 'data-place': s.id });
+        const at = PLACES[s.id];
+        const far = s.id === 'sun' ? 'home' : `${(Math.hypot(at.cx, at.cy, at.cz ?? 0) / AU_PER_LIGHT_YEAR).toFixed(1)} ly`;
+        const name = el('span', { class: 'rubin-map-go-name' }, s.name);
+        hoverDetails(name, [[s.name, systemTypeText(s)]]);
+        option.append(starSymbol(s), name, el('span', { class: 'rubin-map-go-far' }, far));
+        /* The option's spoken name says its types, for anyone not hovering. */
+        option.setAttribute('aria-label', `${s.name}, ${far.replace('ly', 'light years')}: ${systemTypeText(s)}`);
+        /* Pressing keeps the box's focus, so the list is not closed before the click lands. */
+        option.addEventListener('pointerdown', (e) => e.preventDefault());
+        option.addEventListener('click', () => chooseSystem(s));
+        goList.append(option);
+        return [s.id, option];
+    }));
+    let goShown = [];
+    let goActive = -1;
+    function setGoActive(k) {
+        goActive = k;
+        goShown.forEach((s, j) => goOptions.get(s.id).setAttribute('aria-selected', String(j === k)));
+        const active = goShown[k];
+        if (active) {
+            goInput.setAttribute('aria-activedescendant', `rubin-go-${active.id}`);
+            goOptions.get(active.id).scrollIntoView({ block: 'nearest' });
+        } else goInput.removeAttribute('aria-activedescendant');
     }
-    bodyPicker.addEventListener('change', () => { if (PLACES[bodyPicker.value]) goTo(PLACES[bodyPicker.value]); });
+    function openGo() {
+        goShown = findSystems(goInput.value);
+        for (const [id, option] of goOptions) option.hidden = !goShown.some((s) => s.id === id);
+        goList.hidden = false;
+        goInput.setAttribute('aria-expanded', 'true');
+        setGoActive(goInput.value.trim() && goShown.length ? 0 : -1);
+    }
+    function closeGo() {
+        goList.hidden = true;
+        goInput.setAttribute('aria-expanded', 'false');
+        setGoActive(-1);
+        hideTooltip();
+    }
+    function chooseSystem(s) {
+        goInput.value = '';
+        closeGo();
+        goInput.blur();
+        if (PLACES[s.id]) goTo(PLACES[s.id]);
+    }
+    goInput.addEventListener('focus', openGo);
+    goInput.addEventListener('click', () => { if (goList.hidden) openGo(); });
+    goInput.addEventListener('input', openGo);
+    goInput.addEventListener('blur', closeGo);
+    goInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (goList.hidden) openGo();
+            if (!goShown.length) return;
+            const step = e.key === 'ArrowDown' ? 1 : -1;
+            setGoActive(goActive < 0 ? (step > 0 ? 0 : goShown.length - 1) : (goActive + step + goShown.length) % goShown.length);
+        } else if (e.key === 'Enter') {
+            const s = goShown[goActive] ?? (goInput.value.trim() ? goShown[0] : undefined);
+            if (s) { e.preventDefault(); chooseSystem(s); }
+        } else if (e.key === 'Escape') {
+            if (!goList.hidden) { e.preventDefault(); e.stopPropagation(); goInput.value = ''; closeGo(); }
+        }
+    });
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
-    travel.append(bodyPicker, nearestButton);
+    travel.append(goBox, nearestButton);
     zoomOnRow.append(el('span', { class: 'rubin-map-travel-label' }, 'Zoom on:'));
     for (const [label, body, radiusAU] of [['Proxima', system.proxima, 0.07], ['A and B', system.centre, 45]]) {
         const button = el('button', { type: 'button', class: 'rubin-tool' }, label);

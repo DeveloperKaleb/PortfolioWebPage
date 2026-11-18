@@ -310,6 +310,68 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
     };
 }
 
+/* ---- The systems "Go to" lists ------------------------------------------------------------
+ *
+ * Every system the map holds, in "Go to" (owner, 2026-11-18: every system, found by typing,
+ * each with a symbol for its stars' types, the full type on hovering a name, and a system
+ * of several stars split into one piece per star, each with its own). In order of distance;
+ * id is the place it goes to, and each member's key is its mark on the map. Types are the
+ * usual spectral classes: the Sun's by definition; A, B and Proxima from SIMBAD; Barnard's
+ * Star from SIMBAD; Luhman 16 A and B from the 2025 spectroscopic atlas (arXiv:2503.19322). */
+export const SYSTEMS = [
+    { id: 'sun', name: 'The Sun', members: [{ key: 'body:sun', name: 'The Sun', type: 'G2 V' }] },
+    { id: 'centauri', name: 'Alpha Centauri', members: [
+        { key: 'body:a', name: 'Alpha Centauri A', type: 'G2 V' },
+        { key: 'body:b', name: 'Alpha Centauri B', type: 'K1 V' },
+        { key: 'body:proxima', name: 'Proxima Centauri', type: 'M5.5 Ve' },
+    ] },
+    { id: 'barnard', name: "Barnard's Star", members: [{ key: 'body:barnard', name: "Barnard's Star", type: 'M4 V' }] },
+    { id: 'luhman16', name: 'Luhman 16', members: [
+        { key: 'body:luhmanA', name: 'Luhman 16 A', type: 'L7.5' },
+        { key: 'body:luhmanB', name: 'Luhman 16 B', type: 'T0.5' },
+    ] },
+];
+
+/* What a spectral type means, in words, and how its symbol is drawn: the colour's name in
+   RUBIN_COLORS-style keys (STAR_TYPE_COLORS, js/rubincolors.js), and the shape - a filled
+   disc for a star burning hydrogen, a dot in a ring for a white dwarf, a ring for a tundr.
+   O, B, A and F share one colour: white. */
+export function starKind(type) {
+    const letter = type.trim()[0].toUpperCase();
+    if (letter === 'D') return { colour: 'white', shape: 'dot', words: "a white dwarf: the burnt-out core of a star like the Sun, about Earth's size" };
+    if ('LTY'.includes(letter)) return { colour: 'tundr', shape: 'ring', words: 'a Hydrogen Tundr, usually called a brown dwarf: too light to burn hydrogen' };
+    if (letter === 'M') return { colour: 'red', shape: 'disc', words: 'a red dwarf: a small, cool star, the commonest kind' };
+    if (letter === 'K') return { colour: 'orange', shape: 'disc', words: 'an orange dwarf: a star a little smaller and cooler than the Sun' };
+    if (letter === 'G') return { colour: 'yellow', shape: 'disc', words: 'a yellow dwarf: a star like the Sun' };
+    return { colour: 'white', shape: 'disc', words: 'a white star: larger and hotter than the Sun' };
+}
+
+/* One member's type in full, for hovering its piece of the symbol. */
+export const memberTypeText = (member) => `${member.type}, ${starKind(member.type).words}`;
+
+/* The whole system's type, for hovering its name: how many stars and tundrs, and each one's
+   type. */
+export function systemTypeText(system) {
+    const { members } = system;
+    if (members.length === 1) return memberTypeText(members[0]);
+    const counts = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six'];
+    const allTundrs = members.every((m) => starKind(m.type).shape === 'ring');
+    const anyTundr = members.some((m) => starKind(m.type).shape === 'ring');
+    const what = allTundrs ? 'Hydrogen Tundrs' : anyTundr ? 'bodies' : 'stars';
+    return `${counts[members.length] ?? members.length} ${what}: ${members.map((m) => `${m.name.replace(`${system.name} `, '')}, ${m.type}`).join('; ')}`;
+}
+
+/* The systems whose name, or any member's, holds what was typed: letters and digits only,
+   in any case, so "barnards" finds Barnard's Star and "proxima" Alpha Centauri. Those whose
+   own name starts with it first; otherwise in the list's order. */
+export function findSystems(query, systems = SYSTEMS) {
+    const plain = (text) => text.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+    const q = plain(query);
+    if (!q) return systems;
+    const hits = systems.filter((s) => [s.name, ...s.members.map((m) => m.name)].some((n) => plain(n).includes(q)));
+    return [...hits.filter((s) => plain(s.name).startsWith(q)), ...hits.filter((s) => !plain(s.name).startsWith(q))];
+}
+
 /* A distance for the far end of the map: AU while that reads well, light years beyond. */
 export function farDistanceText(distanceAU) {
     if (distanceAU < 100) return `${distanceAU.toFixed(distanceAU < 10 ? 2 : 1)} AU`;

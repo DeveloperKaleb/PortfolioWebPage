@@ -2607,24 +2607,86 @@ main.rubin {
     display: none;
 }
 
-/* The list of bodies to go to. The native arrow is drawn in the system's colour, which
-   on this brown can vanish, so a caret in the text colour is drawn instead, as the games'
-   lists do; the open list's options get the page's colours for the same reason. */
+/* "Go to": a box to type a system's name in, with every system listed under it (owner,
+   2026-11-18), over whatever is below. */
 .rubin-map-go {
-    appearance: none;
-    -webkit-appearance: none;
-    padding-right: 34px;
-    background-image:
-        linear-gradient(45deg, transparent 50%, #e3e7af 50%),
-        linear-gradient(135deg, #e3e7af 50%, transparent 50%);
-    background-position: calc(100% - 20px) center, calc(100% - 14px) center;
-    background-size: 6px 6px, 6px 6px;
-    background-repeat: no-repeat;
+    position: relative;
+    display: inline-block;
 }
 
-.rubin-map-go option {
-    background: #3b3026;
+.rubin-map-go-input {
+    width: 14em;
+    max-width: 60vw;
+    min-height: 40px;
+    box-sizing: border-box;
+    text-align: left;
+    cursor: text;
+}
+
+.rubin-map-go-input::placeholder {
+    color: #b8bc93;
+    opacity: 1;
+}
+
+.rubin-map-go-list {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 100%;
+    max-height: min(50vh, 320px);
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px;
+    box-sizing: border-box;
+    list-style: none;
+    background: #17120e;
+    border: 1px solid #b8bc93;
+    border-radius: 6px;
+    text-align: left;
+}
+
+.rubin-map-go-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 8px;
+    border-radius: 4px;
     color: #e3e7af;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rubin-map-go-option[hidden] {
+    display: none;
+}
+
+.rubin-map-go-option[aria-selected="true"],
+.rubin-map-go-option:hover {
+    background: #3b3026;
+}
+
+/* The one Enter would choose, plain to see without colour. */
+.rubin-map-go-option[aria-selected="true"] {
+    outline: 1px solid #e3e7af;
+    outline-offset: -1px;
+}
+
+/* Where the map is now. */
+.rubin-map-go-option.is-here .rubin-map-go-name {
+    text-decoration: underline;
+}
+
+.rubin-map-go-symbol {
+    flex: none;
+}
+
+.rubin-map-go-far {
+    margin-left: auto;
+    padding-left: 12px;
+    color: #b8bc93;
+    font-size: 0.85em;
 }
 
 /* Flat or 3D: two buttons as one control, the one in use pressed. */

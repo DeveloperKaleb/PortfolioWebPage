@@ -4129,3 +4129,30 @@ the bottom-left corner beside "Toward SagA" in the bottom-right, which until the
 only in the nearest-bodies view. Both are drawn by `arrow` in `render`; the Earth arrow
 points from the middle of the map back to the Sun (from that far, Earth and the Sun are
 one point), and in 3D takes in how far it lies out of the plane.
+
+## Out to a million AU: "Go to" every system (owner, 2026-11-18)
+
+The owner wants the map to hold everything known out to 1,000,000 AU (15.8 light years),
+under the rules already used for the four systems. That is about 40 more systems, from the
+10 parsec census (Reylé et al. 2021, A&A 650, A201). Their decisions: show candidate
+planets (labelled unconfirmed); keep the ruler from the Sun to Alpha Centauri; list every
+system in "Go to", found by typing, each with a symbol for its stars' types.
+
+Planned in three stages. (1) "Go to" and the list of systems. (2) Places, drawing and
+hatching worked out from the list rather than written per system. (3) The data for the
+rest.
+
+**Stage 1 (done).** `SYSTEMS` in `js/centauri.js` lists the systems nearest first, each
+member with its mark's key and spectral type. "Go to" is a text box with the list under
+it (an ARIA combobox: arrows, Enter, Escape), narrowed by `findSystems`, which matches
+system and member names ignoring case and punctuation ("proxima" finds Alpha Centauri).
+Each option has:
+- a symbol (`starSymbol` in `rubin/rubin.js`): a disc for one star, cut into one wedge per
+  member for several, each wedge with its own hover;
+- the name, whose hover gives the whole system's type (`systemTypeText`);
+- the distance.
+
+Colour and shape come from `starKind`. Red, orange, yellow, white and pink
+(`STAR_TYPE_COLORS` in `js/rubincolors.js`) are held to the contrast rules in
+`tests/rubin/systems.test.js`. Stars are filled, tundrs are rings, white dwarfs are a dot
+in a ring. Phones have no hover, so each option's spoken label carries the same words.

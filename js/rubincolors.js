@@ -18,3 +18,15 @@ export const RUBIN_COLORS = {
     grundy: '#f2995a', // Grundy's reading
     watch: '#dde36f', // objects worth watching
 };
+
+/* The symbols for star types in the map's "Go to" list (js/centauri.js, starKind): roughly
+   the colours the stars show, and held to the same rules - each clears 4.5:1 on the page
+   and on the map in the worst case, and red, orange, yellow, white and the tundrs' pink can
+   each be told apart. A white dwarf shares white with the hot stars, and differs in shape. */
+export const STAR_TYPE_COLORS = {
+    red: '#f2805e',
+    orange: '#ffb45c',
+    yellow: '#fff08f',
+    white: '#e4ebff',
+    tundr: '#e79bd0',
+};
