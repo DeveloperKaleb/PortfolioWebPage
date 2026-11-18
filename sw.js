@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261118-1357';
+const VERSION = '20261118-1406';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -85,7 +85,12 @@ const PRECACHE = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE)
-            .then((cache) => cache.addAll(PRECACHE))
+            /* Fetched past the browser's own cache. GitHub Pages lets a browser keep a file
+               for 10 minutes, so a worker installed within 10 minutes of a visit filled its
+               new cache with the unstamped modules (above) from before the push, and kept
+               them until the next one: on 2026-11-18 a computer showed the new footer with
+               the old js/rubinview.js, while a phone, not visited in between, was right. */
+            .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
             // Take over straight away rather than waiting for every tab to close. A
             // worker that lingers is how a stale build gets pinned.
             .then(() => self.skipWaiting())

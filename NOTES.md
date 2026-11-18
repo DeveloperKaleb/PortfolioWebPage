@@ -2588,6 +2588,13 @@ fails if it disagrees with the pages.
 `skipWaiting()` and `clients.claim()` are there for the same reason: a worker that waits
 for every tab to close is a worker that keeps serving the old build.
 
+**The precache is fetched with `cache: 'reload'`** (2026-11-18). Without it, `addAll`
+went through the browser's HTTP cache, which GitHub Pages lets keep a file for 10
+minutes. The unstamped modules (`js/*.js`) visited within those 10 minutes went into the
+new versioned cache as they were before the push, and stayed until the next push. The
+owner's computer showed the new footer (1:57 PM) with the previous `js/rubinview.js`,
+while their phone, which hadn't visited in between, was right.
+
 **It does not register on localhost.** `tools/dev-server.js` sends `Cache-Control:
 no-store` so an edit shows on the next refresh, and a worker serving assets from its own
 cache would quietly undo that — you would edit `style.css`, reload, and see the previous

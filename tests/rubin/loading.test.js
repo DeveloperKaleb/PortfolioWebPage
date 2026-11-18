@@ -56,6 +56,10 @@ describe('The modules are fetched together', () => {
         const worker = read('sw.js');
         needed.forEach((file) => expect(worker).toContain(`/${file}\``));
     });
+
+    test("the service worker fetches them past the browser's cache, so a push is never missed", () => {
+        expect(read('sw.js')).toContain("cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })))");
+    });
 });
 
 describe('The digest is asked for first', () => {
