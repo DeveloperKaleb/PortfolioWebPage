@@ -54,17 +54,38 @@ export function displayName(entry) {
    within SIZE_WIDTH magnitudes), marked as an estimate. */
 export function sizeOf(entry) {
     if (entry.sizeFrom === 'measured') return { km: entry.diameterKm, text: `${kilometres(entry.diameterKm)}`, measured: true };
-    /* Only objects within about a magnitude: uncapped, the bright end takes in dark
-       albedos and overstates the size threefold (Eris from H alone: 6,500 km, not 2,326). */
-    const { albedos, weights } = albedosNear(entry.H, { maxWidth: SIZE_WIDTH });
+    const km = diameterFromH(entry.H, albedoQuantile(entry.H, 0.5));
+    return { km, text: `about ${kilometres(Math.round(km / 10) * 10)}`, measured: false };
+}
+
+/* The albedo below which the given share of objects about as bright fall (weighted).
+   Only objects within about a magnitude: uncapped, the bright end takes in dark albedos
+   and overstates the size threefold (Eris from H alone: 6,500 km, not 2,326). */
+function albedoQuantile(H, q) {
+    const { albedos, weights } = albedosNear(H, { maxWidth: SIZE_WIDTH });
     const order = albedos.map((a, k) => [a, weights[k]]).sort((x, y) => x[0] - y[0]);
-    let total = 0, median = order.at(-1)[0];
+    let total = 0;
     for (const [albedo, w] of order) {
         total += w;
-        if (total >= 0.5) { median = albedo; break; }
+        if (total >= q) return albedo;
     }
-    const km = diameterFromH(entry.H, median);
-    return { km, text: `about ${kilometres(Math.round(km / 10) * 10)}`, measured: false };
+    return order.at(-1)[0];
+}
+
+/* The share of objects about as bright left out at each end of an estimated size's range:
+   the range runs from the 10th to the 90th percentile of their albedos. */
+export const SIZE_RANGE_TAIL = 0.1;
+
+/* Its size with, for an estimate, how small it would be if its surface were as bright as
+   all but a tenth of objects about as bright (low), and how large if as dark (high). */
+export function sizeRange(entry) {
+    const size = sizeOf(entry);
+    if (size.measured) return size;
+    return {
+        ...size,
+        low: diameterFromH(entry.H, albedoQuantile(entry.H, 1 - SIZE_RANGE_TAIL)),
+        high: diameterFromH(entry.H, albedoQuantile(entry.H, SIZE_RANGE_TAIL)),
+    };
 }
 
 export const flagsOf = (entry) => entry.flags.map((name) => ({ name, ...FLAGS[name] }));
@@ -710,4 +731,136 @@ export function moonsOn(jd, planets, known = [], set = BUILT_IN_MOONS) {
             path: moonRing(name, jd, 72, set).map(([rx, ry]) => ({ x: at.x + rx, y: at.y + ry, z: at.z ?? 0 })),
         };
     });
+}
+
+/* ---- Sizes side by side --------------------------------------------------------------------
+ *
+ * The map cannot show size: at the whole map even Jupiter would be far smaller than a
+ * pixel. So the body picked last is drawn beside the two familiar bodies nearest it in
+ * size, all to one scale, under the map (owner, 2026-11-18: "the lack of implied size in the map").
+ * An estimated size shows its range: a solid disc for the size if its surface is bright,
+ * a dashed ring for the size if it is dark. */
+
+/* The IAU's nominal solar radius (2015 Resolution B3), in km. */
+const SUN_RADIUS_KM = 695700;
+/* Jupiter's equatorial diameter at the 1-bar level (NASA's Planetary Fact Sheet), in km. */
+const JUPITER_KM = 142984;
+
+/* The familiar bodies, largest first. Each has the designation it is picked by, so a body
+   is never compared with itself; called is its name inside a sentence. */
+export const SIZE_REFERENCES = [
+    { designation: 'body:sun', name: 'The Sun', called: 'the Sun', km: 2 * SUN_RADIUS_KM },
+    { designation: 'world:Jupiter', name: 'Jupiter', called: 'Jupiter', km: JUPITER_KM },
+    { designation: 'world:Earth', name: 'Earth', called: 'Earth', km: 12756 },
+    { designation: 'world:Luna', name: 'The Moon', called: 'the Moon', km: 3474.8 },
+    { designation: 'world:Ceres', name: 'Ceres', called: 'Ceres', km: 939.4 },
+];
+
+/* The stars' and Luhman 16's tundrs' sizes, from their radii. A and B: Kervella et al. 2017
+   (A&A 597, A137), interferometry. Proxima: 0.1542 +/- 0.0045 solar radii, as adopted by
+   Kervella, Thevenin & Lovis 2017. Barnard's Star: Lane, Boden & Kulkarni 2001 (ApJ 551,
+   L81), interferometry, 0.201 +/- 0.008. Luhman 16 A and B have not been measured; their
+   sizes are worked out from their light with models of how tundrs cool (Filippazzo et al.,
+   as used by the 2025 spectroscopic atlas, arXiv:2503.19322): 1.01 and 1.02 Jupiter radii,
+   +/- 0.07, drawn as a range. */
+const star = (designation, name, solarRadii, measured = true) => ({ designation, name, km: 2 * solarRadii * SUN_RADIUS_KM, measured });
+const tundr = (designation, name, jupiterRadii) => ({
+    designation, name, km: jupiterRadii * JUPITER_KM, measured: false, fromModels: true,
+    low: (jupiterRadii - 0.07) * JUPITER_KM, high: (jupiterRadii + 0.07) * JUPITER_KM,
+});
+const STARS = {
+    sun: { ...SIZE_REFERENCES[0], measured: true },
+    a: star('body:a', 'Alpha Centauri A', 1.2234),
+    b: star('body:b', 'Alpha Centauri B', 0.8632),
+    proxima: star('body:proxima', 'Proxima Centauri', 0.1542),
+    barnard: star('body:barnard', "Barnard's Star", 0.201),
+    luhmanA: tundr('body:luhmanA', 'Luhman 16 A', 1.01),
+    luhmanB: tundr('body:luhmanB', 'Luhman 16 B', 1.02),
+};
+/* What each star mark on the map stands for: one star, or a system's members together. */
+export const STAR_SIZES = {
+    'body:sun': [STARS.sun],
+    'body:a': [STARS.a],
+    'body:b': [STARS.b],
+    'body:ab': [STARS.a, STARS.b],
+    'body:centauri': [STARS.a, STARS.b, STARS.proxima],
+    'body:proxima': [STARS.proxima],
+    'body:barnard': [STARS.barnard],
+    'body:luhmanA': [STARS.luhmanA],
+    'body:luhmanB': [STARS.luhmanB],
+    'body:luhman16': [STARS.luhmanA, STARS.luhmanB],
+};
+
+/* How large the largest disc is drawn, and the least anything is drawn: a body smaller
+   than that is a speck at this scale, and says so. */
+export const LINEUP_PX = 88;
+export const SPECK_PX = 2;
+export const EARTH_ROOM_PX = 4;
+
+/* The bodies to draw: the subjects (one body, or a system's members), then the two
+   familiar bodies nearest the largest subject in size (by ratio), and Earth where there is
+   room, largest first; each
+   with its drawn diameter in pixels (px), and for a range the dashed ring's (outerPx). */
+export function sizeLineup(subjects, { maxPx = LINEUP_PX, references = SIZE_REFERENCES } = {}) {
+    const own = new Set(subjects.map((s) => s.designation));
+    const largest = Math.max(...subjects.map((s) => s.km));
+    const nearest = references
+        .filter((r) => !own.has(r.designation))
+        .map((r) => ({ ...r, apart: Math.abs(Math.log(r.km / largest)) }))
+        .sort((p, q) => p.apart - q.apart)
+        .slice(0, 2);
+    /* Earth too, as home, wherever it leaves everything at least EARTH_ROOM_PX across (an
+       estimate at its usual size). */
+    const earth = references.find((r) => r.designation === 'world:Earth');
+    if (earth && !own.has(earth.designation) && !nearest.some((r) => r === earth || r.designation === earth.designation)) {
+        const sizes = [...subjects.map((s) => s.km), ...nearest.map((r) => r.km), earth.km];
+        if ((Math.min(...sizes) / Math.max(...sizes, ...subjects.map((s) => s.high ?? s.km))) * maxPx >= EARTH_ROOM_PX) nearest.push({ ...earth, apart: Infinity });
+    }
+    const top = Math.max(...subjects.map((s) => s.high ?? s.km), ...nearest.map((r) => r.km));
+    const px = (km) => (km * maxPx) / top;
+    const drawn = (body, subject) => {
+        const inner = px(body.low ?? body.km);
+        return {
+            ...body,
+            subject,
+            px: Math.max(SPECK_PX, inner),
+            speck: inner < SPECK_PX,
+            ...(body.high ? { outerPx: Math.max(SPECK_PX, px(body.high)) } : {}),
+        };
+    };
+    return {
+        bodies: [...subjects.map((s) => drawn(s, true)), ...[...nearest].sort((p, q) => q.km - p.km).map((r) => drawn(r, false))],
+        /* The one the sentence compares with: the nearest in size. */
+        nearest: nearest[0],
+    };
+}
+
+/* How many times as wide, in words: "1.5 times", "12 times", "about as wide", "29%". */
+export function widthText(ratio, called) {
+    if (ratio >= 1.15) return `${ratio < 10 ? ratio.toFixed(1) : Math.round(ratio).toLocaleString('en-US')} times as wide as ${called}`;
+    if (ratio > 0.87) return `about as wide as ${called}`;
+    return `${ratio >= 0.1 ? Math.round(ratio * 100) : (ratio * 100).toFixed(1)}% as wide as ${called}`;
+}
+
+const roughly = (km) => (km >= 10000 ? Math.round(km / 1000) * 1000 : km >= 1000 ? Math.round(km / 100) * 100 : Math.round(km / 10) * 10);
+
+/* What the panel says: a title, and a sentence or two under the discs. */
+export function lineupText(subjects, { bodies, nearest }) {
+    const names = subjects.map((s) => s.name);
+    const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
+    const refs = bodies.filter((b) => !b.subject).map((b) => b.called);
+    const title = `${list(names)} beside ${list(refs)}, to one scale`;
+    const lines = [];
+    const main = subjects.reduce((a, b) => (b.km > a.km ? b : a));
+    /* Beside the nearest in size, and beside Earth, home, where it is drawn too. */
+    const earth = bodies.find((b) => !b.subject && b.designation === 'world:Earth' && b.designation !== nearest.designation);
+    const also = earth ? `, and ${widthText(main.km / earth.km, earth.called)}` : '';
+    lines.push(`${main.name} is ${main.measured === false ? 'probably ' : ''}${widthText(main.km / nearest.km, nearest.called)}${also}.`);
+    for (const s of subjects) {
+        if (s.fromModels) lines.push(`${s.name}'s size is worked out from its light with models, not measured: about ${kilometres(roughly(s.km))} across, between ${kilometres(roughly(s.low))} and ${kilometres(roughly(s.high))} (solid disc to dashed ring).`);
+        else if (s.low) lines.push(`${s.name}'s size is estimated from its brightness: about ${kilometres(roughly(s.km))} across, but anywhere from ${kilometres(roughly(s.low))} if its surface is bright (the solid disc) to ${kilometres(roughly(s.high))} if it is dark (the dashed ring).`);
+    }
+    const specks = bodies.filter((b) => b.speck).map((b) => b.name);
+    if (specks.length) lines.push(`${list(specks)} ${specks.length > 1 ? 'are' : 'is'} drawn as the smallest dot that shows: at this scale ${specks.length > 1 ? 'they are' : 'it is'} smaller still.`);
+    return { title, lines };
 }

@@ -4078,3 +4078,26 @@ sat beside whatever was picked, even stars far from the Sun.
 later (which also leaves full screen). The visit's start time is now kept in
 sessionStorage for that tab, so a reload carries on the same light. A new tab is a new
 visit.
+
+## Sizes side by side (owner, 2026-11-18)
+
+The owner felt the map gave no sense of size; of three ideas they chose this one first.
+The map itself cannot show size: even Jupiter is far less than a pixel at the whole map.
+So the body picked last (`pickOrder` in `drawMap`) is drawn under the map beside familiar
+bodies, all to one scale. The maths and words are `sizeLineup`, `lineupText` and
+`sizeRange` in `js/rubinview.js`, tested in `tests/rubin/sizes.test.js`.
+
+- **Which familiar bodies.** The two from `SIZE_REFERENCES` (the Sun, Jupiter, Earth, the
+  Moon, Ceres) nearest in size by ratio, and Earth as well wherever it leaves every disc
+  at least 4px across. A body is never compared with itself. Anything under 2px is drawn
+  as a 2px dot and the panel says it is smaller still.
+- **Estimated sizes show their range.** The solid disc is the size if the surface is as
+  bright as all but a tenth of objects about as bright; the dashed ring is the size if it
+  is as dark as the darkest tenth. The scale fits the ring. "About" in the caption is
+  the usual size (`sizeOf`, the same as the cards).
+- **Stars.** Radii are sourced in `STAR_SIZES`. Luhman 16's tundrs are not measured, only
+  modelled, so they are drawn as a range and the panel says so. A system picked as one
+  dot (Alpha Centauri, A and B, Luhman 16 AB) shows all its members.
+- **Full screen.** The panel sits under the map, or at the foot of the controls when they
+  stand beside it. Stacked, it has a fixed height (`min(30vh, 240px)`), so a pick never
+  has to fit the map again.

@@ -16,6 +16,7 @@ import {
     zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
+    sizeRange, STAR_SIZES, sizeLineup, lineupText, LINEUP_PX,
 } from '../js/rubinview.js';
 import {
     lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, fromStarFraction, rulerTicks, unseenStretch, CENTAURI, UNSEEN_TEXT, UNSEEN_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow, lightTickMs,
@@ -245,8 +246,9 @@ function card(entry, { extra } = {}) {
 
 const selected = new Set();
 const pickers = new Map(); // designation -> the section's picker state
-/* The map redraws on any change, since a picked object's orbit is drawn on it. */
-let onPick = () => {};
+/* The map redraws on any change, since a picked object's orbit is drawn on it, and the
+   sizes under it show the object picked last. */
+let onPick = (designation, on) => {};
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 function select(designation, on, { scrollTo = false } = {}) {
@@ -259,7 +261,7 @@ function select(designation, on, { scrollTo = false } = {}) {
         if (node.hasAttribute('aria-pressed')) node.setAttribute('aria-pressed', String(on));
     });
     renderCards(picker);
-    onPick();
+    onPick(designation, on);
     if (on && scrollTo) {
         picker.cards.get(designation)?.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
     }
@@ -923,7 +925,7 @@ function drawMap(digest) {
         hideTooltip();
         const on = !isPicked(key);
         if (pickers.has(key)) select(key, on, options);
-        else { if (on) bodiesPicked.add(key); else bodiesPicked.delete(key); render(); }
+        else { if (on) bodiesPicked.add(key); else bodiesPicked.delete(key); notePick(key, on); render(); }
         if (on) centreOn(body);
     }
     const pickable = (g, key, body, chosen) => {
@@ -936,7 +938,52 @@ function drawMap(digest) {
         /* A double-click on an object is two clicks on it, not a zoom. */
         g.addEventListener('dblclick', (e) => e.stopPropagation());
     };
-    onPick = () => render();
+    onPick = (key, on) => { notePick(key, on); render(); };
+
+    /* Sizes side by side (owner, 2026-11-18): the body picked last, beside the two familiar
+       bodies nearest it in size, all to one scale (sizeLineup). Picks are kept in order, so
+       letting the last go shows the one before. */
+    const pickOrder = [];
+    const sizeBox = el('div', { class: 'rubin-size', 'aria-live': 'polite' });
+    function subjectsFor(key) {
+        if (STAR_SIZES[key]) return STAR_SIZES[key];
+        const entry = pickers.get(key)?.entries.find((e) => e.designation === key);
+        if (!entry) return null;
+        if (entry.world) return Number.isFinite(entry.km) ? [{ designation: key, name: entry.name, km: entry.km, measured: true }] : null;
+        return [{ designation: key, name: displayName(entry), ...sizeRange(entry) }];
+    }
+    function showSize() {
+        const key = pickOrder.findLast(isPicked);
+        const subjects = key && subjectsFor(key);
+        if (!subjects) {
+            sizeBox.replaceChildren(el('p', { class: 'rubin-note rubin-size-hint' }, 'Pick anything on the map to see its size here, beside familiar bodies, all to one scale.'));
+            return;
+        }
+        const lineup = sizeLineup(subjects);
+        const { title, lines } = lineupText(subjects, lineup);
+        const row = el('div', { class: 'rubin-size-row' });
+        const tall = LINEUP_PX + 6;
+        for (const b of lineup.bodies) {
+            const across = Math.max(b.px, b.outerPx ?? 0) + 6;
+            const item = el('figure', { class: b.subject ? 'rubin-size-item is-subject' : 'rubin-size-item' });
+            const disc = svg('svg', { width: across, height: tall, viewBox: `0 0 ${across} ${tall}`, 'aria-hidden': 'true' });
+            const [cx, cy] = [across / 2, tall / 2];
+            disc.append(svg('circle', { cx, cy, r: b.px / 2, fill: b.subject ? C.text : C.muted }));
+            if (b.outerPx) disc.append(svg('circle', { cx, cy, r: b.outerPx / 2, fill: 'none', stroke: C.text, 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
+            const caption = el('figcaption');
+            caption.append(el('span', { class: 'rubin-size-name' }, b.name), el('span', { class: 'rubin-size-km' }, b.low ? `about ${kilometres(Math.round(b.km / 10) * 10)}` : kilometres(b.km)));
+            item.append(disc, caption);
+            row.append(item);
+        }
+        sizeBox.replaceChildren(el('p', { class: 'rubin-size-title' }, title), row, ...lines.map((t) => el('p', { class: 'rubin-note rubin-size-line' }, t)));
+    }
+    function notePick(key, on) {
+        const k = pickOrder.indexOf(key);
+        if (k >= 0) pickOrder.splice(k, 1);
+        if (on) pickOrder.push(key);
+        showSize();
+    }
+    showSize();
 
     /* Going somewhere: the map glides there (glideView), by way of the view that holds both
        systems when it is crossing between them (journeyView). For a visitor who asked for
@@ -1152,7 +1199,7 @@ function drawMap(digest) {
     const stage = el('div', { class: 'rubin-map-stage' });
     const panel = el('div', { class: 'rubin-map-panel' });
     panel.append(controls, travel);
-    stage.append(panel, plot);
+    stage.append(panel, plot, sizeBox);
     const tooltipHome = tooltip.parentNode;
     function resize(next) {
         if (next === SIZE) return;
@@ -1171,14 +1218,19 @@ function drawMap(digest) {
     }
     /* The controls go above the map, or beside it on a wide screen, whichever leaves the
        map larger (fullScreenSizeFor); the panel beside it is a fixed width. */
+    /* The sizes go under the map, or at the foot of the controls beside it. */
     const fit = () => {
         stage.classList.remove('is-side');
+        stage.append(sizeBox);
         if (!filling) { plot.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth)); return; }
         const [w, h] = [stage.clientWidth || innerWidth, stage.clientHeight || innerHeight];
-        const aboveSize = fullScreenSizeFor(w, h, { above: panel.offsetHeight + 24 });
+        const aboveSize = fullScreenSizeFor(w, h, { above: panel.offsetHeight + sizeBox.offsetHeight + 32 });
         stage.classList.add('is-side');
+        panel.append(sizeBox);
         const sideSize = fullScreenSizeFor(w, h, { above: 16, beside: panel.offsetWidth + 16 });
-        stage.classList.toggle('is-side', sideSize > aboveSize);
+        const side = sideSize > aboveSize;
+        stage.classList.toggle('is-side', side);
+        if (!side) stage.append(sizeBox);
         resize(Math.max(aboveSize, sideSize));
         plot.style.width = `${SIZE}px`;
     };
@@ -1228,7 +1280,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. About Barnard's Star, Mercury's orbit about the Sun is drawn for scale: all four of its planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
+        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the body picked last is drawn beside the two familiar bodies nearest it in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to the nearest bodies beyond the Sun, each where it is on that date. Alpha Centauri, the nearest star system, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. Barnard's Star, the nearest single star, is ${farDistanceText(system.barnard.r)} away. The fainter dot is Luhman 16, two Hydrogen Tundrs about 30 times Jupiter's mass, 6.5 light years away. The dashed circles about Proxima and Barnard's Star are planets' orbits at their right size; how they are tilted is not known, and the one at Alpha Centauri A is an unconfirmed candidate. About Barnard's Star, Mercury's orbit about the Sun is drawn for scale: all four of its planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away. The hatching covers everything beyond 1,000 AU from the Sun short of these bodies, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane.`,
     );
 
     const mapTable = table(
