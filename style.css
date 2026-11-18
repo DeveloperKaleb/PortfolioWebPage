@@ -2591,6 +2591,91 @@ main.rubin {
     margin: 0 0 8px;
 }
 
+/* The bar's three groups (where to go, how near, how it looks), spaced apart more than
+   the buttons in each, so a narrow screen wraps a whole group at a time. */
+.rubin-map-bar {
+    column-gap: 20px;
+    row-gap: 8px;
+}
+
+.rubin-map-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Under the bar: where the map is, and its steps in. */
+.rubin-map-under {
+    min-height: 1.5em;
+}
+
+.rubin-map-under .rubin-zoom-readout {
+    flex-basis: 100%;
+}
+
+.rubin-map-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* "Show": a small menu of what the map draws, over whatever is below. */
+.rubin-map-show {
+    position: relative;
+    display: inline-block;
+}
+
+.rubin-map-show-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    min-width: 13em;
+    padding: 8px;
+    border: 1px solid #b8bc93;
+    border-radius: 8px;
+    background: #17120e;
+    color: #e3e7af;
+    text-align: left;
+}
+
+.rubin-map-show-menu[hidden] {
+    display: none;
+}
+
+.rubin-map-show-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 0 4px;
+    cursor: pointer;
+}
+
+.rubin-map-show-item input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #e3e7af;
+}
+
+.rubin-map-show-item.is-off {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Beside the map in full screen the panel scrolls, so the menu opens in its place. */
+.rubin-map-stage.is-side .rubin-map-show-menu {
+    position: static;
+    margin-top: 4px;
+}
+
 /* The second row: where the map can go. The place it is at is marked like a chosen chip. */
 .rubin-map-travel-label {
     color: #b8bc93;

@@ -48,6 +48,14 @@ const OPENED = (() => {
     } catch { return now; /* storage blocked: this load is the visit */ }
 })();
 const FIRST_KEY = 'rubin-first-visit';
+/* Whether the map draws its hatching and, in 3D, its plane lines: both unless this browser
+   was told otherwise. */
+const SHOWN_KEY = 'rubin-map-shown';
+const shown = { hatching: true, planeLines: true };
+try {
+    const saved = JSON.parse(localStorage.getItem(SHOWN_KEY));
+    for (const key of Object.keys(shown)) if (typeof saved?.[key] === 'boolean') shown[key] = saved[key];
+} catch { /* none saved, or storage blocked */ }
 let firstOpened = OPENED;
 let remembersVisits = false;
 try {
@@ -707,11 +715,36 @@ function drawMap(digest) {
     runLight();
 
     const flatButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'true' }, 'Flat');
+    /* "Show" (owner, 2026-11-18): what the map draws, as checkboxes in a small menu with
+       room for more, each remembered in this browser where it lets us; and, at the Sun,
+       Find the light. */
+    const showItem = (key, text, title) => {
+        const box = el('input', { type: 'checkbox' });
+        box.checked = shown[key];
+        box.addEventListener('change', () => {
+            shown[key] = box.checked;
+            try { localStorage.setItem(SHOWN_KEY, JSON.stringify(shown)); } catch { /* storage blocked: fine for this visit */ }
+            hideTooltip();
+            render();
+        });
+        const item = el('label', { class: 'rubin-map-show-item', title });
+        item.append(box, el('span', {}, text));
+        return { item, box };
+    };
+    const hatching = showItem('hatching', 'Hatching', 'Where nothing has been seen yet');
+    const planeLines = showItem('planeLines', 'Plane lines (3D)', "Lines from each body down to the plane of Earth's orbit, in 3D");
     const threeDButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, '3D');
     const zoomIn = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom in' }, '+');
     const zoomOut = el('button', { type: 'button', class: 'rubin-tool', 'aria-label': 'Zoom out' }, '−');
     const reset = el('button', { type: 'button', class: 'rubin-tool' }, 'Whole map');
-    const fullButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, 'Full screen');
+    const fullButton = el('button', { type: 'button', class: 'rubin-tool rubin-map-icon', 'aria-pressed': 'false', 'aria-label': 'Full screen', title: 'Full screen' });
+    /* Four corners, out to fill the screen, in to leave it. */
+    const fullIcon = (on) => {
+        const icon = svg('svg', { width: 16, height: 16, viewBox: '0 0 16 16', 'aria-hidden': 'true' });
+        icon.append(svg('path', { d: on ? 'M6 1v5H1M10 1v5h5M6 15v-5H1M10 15v-5h5' : 'M1 6V1h5M15 6V1h-5M1 10v5h5M15 10v5h-5', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.8 }));
+        return icon;
+    };
+    fullButton.append(fullIcon(false));
     const readout = el('span', { class: 'rubin-zoom-readout', 'aria-live': 'polite' });
 
     /* Everything is redrawn from the view on each zoom or pan: rings, planets, objects.
@@ -742,7 +775,7 @@ function drawMap(digest) {
                 ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
             ]),
         ], hatchPx, at3);
-        if (holes) {
+        if (holes && shown.hatching) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', 'clip-path': 'url(#rubin-map-window)', class: 'rubin-unseen' });
             attachDetails(unseen, [[UNSEEN_TEXT]]);
@@ -777,7 +810,7 @@ function drawMap(digest) {
         /* In 3D, a dashed line from a body to that plane, with a tick where it meets it: how
            far above or below the plane it sits, at a glance. Drawn under the body's mark. */
         const drop = (body, x, y) => {
-            if (!threeD) return;
+            if (!threeD || !shown.planeLines) return;
             const [fx, fy] = at3(body.x, body.y, ground);
             if (Math.hypot(fx - x, fy - y) < 3) return;
             parts.push(svg('line', { x1: x, y1: y, x2: fx, y2: fy, stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0.7, 'pointer-events': 'none' }));
@@ -1195,7 +1228,9 @@ function drawMap(digest) {
         else plot.removeAttribute('tabindex');
         plot.setAttribute('aria-label', threeD
             ? 'Map in 3D of the listed objects, the Sun, the planets and the tundrs, reaching to the nearest stars. Drag, or use the arrow keys, to turn it and tip it'
-            : 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to Alpha Centauri');
+            : 'Map of the listed objects, the Sun, the planets and the tundrs, seen from above, reaching to every star system within a million AU');
+        planeLines.box.disabled = !threeD;
+        planeLines.item.classList.toggle('is-off', !threeD);
     };
     function setDepth(on) {
         if (on === threeD || travelling) return;
@@ -1304,17 +1339,43 @@ function drawMap(digest) {
         const scale = scaleToShow(lightTravelledAU(Date.now() - OPENED), SIZE, { fitScale: home.fitScale, maxZoom: MAP_ZOOM.max });
         setView(zoomAt(home, scale / home.fitScale, [0, 0]));
     });
-    const controls = el('div', { class: 'rubin-map-controls' });
+    /* One bar above the map (owner, 2026-11-18), in three groups: where to go, how near,
+       and how it looks. It wraps on a narrow screen, a group at a time. */
     const depth = el('span', { class: 'rubin-map-depth', role: 'group', 'aria-label': 'Flat map or 3D' });
     depth.append(flatButton, threeDButton);
-    controls.append(depth, zoomIn, zoomOut, reset, findLight, fullButton, readout);
+    const showButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-expanded': 'false', 'aria-controls': 'rubin-map-show-menu' }, 'Show ▾');
+    const showMenu = el('div', { class: 'rubin-map-show-menu', id: 'rubin-map-show-menu', role: 'group', 'aria-label': 'What the map shows' });
+    showMenu.hidden = true;
+    showMenu.append(hatching.item, planeLines.item, findLight);
+    const showBox = el('span', { class: 'rubin-map-show' });
+    showBox.append(showButton, showMenu);
+    const openShow = (open) => {
+        showMenu.hidden = !open;
+        showButton.setAttribute('aria-expanded', String(open));
+    };
+    showButton.addEventListener('click', () => openShow(showMenu.hidden));
+    showBox.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || showMenu.hidden) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openShow(false);
+        showButton.focus();
+    });
+    showBox.addEventListener('focusout', (e) => { if (!showBox.contains(e.relatedTarget)) openShow(false); });
+    document.addEventListener('pointerdown', (e) => { if (!showBox.contains(e.target)) openShow(false); });
+    findLight.addEventListener('click', () => openShow(false));
+    const zooming = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'Zoom' });
+    zooming.append(zoomOut, zoomIn, reset);
+    const looking = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'How the map looks' });
+    looking.append(depth, showBox, fullButton);
+    showDepth();
 
     /* Where the map can go: a list of the systems, nearest first, marking the one the map is
        at, and a button for the view that holds them all, pressed while there (owner,
        2026-11-14). Both are always there, so a keyboard's
        focus is never left on a control that has gone; the two close-ups appear on arriving
        at Alpha Centauri. */
-    const travel = el('div', { class: 'rubin-map-controls rubin-map-travel', role: 'group', 'aria-label': 'Go to another place on the map' });
+    const travel = el('span', { class: 'rubin-map-group rubin-map-travel', role: 'group', 'aria-label': 'Go to another place on the map' });
     travel.append(el('span', { class: 'rubin-map-travel-label' }, 'Go to:'));
     /* Every system (SYSTEMS), found by typing (owner, 2026-11-18): a text box with the list
        under it, nearest first, narrowed as you type (findSystems). Each has a symbol for its
@@ -1393,6 +1454,9 @@ function drawMap(digest) {
     });
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
     travel.append(goBox, nearestButton);
+    /* Under the bar: where the map is and how near, and the steps in where it has some. */
+    const under = el('div', { class: 'rubin-map-controls rubin-map-under' });
+    under.append(readout);
     /* Each neighbour's steps in (its rungs): at Alpha Centauri, Proxima and the pair; at
        Barnard's Star, whose whole view holds Mercury's orbit for scale with the four planets
        bunched at its middle, those planets, then the innermost (owner, 2026-11-18: "to
@@ -1404,7 +1468,7 @@ function drawMap(digest) {
             button.addEventListener('click', () => goTo(PLACES[id], rungView(id, rung)));
             row.append(button);
         }
-        travel.append(row);
+        under.append(row);
     }
     showPlace();
 
@@ -1415,7 +1479,9 @@ function drawMap(digest) {
        screen the browser's own way brings it back. */
     const stage = el('div', { class: 'rubin-map-stage' });
     const panel = el('div', { class: 'rubin-map-panel' });
-    panel.append(controls, travel);
+    const controls = el('div', { class: 'rubin-map-controls rubin-map-bar' });
+    controls.append(travel, zooming, looking);
+    panel.append(controls, under);
     stage.append(panel, plot, sizeBox);
     const tooltipHome = tooltip.parentNode;
     function resize(next) {
@@ -1459,7 +1525,9 @@ function drawMap(digest) {
         /* The tooltip must be inside what is in full screen to be seen there. */
         (on ? stage : tooltipHome).append(tooltip);
         document.documentElement.classList.toggle('rubin-filling', on);
-        fullButton.textContent = on ? 'Exit full screen' : 'Full screen';
+        fullButton.replaceChildren(fullIcon(on));
+        fullButton.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+        fullButton.setAttribute('title', on ? 'Exit full screen' : 'Full screen');
         fullButton.setAttribute('aria-pressed', String(on));
         fit();
     }

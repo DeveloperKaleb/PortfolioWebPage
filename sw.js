@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261118-1606';
+const VERSION = '20261118-1621';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 

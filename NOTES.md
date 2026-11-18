@@ -4195,6 +4195,24 @@ no request. What to know:
   under a pixel, so the picture is hatched throughout.
 - A single star with no planets gets a view out to Mercury's orbit, drawn for scale.
 
+**One control bar (owner, 2026-11-18, idea 1 of three offered).** The controls above the
+map are one bar in three groups, spaced apart so a narrow screen wraps a group at a time:
+- Go to and Nearest bodies;
+- −, + and Whole view;
+- Flat/3D, "Show ▾" and full screen as a four-corner icon (aria-label says which way).
+
+"Show" opens a small menu: Hatching, Plane lines (3D) and Find the light (at the Sun only).
+More layers can go there later. The menu closes on Escape (focus goes back to the button),
+on a click or tap outside, or when focus leaves it. Beside the map in full screen it opens
+in place, since that panel scrolls. Under the bar sit the readout and the "Zoom on" steps.
+
+**Hatching and plane lines can be turned off (owner, 2026-11-18).** These are checkboxes
+in the Show menu. "Hatching" covers where nothing has been seen. "Plane lines" covers the
+dashed drops to the plane; it is greyed out in the flat view, where those lines don't
+exist. Both start on. The choice is kept in this browser's localStorage
+(`rubin-map-shown`) where storage allows, and only true or false values are read back.
+The light ruler's own hatching is not affected.
+
 **Planets, said everywhere (owner, 2026-11-18).** Each "Go to" row with planets shows a
 small ring with a planet on it. Beside it is the confirmed count, with "+n?" for
 candidates (dashed ring if there are only candidates). Its hover names them; the row's
