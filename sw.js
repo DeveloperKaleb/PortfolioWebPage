@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261119-1333';
+const VERSION = '20261119-1400';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -121,6 +121,11 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
+
+    /* Gaia's star tiles (gaia-stars, published at /gaia-stars/ on the same origin): left to
+       the browser's own cache. Cache-first here would keep every tile a visitor ever saw,
+       up to 47 MB, until the next push. */
+    if (url.pathname.startsWith('/gaia-stars/')) return;
 
     /* Documents go to the network first. The HTML is what names the current ?v= stamps,
        so a visitor with a connection always lands on the newest build - which is the

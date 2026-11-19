@@ -3234,10 +3234,11 @@ Sun: 4.6 pc 39 stars, 9.2 pc 242, 50 pc 37,476 (0.64%), 100 pc 243,700 (4.17%), 
 Drawn from published 3D models, these regions would let the map answer questions like this
 with counts, not brackets: goal 3.
 
-**Step 2, the WebGL layer (built 2026-11-19; preview only).** `js/starview.js` (pure) and
-`starLayer` in `rubin/rubin.js`. Seen only with `?stars=<folder of tiles>`, e.g.
-`?stars=/PortfolioWebPage/tools/gaiastars/out/100000pc&place=block` under `npm run dev`;
-without it the map is as before. The decisions:
+**Step 2, the WebGL layer (built 2026-11-19).** `js/starview.js` (pure) and `starLayer` in
+`rubin/rubin.js`. A preview at first, seen only with `?stars=<folder of tiles>`; since step
+3 (below) on for everyone, from `STARS_ROOT`. `?stars=<folder>` still points it elsewhere
+(a new build under `tools/gaiastars/out/`, say), and `?stars=off` turns it off. The
+decisions:
 
 - **Three layers in a frame** (`.rubin-map-frame`): the Milky Way is now the frame's
   background, Gaia's stars a canvas over it, the map's SVG on top, clear, taking every
@@ -3312,8 +3313,44 @@ in); since 2026-11-19 the spacing goes on past the street in light years (10, 20
 ...; `LIGHT_YEAR_RINGS` in js/rubinview.js) and those rings are labelled "200 light years".
 The street keeps its AU rings, so the two scales meet at the street's edge. Light years
 over parsecs: the Gaia BH1 caption that started this ("1,560 ly") and most public writing
-use them. Still to do before it is more than a preview: a Show item to turn the stars off;
-a note in the picture of where Gaia's 1% stars end; and step 3, a home for the tiles.
+use them.
+
+**Step 3, the tiles' home (2026-11-19): the gaia-stars repository.** Like rubin-data: its
+own public repository, `DeveloperKaleb/gaia-stars`, published with GitHub Pages at
+`developerkaleb.github.io/gaia-stars/`, so on the site's own origin and nothing third-party
+sees a visitor (`STARS_ROOT`, `/gaia-stars/dr3-1pct`). The decisions:
+
+- **A folder per selection**, `dr3-1pct/`: a 2% set, a later data release or a new format
+  goes beside it, and the page moves when it is ready; the old one never changes under it.
+- **Its own repository, not this one:** 47 MB of tiles would weigh down every clone of the
+  site, and rebuilding them is replacing them wholesale.
+- **Tiles marked binary** (`.gitattributes`, `*.bin binary`): this machine converts line
+  endings, and git took two tiles for text (they hold no zero byte). Nothing was changed
+  going in, but a tile with a carriage return in it would have been, and checking one out
+  on Windows would have been. Marked before the first push, so no tile was ever stored
+  wrong.
+- **Credited** as ESA asks, in the repository's README and the tab's Sources: Gaia data
+  are CC BY-SA 3.0 IGO, and the tiles, made from them, are shared under the same licence.
+- **The service worker leaves them alone** (`sw.js`): cache-first would have kept every
+  tile a visitor saw, up to 47 MB, until the next push. The browser's own cache has them
+  (GitHub Pages: ten minutes). The worker is not registered on localhost
+  (`scripts/offline.js`), so this is checked on the live site, not in the preview.
+- **`npm run dev` serves the data repositories** from the folders beside this one, at the
+  same paths (`/rubin-data/`, `/gaia-stars/`), so the preview needs no `?digest=` or
+  `?stars=` when they are checked out there.
+- **Out of preview:** the places are "Galactic block" and "Galactic neighborhood"; Show has
+  "Gaia's stars"; "AU rings" became "Distance rings", since past the street they are in
+  light years; and the map's own description says what the stars are and what they leave
+  out.
+
+To rebuild them: `npm run gaiastars:fetch` and `npm run gaiastars` (above), then copy
+`tools/gaiastars/out/<max-pc>pc/` into a new folder of `../gaia-stars/`, push that, and
+point `STARS_ROOT` at it.
+
+Pointing at a star in the whole Neighborhood checks every star of the tiles under the
+pointer: about 10 ms for its 221,000, brightness tested before anything is projected.
+
+Still to do: a note in the picture of where Gaia's 1% stars end.
 
 
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)

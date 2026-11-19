@@ -25,6 +25,8 @@ const flag = (name) => {
   return i !== -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : null;
 };
 const PORT = Number(flag('port') || process.env.PORT || 8123);
+// Folders beside this repo served at /<name>/, as GitHub Pages serves those repos.
+const SIBLINGS = ['rubin-data', 'gaia-stars'];
 const OPEN = args.includes('--open');
 
 const TYPES = {
@@ -65,6 +67,18 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  // The data repositories GitHub Pages publishes beside the site (rubin-data, gaia-stars)
+  // are served from the folders beside this repo, when they are there, at the same paths.
+  const sibling = SIBLINGS.find((name) => urlPath.startsWith(`/${name}/`));
+  if (sibling) {
+    const base = path.resolve(ROOT, '..', sibling);
+    let rel = urlPath.slice(sibling.length + 1);
+    if (rel.endsWith('/')) rel += 'index.html';
+    const file = path.resolve(base, `.${rel}`);
+    if (!file.startsWith(base + path.sep)) return send(res, 403, '403 Forbidden');
+    return serveFile(res, file, urlPath);
+  }
+
   if (!urlPath.startsWith(`${BASE_PATH}/`)) {
     return send(
       res,
@@ -86,6 +100,10 @@ const server = http.createServer((req, res) => {
     return send(res, 403, '403 Forbidden');
   }
 
+  serveFile(res, file, urlPath);
+});
+
+function serveFile(res, file, urlPath) {
   fs.readFile(file, (err, buf) => {
     if (err) {
       const why = err.code === 'EISDIR' ? ' (directory - try a trailing slash)' : '';
@@ -101,7 +119,7 @@ const server = http.createServer((req, res) => {
     });
     res.end(buf);
   });
-});
+}
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

@@ -33,6 +33,8 @@ A static, vanilla HTML/CSS/JS personal portfolio site with no build step. It is 
   `http://localhost:8123/PortfolioWebPage/`, caching disabled). Add `--open` to launch a
   browser, `-- --port 8124` to move it. This is the only preview that works — see the
   path-conventions gotcha below for why opening `index.html` off the filesystem does not.
+  The data repositories, checked out beside this one (`../rubin-data`, `../gaia-stars`),
+  are served at `/rubin-data/` and `/gaia-stars/` as GitHub Pages serves them.
 - After adding or changing a Mine A Shape! picture in `js/mineshapes.js`: `npm run openings`
   (rewrites `js/mineopenings.js` with the solvable openings and the picture's difficulty
   profile; commit both). The tests fail until it has been run. Add `-- --profile-all` to
@@ -186,10 +188,11 @@ under Vitest without a browser:
 - `js/starview.js` — drawing Gaia's star tiles on the map: which tiles a view needs (best
   first, within the place's edge, under a star budget), the brightness cuts that keep the
   picture honest, how each star looks, the star under the pointer and its words, and
-  Gaia BH1. The WebGL is `starLayer` in `rubin/rubin.js`; preview only, with
-  `?stars=<tiles folder>`, which adds "Galactic block (preview)" (250 pc) and "Galactic
-  neighborhood (preview)" (1,000 pc) places, and Gaia BH1 to "Go to". Each place shows only
-  its own stars. "Go to"'s filter is `GO_KINDS`/`filterSystems` in js/centauri.js. See
+  Gaia BH1. The WebGL is `starLayer` in `rubin/rubin.js`. The tiles live in the
+  `gaia-stars` repository, published beside the site at `/gaia-stars/` (`STARS_ROOT`);
+  `?stars=<folder>` points the page elsewhere, `?stars=off` turns them off. With them come
+  the "Galactic block" (250 pc) and "Galactic neighborhood" (1,000 pc) places and Gaia BH1
+  in "Go to". Each place shows only its own stars. "Go to"'s filter is `GO_KINDS`/`filterSystems` in js/centauri.js. See
   NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
   games' palettes in `logic.js` so the tab does not load the games' code. Held to the

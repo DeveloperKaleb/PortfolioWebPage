@@ -16,7 +16,16 @@
  * from Gaia: they are the street's marks already.
  */
 import { AU_PER_PARSEC } from './centauri.js';
-import { cubeOf, magOf, colourOf } from './startiles.js';
+import { cubeOf, magOf, colourOf, MAG_MIN, MAG_STEP } from './startiles.js';
+
+/* The brightness byte at or under which a star is no fainter than absMag. */
+const magByteOf = (absMag) => Math.floor((absMag - MAG_MIN) / MAG_STEP + 1e-9);
+
+/* Where the tiles live (step 3, 2026-11-19): the gaia-stars repository, published with
+   GitHub Pages beside the site, so on the same origin like rubin-data (DATA_ROOT,
+   js/rubinview.js). Each selection is a folder of its own. */
+export const STARS_ROOT = '/gaia-stars/dr3-1pct';
+export const STARS_REPO = 'https://github.com/DeveloperKaleb/gaia-stars';
 
 export const STREET_AU = 1000000;
 export const STREET_PC = STREET_AU / AU_PER_PARSEC;
@@ -169,14 +178,16 @@ export function nearestStar(tiles, view, project, px, py, { outerPc = Infinity, 
         const [tx, ty] = project(cx * AU_PER_PARSEC, cy * AU_PER_PARSEC, cz * AU_PER_PARSEC);
         if (Math.hypot(tx - px, ty - py) > half * AU_PER_PARSEC * view.scale * Math.sqrt(3) + maxPx) continue;
         const { xyz } = tile;
+        /* The cheap tests first: most stars of a wide view are fainter than the cut. */
+        const faintest = magByteOf(magLimit);
         for (let k = 0; k < tile.count; k++) {
+            if (tile.mag && tile.mag[k] > faintest) continue;
             const [x, y, z] = [xyz[k * 3], xyz[k * 3 + 1], xyz[k * 3 + 2]];
+            const fromSun = Math.hypot(x, y, z);
+            if (fromSun < STREET_PC || fromSun > outerPc) continue;
             const [sx, sy] = project(x * AU_PER_PARSEC, y * AU_PER_PARSEC, z * AU_PER_PARSEC);
             const off = Math.hypot(sx - px, sy - py);
             if (off >= bestPx) continue;
-            if (Math.hypot(x, y, z) < STREET_PC) continue;
-            if (tile.mag && magOf(tile.mag[k]) > magLimit) continue;
-            if (Math.hypot(x, y, z) > outerPc) continue;
             best = { tile, k, x, y, z };
             bestPx = off;
         }

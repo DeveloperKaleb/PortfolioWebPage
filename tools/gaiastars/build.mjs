@@ -4,7 +4,8 @@
  *   node tools/gaiastars/build.mjs --max-pc 100 [--per-node 4096] [--root-half 2048]
  *
  * Writes out/<max-pc>pc/: index.json and one r<path>.bin per node. out/ is not committed:
- * where the tiles will live (a data repository of their own) is step 3 of the plan.
+ * the tiles are published from the gaia-stars repository (NOTES.md, "Step 3"), by copying
+ * this folder into a new folder there.
  */
 import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';

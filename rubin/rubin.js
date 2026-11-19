@@ -33,7 +33,7 @@ import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, GAIA_BH1_SYSTEM, GAIA_BH1_VIEW_PC, gaiaBh1Pc,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, GAIA_BH1_SYSTEM, GAIA_BH1_VIEW_PC, gaiaBh1Pc, STARS_ROOT,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -58,7 +58,7 @@ const FIRST_KEY = 'rubin-first-visit';
 /* Whether the map draws the Milky Way behind it, its AU rings, its hatching and, in 3D, its
    plane lines: all unless this browser was told otherwise. */
 const SHOWN_KEY = 'rubin-map-shown';
-const shown = { milkyWay: true, rings: true, hatching: true, planeLines: true };
+const shown = { milkyWay: true, stars: true, rings: true, hatching: true, planeLines: true };
 try {
     const saved = JSON.parse(localStorage.getItem(SHOWN_KEY));
     for (const key of Object.keys(shown)) if (typeof saved?.[key] === 'boolean') shown[key] = saved[key];
@@ -698,14 +698,14 @@ function drawMap(digest) {
        tiles>, until the tiles have a home (step 3). The preview adds the Galactic block, the
        Local Bubble's scale, so there is room to see them: the street ends where they
        begin. */
-    const STARS_URL = params.get('stars');
+    const STARS_URL = params.get('stars') === 'off' ? null : params.get('stars') ?? STARS_ROOT;
     if (STARS_URL) {
         const r = BLOCK_PC * AU_PER_PARSEC;
-        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: BLOCK_PC };
+        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: BLOCK_PC };
         /* And the neighborhood, the next rung, out to a thousand parsecs: far enough to hold
            Gaia BH1 (owner, 2026-11-19), 477 parsecs out. */
         const n = NEIGHBORHOOD_PC * AU_PER_PARSEC;
-        PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood (preview)', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
+        PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
     }
     /* Gaia BH1, the nearest black hole known, where it is on the map; with the stars only. */
     const BH1 = STARS_URL ? (() => { const [x, y, z] = skyToMap(GAIA_BH1.ra, GAIA_BH1.dec, gaiaBh1Pc() * AU_PER_PARSEC); return { x, y, z }; })() : null;
@@ -869,7 +869,7 @@ function drawMap(digest) {
     let stars = null;
     /* Each place its own stars (owner, 2026-11-19): out to the place's edge; none of Gaia's
        at the street or nearer. */
-    const starsOut = () => (place.beyondStreet ? place.starsPc : 0);
+    const starsOut = () => (place.beyondStreet && shown.stars ? place.starsPc : 0);
     if (STARS_URL) {
         try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut())); } catch { stars = null; }
     }
@@ -1029,7 +1029,9 @@ function drawMap(digest) {
         return { item, box };
     };
     const milkyWay = showItem('milkyWay', 'Milky Way', 'The sky beyond the map, as Gaia counts its stars, turning with the map in 3D');
-    const rings = showItem('rings', 'AU rings', 'Circles of equal distance about the star nearest the middle, each with its distance');
+    /* Only where there are stars of Gaia's to show: the block and further out. */
+    const starsItem = showItem('stars', "Gaia's stars", 'Stars Gaia measured to within 1%, out to the edge of the block or the neighborhood');
+    const rings = showItem('rings', 'Distance rings', 'Circles of equal distance about the star nearest the middle, each with its distance: in AU, and past the street in light years');
     const hatching = showItem('hatching', 'Hatching', 'Where nothing has been seen yet');
     const planeLines = showItem('planeLines', 'Plane lines (3D)', "Lines from each body down to the plane of Earth's orbit, in 3D");
     const threeDButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, '3D');
@@ -1095,7 +1097,7 @@ function drawMap(digest) {
         const [rx, ry] = at3(ringsAbout.x, ringsAbout.y, ground);
         const ringsFrom = Math.hypot(rx - SIZE / 2, ry - SIZE / 2) / view.scale;
         /* Each ring that crosses the picture is named somewhere on it (ringLabelSpot), the
-           names kept clear of each other; "AU rings" in Show turns them all off. Tipped near
+           names kept clear of each other; "Distance rings" in Show turns them all off. Tipped near
            edge-on, dozens of rings crowd the picture, so past 12 only every 2nd, 5th or
            10th is named, counted from the star. */
         const ringNames = [];
@@ -1833,7 +1835,7 @@ function drawMap(digest) {
         return { box, menu, open };
     };
     const show = dropdown('Show ▾', 'rubin-map-show-menu', 'What the map shows');
-    show.menu.append(milkyWay.item, rings.item, hatching.item, planeLines.item, findLight);
+    show.menu.append(milkyWay.item, ...(stars ? [starsItem.item] : []), rings.item, hatching.item, planeLines.item, findLight);
     const showBox = show.box;
     findLight.addEventListener('click', () => show.open(false));
 
@@ -2151,7 +2153,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the AU rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
+        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" pulls back to hold them all. "Galactic block" pulls further back, to 815 light years, and "Galactic neighborhood" to 3,260: there the stars are Gaia's, each where Gaia measured it to within 1%, only those inside the place's edge, with the Milky Way's picture beyond. Point at one, or tap it, to see how far it is, how much light it gives off against the Sun, and its colour. Gaia measured faint stars well only near us, so each view leaves out the stars too faint for Gaia to have caught all the way to its edge; otherwise the stars would seem to crowd about the Sun, which is only how Gaia measures. They thin out about 2,000 light years away, as far as Gaia measured any to 1%. Gaia BH1, the nearest black hole known, is in "Go to", and its Filter narrows the list by what each place holds: kinds of star, white dwarfs, black holes, tundrs on their own, or confirmed planets. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
     );
 
     const mapTable = table(
