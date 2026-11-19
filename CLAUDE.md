@@ -78,7 +78,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is thirty-seven modules, all free of `document`/DOM calls so they stay testable
+The pure layer is thirty-eight modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -178,6 +178,11 @@ under Vitest without a browser:
   one fits, else as few positions as will do), and when the collector's monthly refresh is
   due. Used by the hand tool and the collector, never the page; the collector writes
   rubin-data's `spacecraft.json`, which the page reads once a craft is turned on.
+- `js/startiles.js` — Gaia's stars as compact binary tiles (8 bytes a star, an octree with
+  the most luminous stars highest), for a star layer still to come: turning a Gaia row into
+  the map's frame, writing and reading a tile, and building the tree and its index.
+  `npm run gaiastars:fetch -- --max-pc 100` then `npm run gaiastars -- --max-pc 100` build
+  tiles locally (`tools/gaiastars/`; raw/ and out/ are not committed). See NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
   games' palettes in `logic.js` so the tab does not load the games' code. Held to the
   contrast rules like the rest.

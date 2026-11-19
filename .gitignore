@@ -2,3 +2,8 @@
 # the real digest lives in the rubin-data repo.
 rubin/dev-digest.json
 rubin/dev-changes.json
+
+# Gaia star tiles: the fetched rows and the built tiles stay local until the tiles get a
+# data repository of their own (NOTES.md, "Gaia's stars").
+tools/gaiastars/raw/
+tools/gaiastars/out/

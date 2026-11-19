@@ -3113,7 +3113,7 @@ million, 20% 192.2 million, of 1.81 billion sources (about 1.47 billion with a p
 All of them cannot be served from GitHub Pages (about 1 GB a site): tens of GB even packed.
 The build order agreed:
 
-1. **A compact binary tile format**: about 8 bytes a star (position as three 16-bit
+1. **A compact binary tile format** (built 2026-11-19: `js/startiles.js`, below): about 8 bytes a star (position as three 16-bit
    numbers from its tile's corner, a byte of brightness, a byte of colour), in tiles by
    place and level of detail, so a visitor downloads only what is on screen. At 8 bytes,
    16 million stars is about 130 MB, 49 million about 390 MB, 98 million about 790 MB.
@@ -3139,6 +3139,78 @@ which is modelled is a line the honesty rules ask the page to show. Gaia's error
 all along the line of sight, so an uncertain star is a streak pointing at the Sun, not a
 round blur; past about 20% error, 1/parallax misleads and a catalogue such as Bailer-Jones's
 should give the distance.
+
+**Step 1, the tile format (`js/startiles.js`, built 2026-11-19).** The decisions:
+
+- **Frame and units:** the map's (Sun-centred, ecliptic J2000), in parsecs; Gaia's 2016.0
+  positions, drift since ignored. `skyToMap` in `js/centauri.js` does the turn, shared.
+- **An octree about the Sun**, root half-size `ROOT_HALF` = 2048 pc (the 1% stars reach
+  about 1,300 pc). Each node keeps up to `PER_NODE` = 4096 of the most luminous (lowest
+  absolute G) stars in its cube not taken above; the rest go to its eight children. So the
+  root alone is the brightest stars everywhere, and depth adds the faint ones where the
+  view is close. Ties keep input order, so builds repeat exactly.
+- **8 bytes a star:** x, y, z as 16-bit numbers across the node's cube (error at most
+  half/65535: 0.03 pc, 6,500 AU, in the root, halving each level); absolute G in eighths of
+  a magnitude from -8; BP-RP in fortieths from -1, 255 for none. Brightest first in a tile.
+  No header: a tile is only stars, and `index.json` lists every node as [path, count]
+  pairs (pairs, because an object would sort paths "0" to "7" first, as numbers).
+- **No compression.** On real stars gzip saved only 6% (packed numbers look random), not
+  worth a decompression step in the page.
+- **No per-star distance error yet.** The 1% stars do not need one; a broader set would,
+  drawn as a streak toward the Sun, and would need a format 2 (`FORMAT`).
+
+**First real trial (2026-11-19):** the 243,700 stars within 100 pc with parallax error
+under 1% (one Gaia query, 18.4 MB of CSV): 161 tiles, 7 levels deep, 1.95 MB, exactly 8
+bytes a star. Every star read back from the files matched its brightness and colour bytes,
+and none was further off than the bound (worst 6,446 AU, in the root). By that rate the
+whole 1% set, 5.8 million stars, would be about 47 MB. Built locally only
+(`tools/gaiastars/raw/`, `out/`, both ignored by git) until step 3 gives them a home.
+
+**The whole 1% set (2026-11-19).** 5,837,823 stars (the 335 Gaia has no G for are left
+out), fetched in 30 pieces by `random_index` (`--pieces 30`): an anonymous Gaia job may run
+only 60 seconds, which the whole set does not fit, nor did three of the 30 pieces on the
+day, so a piece that runs out is asked again in halves. Saved as a 209 MB gzipped CSV (442
+MB of text). Built in under a minute (`node --max-old-space-size=8192`, the build reads a
+line at a time): **4,610 tiles, 46.7 MB, exactly 8 bytes a star**, index 70 KB; gzip
+would save 2%. Every star read back from the files matched, none past the bound. By level:
+
+| Level | Tiles (full) | Stars | Position error up to |
+|---|---|---|---|
+| 0 | 1 (1) | 4,096 | 6,446 AU |
+| 1 | 8 (8) | 32,768 | 3,223 AU |
+| 2 | 16 (8) | 33,368 | 1,611 AU |
+| 3 | 56 (28) | 150,718 | 806 AU |
+| 4 | 180 (104) | 513,706 | 403 AU |
+| 5 | 792 (309) | 1,954,682 | 201 AU |
+| 6 | 2,422 (149) | 2,641,853 | 101 AU |
+| 7 | 1,135 (0) | 506,632 | 50 AU |
+
+Things to weigh in step 2: only 16 of level 2's 64 cubes hold anything, as the stars reach
+about 1,300 pc of the root's 2,048 (a smaller root would leave some out); and tiles average
+10 KB, many under 4 KB at level 7, so the page may want to ask for a node's children
+together rather than one request each.
+
+**Which named regions the 1% stars fall in (owner asked, 2026-11-19).** Rough, since only
+distance was used and these regions are shapes, not spheres. Counts by distance from the
+Sun: 4.6 pc 39 stars, 9.2 pc 242, 50 pc 37,476 (0.64%), 100 pc 243,700 (4.17%), 150 pc
+638,284 (10.93%), 250 pc 1,595,027 (27.32%), 500 pc 71.29%, 1,000 pc 99.90%.
+
+- **Local Interstellar Cloud** (9.2 pc across, the Sun near its edge): at most about 40 to
+  240 stars, 0.001% to 0.004%, likely the low end; many of the nearest stars (Alpha
+  Centauri among them) are in neighbouring clouds.
+- **Local Bubble** (about 50 pc toward the galactic centre to 250 pc in a few directions,
+  open toward the galactic poles): about 5% to 15%, perhaps 300,000 to 600,000 stars. A
+  real count needs a published 3D map of it.
+- **Radcliffe Wave** (2,700 pc long, a thin ribbon of gas and young stars): not computed;
+  likely a few percent at most, the 1% stars being mostly old and spread evenly. A real
+  count needs its published 3D shape (Alves et al. 2020).
+- **Orion Arm** (about 1,000 pc wide, the Sun inside): taking it as a straight band through
+  the Sun toward galactic longitude 77 degrees (Cygnus), 71% of the stars lie within 250 pc
+  of its line and 96% within 500 pc; so very roughly 70% to 95%, the rest in the gaps
+  between arms. Straight band and the Sun's place across its width are both assumptions.
+
+Drawn from published 3D models, these regions would let the map answer questions like this
+with counts, not brackets: goal 3.
 
 
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)

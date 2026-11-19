@@ -245,6 +245,10 @@ const toEcliptic = ([x, y, z]) => [
     -y * Math.sin(OBLIQUITY) + z * Math.cos(OBLIQUITY),
 ];
 
+/* A direction on the sky (degrees) at a distance, as [x, y, z] in the map's frame, in the
+   distance's units. Also used for Gaia's stars (js/startiles.js). */
+export const skyToMap = (raDeg, decDeg, distance) => toEcliptic(skyFrame(raDeg, decDeg).out.map((v) => v * distance));
+
 const point = ([x, y, z]) => ({ x, y, z, r: Math.hypot(x, y, z) });
 
 /* Where a catalogued star is in a year, in the map's frame. Its drift across the sky is
