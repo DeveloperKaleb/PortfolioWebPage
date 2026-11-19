@@ -3282,9 +3282,22 @@ without it the map is as before. The decisions:
   wins. Checked once a frame at most.
 - **Gaia BH1** (owner's test, "Where is Gaia BH1?"): a ring, dark inside, at its place
   1,560 light years out (El-Badry et al. 2023; Gaia DR3 4373465352415301632's sky place and
-  parallax), named, with its story on hover; click centres on it. From the Block, where it
-  is out of the picture, a "Toward Gaia BH1" globe points its way. Its companion star, in
-  Gaia's 1% set, sits under the mark.
+  parallax), named, with its story on hover; click centres on it. Its companion star, in
+  Gaia's 1% set, sits under the mark. It is found by searching "Go to" (owner, 2026-11-19:
+  searching, not an arrow - the "Toward Gaia BH1" globe it first had was taken out). Its
+  place there (`GAIA_BH1_SYSTEM`) is a view 100 pc about it with the neighborhood's stars
+  (`starsPc`: a place's stars can reach further than its own view); the rings, about the
+  Sun, read its distance off, and the Toward Earth and Toward SagA globes show the way home
+  and to the galaxy's centre. In the list its symbol is a dark band ringed in white (black
+  holes and neutron stars have no spectral type: `starKind('BH')`, `'NS'`) over its star's
+  yellow.
+- **"Go to"'s filter** (owner, 2026-11-19; `GO_KINDS`, `filterSystems` in js/centauri.js):
+  a Filter menu beside the box, by kind - white stars, yellow, orange and red dwarfs; white
+  dwarfs, neutron stars, black holes; Hydrogen Tundrs on their own (not those orbiting a
+  star) - and "Has confirmed planets". A system shows if it holds any kind ticked (all,
+  none ticked) and, with planets ticked, has a confirmed planet. Each line says how many
+  places it holds; a kind none holds (neutron stars, so far) is listed, greyed, since what
+  is not near us teaches too. The box's placeholder and the button say when it is on.
 
 What the Neighborhood shows: the stars thin out about 2,000 light years out, short of its
 3,260 light-year edge - as far as Gaia measured any to 1%. Turned in 3D, they gather in a
@@ -3300,8 +3313,7 @@ in); since 2026-11-19 the spacing goes on past the street in light years (10, 20
 The street keeps its AU rings, so the two scales meet at the street's edge. Light years
 over parsecs: the Gaia BH1 caption that started this ("1,560 ly") and most public writing
 use them. Still to do before it is more than a preview: a Show item to turn the stars off;
-Gaia BH1 in "Go to"; a note in the picture of where Gaia's 1% stars end; and step 3, a home
-for the tiles.
+a note in the picture of where Gaia's 1% stars end; and step 3, a home for the tiles.
 
 
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)

@@ -245,6 +245,20 @@ export const GAIA_BH1 = {
     parallaxMas: 2.0955,
 };
 export const gaiaBh1Pc = () => 1000 / GAIA_BH1.parallaxMas;
+/* Gaia BH1 as "Go to" lists it, beside the systems (SYSTEMS, js/centauri.js). */
+export const GAIA_BH1_SYSTEM = {
+    id: 'gaiabh1',
+    name: 'Gaia BH1',
+    farText: '1,560 ly',
+    confirmedPlanets: 0,
+    typeText: 'A black hole about 9.6 times the Sun\'s mass, and a star like the Sun circling it',
+    members: [
+        { key: 'body:gaiabh1', name: 'Gaia BH1', type: 'BH' },
+        { key: 'body:gaiabh1', name: "Gaia BH1's star", type: 'G V' },
+    ],
+};
+/* Its own view: 100 parsecs about it, the neighborhood's stars round it. */
+export const GAIA_BH1_VIEW_PC = 100;
 export const GAIA_BH1_ROWS = [
     ['Gaia BH1', 'the nearest black hole known'],
     [`About ${lightYearsText(gaiaBh1Pc())}`, 'from the Sun, in the constellation Ophiuchus'],

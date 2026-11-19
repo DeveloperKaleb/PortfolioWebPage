@@ -2759,6 +2759,25 @@ main.rubin {
     max-width: 20em;
 }
 
+/* "Go to"'s filter menu (2026-11-19): its groups' headings, and how many places show. */
+.rubin-map-go-filter-head {
+    margin: 8px 4px 2px;
+    font-weight: bold;
+}
+
+.rubin-map-go-filter-head:first-child {
+    margin-top: 2px;
+}
+
+.rubin-map-go-count {
+    margin: 8px 4px 0;
+}
+
+.rubin-map-go-none {
+    padding: 6px 10px;
+    font-style: italic;
+}
+
 /* Beside the map in full screen the panel scrolls, so the menu opens in its place. */
 .rubin-map-stage.is-side .rubin-map-show-menu {
     position: static;

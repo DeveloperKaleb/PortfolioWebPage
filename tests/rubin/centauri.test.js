@@ -4,7 +4,9 @@ import { resolve } from 'node:path';
 import {
     centauriOn, binaryOnSky, binaryOffset, places, BINARY, BINARY_A_AU, PLANET_ORBITS, SEEN_NEAR, AU_PER_LIGHT_YEAR,
     farDistanceText, farPlaneText, yearOf, SAG_A, towardSagA, LUHMAN_ORBIT,
+    SYSTEMS as GO_SYSTEMS, GO_KINDS, kindOfMember, kindsOf, filterSystems, starKind, memberTypeText, systemTypeText,
 } from '../../js/centauri.js';
+import { GAIA_BH1_SYSTEM } from '../../js/starview.js';
 import { CENTAURI, UNSEEN_FROM_AU } from '../../js/light.js';
 import {
     initialView, zoomAt, panBy, toScreen, ringRadii, ringLabel, ringSpacing, glideView, journeyView, unseenHoles, MAP_ZOOM,
@@ -444,5 +446,48 @@ describe('Luhman 16 A and B on their orbit (Bedin et al. 2024)', () => {
         const P = places(system, 200);
         const view = initialView(P.luhman16.radiusAU, 750, [P.luhman16.cx, P.luhman16.cy]);
         expect(Math.hypot(pair.b.x - pair.a.x, pair.b.y - pair.a.y) * view.scale).toBeGreaterThan(12);
+    });
+});
+
+describe("Filtering Go to's list", () => {
+    const named = (list) => list.map((x) => x.name);
+    test('every member has a kind the filter knows', () => {
+        const ids = new Set(GO_KINDS.map((k) => k.id));
+        for (const sys of [...GO_SYSTEMS, GAIA_BH1_SYSTEM]) for (const m of sys.members) expect(ids.has(kindOfMember(m.type))).toBe(true);
+    });
+
+    test('with nothing ticked, everything', () => {
+        expect(filterSystems(GO_SYSTEMS)).toHaveLength(GO_SYSTEMS.length);
+    });
+
+    test('by kind: a system shows if it holds any kind ticked', () => {
+        const yellow = named(filterSystems(GO_SYSTEMS, { kinds: new Set(['yellow']) }));
+        expect(yellow).toContain('The Sun');
+        expect(yellow).toContain('Alpha Centauri');
+        const dwarfs = named(filterSystems(GO_SYSTEMS, { kinds: new Set(['whitedwarf']) }));
+        expect(dwarfs).toContain('Sirius');
+    });
+
+    test('tundrs only on their own', () => {
+        const alone = filterSystems(GO_SYSTEMS, { kinds: new Set(['tundr']) });
+        expect(named(alone)).toContain('Luhman 16');
+        for (const sys of alone) expect(sys.members.every((m) => kindOfMember(m.type) === 'tundr')).toBe(true);
+        expect(kindsOf({ members: [{ type: 'M5 V' }, { type: 'T8' }] }).has('tundr')).toBe(false);
+    });
+
+    test('with confirmed planets', () => {
+        const planets = named(filterSystems(GO_SYSTEMS, { planets: true }));
+        expect(planets).toContain('The Sun');
+        expect(planets).toContain('Alpha Centauri');
+        expect(planets).not.toContain('Luhman 16');
+        /* Both at once: kinds and planets. */
+        expect(named(filterSystems(GO_SYSTEMS, { kinds: new Set(['red']), planets: true }))).not.toContain('The Sun');
+    });
+
+    test('a black hole is a kind of its own, said in words, not a spectral type', () => {
+        expect(named(filterSystems([...GO_SYSTEMS, GAIA_BH1_SYSTEM], { kinds: new Set(['blackhole']) }))).toEqual(['Gaia BH1']);
+        expect(starKind('BH').shape).toBe('hole');
+        expect(memberTypeText({ type: 'BH' })).toMatch(/^a black hole/);
+        expect(systemTypeText(GAIA_BH1_SYSTEM)).toMatch(/black hole/);
     });
 });

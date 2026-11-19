@@ -28,12 +28,12 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC, skyToMap } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, GO_KINDS, kindsOf, filterSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC, skyToMap } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, gaiaBh1Pc,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, GAIA_BH1_SYSTEM, GAIA_BH1_VIEW_PC, gaiaBh1Pc,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -212,7 +212,8 @@ function starSymbol(system) {
         const piece = svg('g', { class: 'rubin-map-go-piece' });
         const at = { x: 0, y: k * band, width: CAP_W, height: band };
         piece.append(svg('rect', { ...at, fill: shape === 'disc' ? STAR_TYPE_COLORS[colour] : C.space }));
-        piece.append(svg('rect', { ...at, fill: `url(#rubin-go-tex-${texture})` }));
+        /* A black hole or neutron star: dark, with nothing on it, only its ring (below). */
+        if (shape !== 'hole') piece.append(svg('rect', { ...at, fill: `url(#rubin-go-tex-${texture})` }));
         hoverDetails(piece, [[member.name, memberTypeText(member)]]);
         cap.append(piece);
     });
@@ -700,14 +701,22 @@ function drawMap(digest) {
     const STARS_URL = params.get('stars');
     if (STARS_URL) {
         const r = BLOCK_PC * AU_PER_PARSEC;
-        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r, beyondStreet: true };
+        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: BLOCK_PC };
         /* And the neighborhood, the next rung, out to a thousand parsecs: far enough to hold
            Gaia BH1 (owner, 2026-11-19), 477 parsecs out. */
         const n = NEIGHBORHOOD_PC * AU_PER_PARSEC;
-        PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood (preview)', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true };
+        PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood (preview)', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
     }
     /* Gaia BH1, the nearest black hole known, where it is on the map; with the stars only. */
     const BH1 = STARS_URL ? (() => { const [x, y, z] = skyToMap(GAIA_BH1.ra, GAIA_BH1.dec, gaiaBh1Pc() * AU_PER_PARSEC); return { x, y, z }; })() : null;
+    /* Gaia BH1 is a place "Go to" lists (owner, 2026-11-19: found by searching, not by an
+       arrow): its own view, a hundred parsecs about it, with the neighborhood's stars. */
+    if (BH1) {
+        const r = GAIA_BH1_VIEW_PC * AU_PER_PARSEC;
+        PLACES.gaiabh1 = { id: 'gaiabh1', name: 'Gaia BH1', label: 'Gaia BH1', cx: BH1.x, cy: BH1.y, cz: BH1.z, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
+    }
+    /* What "Go to" lists: every system, and Gaia BH1 with the stars. */
+    const GO_SYSTEMS = BH1 ? [...SYSTEMS, GAIA_BH1_SYSTEM] : SYSTEMS;
     /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
        (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
        middle, and each place is fitted to its bodies' true distances. */
@@ -860,7 +869,7 @@ function drawMap(digest) {
     let stars = null;
     /* Each place its own stars (owner, 2026-11-19): out to the place's edge; none of Gaia's
        at the street or nearer. */
-    const starsOut = () => (place.beyondStreet ? place.radiusAU / AU_PER_PARSEC : 0);
+    const starsOut = () => (place.beyondStreet ? place.starsPc : 0);
     if (STARS_URL) {
         try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut())); } catch { stars = null; }
     }
@@ -1377,12 +1386,11 @@ function drawMap(digest) {
                 ["Barnard's Star lies almost the same way", 'on our sky'],
             ]);
         }
-        /* Gaia BH1: a ring, dark inside, for a black hole; from the block, where it is out of
-           the picture, a globe pointing its way. */
+        /* Gaia BH1: a ring, dark inside, for a black hole. Out of the picture, nothing: it is
+           found in "Go to" (owner, 2026-11-19). */
         if (BH1) {
             const [x, y] = at3(BH1.x, BH1.y, BH1.z);
-            const inside = x > 0 && x < SIZE && y > 0 && y < SIZE;
-            if (inside) {
+            if (x > 0 && x < SIZE && y > 0 && y < SIZE) {
                 drop(BH1, x, y);
                 const chosen = bodiesPicked.has('body:gaiabh1');
                 const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
@@ -1392,8 +1400,6 @@ function drawMap(digest) {
                 pickable(g, 'body:gaiabh1', BH1, chosen);
                 parts.push(g);
                 labels.push({ x, y, text: GAIA_BH1.name, rank: Infinity });
-            } else if (place.beyondStreet) {
-                arrow(48, SIZE - 52, [BH1.x - view.cx, BH1.y - view.cy, BH1.z - (view.cz ?? 0)], 'Toward Gaia BH1', GAIA_BH1_ROWS);
             }
         }
         if (elsewhere) {
@@ -1613,7 +1619,7 @@ function drawMap(digest) {
     const goInput = el('input', {
         type: 'text', class: 'rubin-tool rubin-map-go-input', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false',
         'aria-controls': 'rubin-map-go-list', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'go',
-        placeholder: `Type a name (${SYSTEMS.length} systems)`, 'aria-label': 'Go to a star system: type its name, or choose from the list',
+        placeholder: `Type a name (${GO_SYSTEMS.length} places)`, 'aria-label': 'Go to a star system: type its name, or choose from the list',
     });
     const goList = el('ul', { id: 'rubin-map-go-list', class: 'rubin-map-go-list', role: 'listbox', 'aria-label': 'Star systems, nearest first' });
     /* "Zoom on" steps for each neighbour that has them, shown while there. */
@@ -1922,10 +1928,10 @@ function drawMap(digest) {
     const goBox = el('span', { class: 'rubin-map-go' });
     goBox.append(goInput, goList);
     goList.hidden = true;
-    const goOptions = new Map(SYSTEMS.map((s) => {
+    const goOptions = new Map(GO_SYSTEMS.map((s) => {
         const option = el('li', { id: `rubin-go-${s.id}`, class: 'rubin-map-go-option', role: 'option', 'aria-selected': 'false', 'data-place': s.id });
         const at = PLACES[s.id];
-        const far = s.id === 'sun' ? 'home' : `${(Math.hypot(at.cx, at.cy, at.cz ?? 0) / AU_PER_LIGHT_YEAR).toFixed(1)} ly`;
+        const far = s.id === 'sun' ? 'home' : s.farText ?? `${(Math.hypot(at.cx, at.cy, at.cz ?? 0) / AU_PER_LIGHT_YEAR).toFixed(1)} ly`;
         const name = el('span', { class: 'rubin-map-go-name' }, s.name);
         hoverDetails(name, [[s.name, systemTypeText(s)]]);
         /* Its planets, if any: a ring with a dot and how many are confirmed, and "+n?" for
@@ -1942,6 +1948,12 @@ function drawMap(digest) {
         goList.append(option);
         return [s.id, option];
     }));
+    /* "Go to"'s filter (owner, 2026-11-19), from its menu beside the box: kinds ticked, and
+       whether to keep only those with confirmed planets (filterSystems). */
+    const goFilter = { kinds: new Set(), planets: false };
+    const goNone = el('li', { class: 'rubin-map-go-none', role: 'presentation' }, 'Nothing here matches the filter.');
+    goNone.hidden = true;
+    goList.append(goNone);
     let goShown = [];
     let goActive = -1;
     function setGoActive(k) {
@@ -1954,8 +1966,9 @@ function drawMap(digest) {
         } else goInput.removeAttribute('aria-activedescendant');
     }
     function openGo() {
-        goShown = findSystems(goInput.value);
+        goShown = findSystems(goInput.value, filterSystems(GO_SYSTEMS, goFilter));
         for (const [id, option] of goOptions) option.hidden = !goShown.some((s) => s.id === id);
+        goNone.hidden = goShown.length > 0;
         goList.hidden = false;
         goInput.setAttribute('aria-expanded', 'true');
         setGoActive(goInput.value.trim() && goShown.length ? 0 : -1);
@@ -1990,8 +2003,42 @@ function drawMap(digest) {
             if (!goList.hidden) { e.preventDefault(); e.stopPropagation(); goInput.value = ''; closeGo(); }
         }
     });
+    /* The filter's menu: the kinds, in their groups, each with how many places hold it, and
+       confirmed planets. A kind none holds is listed, greyed, so the list says what is not
+       here too (no neutron star is known this near). */
+    const filter = dropdown('Filter ▾', 'rubin-map-go-filter', 'Narrow the places Go to lists', 'rubin-map-go-filter');
+    const filterCount = el('p', { class: 'rubin-note rubin-map-go-count', 'aria-live': 'polite' });
+    const applyFilter = () => {
+        const n = filterSystems(GO_SYSTEMS, goFilter).length;
+        const on = goFilter.kinds.size || goFilter.planets;
+        filterCount.textContent = on ? `${n} of ${GO_SYSTEMS.length} places shown` : `All ${GO_SYSTEMS.length} places shown`;
+        goInput.placeholder = on ? `Type a name (${n} of ${GO_SYSTEMS.length} places)` : `Type a name (${GO_SYSTEMS.length} places)`;
+        filter.box.querySelector('button').textContent = on ? 'Filter (on) ▾' : 'Filter ▾';
+        if (!goList.hidden) openGo();
+    };
+    const tick = (label, count, onChange) => {
+        const box = el('input', { type: 'checkbox' });
+        const item = el('label', { class: 'rubin-map-show-item' });
+        item.append(box, el('span', {}, `${label} (${count})`));
+        if (!count) { box.disabled = true; item.classList.add('is-off'); }
+        box.addEventListener('change', () => onChange(box.checked));
+        return item;
+    };
+    let group = null;
+    for (const kind of GO_KINDS) {
+        if (kind.group !== group) {
+            group = kind.group;
+            filter.menu.append(el('p', { class: 'rubin-map-go-filter-head' }, group));
+        }
+        const count = GO_SYSTEMS.filter((s) => kindsOf(s).has(kind.id)).length;
+        filter.menu.append(tick(kind.label, count, (on) => { if (on) goFilter.kinds.add(kind.id); else goFilter.kinds.delete(kind.id); applyFilter(); }));
+    }
+    filter.menu.append(el('p', { class: 'rubin-map-go-filter-head' }, 'Planets'));
+    filter.menu.append(tick('Has confirmed planets', GO_SYSTEMS.filter((s) => s.confirmedPlanets > 0).length, (on) => { goFilter.planets = on; applyFilter(); }));
+    filter.menu.append(filterCount);
+    applyFilter();
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
-    travel.append(goBox, nearestButton);
+    travel.append(goBox, filter.box, nearestButton);
     if (PLACES.block) {
         blockButton.addEventListener('click', () => goTo(PLACES.block));
         hoodButton.addEventListener('click', () => goTo(PLACES.neighborhood));

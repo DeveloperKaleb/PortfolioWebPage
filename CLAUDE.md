@@ -188,7 +188,8 @@ under Vitest without a browser:
   picture honest, how each star looks, the star under the pointer and its words, and
   Gaia BH1. The WebGL is `starLayer` in `rubin/rubin.js`; preview only, with
   `?stars=<tiles folder>`, which adds "Galactic block (preview)" (250 pc) and "Galactic
-  neighborhood (preview)" (1,000 pc) places. Each place shows only its own stars. See
+  neighborhood (preview)" (1,000 pc) places, and Gaia BH1 to "Go to". Each place shows only
+  its own stars. "Go to"'s filter is `GO_KINDS`/`filterSystems` in js/centauri.js. See
   NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
   games' palettes in `logic.js` so the tab does not load the games' code. Held to the

@@ -480,8 +480,12 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
  * SIMBAD; Barnard's Star from SIMBAD; Luhman 16 A and B from the 2025 spectroscopic atlas
  * (arXiv:2503.19322). */
 export const SYSTEMS = [
-    { id: 'sun', name: 'The Sun', members: [{ key: 'body:sun', name: 'The Sun', type: 'G2 V' }] },
-    ...NEIGHBOURS.map((s) => ({ id: s.id, name: s.name, members: s.members.map((m) => ({ key: `body:${m.id}`, name: m.name, type: m.type })) })),
+    { id: 'sun', name: 'The Sun', confirmedPlanets: 8, members: [{ key: 'body:sun', name: 'The Sun', type: 'G2 V' }] },
+    ...NEIGHBOURS.map((s) => ({
+        id: s.id, name: s.name,
+        confirmedPlanets: (s.planets ?? []).filter((p) => p.status === 'confirmed').length,
+        members: s.members.map((m) => ({ key: `body:${m.id}`, name: m.name, type: m.type })),
+    })),
 ];
 
 /* What a spectral type means, in words, and how its symbol is drawn: the colour's name in
@@ -489,6 +493,10 @@ export const SYSTEMS = [
    disc for a star burning hydrogen, a dot in a ring for a white dwarf, a ring for a tundr.
    O, B, A and F share one colour: white. */
 export function starKind(type) {
+    /* Stellar remnants that are not white dwarfs have no spectral type: these two words
+       stand in for one (2026-11-19, for Gaia BH1). Dark, ringed, like a tundr. */
+    if (type === 'BH') return { colour: 'white', shape: 'hole', plain: true, words: "a black hole: what is left when a very heavy star collapses, so dense that not even light gets out" };
+    if (type === 'NS') return { colour: 'white', shape: 'hole', plain: true, words: 'a neutron star: the collapsed core of a heavy star, a city across and heavier than the Sun' };
     const letter = type.trim()[0].toUpperCase();
     if (letter === 'D') return { colour: 'white', shape: 'dot', words: "a white dwarf: the burnt-out core of a star like the Sun, about Earth's size" };
     if ('LTY'.includes(letter)) return { colour: 'tundr', shape: 'ring', words: 'a Hydrogen Tundr, usually called a brown dwarf: too light to burn hydrogen' };
@@ -521,11 +529,12 @@ export function planetSummary(planets, systemName = '') {
 }
 
 /* One member's type in full, for hovering its piece of the symbol. */
-export const memberTypeText = (member) => `${member.type}, ${starKind(member.type).words}`;
+export const memberTypeText = (member) => (starKind(member.type).plain ? starKind(member.type).words : `${member.type}, ${starKind(member.type).words}`);
 
 /* The whole system's type, for hovering its name: how many stars and tundrs, and each one's
    type. */
 export function systemTypeText(system) {
+    if (system.typeText) return system.typeText;
     const { members } = system;
     if (members.length === 1) return memberTypeText(members[0]);
     const counts = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six'];
@@ -544,6 +553,38 @@ export function findSystems(query, systems = SYSTEMS) {
     if (!q) return systems;
     const hits = systems.filter((s) => [s.name, ...s.members.map((m) => m.name)].some((n) => plain(n).includes(q)));
     return [...hits.filter((s) => plain(s.name).startsWith(q)), ...hits.filter((s) => !plain(s.name).startsWith(q))];
+}
+
+/* "Go to"'s filter (owner, 2026-11-19): by what a system holds, and whether it has
+   confirmed planets. Kinds of star, then stellar remnants, then tundrs on their own (not
+   those that orbit a star). A system shows if it holds any of the kinds ticked (all, if
+   none is), and, with "planets" ticked, has a confirmed planet too. */
+export const GO_KINDS = [
+    { id: 'white', group: 'Stars', label: 'White stars' },
+    { id: 'yellow', group: 'Stars', label: 'Yellow dwarfs' },
+    { id: 'orange', group: 'Stars', label: 'Orange dwarfs' },
+    { id: 'red', group: 'Stars', label: 'Red dwarfs' },
+    { id: 'whitedwarf', group: 'Stellar remnants', label: 'White dwarfs' },
+    { id: 'neutronstar', group: 'Stellar remnants', label: 'Neutron stars' },
+    { id: 'blackhole', group: 'Stellar remnants', label: 'Black holes' },
+    { id: 'tundr', group: 'Hydrogen Tundrs', label: 'Tundrs on their own' },
+];
+export function kindOfMember(type) {
+    if (type === 'BH') return 'blackhole';
+    if (type === 'NS') return 'neutronstar';
+    const { colour, shape } = starKind(type);
+    if (shape === 'dot') return 'whitedwarf';
+    if (shape === 'ring') return 'tundr';
+    return colour;
+}
+export function kindsOf(system) {
+    const kinds = new Set(system.members.map((m) => kindOfMember(m.type)));
+    /* Tundrs count only on their own: a system that is nothing else. */
+    if (kinds.has('tundr') && kinds.size > 1) kinds.delete('tundr');
+    return kinds;
+}
+export function filterSystems(systems, { kinds = new Set(), planets = false } = {}) {
+    return systems.filter((s) => (!kinds.size || [...kindsOf(s)].some((k) => kinds.has(k))) && (!planets || s.confirmedPlanets > 0));
 }
 
 /* A distance for the far end of the map: AU while that reads well, light years beyond. */
