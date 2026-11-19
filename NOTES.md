@@ -3306,11 +3306,25 @@ decisions:
   dashed circle (not a point). Most are too bright for Gaia, so their distances are from
   Hipparcos or the papers cited in each one's hover and the tab's Sources; where the
   measurements disagree the hover gives the range. Betelgeuse, asked about by the owner:
-  550 ly by its pulsations (Joyce et al. 2020), 720 by radio and Hipparcos parallax (Harper
-  et al. 2017) - too bright for Gaia, and its disc, about nine times wider than its
+  550 ly by its pulsations (Joyce et al. 2020), 500 by Hipparcos alone, 720 by radio and
+  Hipparcos together (Harper et al. 2017) - too bright for Gaia, and its disc, about nine times wider than its
   parallax, has a boiling surface that moves its centre of light. The companion reported
   in 2025 may one day give an orbital parallax; the hover says so. Adding one: an entry in
   `NOTABLES`, a test line in `tests/rubin/notables.test.js`, and its source in the Sources.
+- **Checked against the catalogues, 2026-11-19** (`tools/simbadcheck/`: `sample.mjs`,
+  `fetch.py`, `check.py`, the answers in `raw/`, the result in `report.txt`). SIMBAD was
+  down (Strasbourg and its Harvard mirror), so against what it draws on: Gaia DR3 from
+  ESA's archive, and Hipparcos, Babusiaux et al. 2018's cluster members and the ATNF
+  pulsars from VizieR's Harvard mirror. A seeded random 1,000 of the tiles' 5.84 million
+  stars all match a Gaia DR3 star within the tiles' rounding (under 0.3% wrong at 95%);
+  all 37 neighbours placed from Gaia agree with it by source_id (three wide companions
+  take their primary's parallax, by design); the notable stars' places are within 0.02"
+  of Hipparcos's carried to 2000, and their distances agree except where the hover
+  already says the measurements disagree: Betelgeuse (Hipparcos 153 pc, we use 168) and
+  Deneb (Hipparcos 433 pc, we use 802). The Hyades' centre was 1.3 degrees (1.1 pc) from
+  its members' mean; the Pleiades' 0.24. Spectral types agree with Hipparcos's. Then, by
+  the owner's choice: Betelgeuse's range became 500 to 720 ly and Deneb's 1,400 to 2,600,
+  each with the Hipparcos figure in its hover, and the Hyades moved to its members' mean.
 - **Kinds they brought** (`starKind`, `GO_KINDS`): giants (luminosity class II-III) and
   supergiants (I), coloured by spectral letter; clusters ('CL') and nebulae ('NEB'), shape
   'cloud', drawn dark with a ring in "Go to" like a remnant. The filter has lines for each.

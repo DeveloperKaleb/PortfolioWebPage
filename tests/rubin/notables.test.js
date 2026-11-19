@@ -36,10 +36,12 @@ describe('the notable objects', () => {
 
     it("say where their distances disagree, Betelgeuse's above all", () => {
         const text = byId.betelgeuse.rows.flat().join(' ');
-        expect(text).toContain('550 to 720 light years');
+        expect(text).toContain('500 to 720 light years');
+        expect(text).toContain('van Leeuwen 2007');
         expect(text).toContain('Joyce et al. 2020');
         expect(text).toContain('Harper et al. 2017');
-        expect(byId.betelgeuse.system.farText).toBe('~550 to 720 ly');
+        expect(byId.betelgeuse.system.farText).toBe('~500 to 720 ly');
+        expect(byId.deneb.system.farText).toBe('~1,400 to 2,600 ly');
         expect(byId.vega.system.farText).toBe('25 ly');
     });
 

@@ -6,7 +6,9 @@
  *
  * Most are too bright for Gaia to measure (it was built for faint stars), so they are not
  * in the tiles: their places come from the measurements cited, and where those disagree
- * the words say so. Positions are J2000 sky places (SIMBAD's) and a distance in parsecs.
+ * the words say so. Positions are J2000 sky places (SIMBAD's; the Hyades' is its 515
+ * members' mean, Babusiaux et al. 2018) and a distance in parsecs. Checked against the
+ * catalogues on 2026-11-19: tools/simbadcheck/report.txt.
  * kind: 'star', 'neutronstar', 'blackhole', 'cluster' or 'nebula'; type: a spectral type
  * for stars ('NS', 'BH', 'CL', 'NEB' otherwise), which "Go to"'s symbol and filter read.
  */
@@ -38,7 +40,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'hyades', name: 'Hyades', kind: 'cluster', type: 'CL', ra: 66.725, dec: 15.87, pc: 47.5,
+        id: 'hyades', name: 'Hyades', kind: 'cluster', type: 'CL', ra: 67.689, dec: 16.845, pc: 47.5,
         where: 'in Taurus', source: 'Gaia DR2 (Gaia Collaboration, Babusiaux et al. 2018)',
         facts: [
             ['The nearest star cluster:', 'hundreds of stars born together, about 650 million years ago'],
@@ -72,8 +74,8 @@ export const NOTABLES = [
     },
     {
         id: 'betelgeuse', name: 'Betelgeuse', kind: 'star', type: 'M2 Iab', ra: 88.79294, dec: 7.40706, pc: 168,
-        where: 'in Orion', source: 'its pulsations (Joyce et al. 2020); 720 ly by its parallax (Harper et al. 2017)',
-        farWords: 'About 550 to 720 light years',
+        where: 'in Orion', source: 'its pulsations, 550 ly (Joyce et al. 2020); Hipparcos alone, 500 (van Leeuwen 2007); radio and Hipparcos together, 720 (Harper et al. 2017)',
+        farWords: 'About 500 to 720 light years',
         facts: [
             ['A red supergiant: in the Sun\'s place', 'it would swallow the orbits of Mercury, Venus, Earth and Mars'],
             ['Expected to explode as a supernova,', 'though perhaps not for 100,000 years'],
@@ -117,8 +119,8 @@ export const NOTABLES = [
     },
     {
         id: 'deneb', name: 'Deneb', kind: 'star', type: 'A2 Ia', ra: 310.35798, dec: 45.28034, pc: 802,
-        where: 'in Cygnus', source: 'its spectrum (Schiller & Przybilla 2008); estimates run from 1,400 to 3,200',
-        farWords: 'About 2,600 light years',
+        where: 'in Cygnus', source: 'its spectrum, 2,600 ly (Schiller & Przybilla 2008); Hipparcos, 1,400 (van Leeuwen 2007); other estimates run to 3,200',
+        farWords: 'About 1,400 to 2,600 light years',
         facts: [
             ['A white supergiant,', 'one of the most luminous stars known'],
             ['If it is as far as thought,', 'it gives off nearly 200,000 times the Sun\'s light'],

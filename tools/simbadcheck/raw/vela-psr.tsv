@@ -1,0 +1,56 @@
+#
+#   VizieR Astronomical Server vizier.cfa.harvard.edu
+#    Date: 2026-11-19T20:41:16 [V7.6.1]
+#   In case of problem, please report to:	cds-question@unistra.fr
+#
+#
+#Coosys	J2000:	eq_FK5 J2000
+#INFO	service_protocol=ASU	  IVOID of the protocol through which the data was retrieved
+#INFO	request_date=2026-11-19T20:41:16	  Query execution date
+#INFO	request=https://vizier.cfa.harvard.edu/viz-bin/asu-tsv?-source=B%2Fpsr%2Fpsr&PSRJ=J0835-4510&-out.all=	  Full request URL
+#INFO	contact=cds-question@unistra.fr	  Email or URL to contact publisher
+#INFO	server_software=VizieR/7.6.1	  Software version
+#INFO	publisher=CDS	  Data centre that produced the VOTable
+#INFO	MaxTuples=50000	
+
+#RESOURCE=yCat_102034
+#Name: B/psr
+#Title: ATNF Pulsar Catalogue (Manchester+, 2005)
+#INFO	ivoid=ivo://cds.vizier/b/psr	    IVOID of underlying data collection
+#INFO	data_ivoid=ivo://cds.vizier/b/psr	    IVOID of underlying data collection
+#INFO	creator=Manchester R.N.	    First author or institution
+#INFO	cites=bibcode:2005AJ....129.1993M	    Article or Data origin sources
+#INFO	journal=AJ	    Journal name
+#INFO	original_date=2005	    Year of the article publication
+#INFO	reference_url=https://cdsarc.cds.unistra.fr/viz-bin/cat/B/psr	    Dataset landing page
+#INFO	publication_date=2017-07-18	    Date of first publication in the data centre
+#INFO	rights_uri=https://cds.unistra.fr/vizier-org/licences_vizier.html	    Licence URI
+#Table	B_psr_psr:
+#Name: B/psr/psr
+#Title: ATNF Pulsar Catalogue
+#Column	PSRJ	(a12)	Pulsar name based on J2000 coordinates	[ucd=meta.id;meta.main]
+#Column	r_PSRJ	(A7)	Reference of PSRJ (see refs.dat file)	[ucd=meta.ref;pos.frame]
+#Column	RAJ2000	(A11)	Hour of right ascension (J2000)	[ucd=pos.eq.ra]
+#Column	DEJ2000	(A11)	? Degree of Declination (J2000)	[ucd=pos.eq.dec]
+#Column	Plx	(F6.3)	? Annual parallax	[ucd=pos.parallax]
+#Column	e_Plx	(F6.3)	? Mean error on Plx	[ucd=stat.error;pos.parallax]
+#Column	r_Plx	(A7)	Reference of Plx (see refs.dat file)	[ucd=meta.ref;pos.frame]
+#Column	P0	(F17.14)	? Barycentric period of the pulsar	[ucd=time.period]
+#Column	e_P0	(E8.1)	? Mean error on P0	[ucd=stat.error]
+#Column	r_P0	(A7)	Reference of P0 (see refs.dat file)	[ucd=meta.ref;pos.frame]
+#Column	DM	(F11.6)	? Dispersion measure	[ucd=phys.dispMeasure]
+#Column	e_DM	(F7)	? Mean error on e_DM	[ucd=stat.error]
+#Column	r_DM	(A7)	Reference of DM (see refs.dat file)	[ucd=meta.ref;pos.frame]
+#Column	S400	(F7.2)	? Mean flux density at 400MHz	[ucd=phot.flux.density;em.radio.200-400MHz]
+#Column	e_S400	(F8.4)	? Mean error on S400	[ucd=stat.error]
+#Column	r_S400	(A6)	Reference of S400 (see refs.dat file)	[ucd=meta.ref;pos.frame]
+#Column	Dist	(F5.2)	? Best estimate of the pulsar distance using the tc93 DM-based distance as default	[ucd=pos.distance;pos.heliocentric]
+#Column	DistDM	(F5.2)	? Distance based on the tc93 electron density model (4)	[ucd=pos.distance;pos.heliocentric]
+#Column	r_DistDM	(A4)	Reference of DistDM	[ucd=meta.ref;pos.frame]
+#Column	Age	(F13.1)	? Spin down age [{tau}=P/(2dP/dt)]	[ucd=time.age]
+#Column	Edot	(D8.1)	? Spin down energy loss rate (in ergs/s)	[ucd=phys.energy]
+PSRJ	r_PSRJ	RAJ2000	DEJ2000	Plx	e_Plx	r_Plx	P0	e_P0	r_P0	DM	e_DM	r_DM	S400	e_S400	r_S400	Dist	DistDM	r_DistDM	Age	Edot
+ 	 	"h:m:s"	"d:m:s"	mas	mas	 	s	s	 	pc/cm3	pc/cm3	 	mJy	mJy	 	kpc	kpc	 	yr	10-7W
+------------	-------	-----------	-----------	------	------	-------	-----------------	--------	-------	-----------	-------	-------	-------	--------	------	-----	-----	----	-------------	--------
+J0835-4510  	lvm68  	08 35 20.61	-45 10 34.9	 3.500	 0.200	dlrm03 	 0.08932838502400	 4.0e-12	dml02  	  67.990000	  1e-02	dml02  	5000.00	        	tml93 	 0.28	 0.61	tc93	      11300.0	 6.9e+36
+

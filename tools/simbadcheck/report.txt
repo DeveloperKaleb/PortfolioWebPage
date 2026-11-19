@@ -1,0 +1,23 @@
+1. Tiles: 1000 of 1000 sampled stars match a Gaia DR3 star within the rounding.
+   Worst agreement as a share of what the rounding allows: dist 0.90, g 1.00, colour 0.99, sep 0.71
+   No mismatch: at 95% confidence, under 0.3% of the tiles' stars are wrong (rule of three).
+
+2. Neighbours placed from Gaia DR3: 37 checked by source_id; 34 agree to 0.01 mas and mas/yr.
+   DIFFERS 1872046574983497216 {'place_mas': 0.0012631253754199013, 'pmra': 4.893081495538354e-10, 'pmdec': 3.5151970223523676e-10, 'plx': 0.01040356564845979}
+   DIFFERS 385334196532776576 {'place_mas': 0.0014012698988034697, 'pmra': 3.7834979593753815e-10, 'pmdec': 4.354205884737894e-10, 'plx': 0.012090532975435053}
+   DIFFERS 6412596012146801152 {'place_mas': 0.0009585748528345469, 'pmra': 5.002220859751105e-11, 'pmdec': 3.5015546018257737e-10, 'plx': 4.185109052547375}
+   11 more are placed from Hipparcos, orbits or papers (their comments name each); not re-checked here.
+
+3. Notable objects (ours | catalogue):
+   Vega        place off  0.01" |    7.68 pc vs Hipparcos    7.68 pc (+-  0.0) | type A0 V      vs A0Vvar
+   Arcturus    place off  0.00" |   11.26 pc vs Hipparcos   11.26 pc (+-  0.1) | type K1.5 III  vs K2IIIp
+   Aldebaran   place off  0.01" |   20.43 pc vs Hipparcos   20.43 pc (+-  0.3) | type K5 III    vs K5III
+   Polaris     place off  0.00" |  133.00 pc vs Hipparcos  132.63 pc (+-  1.9) | type F7 Ib     vs F7:Ib-IIv SB
+   Betelgeuse  place off  0.01" |  168.00 pc vs Hipparcos  152.67 pc (+- 19.3) | type M2 Iab    vs M2Ib
+   Antares     place off  0.02" |  170.00 pc vs Hipparcos  169.78 pc (+- 28.8) | type M1.5 Iab  vs M1Ib + B2.5V
+   Rigel       place off  0.01" |  265.00 pc vs Hipparcos  264.55 pc (+- 23.8) | type B8 Ia     vs B8Ia
+   Deneb       place off  0.00" |  802.00 pc vs Hipparcos  432.90 pc (+- 60.0) | type A2 Ia     vs A2Ia
+   Hyades      centre off 0.00 deg from the members' mean |   47.5 pc vs   47.3 pc (515 members, mean parallax 21.147 mas)
+   Pleiades    centre off 0.24 deg from the members' mean |  136.0 pc vs  135.9 pc (1326 members, mean parallax 7.360 mas)
+   Vela pulsar place off  0.04" | 287 pc vs ATNF parallax 3.500 +- 0.200 mas = 286 pc
+   Gaia BH1    477.2 pc (El-Badry 2023) vs Gaia DR3 parallax 2.070 +- 0.117 mas = 483 pc
