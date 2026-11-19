@@ -3139,7 +3139,7 @@ The build order agreed:
    numbers from its tile's corner, a byte of brightness, a byte of colour), in tiles by
    place and level of detail, so a visitor downloads only what is on screen. At 8 bytes,
    16 million stars is about 130 MB, 49 million about 390 MB, 98 million about 790 MB.
-2. **A WebGL layer under the existing SVG map** for dense stars: SVG slows past ten
+2. **A WebGL layer under the existing SVG map** (built 2026-11-19, preview only: below) for dense stars: SVG slows past ten
    thousand marks or so. Positions centred on the view before they reach the GPU, whose
    numbers are only 32-bit.
 3. **A separate data repository**, like rubin-data, replaced wholesale rather than keeping
@@ -3233,6 +3233,40 @@ Sun: 4.6 pc 39 stars, 9.2 pc 242, 50 pc 37,476 (0.64%), 100 pc 243,700 (4.17%), 
 
 Drawn from published 3D models, these regions would let the map answer questions like this
 with counts, not brackets: goal 3.
+
+**Step 2, the WebGL layer (built 2026-11-19; preview only).** `js/starview.js` (pure) and
+`starLayer` in `rubin/rubin.js`. Seen only with `?stars=<folder of tiles>`, e.g.
+`?stars=/PortfolioWebPage/tools/gaiastars/out/100000pc&place=block` under `npm run dev`;
+without it the map is as before. The decisions:
+
+- **Three layers in a frame** (`.rubin-map-frame`): the Milky Way is now the frame's
+  background, Gaia's stars a canvas over it, the map's SVG on top, clear, taking every
+  click. The frame took over the SVG's width and centring. A canvas inside the SVG
+  (foreignObject) was passed over: Safari places it wrongly under transforms.
+- **The map's own projection in the shader.** Each tile's centre is placed relative to the
+  view's middle in full precision on the page; only stars' offsets within their tile go to
+  the GPU (32-bit). Works flat and in 3D.
+- **A ball, not a column** (`reachOf`): only stars within the picture's corner distance of
+  the view's middle are drawn, and only tiles touching that ball are fetched. Looking down
+  at first showed a column 2,600 pc deep through a 250 pc view, a white wash.
+- **Tiles best first** (`tilesToDraw`): the largest on screen first, children while a
+  tile is wider than 48 px, at most 400,000 stars; up to 6 fetches at once; tiles not
+  wanted are let go past 1.2 million stars held.
+- **Not inside the street:** stars within a million AU of the Sun are skipped, the 48
+  systems being drawn there already as marks; Gaia's stars begin at the street's edge.
+- **How a star looks** (`lookOf`, `tintOf`): size 1 to 3 px and opacity by absolute
+  magnitude, added together as light; colour from BP-RP, blue-white to orange-red. These
+  are the stars' own colours, roughly, not a palette carrying meaning, so they were not
+  run through the contrast rules - the owner may want to rule on that.
+- **The preview's Galactic block:** a place 250 pc out ("Galactic block (preview)"), so
+  there is room to see them; the hatching is not drawn there.
+
+Measured in the preview: the whole Block view fetched 100 tiles (3.1 MB); at 8x zoom, 218
+in all. Dragging in 3D took 18.4 ms of work a step with the stars and 13.4 ms without (the
+automation tab's own frame rate is throttled, so it cannot be read off that). Still to do
+before it is more than a preview: the AU rings and their labels make a grey disc at this
+scale and should be in light years or parsecs; a Show item to turn the stars off; hover or
+pick for a star (none yet); and step 3, a home for the tiles.
 
 
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)

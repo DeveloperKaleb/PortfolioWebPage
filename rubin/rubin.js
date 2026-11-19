@@ -28,9 +28,11 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
+import { decodeTile, tileName } from '../js/startiles.js';
+import { treeOf, tilesToDraw, lookOf, tintOf, reachOf, STREET_PC, BLOCK_PC } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -489,6 +491,156 @@ function legend(items) {
     return box;
 }
 
+/* Gaia's stars behind the map's marks (step 2 of "Gaia's stars", NOTES.md): WebGL on a
+   canvas under the map's SVG, fed tiles (js/startiles.js) as the view needs them
+   (tilesToDraw, js/starview.js). base: where index.json and the tiles are. Draws with the
+   map's own projection (projector, js/rubinview.js): each tile's centre is placed relative
+   to the view's middle in full precision here, and only the stars' small offsets within
+   their tile go to the graphics card, whose numbers are 32-bit. Returns null where WebGL
+   is not to be had; the map is then as it was. */
+function starLayer(canvas, base, redraw) {
+    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false });
+    if (!gl) return null;
+    const shader = (type, source) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, source);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        return s;
+    };
+    const program = gl.createProgram();
+    gl.attachShader(program, shader(gl.VERTEX_SHADER, `
+        attribute vec3 local;
+        attribute vec4 tint;
+        attribute float size;
+        uniform vec3 offset;
+        uniform vec4 turn;
+        uniform float scale;
+        uniform vec3 centrePc;
+        uniform float streetPc;
+        uniform float reach;
+        uniform float dpr;
+        varying vec4 v;
+        void main() {
+            vec3 d = offset + local * ${AU_PER_PARSEC.toFixed(4)};
+            float across = d.x * turn.x - d.y * turn.y;
+            float up = (d.x * turn.y + d.y * turn.x) * turn.z + d.z * turn.w;
+            bool hidden = length(centrePc + local) < streetPc || length(d) > reach;
+            gl_Position = hidden ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(across * scale, up * scale, 0.0, 1.0);
+            gl_PointSize = size * dpr;
+            v = tint;
+        }`));
+    gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
+        precision mediump float;
+        varying vec4 v;
+        void main() {
+            vec2 p = gl_PointCoord * 2.0 - 1.0;
+            float r = dot(p, p);
+            if (r > 1.0) discard;
+            float a = v.a * (1.0 - r * r);
+            gl_FragColor = vec4(v.rgb * a, a);
+        }`));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    const where = Object.fromEntries(['local', 'tint', 'size'].map((n) => [n, gl.getAttribLocation(program, n)]));
+    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'reach', 'dpr'].map((n) => [n, gl.getUniformLocation(program, n)]));
+    /* Each star's look, by its brightness and colour bytes, worked out once. */
+    const looks = Array.from({ length: 256 }, (_, k) => lookOf(k));
+    const tints = Array.from({ length: 256 }, (_, k) => tintOf(k));
+
+    let tree = null;
+    const tiles = new Map();
+    let loading = 0;
+    const MAX_LOADING = 6;
+    let wanted = [];
+    fetch(`${base}/index.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((index) => {
+        tree = treeOf(index);
+        redraw();
+    }).catch(() => {});
+    const load = (path) => {
+        const node = tree.get(path);
+        tiles.set(path, { state: 'loading' });
+        loading++;
+        fetch(`${base}/${tileName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((buffer) => {
+            const { count, xyz, mag, colour } = decodeTile(new Uint8Array(buffer), node.cube);
+            const { cx, cy, cz } = node.cube;
+            /* Per star: x, y, z within the tile (parsecs), then size; tint as four bytes. */
+            const floats = new Float32Array(count * 4);
+            const bytes = new Uint8Array(count * 4);
+            for (let k = 0; k < count; k++) {
+                floats.set([xyz[k * 3] - cx, xyz[k * 3 + 1] - cy, xyz[k * 3 + 2] - cz, looks[mag[k]].size], k * 4);
+                const t = tints[colour[k]];
+                bytes.set([t[0] * 255, t[1] * 255, t[2] * 255, looks[mag[k]].alpha * 255], k * 4);
+            }
+            const position = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, position);
+            gl.bufferData(gl.ARRAY_BUFFER, floats, gl.STATIC_DRAW);
+            const tint = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, tint);
+            gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.STATIC_DRAW);
+            tiles.set(path, { state: 'ready', count, position, tint, cube: node.cube });
+        }).catch(() => tiles.set(path, { state: 'failed' })).finally(() => {
+            loading--;
+            redraw();
+        });
+    };
+    /* Tiles not wanted for a while are let go once more than this many stars are held. */
+    const HOLD_STARS = 1200000;
+    const forget = () => {
+        let held = 0;
+        for (const t of tiles.values()) if (t.state === 'ready') held += t.count;
+        if (held <= HOLD_STARS) return;
+        const keep = new Set(wanted);
+        for (const [path, t] of tiles) {
+            if (held <= HOLD_STARS) break;
+            if (t.state !== 'ready' || keep.has(path)) continue;
+            gl.deleteBuffer(t.position);
+            gl.deleteBuffer(t.tint);
+            tiles.delete(path);
+            held -= t.count;
+        }
+    };
+    return {
+        draw(view, cam) {
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.round(canvas.clientWidth * dpr);
+            const h = Math.round(canvas.clientHeight * dpr);
+            if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+            gl.viewport(0, 0, w, h);
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            if (!tree) return;
+            wanted = tilesToDraw(tree, view, projector(view, cam));
+            for (const path of wanted) if (!tiles.has(path) && loading < MAX_LOADING) load(path);
+            gl.useProgram(program);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.ONE, gl.ONE);
+            gl.uniform4f(uniform.turn, Math.cos(cam.turn), Math.sin(cam.turn), Math.cos(cam.tilt), Math.sin(cam.tilt));
+            gl.uniform1f(uniform.scale, view.scale / (view.sizePx / 2));
+            gl.uniform1f(uniform.streetPc, STREET_PC);
+            gl.uniform1f(uniform.reach, reachOf(view));
+            gl.uniform1f(uniform.dpr, dpr * canvas.clientWidth / view.sizePx);
+            for (const path of wanted) {
+                const t = tiles.get(path);
+                if (t?.state !== 'ready') continue;
+                const { cx, cy, cz } = t.cube;
+                gl.uniform3f(uniform.offset, cx * AU_PER_PARSEC - view.cx, cy * AU_PER_PARSEC - view.cy, cz * AU_PER_PARSEC - (view.cz ?? 0));
+                gl.uniform3f(uniform.centrePc, cx, cy, cz);
+                gl.bindBuffer(gl.ARRAY_BUFFER, t.position);
+                gl.enableVertexAttribArray(where.local);
+                gl.vertexAttribPointer(where.local, 3, gl.FLOAT, false, 16, 0);
+                gl.enableVertexAttribArray(where.size);
+                gl.vertexAttribPointer(where.size, 1, gl.FLOAT, false, 16, 12);
+                gl.bindBuffer(gl.ARRAY_BUFFER, t.tint);
+                gl.enableVertexAttribArray(where.tint);
+                gl.vertexAttribPointer(where.tint, 4, gl.UNSIGNED_BYTE, true, 4, 0);
+                gl.drawArrays(gl.POINTS, 0, t.count);
+            }
+            forget();
+        },
+    };
+}
+
 function drawMap(digest) {
     const section = document.getElementById('rubin-map');
     /* The map shows where everything is as the page opens (owner, 2026-11-19), not on the
@@ -509,6 +661,15 @@ function drawMap(digest) {
        both (js/centauri.js). */
     const system = centauriOn(yearFraction(MAP_DAY));
     const PLACES = places(system, data.radius, data.radius3D);
+    /* Gaia's stars (NOTES.md, "Gaia's stars"): only in a preview, given ?stars=<folder of
+       tiles>, until the tiles have a home (step 3). The preview adds the Galactic block, the
+       Local Bubble's scale, so there is room to see them: the street ends where they
+       begin. */
+    const STARS_URL = params.get('stars');
+    if (STARS_URL) {
+        const r = BLOCK_PC * AU_PER_PARSEC;
+        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r };
+    }
     /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
        (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
        middle, and each place is fitted to its bodies' true distances. */
@@ -636,12 +797,12 @@ function drawMap(digest) {
         const key = shown.milkyWay && skyTexture ? `${cam.turn.toFixed(4)},${cam.tilt.toFixed(4)}` : 'off';
         if (key === skyKey) return;
         skyKey = key;
-        if (key === 'off') { plot.style.removeProperty('--map-sky'); return; }
+        if (key === 'off') { frame.style.removeProperty('--map-sky'); return; }
         const pen = skyCanvas.getContext('2d');
         const image = pen.createImageData(SKY_PX, SKY_PX);
         paintSky(image, skyTexture, cam);
         pen.putImageData(image, 0, 0);
-        plot.style.setProperty('--map-sky', `url(${skyCanvas.toDataURL()})`);
+        frame.style.setProperty('--map-sky', `url(${skyCanvas.toDataURL()})`);
     };
     const mapDefs = svg('defs');
     mapDefs.append(mapHatch);
@@ -652,6 +813,15 @@ function drawMap(digest) {
        the same, and the layer takes no clicks. */
     const lightLayer = svg('g', { class: 'rubin-light', 'aria-hidden': 'true' });
     plot.append(layer, lightLayer);
+    /* The map's picture is three layers in a frame: the Milky Way as the frame's background,
+       Gaia's stars on a canvas over it, and the map's SVG on top, clear, taking every click. */
+    const frame = el('div', { class: 'rubin-map-frame' });
+    const starCanvas = el('canvas', { class: 'rubin-map-stars', 'aria-hidden': 'true' });
+    frame.append(starCanvas, plot);
+    let stars = null;
+    if (STARS_URL) {
+        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam)); } catch { stars = null; }
+    }
 
     const RULER_HEIGHT = 88;
     const ruler = svg('svg', { viewBox: `0 0 ${RULER_SIZE} ${RULER_HEIGHT}`, class: 'rubin-svg rubin-ruler', role: 'group', 'aria-label': `A ruler from the Sun to ${CENTAURI.name}, the nearest star system` });
@@ -852,7 +1022,7 @@ function drawMap(digest) {
                 ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
             ]),
         ], undefined, at3);
-        if (holes && shown.hatching) {
+        if (holes && shown.hatching && place.id !== 'block') {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', class: 'rubin-unseen' });
             attachDetails(unseen, [[UNSEEN_TEXT]]);
@@ -1268,6 +1438,7 @@ function drawMap(digest) {
             parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
+        stars?.draw(view, cam);
 
         const level = zoomLevel(view);
         const where = place.id === 'sun' ? '' : `${place.label}: `;
@@ -1376,6 +1547,7 @@ function drawMap(digest) {
        systems when it is crossing between them (journeyView). For a visitor who asked for
        less motion it is simply there. */
     const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
+    const blockButton = PLACES.block ? el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.block.label) : null;
     const goInput = el('input', {
         type: 'text', class: 'rubin-tool rubin-map-go-input', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false',
         'aria-controls': 'rubin-map-go-list', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'go',
@@ -1386,6 +1558,7 @@ function drawMap(digest) {
     const zoomRows = new Map(system.systems.filter((on) => on.system.rungs).map((on) => [on.system.id, el('span', { class: 'rubin-map-zoom-on' })]));
     function showPlace() {
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
+        blockButton?.setAttribute('aria-pressed', String(place.id === 'block'));
         for (const option of goList.children) option.classList.toggle('is-here', option.dataset.place === place.id);
         for (const [id, row] of zoomRows) row.hidden = place.id !== id;
         findLight.hidden = place.id !== 'sun';
@@ -1396,7 +1569,8 @@ function drawMap(digest) {
         cancelAnimationFrame(centring);
         travelling = centring = 0;
         const from = view;
-        const direct = place === target || place.id === 'both' || target.id === 'both';
+        const wide = (p) => p.id === 'both' || p.id === 'block';
+        const direct = place === target || wide(place) || wide(target);
         const via = homeView(PLACES.both);
         place = target;
         showPlace();
@@ -1736,6 +1910,10 @@ function drawMap(digest) {
     });
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
     travel.append(goBox, nearestButton);
+    if (PLACES.block) {
+        blockButton.addEventListener('click', () => goTo(PLACES.block));
+        travel.append(blockButton);
+    }
     /* Under the bar: where the map is and how near, and the steps in where it has some. */
     const under = el('div', { class: 'rubin-map-controls rubin-map-under' });
     under.append(readout);
@@ -1764,7 +1942,7 @@ function drawMap(digest) {
     const controls = el('div', { class: 'rubin-map-controls rubin-map-bar' });
     controls.append(travel, zooming, looking);
     panel.append(controls, under);
-    stage.append(panel, plot, sizeBox);
+    stage.append(panel, frame, sizeBox);
     const tooltipHome = tooltip.parentNode;
     function resize(next) {
         if (next === SIZE) return;
@@ -1774,7 +1952,7 @@ function drawMap(digest) {
         view = resizedView(view, next);
         SIZE = next;
         plot.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
-        plot.style.width = filling ? `${SIZE}px` : '';
+        frame.style.width = filling ? `${SIZE}px` : '';
         render();
     }
     /* The controls go above the map, or beside it on a wide screen, whichever leaves the
@@ -1783,7 +1961,7 @@ function drawMap(digest) {
     const fit = () => {
         stage.classList.remove('is-side');
         stage.append(sizeBox);
-        if (!filling) { plot.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth)); return; }
+        if (!filling) { frame.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth)); return; }
         const [w, h] = [stage.clientWidth || innerWidth, stage.clientHeight || innerHeight];
         const aboveSize = fullScreenSizeFor(w, h, { above: panel.offsetHeight + sizeBox.offsetHeight + 32 });
         stage.classList.add('is-side');
@@ -1793,7 +1971,7 @@ function drawMap(digest) {
         stage.classList.toggle('is-side', side);
         if (!side) stage.append(sizeBox);
         resize(Math.max(aboveSize, sideSize));
-        plot.style.width = `${SIZE}px`;
+        frame.style.width = `${SIZE}px`;
     };
     function setFilling(on) {
         if (on === filling) return;
