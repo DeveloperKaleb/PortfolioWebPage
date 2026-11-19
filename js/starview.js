@@ -36,6 +36,18 @@ export const BLOCK_PC = 250;
 export const NEIGHBORHOOD_PC = 1000;
 export const DESCEND_PX = 48;
 export const STAR_BUDGET = 400000;
+/* Pointing (owner, 2026-11-19): stars within NEAR_PX of the pointer brighten and grow, the
+   nearer the more, so it is plain they can be picked; one within PICK_PX is the one a hover
+   names and a click picks. Picture pixels. */
+export const NEAR_PX = 48;
+export const PICK_PX = 10;
+/* How near the pointer a star is, as 1 under it falling smoothly to 0 at NEAR_PX: the
+   shader's sum, here to be tested. */
+export function nearness(px) {
+    if (px >= NEAR_PX) return 0;
+    const t = px / NEAR_PX;
+    return 1 - t * t * (3 - 2 * t);
+}
 
 /* The faintest stars a view shows, as an absolute G magnitude: those Gaia measured to
    within 1% all the way out to the place's edge (outerPc), and no fainter (2026-11-19). Gaia's 1%
@@ -170,7 +182,7 @@ export function lookOf(magByte) {
  * picture shows: not inside the street, not past the place's edge (outerPc). A tile whose cube
  * cannot come within maxPx of the pointer is skipped whole, so this is quick. Null if none.
  */
-export function nearestStar(tiles, view, project, px, py, { outerPc = Infinity, maxPx = 6, magLimit = magLimitOf(outerPc) } = {}) {
+export function nearestStar(tiles, view, project, px, py, { outerPc = Infinity, maxPx = PICK_PX, magLimit = magLimitOf(outerPc) } = {}) {
     let best = null;
     let bestPx = maxPx;
     for (const tile of tiles) {
@@ -268,6 +280,11 @@ export const GAIA_BH1_SYSTEM = {
         { key: 'body:gaiabh1', name: "Gaia BH1's star", type: 'G V' },
     ],
 };
+/* Whether a place's galactic map holds a notable object, pc from the Sun (owner,
+   2026-11-19): a notable object like Gaia BH1 is marked before the pointer comes near, but
+   only once the map drawn about the reader reaches it - Gaia BH1 in the neighborhood, not
+   the block. reachPc: how far the place's stars reach, 0 at the street and nearer. */
+export const holdsNotable = (reachPc, pc) => reachPc > 0 && pc <= reachPc;
 /* Its own view: 100 parsecs about it, the neighborhood's stars round it. */
 export const GAIA_BH1_VIEW_PC = 100;
 export const GAIA_BH1_ROWS = [

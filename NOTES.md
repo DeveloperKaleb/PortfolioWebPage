@@ -3281,6 +3281,41 @@ decisions:
   "a giant" or "a white dwarf" where colour and brightness put it off the run of stars like
   the Sun (rough lines on Gaia's colour-brightness chart). A map mark under the pointer
   wins. Checked once a frame at most.
+- **Stars that look pickable, and are** (owner, 2026-11-19: "they should brighten up to an
+  implied selectability as your cursor gets within a certain distance", and a click did
+  nothing): stars within `NEAR_PX` (48 px) of the pointer brighten and grow in the shader,
+  the nearer the more (`nearness`), and the pointer becomes a hand over one within
+  `PICK_PX` (10 px, up from 6). A click or tap picks it: the map glides to centre on it, a
+  ring marks it, named "A star, 383 light years", its details on hover, and a click on the
+  ring lets it go. To keep the pointer cheap, the star layer plans (tiles, cuts, dimming)
+  only when the view changes and repaints alone as the pointer moves. The ring names keep
+  clear of the picked star's name and Gaia BH1's.
+- **Notable objects only inside the map drawn** (owner, 2026-11-19; `holdsNotable`): a
+  notable object such as Gaia BH1 is marked before the pointer comes near, but only once
+  the place's galactic map reaches it - Gaia BH1 (477 pc) in the neighborhood and its own
+  view, not the block (250 pc) or nearer. Before, the block could show it near its edge,
+  and a click on it tried to centre the map on something outside the block. Turning
+  "Gaia's stars" off does not hide it: it goes with the place, not the stars.
+- **The notable objects** (owner, 2026-11-19; `js/notables.js`): fourteen, chosen by the
+  owner from a proposed list - famous names a reader might wonder "where is that?" about,
+  and examples that fill a gap (a neutron star, clusters, a nebula). In the block: Vega,
+  Arcturus, Aldebaran, the Hyades, RX J1856.5-3754, Polaris, the Pleiades, Betelgeuse,
+  Antares; from the neighborhood: Rigel, the Vela pulsar, the Orion Nebula, Gaia BH1,
+  Deneb. Each is a place in "Go to", its view `notableViewPc` across. Marks: a star a dot,
+  a neutron star a small ring, a black hole a ring dark inside, a cluster or nebula a
+  dashed circle (not a point). Most are too bright for Gaia, so their distances are from
+  Hipparcos or the papers cited in each one's hover and the tab's Sources; where the
+  measurements disagree the hover gives the range. Betelgeuse, asked about by the owner:
+  550 ly by its pulsations (Joyce et al. 2020), 720 by radio and Hipparcos parallax (Harper
+  et al. 2017) - too bright for Gaia, and its disc, about nine times wider than its
+  parallax, has a boiling surface that moves its centre of light. The companion reported
+  in 2025 may one day give an orbital parallax; the hover says so. Adding one: an entry in
+  `NOTABLES`, a test line in `tests/rubin/notables.test.js`, and its source in the Sources.
+- **Kinds they brought** (`starKind`, `GO_KINDS`): giants (luminosity class II-III) and
+  supergiants (I), coloured by spectral letter; clusters ('CL') and nebulae ('NEB'), shape
+  'cloud', drawn dark with a ring in "Go to" like a remnant. The filter has lines for each.
+  At the block's whole view Vega and Arcturus sit a few pixels from the Sun, so their
+  names give way to its; zooming in shows them.
 - **Gaia BH1** (owner's test, "Where is Gaia BH1?"): a ring, dark inside, at its place
   1,560 light years out (El-Badry et al. 2023; Gaia DR3 4373465352415301632's sky place and
   parallax), named, with its story on hover; click centres on it. Its companion star, in

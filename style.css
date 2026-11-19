@@ -2241,6 +2241,11 @@ main.rubin {
     background: none;
 }
 
+/* Over one of Gaia's stars, the pointer says it can be picked. */
+#rubin-map .rubin-map-svg.is-over-star {
+    cursor: pointer;
+}
+
 .rubin-map-stars {
     position: absolute;
     inset: 0;

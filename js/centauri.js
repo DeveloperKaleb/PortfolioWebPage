@@ -497,7 +497,19 @@ export function starKind(type) {
        stand in for one (2026-11-19, for Gaia BH1). Dark, ringed, like a tundr. */
     if (type === 'BH') return { colour: 'white', shape: 'hole', plain: true, words: "a black hole: what is left when a very heavy star collapses, so dense that not even light gets out" };
     if (type === 'NS') return { colour: 'white', shape: 'hole', plain: true, words: 'a neutron star: the collapsed core of a heavy star, a city across and heavier than the Sun' };
+    /* Clusters and nebulae (2026-11-19, the notable objects, js/notables.js): no star of
+       their own; drawn dark with a ring, like a remnant. */
+    if (type === 'CL') return { colour: 'white', shape: 'cloud', plain: true, words: 'a star cluster: hundreds or thousands of stars born together from one cloud' };
+    if (type === 'NEB') return { colour: 'white', shape: 'cloud', plain: true, words: 'a nebula: a cloud of gas and dust, here one where stars are being born' };
     const letter = type.trim()[0].toUpperCase();
+    /* Giants and supergiants, by the luminosity class after the spectral type (II and III
+       giants; Ia, Iab, Ib supergiants): stars grown old and wide (the notable objects). */
+    const lumClass = type.trim().split(/\s+/)[1] ?? '';
+    const hue = { O: 'blue', B: 'blue', A: 'white', F: 'yellow', G: 'yellow', K: 'orange', M: 'red' }[letter] ?? 'white';
+    const swatch = hue === 'blue' ? 'white' : hue;
+    const a = hue === 'orange' ? 'an' : 'a';
+    if (/^I(a\+?|ab|b)?$/.test(lumClass)) return { colour: swatch, shape: 'disc', giant: 'supergiant', words: `${a} ${hue} supergiant: a heavy star near the end of its life, hundreds of times the Sun's width or more` };
+    if (/^II/.test(lumClass)) return { colour: swatch, shape: 'disc', giant: 'giant', words: `${a} ${hue} giant: a star like the Sun grown old and swollen, tens of times its width` };
     if (letter === 'D') return { colour: 'white', shape: 'dot', words: "a white dwarf: the burnt-out core of a star like the Sun, about Earth's size" };
     if ('LTY'.includes(letter)) return { colour: 'tundr', shape: 'ring', words: 'a Hydrogen Tundr, usually called a brown dwarf: too light to burn hydrogen' };
     if (letter === 'M') return { colour: 'red', shape: 'disc', words: 'a red dwarf: a small, cool star, the commonest kind' };
@@ -564,15 +576,22 @@ export const GO_KINDS = [
     { id: 'yellow', group: 'Stars', label: 'Yellow dwarfs' },
     { id: 'orange', group: 'Stars', label: 'Orange dwarfs' },
     { id: 'red', group: 'Stars', label: 'Red dwarfs' },
+    { id: 'giant', group: 'Stars', label: 'Giants' },
+    { id: 'supergiant', group: 'Stars', label: 'Supergiants' },
     { id: 'whitedwarf', group: 'Stellar remnants', label: 'White dwarfs' },
     { id: 'neutronstar', group: 'Stellar remnants', label: 'Neutron stars' },
     { id: 'blackhole', group: 'Stellar remnants', label: 'Black holes' },
     { id: 'tundr', group: 'Hydrogen Tundrs', label: 'Tundrs on their own' },
+    { id: 'cluster', group: 'Clusters and nebulae', label: 'Star clusters' },
+    { id: 'nebula', group: 'Clusters and nebulae', label: 'Nebulae' },
 ];
 export function kindOfMember(type) {
     if (type === 'BH') return 'blackhole';
     if (type === 'NS') return 'neutronstar';
-    const { colour, shape } = starKind(type);
+    if (type === 'CL') return 'cluster';
+    if (type === 'NEB') return 'nebula';
+    const { colour, shape, giant } = starKind(type);
+    if (giant) return giant;
     if (shape === 'dot') return 'whitedwarf';
     if (shape === 'ring') return 'tundr';
     return colour;

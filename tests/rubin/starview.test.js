@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     treeOf, nodeOnScreen, tilesToDraw, tintOf, lookOf, STREET_PC, BLOCK_PC, nearestStar, starRows, lightText, colourText, kindText, lightYearsText,
-    GAIA_BH1_ROWS, gaiaBh1Pc, magLimitOf, frontierOf, frontierLimit, glowOf,
+    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX,
 } from '../../js/starview.js';
 import { buildTree, makeIndex, magByte, colourByte, NO_COLOUR, rootCube } from '../../js/startiles.js';
 import { initialView, projector, zoomAt, FLAT } from '../../js/rubinview.js';
@@ -189,5 +189,28 @@ describe('each place its own stars', () => {
             expect(Math.hypot(cx, cy, cz) - half * Math.sqrt(3)).toBeLessThanOrEqual(100);
         }
         expect(list.length).toBeLessThan(tilesToDraw(tree, blockView, project).length);
+    });
+});
+
+describe('stars near the pointer', () => {
+    it('brighten most under it, less further off, and not at all past NEAR_PX', () => {
+        expect(nearness(0)).toBe(1);
+        expect(nearness(NEAR_PX / 2)).toBeCloseTo(0.5, 6);
+        expect(nearness(NEAR_PX * 0.25)).toBeGreaterThan(nearness(NEAR_PX * 0.75));
+        expect(nearness(NEAR_PX)).toBe(0);
+        expect(nearness(NEAR_PX * 3)).toBe(0);
+    });
+
+    it('can be picked a little way off, well inside the glow', () => {
+        expect(PICK_PX).toBeGreaterThanOrEqual(8);
+        expect(PICK_PX).toBeLessThan(NEAR_PX / 2);
+    });
+});
+
+describe('notable objects, only inside the map drawn', () => {
+    it('marks Gaia BH1 in the neighborhood, not the block or the street', () => {
+        expect(holdsNotable(NEIGHBORHOOD_PC, gaiaBh1Pc())).toBe(true);
+        expect(holdsNotable(BLOCK_PC, gaiaBh1Pc())).toBe(false);
+        expect(holdsNotable(0, gaiaBh1Pc())).toBe(false);
     });
 });

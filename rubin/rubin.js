@@ -15,7 +15,7 @@ import {
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
     zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, nasaImages, knownRow, knownWorlds, isKnownShape,
+    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, LABEL, nasaImages, knownRow, knownWorlds, isKnownShape,
     sizeRange, STAR_SIZES, sizeLineup, lineupText, lineupSubjects, LINEUP_PX,
 } from '../js/rubinview.js';
 import {
@@ -28,12 +28,13 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
+import { NOTABLE_LIST, notableViewPc } from '../js/notables.js';
 import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, GO_KINDS, kindsOf, filterSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC, skyToMap } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, GAIA_BH1_SYSTEM, GAIA_BH1_VIEW_PC, gaiaBh1Pc, STARS_ROOT,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -212,8 +213,9 @@ function starSymbol(system) {
         const piece = svg('g', { class: 'rubin-map-go-piece' });
         const at = { x: 0, y: k * band, width: CAP_W, height: band };
         piece.append(svg('rect', { ...at, fill: shape === 'disc' ? STAR_TYPE_COLORS[colour] : C.space }));
-        /* A black hole or neutron star: dark, with nothing on it, only its ring (below). */
-        if (shape !== 'hole') piece.append(svg('rect', { ...at, fill: `url(#rubin-go-tex-${texture})` }));
+        /* A black hole or neutron star, a cluster or nebula: dark, with nothing on it, only
+           its ring (below). */
+        if (shape !== 'hole' && shape !== 'cloud') piece.append(svg('rect', { ...at, fill: `url(#rubin-go-tex-${texture})` }));
         hoverDetails(piece, [[member.name, memberTypeText(member)]]);
         cap.append(piece);
     });
@@ -526,6 +528,7 @@ function starLayer(canvas, base, redraw) {
         uniform float streetPc;
         uniform float outerPc;
         uniform float dpr;
+        uniform vec3 pointer;
         varying vec4 v;
         void main() {
             vec3 d = offset + local * ${AU_PER_PARSEC.toFixed(4)};
@@ -534,8 +537,16 @@ function starLayer(canvas, base, redraw) {
             float fromSun = length(centrePc + local);
             bool hidden = fromSun < streetPc || fromSun > outerPc || mag > magLimit;
             gl_Position = hidden ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(across * scale, up * scale, 0.0, 1.0);
-            gl_PointSize = size * dpr;
-            v = vec4(tint.rgb, tint.a * glow);
+            /* Near the pointer (pointer.xy, in picture pixels about the middle; pointer.z the
+               reach, 0 when away): brighter and larger, the nearer the more (nearness). */
+            float near = 0.0;
+            if (pointer.z > 0.0) {
+                vec2 at = vec2(across, -up) * scale * pointer.z;
+                float t = clamp(length(at - pointer.xy) / ${NEAR_PX.toFixed(1)}, 0.0, 1.0);
+                near = 1.0 - t * t * (3.0 - 2.0 * t);
+            }
+            gl_PointSize = mix(size, max(size + 1.5, 3.0), near) * dpr;
+            v = vec4(tint.rgb, mix(tint.a * glow, max(tint.a * glow, 0.95), near));
         }`));
     gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
         precision mediump float;
@@ -550,7 +561,7 @@ function starLayer(canvas, base, redraw) {
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
     const where = Object.fromEntries(['local', 'tint', 'size', 'mag'].map((n) => [n, gl.getAttribLocation(program, n)]));
-    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr'].map((n) => [n, gl.getUniformLocation(program, n)]));
+    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr', 'pointer'].map((n) => [n, gl.getUniformLocation(program, n)]));
     /* Each star's look, by its brightness and colour bytes, worked out once. */
     const looks = Array.from({ length: 256 }, (_, k) => lookOf(k));
     const tints = Array.from({ length: 256 }, (_, k) => tintOf(k));
@@ -611,29 +622,41 @@ function starLayer(canvas, base, redraw) {
             held -= t.count;
         }
     };
-    return {
-        /* The star drawn at a point of the picture, as hover rows; null if none. */
-        pick(view, cam, x, y) {
-            if (!outerPc) return null;
-            const ready = wanted.map((p) => tiles.get(p)).filter((t) => t?.state === 'ready');
-            const hit = nearestStar(ready, view, projector(view, cam), x, y, { outerPc, magLimit: limit });
-            return hit && starRows(hit, hit.tile.mag[hit.k], hit.tile.colour[hit.k]);
-        },
-        /* outer: the place's edge in parsecs; 0 draws none (the street and nearer). */
-        draw(view, cam, outer) {
-            outerPc = outer;
-            const dpr = window.devicePixelRatio || 1;
-            const w = Math.round(canvas.clientWidth * dpr);
-            const h = Math.round(canvas.clientHeight * dpr);
-            if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-            gl.viewport(0, 0, w, h);
-            gl.clearColor(0, 0, 0, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            if (!tree || !outerPc) { wanted = []; return; }
-            const project = projector(view, cam);
-            wanted = tilesToDraw(tree, view, project, { outerPc });
-            limit = frontierLimit(frontierOf(tree, wanted, view, project, outerPc), (p) => tiles.get(p)?.faintest, magLimitOf(outerPc));
-            for (const path of wanted) if (!tiles.has(path) && loading < MAX_LOADING) load(path);
+    /* Drawing is in two parts: planning, which tiles and how faint and how dimmed, done
+       only when the view changes or a tile arrives; and painting, done also as the pointer
+       moves, which is cheap. */
+    let planned = null;
+    let glowNow = 1;
+    let pointer = null;
+    const plan = (view, cam, outer) => {
+        outerPc = outer;
+        planned = { view, cam };
+        if (!tree || !outerPc) { wanted = []; return; }
+        const project = projector(view, cam);
+        wanted = tilesToDraw(tree, view, project, { outerPc });
+        limit = frontierLimit(frontierOf(tree, wanted, view, project, outerPc), (p) => tiles.get(p)?.faintest, magLimitOf(outerPc));
+        for (const path of wanted) if (!tiles.has(path) && loading < MAX_LOADING) load(path);
+        /* How many stars pass the cut, for dimming them all alike (glowOf). */
+        let shown = 0;
+        for (const path of wanted) {
+            const t = tiles.get(path);
+            if (t?.state !== 'ready') continue;
+            for (let k = 0; k < t.count; k++) if (magOf(t.mag[k]) <= limit) shown++;
+        }
+        glowNow = glowOf(shown, view, outerPc);
+        forget();
+    };
+    const paint = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.round(canvas.clientWidth * dpr);
+        const h = Math.round(canvas.clientHeight * dpr);
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        if (!tree || !outerPc || !planned) return;
+        const { view, cam } = planned;
+        {
             gl.useProgram(program);
             gl.enable(gl.BLEND);
             gl.blendFunc(gl.ONE, gl.ONE);
@@ -642,15 +665,13 @@ function starLayer(canvas, base, redraw) {
             gl.uniform1f(uniform.streetPc, STREET_PC);
             gl.uniform1f(uniform.outerPc, outerPc);
             gl.uniform1f(uniform.magLimit, limit);
-            /* How many stars pass the cut, for dimming them all alike (glowOf). */
-            let shown = 0;
-            for (const path of wanted) {
-                const t = tiles.get(path);
-                if (t?.state !== 'ready') continue;
-                for (let k = 0; k < t.count; k++) if (magOf(t.mag[k]) <= limit) shown++;
-            }
-            gl.uniform1f(uniform.glow, glowOf(shown, view, outerPc));
+            gl.uniform1f(uniform.glow, glowNow);
             gl.uniform1f(uniform.dpr, dpr * canvas.clientWidth / view.sizePx);
+            /* The pointer in picture pixels about the middle; z is half the picture, which
+               turns the shader's -1..1 into the same pixels; 0 when the pointer is away. */
+            const half = view.sizePx / 2;
+            if (pointer) gl.uniform3f(uniform.pointer, pointer[0] - half, pointer[1] - half, half);
+            else gl.uniform3f(uniform.pointer, 0, 0, 0);
             for (const path of wanted) {
                 const t = tiles.get(path);
                 if (t?.state !== 'ready') continue;
@@ -669,8 +690,26 @@ function starLayer(canvas, base, redraw) {
                 gl.vertexAttribPointer(where.tint, 4, gl.UNSIGNED_BYTE, true, 4, 0);
                 gl.drawArrays(gl.POINTS, 0, t.count);
             }
-            forget();
+        }
+    };
+    return {
+        /* The star drawn at a point of the picture: its hover rows and where it is (AU), or
+           null if none is within PICK_PX. */
+        pick(view, cam, x, y) {
+            if (!outerPc) return null;
+            const ready = wanted.map((p) => tiles.get(p)).filter((t) => t?.state === 'ready');
+            const hit = nearestStar(ready, view, projector(view, cam), x, y, { outerPc, magLimit: limit });
+            if (!hit) return null;
+            return {
+                rows: starRows(hit, hit.tile.mag[hit.k], hit.tile.colour[hit.k]),
+                at: { x: hit.x * AU_PER_PARSEC, y: hit.y * AU_PER_PARSEC, z: hit.z * AU_PER_PARSEC },
+                pc: Math.hypot(hit.x, hit.y, hit.z),
+            };
         },
+        /* outer: the place's edge in parsecs; 0 draws none (the street and nearer). */
+        draw(view, cam, outer) { plan(view, cam, outer); paint(); },
+        /* Where the pointer is, in picture pixels, or null when it has gone. */
+        point(at) { pointer = at; paint(); },
     };
 }
 
@@ -707,16 +746,18 @@ function drawMap(digest) {
         const n = NEIGHBORHOOD_PC * AU_PER_PARSEC;
         PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
     }
-    /* Gaia BH1, the nearest black hole known, where it is on the map; with the stars only. */
-    const BH1 = STARS_URL ? (() => { const [x, y, z] = skyToMap(GAIA_BH1.ra, GAIA_BH1.dec, gaiaBh1Pc() * AU_PER_PARSEC); return { x, y, z }; })() : null;
-    /* Gaia BH1 is a place "Go to" lists (owner, 2026-11-19: found by searching, not by an
-       arrow): its own view, a hundred parsecs about it, with the neighborhood's stars. */
-    if (BH1) {
-        const r = GAIA_BH1_VIEW_PC * AU_PER_PARSEC;
-        PLACES.gaiabh1 = { id: 'gaiabh1', name: 'Gaia BH1', label: 'Gaia BH1', cx: BH1.x, cy: BH1.y, cz: BH1.z, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: NEIGHBORHOOD_PC };
-    }
-    /* What "Go to" lists: every system, and Gaia BH1 with the stars. */
-    const GO_SYSTEMS = BH1 ? [...SYSTEMS, GAIA_BH1_SYSTEM] : SYSTEMS;
+    /* The notable objects (js/notables.js: Vega, Betelgeuse, the Pleiades, Gaia BH1 and the
+       rest), where each is on the map; with the stars only. Each is a place "Go to" lists
+       (owner, 2026-11-19: found by searching, not by an arrow): its own view about it, with
+       the stars of the place whose map first holds it. */
+    const NOTABLE_MARKS = STARS_URL ? NOTABLE_LIST.map((n) => {
+        const [x, y, z] = skyToMap(n.ra, n.dec, n.pc * AU_PER_PARSEC);
+        const r = notableViewPc(n.pc) * AU_PER_PARSEC;
+        PLACES[n.id] = { id: n.id, name: n.name, label: n.name, cx: x, cy: y, cz: z, radiusAU: r, radius3D: r, beyondStreet: true, starsPc: n.rungPc };
+        return { ...n, body: { x, y, z } };
+    }) : [];
+    /* What "Go to" lists: every system, and the notable objects with the stars. */
+    const GO_SYSTEMS = [...SYSTEMS, ...NOTABLE_MARKS.map((n) => n.system)];
     /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
        (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
        middle, and each place is fitted to its bodies' true distances. */
@@ -771,7 +812,7 @@ function drawMap(digest) {
             }
             out[`body:${s.id}`] ??= on.pairs.length ? { ...out[`body:${on.pairs[0].pair.key}`] } : { body: on.centre, note: galaxy };
         }
-        if (BH1) out['body:gaiabh1'] = { body: BH1, note: 'orbits the galaxy, far off this map' };
+        for (const n of NOTABLE_MARKS) out[`body:${n.id}`] = { body: n.body, note: 'orbits the galaxy, far off this map' };
         return out;
     })();
     /* A neighbour's "Zoom on" step as a view, from its rungs. */
@@ -867,9 +908,15 @@ function drawMap(digest) {
     const starCanvas = el('canvas', { class: 'rubin-map-stars', 'aria-hidden': 'true' });
     frame.append(starCanvas, plot);
     let stars = null;
+    /* The star of Gaia's picked, if one is: { rows, at, pc } (pick, in starLayer). */
+    let pickedStar = null;
     /* Each place its own stars (owner, 2026-11-19): out to the place's edge; none of Gaia's
        at the street or nearer. */
     const starsOut = () => (place.beyondStreet && shown.stars ? place.starsPc : 0);
+    /* How far the place's galactic map reaches, whether or not its stars are shown: notable
+       objects are marked only inside it (holdsNotable). */
+    const galacticPc = () => (place.beyondStreet ? place.starsPc : 0);
+    const notablesShown = () => NOTABLE_MARKS.filter((n) => holdsNotable(galacticPc(), n.pc));
     if (STARS_URL) {
         try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut())); } catch { stars = null; }
     }
@@ -1101,6 +1148,16 @@ function drawMap(digest) {
            edge-on, dozens of rings crowd the picture, so past 12 only every 2nd, 5th or
            10th is named, counted from the star. */
         const ringNames = [];
+        /* The names that must not be covered by a ring's: the picked star's and Gaia BH1's,
+           placed later (placeLabels) where its box says (LABEL). */
+        const keepClear = (body, text) => {
+            const [x, y] = at3(body.x, body.y, body.z ?? 0);
+            const left = x + LABEL.offset;
+            const bottom = y - LABEL.offset + 3;
+            ringNames.push({ left, right: left + text.length * LABEL.charPx, top: bottom - LABEL.linePx, bottom });
+        };
+        if (pickedStar && starsOut()) keepClear(pickedStar.at, `A star, ${lightYearsText(pickedStar.pc)}`);
+        for (const n of notablesShown()) keepClear(n.body, n.name);
         const radii = shown.rings ? ringRadii(view, ringsFrom, 60, ringStretch(at3.squash)) : [];
         const gap = radii.length > 1 ? radii[1] - radii[0] : 1;
         const nameEvery = [1, 2, 5, 10, 20].find((k) => radii.length / k <= 12) ?? 20;
@@ -1388,21 +1445,47 @@ function drawMap(digest) {
                 ["Barnard's Star lies almost the same way", 'on our sky'],
             ]);
         }
-        /* Gaia BH1: a ring, dark inside, for a black hole. Out of the picture, nothing: it is
-           found in "Go to" (owner, 2026-11-19). */
-        if (BH1) {
-            const [x, y] = at3(BH1.x, BH1.y, BH1.z);
-            if (x > 0 && x < SIZE && y > 0 && y < SIZE) {
-                drop(BH1, x, y);
-                const chosen = bodiesPicked.has('body:gaiabh1');
-                const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
+        /* The star of Gaia's picked: a ring about it, named by its distance, its details on
+           hover; a click lets it go. Only where Gaia's stars are drawn. */
+        if (pickedStar && starsOut() && pickedStar.pc <= starsOut()) {
+            const { at } = pickedStar;
+            const [x, y] = at3(at.x, at.y, at.z);
+            if (x > -20 && x < SIZE + 20 && y > -20 && y < SIZE + 20) {
+                const g = svg('g', { class: 'rubin-mark rubin-mark-pickable is-selected' });
                 g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
-                g.append(svg('circle', { cx: x, cy: y, r: 5, fill: C.space, stroke: C.text, 'stroke-width': 2 }));
-                attachDetails(g, [...GAIA_BH1_ROWS, ['Click to centre the map on it']]);
-                pickable(g, 'body:gaiabh1', BH1, chosen);
+                g.append(svg('circle', { cx: x, cy: y, r: 7, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
+                attachDetails(g, [...pickedStar.rows, ['Click to let it go']]);
+                g.setAttribute('role', 'button');
+                g.setAttribute('aria-pressed', 'true');
+                const letGo = () => { pickedStar = null; hideTooltip(); render(); };
+                g.addEventListener('click', letGo);
+                g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); letGo(); } });
+                g.addEventListener('dblclick', (e) => e.stopPropagation());
                 parts.push(g);
-                labels.push({ x, y, text: GAIA_BH1.name, rank: Infinity });
+                labels.push({ x, y, text: `A star, ${lightYearsText(pickedStar.pc)}`, rank: Infinity });
             }
+        }
+        /* The notable objects, marked before the pointer comes near; only where the galactic
+           map drawn holds them (owner, 2026-11-19: Gaia BH1 in the neighborhood, not the
+           block). A star a dot, a neutron star a small ring, a black hole a ring dark inside,
+           a cluster or nebula a dashed circle, since it is no single point. */
+        for (const n of notablesShown()) {
+            const { body } = n;
+            const [x, y] = at3(body.x, body.y, body.z);
+            if (!(x > 0 && x < SIZE && y > 0 && y < SIZE)) continue;
+            drop(body, x, y);
+            const key = `body:${n.id}`;
+            const chosen = bodiesPicked.has(key);
+            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
+            g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+            if (n.kind === 'star') g.append(svg('circle', { cx: x, cy: y, r: 3.5, fill: C.text }));
+            else if (n.kind === 'neutronstar') g.append(svg('circle', { cx: x, cy: y, r: 3.5, fill: C.space, stroke: C.text, 'stroke-width': 1.5 }));
+            else if (n.kind === 'blackhole') g.append(svg('circle', { cx: x, cy: y, r: 5, fill: C.space, stroke: C.text, 'stroke-width': 2 }));
+            else g.append(svg('circle', { cx: x, cy: y, r: 8, fill: 'none', stroke: C.text, 'stroke-width': 1.5, 'stroke-dasharray': '3 3' }));
+            attachDetails(g, [...n.rows, ['Click to centre the map on it']]);
+            pickable(g, key, body, chosen);
+            parts.push(g);
+            labels.push({ x, y, text: n.name, rank: Infinity });
         }
         if (elsewhere) {
             arrow(48, SIZE - 52, fromSun.map((v) => -v), 'Toward Earth', [
@@ -1765,16 +1848,24 @@ function drawMap(digest) {
     const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
     window.addEventListener('pointerup', release);
     window.addEventListener('pointercancel', release);
-    plot.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
-    /* Gaia's stars, under the marks: pointing at one (a mouse over it, or a tap) shows what
-       Gaia's map says of it. A mark under the pointer has its own details, so it wins. */
+    /* Whether the click now arriving ended a drag: kept for the stars' own click, below,
+       which this one cannot always stop. */
+    let clickEndedDrag = false;
+    plot.addEventListener('click', (e) => { clickEndedDrag = dragged; if (dragged) { e.stopPropagation(); dragged = false; } }, true);
+    /* Gaia's stars, under the marks (owner, 2026-11-19): those near the pointer brighten,
+       the nearer the more, so it is plain they can be picked; the one under it names itself;
+       a click (or tap) picks it - the map centres on it and a ring marks it - and a click on
+       the ring lets it go. A mark under the pointer has its own details, so it wins. */
     if (stars) {
         let starTip = false;
         let asked = null;
         const tipAt = (e) => {
-            if (e.target.closest?.('.rubin-mark')) return;
-            const rows = stars.pick(view, cam, ...local(e));
-            if (rows) { showTooltip(rows, e.clientX, e.clientY); starTip = true; } else if (starTip) { hideTooltip(); starTip = false; }
+            const onMark = e.target.closest?.('.rubin-mark');
+            stars.point(onMark ? null : local(e));
+            const hit = onMark ? null : stars.pick(view, cam, ...local(e));
+            plot.classList.toggle('is-over-star', Boolean(hit));
+            if (onMark) return;
+            if (hit) { showTooltip([...hit.rows, ['Click to centre the map on it']], e.clientX, e.clientY); starTip = true; } else if (starTip) { hideTooltip(); starTip = false; }
         };
         plot.addEventListener('pointermove', (e) => {
             if (pointers.size || e.pointerType !== 'mouse') return;
@@ -1782,8 +1873,21 @@ function drawMap(digest) {
             if (!asked) requestAnimationFrame(() => { tipAt(asked); asked = null; });
             asked = e;
         });
-        plot.addEventListener('pointerleave', () => { if (starTip) { hideTooltip(); starTip = false; } });
-        plot.addEventListener('click', (e) => { if (e.pointerType !== 'mouse') tipAt(e); });
+        plot.addEventListener('pointerleave', () => {
+            stars.point(null);
+            plot.classList.remove('is-over-star');
+            if (starTip) { hideTooltip(); starTip = false; }
+        });
+        plot.addEventListener('click', (e) => {
+            if (clickEndedDrag || e.target.closest?.('.rubin-mark')) return;
+            const hit = stars.pick(view, cam, ...local(e));
+            if (!hit) return;
+            pickedStar = hit;
+            hideTooltip();
+            starTip = false;
+            centreOn(hit.at);
+            if (e.pointerType !== 'mouse') showTooltip(hit.rows, e.clientX, e.clientY);
+        });
     }
     /* In 3D a point in the picture is not one place on the map, so zooming keeps to the middle. */
     const anchorAt = (e) => (threeD ? undefined : toWorld(view, ...local(e)));
@@ -2153,7 +2257,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" pulls back to hold them all. "Galactic block" pulls further back, to 815 light years, and "Galactic neighborhood" to 3,260: there the stars are Gaia's, each where Gaia measured it to within 1%, only those inside the place's edge, with the Milky Way's picture beyond. Point at one, or tap it, to see how far it is, how much light it gives off against the Sun, and its colour. Gaia measured faint stars well only near us, so each view leaves out the stars too faint for Gaia to have caught all the way to its edge; otherwise the stars would seem to crowd about the Sun, which is only how Gaia measures. They thin out about 2,000 light years away, as far as Gaia measured any to 1%. Gaia BH1, the nearest black hole known, is in "Go to", and its Filter narrows the list by what each place holds: kinds of star, white dwarfs, black holes, tundrs on their own, or confirmed planets. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
+        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" pulls back to hold them all. "Galactic block" pulls further back, to 815 light years, and "Galactic neighborhood" to 3,260: there the stars are Gaia's, each where Gaia measured it to within 1%, only those inside the place's edge, with the Milky Way's picture beyond. Point at one, or tap it, to see how far it is, how much light it gives off against the Sun, and its colour. Gaia measured faint stars well only near us, so each view leaves out the stars too faint for Gaia to have caught all the way to its edge; otherwise the stars would seem to crowd about the Sun, which is only how Gaia measures. They thin out about 2,000 light years away, as far as Gaia measured any to 1%. Some famous objects are marked and named, once the place's map reaches them: in the block, Vega, Arcturus, Aldebaran, Polaris, Betelgeuse and Antares, the Hyades and Pleiades clusters, and the neutron star RX J1856.5-3754; in the neighborhood also Rigel, Deneb, the Vela pulsar, the Orion Nebula, and Gaia BH1, the nearest black hole known. Most are too bright for Gaia to measure, so their places come from other measurements, and where those disagree, as for Betelgeuse, their details say so. Each is in "Go to", whose Filter narrows the list by what each place holds: kinds of star, giants and supergiants, white dwarfs, neutron stars, black holes, tundrs on their own, clusters and nebulae, or confirmed planets. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
     );
 
     const mapTable = table(
