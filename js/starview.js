@@ -40,6 +40,19 @@ export const STAR_BUDGET = 400000;
    nearer the more, so it is plain they can be picked; one within PICK_PX is the one a hover
    names and a click picks. Picture pixels. */
 export const NEAR_PX = 48;
+/* The star in focus (owner, 2026-11-19): Gaia's stars are brighter the nearer they are to
+   whatever the map is centred on (a star picked, a notable object, a place from "Go to";
+   the Sun otherwise), falling to the background brightness, the glow, further off. The
+   reach is a sixth of the place's edge: about 140 light years in the block, 540 in the
+   neighborhood. focusGlow is 1 at the star in focus, a half at the reach, and the shader's
+   sum; here to be tested. */
+export const focusReachPc = (outerPc) => outerPc / 6;
+export const focusGlow = (dPc, reachPc) => 1 / (1 + (dPc / reachPc) ** 2);
+/* And past 20 light years beyond the street's edge, the street's own stars (Alpha
+   Centauri, Sirius and the rest, drawn as marks) fade to the background too: only the Sun
+   stays bright, to say where home is. */
+export const FADE_STREET_BEYOND_PC = STREET_PC + 20 / 3.261564; /* LY_PER_PARSEC, below */
+export const streetFades = (focusFromSunPc) => focusFromSunPc > FADE_STREET_BEYOND_PC;
 export const PICK_PX = 10;
 /* How near the pointer a star is, as 1 under it falling smoothly to 0 at NEAR_PX: the
    shader's sum, here to be tested. */

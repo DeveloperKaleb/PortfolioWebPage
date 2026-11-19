@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     treeOf, nodeOnScreen, tilesToDraw, tintOf, lookOf, STREET_PC, BLOCK_PC, nearestStar, starRows, lightText, colourText, kindText, lightYearsText,
-    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX,
+    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX, focusReachPc, focusGlow, streetFades, FADE_STREET_BEYOND_PC, LY_PER_PARSEC,
 } from '../../js/starview.js';
 import { buildTree, makeIndex, magByte, colourByte, NO_COLOUR, rootCube } from '../../js/startiles.js';
 import { initialView, projector, zoomAt, FLAT } from '../../js/rubinview.js';
@@ -212,5 +212,22 @@ describe('notable objects, only inside the map drawn', () => {
         expect(holdsNotable(NEIGHBORHOOD_PC, gaiaBh1Pc())).toBe(true);
         expect(holdsNotable(BLOCK_PC, gaiaBh1Pc())).toBe(false);
         expect(holdsNotable(0, gaiaBh1Pc())).toBe(false);
+    });
+});
+
+describe('the star in focus', () => {
+    it('lights the stars nearest it most, falling to the background further off', () => {
+        const reach = focusReachPc(BLOCK_PC);
+        expect(focusGlow(0, reach)).toBe(1);
+        expect(focusGlow(reach, reach)).toBeCloseTo(0.5, 6);
+        expect(focusGlow(reach * 5, reach)).toBeLessThan(0.05);
+        expect(reach * LY_PER_PARSEC).toBeGreaterThan(100);
+    });
+
+    it("fades the street's stars only past 20 light years beyond its edge", () => {
+        expect(FADE_STREET_BEYOND_PC * LY_PER_PARSEC).toBeCloseTo(35.8, 1);
+        expect(streetFades(0)).toBe(false);
+        expect(streetFades(30 / LY_PER_PARSEC)).toBe(false);
+        expect(streetFades(40 / LY_PER_PARSEC)).toBe(true);
     });
 });

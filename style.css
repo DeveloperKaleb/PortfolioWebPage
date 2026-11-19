@@ -2241,6 +2241,12 @@ main.rubin {
     background: none;
 }
 
+/* The street's stars, faded to the background while the map is centred on a star far
+   beyond the street (owner, 2026-11-19); a hover still names them. */
+#rubin-map .rubin-mark.is-background {
+    opacity: 0.35;
+}
+
 /* Over one of Gaia's stars, the pointer says it can be picked. */
 #rubin-map .rubin-map-svg.is-over-star {
     cursor: pointer;

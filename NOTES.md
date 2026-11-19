@@ -3290,6 +3290,16 @@ decisions:
   ring lets it go. To keep the pointer cheap, the star layer plans (tiles, cuts, dimming)
   only when the view changes and repaints alone as the pointer moves. The ring names keep
   clear of the picked star's name and Gaia BH1's.
+- **The star in focus** (owner, 2026-11-19: "I don't like how uniformly dim the Gaia
+  stars are"): Gaia's stars are brighter the nearer they are, in 3D, to whatever the map
+  is centred on - a star picked, a notable object, a place from "Go to", the Sun
+  otherwise (`focus` in rubin.js, set by `centreOn`, cleared by `goTo`). `focusGlow`: 1 at
+  it, a half at `focusReachPc` (a sixth of the place's edge: about 140 light years in the
+  block), falling to the crowding dimness beyond. Centred on anything more than 20 light
+  years past the street's edge (`streetFades`, about 36 light years from the Sun), the
+  street's star marks fade to faint unnamed dots (`.is-background`); the Sun keeps its
+  mark and name, to say where home is. A notable object picked draws no note beside it:
+  "orbits the galaxy, far off this map" sat on its name.
 - **Notable objects only inside the map drawn** (owner, 2026-11-19; `holdsNotable`): a
   notable object such as Gaia BH1 is marked before the pointer comes near, but only once
   the place's galactic map reaches it - Gaia BH1 (477 pc) in the neighborhood and its own

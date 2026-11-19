@@ -34,7 +34,7 @@ import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -529,6 +529,7 @@ function starLayer(canvas, base, redraw) {
         uniform float outerPc;
         uniform float dpr;
         uniform vec3 pointer;
+        uniform vec4 focus;
         varying vec4 v;
         void main() {
             vec3 d = offset + local * ${AU_PER_PARSEC.toFixed(4)};
@@ -545,8 +546,15 @@ function starLayer(canvas, base, redraw) {
                 float t = clamp(length(at - pointer.xy) / ${NEAR_PX.toFixed(1)}, 0.0, 1.0);
                 near = 1.0 - t * t * (3.0 - 2.0 * t);
             }
-            gl_PointSize = mix(size, max(size + 1.5, 3.0), near) * dpr;
-            v = vec4(tint.rgb, mix(tint.a * glow, max(tint.a * glow, 0.95), near));
+            /* Near the star in focus (focus.xyz, parsecs from the tile's centre; focus.w the
+               reach): brighter and a little larger, the nearer the more (focusGlow). */
+            float q = length(local - focus.xyz) / focus.w;
+            float lit = 1.0 / (1.0 + q * q);
+            float base = tint.a * glow;
+            float a = mix(base, max(base, 0.85), lit);
+            float s = mix(size, size + 1.0, lit);
+            gl_PointSize = mix(s, max(s + 1.5, 3.0), near) * dpr;
+            v = vec4(tint.rgb, mix(a, max(a, 0.95), near));
         }`));
     gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
         precision mediump float;
@@ -561,7 +569,7 @@ function starLayer(canvas, base, redraw) {
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
     const where = Object.fromEntries(['local', 'tint', 'size', 'mag'].map((n) => [n, gl.getAttribLocation(program, n)]));
-    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr', 'pointer'].map((n) => [n, gl.getUniformLocation(program, n)]));
+    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr', 'pointer', 'focus'].map((n) => [n, gl.getUniformLocation(program, n)]));
     /* Each star's look, by its brightness and colour bytes, worked out once. */
     const looks = Array.from({ length: 256 }, (_, k) => lookOf(k));
     const tints = Array.from({ length: 256 }, (_, k) => tintOf(k));
@@ -628,8 +636,11 @@ function starLayer(canvas, base, redraw) {
     let planned = null;
     let glowNow = 1;
     let pointer = null;
-    const plan = (view, cam, outer) => {
+    /* The star in focus, parsecs from the Sun. */
+    let focusAt = [0, 0, 0];
+    const plan = (view, cam, outer, focus = [0, 0, 0]) => {
         outerPc = outer;
+        focusAt = focus;
         planned = { view, cam };
         if (!tree || !outerPc) { wanted = []; return; }
         const project = projector(view, cam);
@@ -678,6 +689,7 @@ function starLayer(canvas, base, redraw) {
                 const { cx, cy, cz } = t.cube;
                 gl.uniform3f(uniform.offset, cx * AU_PER_PARSEC - view.cx, cy * AU_PER_PARSEC - view.cy, cz * AU_PER_PARSEC - (view.cz ?? 0));
                 gl.uniform3f(uniform.centrePc, cx, cy, cz);
+                gl.uniform4f(uniform.focus, focusAt[0] - cx, focusAt[1] - cy, focusAt[2] - cz, focusReachPc(outerPc));
                 gl.bindBuffer(gl.ARRAY_BUFFER, t.position);
                 gl.enableVertexAttribArray(where.local);
                 gl.vertexAttribPointer(where.local, 3, gl.FLOAT, false, 20, 0);
@@ -707,7 +719,8 @@ function starLayer(canvas, base, redraw) {
             };
         },
         /* outer: the place's edge in parsecs; 0 draws none (the street and nearer). */
-        draw(view, cam, outer) { plan(view, cam, outer); paint(); },
+        /* focus: the star in focus, parsecs from the Sun ([x, y, z]). */
+        draw(view, cam, outer, focus) { plan(view, cam, outer, focus); paint(); },
         /* Where the pointer is, in picture pixels, or null when it has gone. */
         point(at) { pointer = at; paint(); },
     };
@@ -812,7 +825,9 @@ function drawMap(digest) {
             }
             out[`body:${s.id}`] ??= on.pairs.length ? { ...out[`body:${on.pairs[0].pair.key}`] } : { body: on.centre, note: galaxy };
         }
-        for (const n of NOTABLE_MARKS) out[`body:${n.id}`] = { body: n.body, note: 'orbits the galaxy, far off this map' };
+        /* No note beside a notable picked: its mark shows it is picked, and the note sat
+           on its name. */
+        for (const n of NOTABLE_MARKS) out[`body:${n.id}`] = { body: n.body, quiet: true };
         return out;
     })();
     /* A neighbour's "Zoom on" step as a view, from its rungs. */
@@ -913,12 +928,19 @@ function drawMap(digest) {
     /* Each place its own stars (owner, 2026-11-19): out to the place's edge; none of Gaia's
        at the street or nearer. */
     const starsOut = () => (place.beyondStreet && shown.stars ? place.starsPc : 0);
+    /* What the map is centred on, in AU (owner, 2026-11-19): set by picking anything
+       (centreOn), let go by going somewhere (goTo), when the place's own centre is it. */
+    let focus = null;
+    const focusAU = () => focus ?? { x: place.cx ?? 0, y: place.cy ?? 0, z: place.cz ?? 0 };
+    const focusPc = () => { const f = focusAU(); return [f.x / AU_PER_PARSEC, f.y / AU_PER_PARSEC, (f.z ?? 0) / AU_PER_PARSEC]; };
+    /* Focused on a star well beyond the street, the street's stars fade (streetFades). */
+    const streetFaded = () => place.beyondStreet && streetFades(Math.hypot(...focusPc()));
     /* How far the place's galactic map reaches, whether or not its stars are shown: notable
        objects are marked only inside it (holdsNotable). */
     const galacticPc = () => (place.beyondStreet ? place.starsPc : 0);
     const notablesShown = () => NOTABLE_MARKS.filter((n) => holdsNotable(galacticPc(), n.pc));
     if (STARS_URL) {
-        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut())); } catch { stars = null; }
+        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut(), focusPc())); } catch { stars = null; }
     }
 
     const RULER_HEIGHT = 88;
@@ -1206,7 +1228,8 @@ function drawMap(digest) {
         }
         for (const key of bodiesPicked) {
             if (!PICKABLE[key]) continue;
-            const { body, paths, note, dashed, open } = PICKABLE[key];
+            const { body, paths, note, dashed, open, quiet } = PICKABLE[key];
+            if (quiet) continue;
             /* A spacecraft's path, only while the craft itself is shown, and only about the Sun. */
             if (key.startsWith('craft:') && (!solar || !craftShown.has(key.slice(6)) || !paths.length)) continue;
             if (note) { noteBeside(body, note); continue; }
@@ -1262,13 +1285,16 @@ function drawMap(digest) {
             if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) return;
             drop(body, x, y);
             const chosen = bodiesPicked.has(key);
-            const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
+            /* Focused on a far star, the street's stars fade to the background, unnamed;
+               the Sun stays (streetFaded). */
+            const faded = key !== 'body:sun' && streetFaded();
+            const g = svg('g', { class: `rubin-mark rubin-mark-pickable${chosen ? ' is-selected' : ''}${faded ? ' is-background' : ''}` });
             g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
-            g.append(svg('circle', { cx: x, cy: y, r: radius, fill, stroke: C.space, 'stroke-width': 2 }));
+            g.append(svg('circle', { cx: x, cy: y, r: faded ? Math.min(radius, 2) : radius, fill, stroke: C.space, 'stroke-width': faded ? 0 : 2 }));
             attachDetails(g, [[name, kind], ...rows, ['Click to centre the map on it', 'and show its orbit']]);
             pickable(g, key, body, chosen);
             parts.push(g);
-            if (named) labels.push({ x, y, text: name, rank: Infinity });
+            if (named && !faded) labels.push({ x, y, text: name, rank: Infinity });
         };
         const galaxyRow = ['It orbits the centre of the galaxy,', 'once in about 230 million years'];
         if (solar) star('body:sun', 'The Sun', 4, [galaxyRow], { named: false });
@@ -1590,7 +1616,7 @@ function drawMap(digest) {
             parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
-        stars?.draw(view, cam, starsOut());
+        stars?.draw(view, cam, starsOut(), focusPc());
 
         const level = zoomLevel(view);
         const where = place.id === 'sun' ? '' : `${place.label}: `;
@@ -1619,6 +1645,7 @@ function drawMap(digest) {
     const CLICK_ROW = ['Click to centre the map on it,', 'and show its orbit and its card'];
     function centreOn(body) {
         if (travelling) return;
+        focus = { x: body.x, y: body.y, z: body.z ?? 0 };
         cancelAnimationFrame(centring);
         const from = view;
         const to = centredOn(view, [body.x, body.y, body.z ?? 0]);
@@ -1727,6 +1754,7 @@ function drawMap(digest) {
         const direct = place === target || wide(place) || wide(target);
         const via = homeView(PLACES.both);
         place = target;
+        focus = null;
         showPlace();
         hideTooltip();
         arrive = () => { view = toView; };
