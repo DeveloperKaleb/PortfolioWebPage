@@ -3263,9 +3263,13 @@ without it the map is as before. The decisions:
 
 Measured in the preview: the whole Block view fetched 100 tiles (3.1 MB); at 8x zoom, 218
 in all. Dragging in 3D took 18.4 ms of work a step with the stars and 13.4 ms without (the
-automation tab's own frame rate is throttled, so it cannot be read off that). Still to do
-before it is more than a preview: the AU rings and their labels make a grey disc at this
-scale and should be in light years or parsecs; a Show item to turn the stars off; hover or
+automation tab's own frame rate is throttled, so it cannot be read off that). The AU rings
+made a grey disc at block scale (the spacing stopped at 500,000 AU, so sixty rings crowded
+in); since 2026-11-19 the spacing goes on past the street in light years (10, 20, 50, 100
+...; `LIGHT_YEAR_RINGS` in js/rubinview.js) and those rings are labelled "200 light years".
+The street keeps its AU rings, so the two scales meet at the street's edge. Light years
+over parsecs: the Gaia BH1 caption that started this ("1,560 ly") and most public writing
+use them. Still to do before it is more than a preview: a Show item to turn the stars off; hover or
 pick for a star (none yet); and step 3, a home for the tiles.
 
 

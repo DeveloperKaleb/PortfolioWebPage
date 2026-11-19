@@ -11,7 +11,7 @@ import { FLAGS } from './flags.js';
 import { planetsOn } from './planets.js';
 import { jdFromDate, positionAt, orbitPath, tooBrightForRubin } from './orbit.js';
 import { moonOffset, moonRing, moonDistance, MOON_PARENTS, BUILT_IN_MOONS } from './moons.js';
-import { NEIGHBOURS } from './centauri.js';
+import { NEIGHBOURS, AU_PER_LIGHT_YEAR } from './centauri.js';
 
 /* Same origin as the site: rubin-data is published with GitHub Pages at
    developerkaleb.github.io/rubin-data/, beside developerkaleb.github.io/PortfolioWebPage/.
@@ -398,8 +398,12 @@ export const panBy = (view, dxPx, dyPx) => clampView({ ...view, cx: view.cx - dx
 export const zoomLevel = (view) => view.scale / view.fitScale;
 
 /* Distance rings at a round spacing for the zoom: about four across the visible radius. */
+/* Past 500,000 AU (the street's spacing) the rings go on in light years (2026-11-19, for
+   the Galactic block): 10, 20, 50 light years and so on, labelled so (ringLabel). Before,
+   the spacing stopped at 500,000 AU, and 250 pc out sixty rings made a grey disc. */
+export const LIGHT_YEAR_RINGS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 const NICE = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000,
-    10000, 20000, 50000, 100000, 200000, 500000];
+    10000, 20000, 50000, 100000, 200000, 500000, ...LIGHT_YEAR_RINGS.map((ly) => ly * AU_PER_LIGHT_YEAR)];
 export function ringSpacing(view) {
     const visible = (view.sizePx / 2) / view.scale;
     return NICE.find((s) => visible / s <= 5) ?? NICE.at(-1);
@@ -421,8 +425,14 @@ export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
     return radii;
 }
 
-/* A ring's label: "30 AU", "0.05 AU", "100,000 AU". */
-export const ringLabel = (radiusAU) => `${String(Number(radiusAU.toPrecision(6))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} AU`;
+/* A ring's label: "30 AU", "0.05 AU", "100,000 AU"; from ten light years out, a ring on a
+   whole number of light years is labelled in them: "50 light years". */
+const withCommas = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+export function ringLabel(radiusAU) {
+    const ly = radiusAU / AU_PER_LIGHT_YEAR;
+    if (ly >= 10 - 1e-9 && Math.abs(ly - Math.round(ly)) < 1e-6) return `${withCommas(Math.round(ly))} light years`;
+    return `${withCommas(Number(radiusAU.toPrecision(6)))} AU`;
+}
 
 /* Where a ring's label goes (owner, 2026-11-18: every ring that crosses the picture shows
    its distance). At the top of the ring if that is in the picture, as it always was;

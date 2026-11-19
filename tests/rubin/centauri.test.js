@@ -220,6 +220,19 @@ describe('Rings that cross the picture', () => {
         expect(ringLabel(30)).toBe('30 AU');
         expect(ringLabel(0.05)).toBe('0.05 AU');
         expect(ringLabel(100000)).toBe('100,000 AU');
+        expect(ringLabel(1000000)).toBe('1,000,000 AU');
+    });
+
+    test('past the street, rings go on in light years, round and few', () => {
+        const view = initialView(250 * 206264.806, 750);
+        const spacing = ringSpacing(view);
+        expect(spacing / AU_PER_LIGHT_YEAR).toBe(200);
+        const radii = ringRadii(view, 0);
+        expect(radii.length).toBeGreaterThan(2);
+        expect(radii.length).toBeLessThan(10);
+        expect(ringLabel(radii[0])).toBe('200 light years');
+        expect(ringLabel(50 * AU_PER_LIGHT_YEAR)).toBe('50 light years');
+        expect(ringLabel(1000 * AU_PER_LIGHT_YEAR)).toBe('1,000 light years');
     });
 });
 
