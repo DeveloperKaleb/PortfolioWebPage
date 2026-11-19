@@ -425,7 +425,7 @@ export function towardSagA() {
  * The map can be at the Sun, as it always was; at each of the nearest bodies beyond it -
  * every other system within a million AU; or pulled back until all are in view. Each is a
  * centre and a radius to fit, in AU along the map's plane. All are seen from the Sun in
- * "Galactic block" (called "Nearest bodies" until 2026-11-19; the id stays 'both' so links keep working), with the rings about it. */
+ * "Galactic street" (called "Nearest bodies", then briefly "Galactic block", until 2026-11-19; the id stays 'both' so links keep working), with the rings about it. */
 /* Up to the next round figure of two digits: 15,070 to 16,000, 0.449 to 0.45. */
 export const roundUp = (x) => {
     const step = 10 ** (Math.floor(Math.log10(x)) - 1);
@@ -461,7 +461,7 @@ export function places(system, sunRadiusAU, sunRadius3D = sunRadiusAU) {
     const farthest3D = Math.max(...systems.map((on) => on.centre.r + on.extent3D));
     const out = {
         sun: { id: 'sun', name: 'the Sun', label: 'The Sun', cx: 0, cy: 0, cz: 0, radiusAU: sunRadiusAU, radius3D: sunRadius3D, },
-        both: { id: 'both', name: 'the galactic block', label: 'Galactic block', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000 },
+        both: { id: 'both', name: 'the galactic street', label: 'Galactic street', cx: 0, cy: 0, cz: 0, radiusAU: Math.ceil(farthest * 1.08 / 10000) * 10000, radius3D: Math.ceil(farthest3D * 1.08 / 10000) * 10000 },
     };
     for (const on of systems) {
         const { id, name } = on.system;

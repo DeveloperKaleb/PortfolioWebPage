@@ -3040,7 +3040,7 @@ It also found four problems, all fixed:
 Shown as "Our Cosmic Address" (nav, title, heading) since 2026-11-19; it was "The Solar
 System" until the map reached the nearest stars. Picked from three ideas Claude offered
 because it carries on the address-like ladder the views are named by (planet, Solar
-System, galactic block, galactic neighbourhood to come, Milky Way). The subtitle, "Everything
+System, then street, block, neighbourhood and city: see "The address ladder" below). The subtitle, "Everything
 near Earth, where it really is right now, from the Moon to Sagittarius A*", ends at
 Sagittarius A* by the owner's choice: a nod to those who know it, a lead for the curious, and
 far enough out that the map can grow without it changing. The code, ids and paths still say
@@ -3105,6 +3105,28 @@ two examples.
 The test of it, in the owner's words of intent: someone wonders "Where is Gaia BH1?",
 comes to this site, and can see it well - find it by name and be shown where it is,
 not told. That is where the page is meant to end up; build toward it.
+
+**The address ladder (owner, 2026-11-19).** The views outward from the Sun are named like
+an address, each real (the Sun lies in it, or nearly), each about ten times the last, and
+each filled from a source that suits its size, so measured and modelled stay apart:
+
+| Level | What it is | Reaches | Filled from |
+|---|---|---|---|
+| Home | the Solar System | ~1,000 AU | the map as it is |
+| Street | the nearest stars ("Galactic street", today's view) | ~5 pc (1,000,000 AU) | the 48 systems in `js/nearstars.js` and `js/centauri.js` |
+| Block | the Local Bubble | ~50 to 250 pc | its walls from a published 3D dust map; the Gaia tiles |
+| Neighbourhood | the solar neighbourhood, the Radcliffe Wave in view | ~1,000 pc | the Gaia tiles (the 1% stars reach ~1,300 pc) |
+| City | the Orion Arm | ~6,000 pc long | a drawn model of the arm, with landmarks (Orion Nebula, Cygnus X) |
+| Country, perhaps | the Milky Way | ~30,000 pc | the galaxy model; Sagittarius A* |
+
+Choices behind it: the owner first proposed Local Bubble, Radcliffe Wave and Orion Arm for
+block, neighbourhood and city. Claude suggested renaming the nearest-stars view (then
+"Galactic block") to street, since the bubble is 10 to 50 times bigger, and taking "the
+solar neighbourhood" (astronomers' own term for roughly the kiloparsec about the Sun) as
+the neighbourhood, with the Radcliffe Wave as its landmark, since the wave is a thin
+ribbon a few hundred parsecs off that does not contain the Sun. The owner agreed. Only
+"Galactic street" exists so far; TRAPPIST-1 (12.5 pc) falls just past the street, Gaia BH1
+(about 480 pc) inside the neighbourhood.
 
 **Gaia's stars, if we build toward them (planned with the owner, 2026-11-19; not started).**
 How many Gaia DR3 stars have a good distance (counted from the archive 2026-11-19; the error
@@ -4062,7 +4084,8 @@ map: the same map now reaches the nearest star system, with its stars in their t
   Luhman 16 too. Its id and `?place=both` are unchanged, so links keep working. The owner
   expects Barnard's Star to join it eventually; it lands about 110px below the picture's
   bottom edge at 750px, so the view would need pulling back by about a third.
-- **"Nearest bodies" became "Galactic block"** (owner, 2026-11-19), with a "Galactic
+- **"Nearest bodies" became "Galactic block", then "Galactic street"** (owner, 2026-11-19,
+  the same day: the block went to the Local Bubble in the address ladder, under goal 3), with a "Galactic
   neighbourhood" view likely to follow further out. The id is still `both`, so
   `?place=both` links keep working; older notes below still say "Nearest bodies".
 - **Barnard's Star, and a list of places** (owner, 2026-11-14). Barnard's Star joined the
