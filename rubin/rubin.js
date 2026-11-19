@@ -11,7 +11,7 @@
  * saw, and says so.
  */
 import {
-    DIGEST_URL, CHANGES_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, ringLabelSpot, glideView, journeyView, unseenHoles,
+    DIGEST_URL, CHANGES_URL, SPACECRAFT_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, ringLabelSpot, glideView, journeyView, unseenHoles,
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
     zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
@@ -21,7 +21,9 @@ import {
 import {
     lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, fromStarFraction, rulerTicks, unseenStretch, CENTAURI, UNSEEN_TEXT, UNSEEN_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow, lightTickMs,
 } from '../js/light.js';
-import { SCOPE_AU } from '../js/orbit.js';
+import { SCOPE_AU, jdFromDate } from '../js/orbit.js';
+import { itemsOf, groupState, readShown, craftOn, craftPath, clusterMarks, PLACE_WORDS, aboutCount, STATUS_AS_OF } from '../js/spacecraft.js';
+import { EARTH_ORBIT, TRACKS, TRACKS_FETCHED } from '../js/spacecrafttracks.js';
 import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
@@ -57,6 +59,11 @@ try {
     const saved = JSON.parse(localStorage.getItem(SHOWN_KEY));
     for (const key of Object.keys(shown)) if (typeof saved?.[key] === 'boolean') shown[key] = saved[key];
 } catch { /* none saved, or storage blocked */ }
+/* Which human spacecraft the map draws (owner, 2026-11-19): none until asked for, kept
+   apart from Show, and remembered in this browser like it. */
+const CRAFT_KEY = 'rubin-map-craft';
+let craftShown = new Set();
+try { craftShown = readShown(JSON.parse(localStorage.getItem(CRAFT_KEY))); } catch { /* none saved, or storage blocked */ }
 let firstOpened = OPENED;
 let remembersVisits = false;
 try {
@@ -457,6 +464,19 @@ function mark(style, cx, cy, size = 5, ground = C.surface) {
     return svg('circle', { cx, cy, r: size, ...attrs });
 }
 
+/* A spacecraft: a body between two panels. Working, filled; no longer working, hollow and
+   fainter, so the two are told apart by shape as well as colour. */
+function craftGlyph(cx, cy, active) {
+    const look = active
+        ? { fill: C.text, stroke: C.space, 'stroke-width': 1.5 }
+        : { fill: C.space, stroke: C.muted, 'stroke-width': 1.5 };
+    const g = svg('g', { 'pointer-events': 'none' });
+    g.append(svg('line', { x1: cx - 7, y1: cy, x2: cx + 7, y2: cy, stroke: active ? C.text : C.muted, 'stroke-width': 1.5 }));
+    for (const side of [-1, 1]) g.append(svg('rect', { x: cx + side * 6.5 - 2.5, y: cy - 4, width: 5, height: 8, ...look }));
+    g.append(svg('rect', { x: cx - 3, y: cy - 3, width: 6, height: 6, ...look }));
+    return g;
+}
+
 function legend(items) {
     const box = el('div', { class: 'rubin-legend' });
     items.forEach(({ label, swatch, tundr }) => {
@@ -471,7 +491,12 @@ function legend(items) {
 
 function drawMap(digest) {
     const section = document.getElementById('rubin-map');
-    const data = mapData(digest);
+    /* The map shows where everything is as the page opens (owner, 2026-11-19), not on the
+       digest's date: the planets, moons, stars and spacecraft are worked out for this
+       moment, and the digest's objects are moved along their orbits to it (mapEntry). */
+    const mapMoment = new Date();
+    const MAP_DAY = `${mapMoment.getUTCFullYear()}-${String(mapMoment.getUTCMonth() + 1).padStart(2, '0')}-${String(mapMoment.getUTCDate()).padStart(2, '0')}`;
+    const data = mapData(digest, { jd: jdFromDate(mapMoment) });
     if (!data.marks.length) { section.hidden = true; return; }
     /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. Full
        screen draws it again, larger (resize). */
@@ -482,7 +507,7 @@ function drawMap(digest) {
     /* The nearest star system on the digest's date, in the map's own frame, and the three
        places the map can be: at the Sun, at Alpha Centauri, and far enough back to hold
        both (js/centauri.js). */
-    const system = centauriOn(yearFraction(digest.date));
+    const system = centauriOn(yearFraction(MAP_DAY));
     const PLACES = places(system, data.radius, data.radius3D);
     /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
        (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
@@ -545,6 +570,38 @@ function drawMap(digest) {
     const rungsOf = (id) => system.systems.find((on) => on.system.id === id)?.system.rungs ?? [];
     /* Which way the centre of the galaxy is, along the map's plane. */
     const SAG_A_WAY = towardSagA();
+    /* Human spacecraft where they are now (js/spacecraft.js). Picked, a
+       free-flying one shows its path - its orbit, or its track as fetched - and one that
+       stays with a body is centred on. */
+    const mapJd = data.jd;
+    let craftTracks = TRACKS;
+    let crafts = null;
+    const placeCraft = () => {
+        crafts = craftOn(mapJd, data.planets, data.moons, craftTracks);
+        for (const key of Object.keys(PICKABLE)) if (key.startsWith('craft:')) delete PICKABLE[key];
+        for (const c of crafts.shown) {
+            const path = c.place ? null : craftPath(c.item.id, mapJd, craftTracks);
+            PICKABLE[`craft:${c.item.id}`] = { body: c, paths: path ? [path] : [], open: true };
+        }
+    };
+    placeCraft();
+    /* The collector refreshes the tracks monthly into rubin-data (spacecraft.json): fetched
+       once, and only once a reader turns a craft on, since most never do. Until it comes,
+       or if it cannot, the tracks built into the site stand. */
+    let craftTracksAsked = false;
+    async function fetchCraftTracks() {
+        if (craftTracksAsked) return;
+        craftTracksAsked = true;
+        try {
+            const got = await getJson(params.get('spacecraft') ?? SPACECRAFT_URL);
+            const fresh = Object.entries(got?.tracks ?? {}).filter(([id, t]) => Object.hasOwn(TRACKS, id) && (t?.elements || Array.isArray(t?.xyz)));
+            if (!fresh.length) return;
+            craftTracks = { ...TRACKS, ...Object.fromEntries(fresh) };
+            placeCraft();
+            syncCraft();
+            render();
+        } catch { /* offline, or not there yet: the built-in tracks stay */ }
+    }
     /* A whole system is drawn as one dot once its map is smaller than this on screen. (At
        14, pulled back to the nearest bodies, Alpha Centauri came out as two dots with one
        name between them.) */
@@ -869,8 +926,11 @@ function drawMap(digest) {
         }
         for (const key of bodiesPicked) {
             if (!PICKABLE[key]) continue;
-            const { body, paths, note, dashed } = PICKABLE[key];
+            const { body, paths, note, dashed, open } = PICKABLE[key];
+            /* A spacecraft's path, only while the craft itself is shown, and only about the Sun. */
+            if (key.startsWith('craft:') && (!solar || !craftShown.has(key.slice(6)) || !paths.length)) continue;
             if (note) { noteBeside(body, note); continue; }
+            if (open) { paths.forEach((path) => traced(path, false, C.text, true)); continue; }
             const across = Math.max(...paths.flat().map((q) => apartOnScreen(q, body)));
             if (across < 3) noteBeside(body, 'orbit too small to see from here');
             else paths.forEach((path) => traced(path, true, C.text, dashed));
@@ -1123,6 +1183,7 @@ function drawMap(digest) {
             attachDetails(g, [
                 [displayName(entry), MARK_STYLE[kind].label.toLowerCase(), MARK_STYLE[kind].color],
                 [au(entry.now.r), 'from the Sun'],
+                ...(entry.nowFrom ? [['Shown where it was on', longDate(entry.nowFrom)]] : []),
                 ...(planeText(entry) ? [[planeText(entry)]] : []),
                 [sizeOf(entry).text, sizeOf(entry).measured ? 'measured' : 'from brightness'],
                 ...orbitFor(entry).rows,
@@ -1133,6 +1194,86 @@ function drawMap(digest) {
             const name = properName(entry);
             if (name) labels.push({ x, y, text: name, rank: sizeOf(entry).km });
         }
+        /* Human spacecraft, those turned on under Spacecraft. One that stays with a body is
+           drawn a little down and right of it, clear of the body's mark and its name (up and right); marks that
+           would overlap become one, which says how many and lists them, and a click zooms in
+           until they part. Craft at the same body never part: a click centres on them. */
+        if (solar && craftShown.size) {
+            const CRAFT_OFFSET = 11;
+            const points = [];
+            for (const c of crafts.shown) {
+                if (!craftShown.has(c.item.id)) continue;
+                let [sx, sy] = at3(c.x, c.y, c.z ?? 0);
+                if (c.place) { sx += CRAFT_OFFSET; sy += CRAFT_OFFSET; }
+                if (sx < -20 || sx > SIZE + 20 || sy < -20 || sy > SIZE + 20) continue;
+                points.push({ ...c, sx, sy });
+            }
+            for (const cl of clusterMarks(points, 16)) {
+                const { members } = cl;
+                const anyActive = members.some((m) => m.item.active);
+                const g = svg('g', { class: 'rubin-mark rubin-mark-pickable' });
+                g.append(svg('circle', { cx: cl.x, cy: cl.y, r: 12, fill: 'transparent' }));
+                g.append(craftGlyph(cl.x, cl.y, anyActive));
+                if (members.length === 1) {
+                    const { item } = members[0];
+                    const key = `craft:${item.id}`;
+                    const chosen = bodiesPicked.has(key);
+                    if (chosen) g.classList.add('is-selected');
+                    if (item.count !== undefined) {
+                        attachDetails(g, [
+                            [aboutCount(item.count), item.name.toLowerCase()],
+                            ...(item.active ? [['Among them', 'the International Space Station, Tiangong and Hubble']] : [['Satellites that have stopped working', 'but not yet fallen back']]),
+                            ['Counted from', `${EARTH_ORBIT.source}, ${longDate(EARTH_ORBIT.date)}`],
+                        ]);
+                        labels.push({ x: cl.x, y: cl.y, text: `${aboutCount(item.count)} satellites`, rank: -1 });
+                    } else {
+                        attachDetails(g, [
+                            [item.name, item.active ? 'spacecraft, working' : 'spacecraft, no longer working'],
+                            [item.blurb],
+                            [`${item.agency},`, `launched ${item.launched}`],
+                            item.at ? [PLACE_WORDS[item.at]] : [au(Math.hypot(members[0].x, members[0].y, members[0].z ?? 0)), 'from the Sun'],
+                            ...(item.at ? [] : [['Path from JPL Horizons,', `fetched ${longDate(craftTracks[item.id]?.fetched ?? TRACKS_FETCHED)}`]]),
+                            ...(members[0].lastKnown ? [[`Placed from its last known orbit, of ${members[0].lastKnown.slice(0, 4)};`, 'it may have drifted well off it since']] : []),
+                            [item.active ? `Working as of ${longDate(STATUS_AS_OF)}` : `Not working as of ${longDate(STATUS_AS_OF)}`],
+                            ['Click to centre the map on it', item.at ? '' : 'and show its path'],
+                        ]);
+                        pickable(g, key, members[0], chosen);
+                        labels.push({ x: cl.x, y: cl.y, text: item.name, rank: -1 });
+                    }
+                } else {
+                    /* Earth's satellites are counts, listed first on rows of their own; the named
+                       craft follow. */
+                    const satellites = members.filter((m) => m.item.count !== undefined);
+                    const names = members.filter((m) => m.item.count === undefined).map((m) => m.item.name);
+                    const together = new Set(members.map((m) => m.place)).size === 1 && members[0].place;
+                    const head = names.length === 1 ? 'One spacecraft' : `${names.length} spacecraft`;
+                    const rows = [
+                        [satellites.length ? `${head}, and Earth's satellites,` : head, together ? PLACE_WORDS[members[0].place] : 'too close together to tell apart from here'],
+                        ...satellites.map((m) => [aboutCount(m.item.count), `${m.item.active ? 'working' : 'dead'} satellites in orbit about Earth`]),
+                        ...names.slice(0, 10).map((n) => [n]),
+                        ...(names.length > 10 ? [[`and ${names.length - 10} more`]] : []),
+                        [together ? 'Click to centre the map on them' : 'Click to zoom in until they part'],
+                    ];
+                    attachDetails(g, rows);
+                    g.append(svg('text', { x: cl.x + 9, y: cl.y + 14, class: 'rubin-axis', 'pointer-events': 'none' }, String(members.length)));
+                    const mean = (pick) => members.reduce((t, m) => t + pick(m), 0) / members.length;
+                    const centre = { x: mean((m) => m.x), y: mean((m) => m.y), z: mean((m) => m.z ?? 0) };
+                    const spread = Math.max(...members.map((m) => Math.hypot(m.x - centre.x, m.y - centre.y, (m.z ?? 0) - centre.z)));
+                    const open = () => {
+                        hideTooltip();
+                        if (together || spread === 0) { centreOn(centre); return; }
+                        const to = centredOn(view, [centre.x, centre.y, centre.z]);
+                        setView(zoomAt(to, Math.max(2, (SIZE / 5) / (spread * view.scale))));
+                    };
+                    g.setAttribute('role', 'button');
+                    g.addEventListener('click', open);
+                    g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+                    g.addEventListener('dblclick', (e) => e.stopPropagation());
+                }
+                parts.push(g);
+            }
+        }
+
         /* Planets and tundrs first, then the largest objects; a name with no room is left
            out until zooming in makes some. */
         labels.sort((a, b) => b.rank - a.rank);
@@ -1418,31 +1559,110 @@ function drawMap(digest) {
        and how it looks. It wraps on a narrow screen, a group at a time. */
     const depth = el('span', { class: 'rubin-map-depth', role: 'group', 'aria-label': 'Flat map or 3D' });
     depth.append(flatButton, threeDButton);
-    const showButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-expanded': 'false', 'aria-controls': 'rubin-map-show-menu' }, 'Show ▾');
-    const showMenu = el('div', { class: 'rubin-map-show-menu', id: 'rubin-map-show-menu', role: 'group', 'aria-label': 'What the map shows' });
-    showMenu.hidden = true;
-    showMenu.append(milkyWay.item, rings.item, hatching.item, planeLines.item, findLight);
-    const showBox = el('span', { class: 'rubin-map-show' });
-    showBox.append(showButton, showMenu);
-    const openShow = (open) => {
-        showMenu.hidden = !open;
-        showButton.setAttribute('aria-expanded', String(open));
+    /* A button that opens a small menu over the map: Escape, a click elsewhere or focus
+       leaving it closes it. */
+    const dropdown = (text, id, label, extraClass = '') => {
+        const button = el('button', { type: 'button', class: 'rubin-tool', 'aria-expanded': 'false', 'aria-controls': id }, text);
+        const menu = el('div', { class: `rubin-map-show-menu ${extraClass}`.trim(), id, role: 'group', 'aria-label': label });
+        menu.hidden = true;
+        const box = el('span', { class: 'rubin-map-show' });
+        box.append(button, menu);
+        const open = (on) => {
+            menu.hidden = !on;
+            button.setAttribute('aria-expanded', String(on));
+        };
+        button.addEventListener('click', () => open(menu.hidden));
+        box.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape' || menu.hidden) return;
+            e.preventDefault();
+            e.stopPropagation();
+            open(false);
+            button.focus();
+        });
+        box.addEventListener('focusout', (e) => { if (!box.contains(e.relatedTarget)) open(false); });
+        document.addEventListener('pointerdown', (e) => { if (!box.contains(e.target)) open(false); });
+        return { box, menu, open };
     };
-    showButton.addEventListener('click', () => openShow(showMenu.hidden));
-    showBox.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape' || showMenu.hidden) return;
-        e.preventDefault();
-        e.stopPropagation();
-        openShow(false);
-        showButton.focus();
-    });
-    showBox.addEventListener('focusout', (e) => { if (!showBox.contains(e.relatedTarget)) openShow(false); });
-    document.addEventListener('pointerdown', (e) => { if (!showBox.contains(e.target)) openShow(false); });
-    findLight.addEventListener('click', () => openShow(false));
+    const show = dropdown('Show ▾', 'rubin-map-show-menu', 'What the map shows');
+    show.menu.append(milkyWay.item, rings.item, hatching.item, planeLines.item, findLight);
+    const showBox = show.box;
+    findLight.addEventListener('click', () => show.open(false));
+
+    /* "Spacecraft" (owner, 2026-11-19): human-made things, apart from how the map looks.
+       Two branches, Active and Inactive, each a box for the lot and a list to open for
+       each craft; all off until turned on. A craft the digest's date does not reach (not
+       yet launched, or past its fetched track) is listed, greyed. */
+    const craft = dropdown('Spacecraft ▾', 'rubin-map-craft-menu', 'Human spacecraft on the map', 'rubin-map-craft-menu');
+    const unplaced = () => new Set(crafts.missing.map((s) => s.id));
+    const saveCraft = () => {
+        try { localStorage.setItem(CRAFT_KEY, JSON.stringify([...craftShown])); } catch { /* storage blocked: fine for this visit */ }
+        hideTooltip();
+        render();
+        if (craftShown.size) fetchCraftTracks();
+    };
+    const branches = [];
+    for (const [active, title] of [[true, 'Active'], [false, 'Inactive']]) {
+        const items = itemsOf(active).filter((s) => s.count === undefined || s.count > 0);
+        const all = el('input', { type: 'checkbox' });
+        const head = el('div', { class: 'rubin-map-craft-head' });
+        const headLabel = el('label', { class: 'rubin-map-show-item' });
+        headLabel.append(all, el('span', {}, `${title} (${items.length})`));
+        const listId = `rubin-map-craft-${active ? 'active' : 'inactive'}`;
+        const twist = el('button', { type: 'button', class: 'rubin-map-craft-twist', 'aria-expanded': 'false', 'aria-controls': listId, 'aria-label': `List each ${title.toLowerCase()} craft` }, '▸');
+        head.append(headLabel, twist);
+        const list = el('div', { class: 'rubin-map-craft-list', id: listId, role: 'group', 'aria-label': `${title} spacecraft` });
+        list.hidden = true;
+        const boxes = items.map((s) => {
+            const box = el('input', { type: 'checkbox' });
+            const where = s.count !== undefined ? `${s.name} (${aboutCount(s.count)})` : s.name;
+            const label = el('label', { class: 'rubin-map-show-item' });
+            label.append(box, el('span', {}, where));
+            box.addEventListener('change', () => {
+                if (box.checked) craftShown.add(s.id); else craftShown.delete(s.id);
+                syncCraft();
+                saveCraft();
+            });
+            list.append(label);
+            return { s, box, label };
+        });
+        const placeable = () => { const out = unplaced(); return items.filter((s) => !out.has(s.id)); };
+        all.addEventListener('change', () => {
+            const on = groupState(placeable(), craftShown) !== 'all';
+            for (const s of placeable()) { if (on) craftShown.add(s.id); else craftShown.delete(s.id); }
+            syncCraft();
+            saveCraft();
+        });
+        twist.addEventListener('click', () => {
+            list.hidden = !list.hidden;
+            twist.textContent = list.hidden ? '▸' : '▾';
+            twist.setAttribute('aria-expanded', String(!list.hidden));
+        });
+        craft.menu.append(head, list);
+        branches.push({ all, boxes, placeable });
+    }
+    /* Also run when fresher tracks arrive, which can place a craft the built-in ones could not. */
+    function syncCraft() {
+        const out = unplaced();
+        for (const { all, boxes, placeable } of branches) {
+            const state = groupState(placeable(), craftShown);
+            all.checked = state === 'all';
+            all.indeterminate = state === 'some';
+            for (const { s, box, label } of boxes) {
+                const missing = out.has(s.id);
+                box.checked = craftShown.has(s.id);
+                box.disabled = missing;
+                label.classList.toggle('is-off', missing);
+                label.title = missing ? 'Not placed on this date: not yet launched, or past where its track was fetched' : s.blurb ?? '';
+            }
+        }
+    }
+    syncCraft();
+    if (craftShown.size) fetchCraftTracks();
+    craft.menu.append(el('p', { class: 'rubin-note rubin-map-craft-note' }, `Working or not as of ${longDate(STATUS_AS_OF)}. Craft that landed, or were destroyed, are left out.`));
     const zooming = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'Zoom' });
     zooming.append(zoomOut, zoomIn, reset);
     const looking = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'How the map looks' });
-    looking.append(depth, showBox, fullButton);
+    looking.append(depth, showBox, craft.box, fullButton);
     showDepth();
 
     /* Where the map can go: a list of the systems, nearest first, marking the one the map is
@@ -1634,9 +1854,9 @@ function drawMap(digest) {
         rulerNote,
     );
     section.querySelector('figcaption').replaceChildren(
-        `Seen from above the plane of Earth's orbit on ${longDate(digest.date)}, with the Sun at the centre and distances to scale. The planets and `,
+        `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were that day. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the AU rings, the hatching and the plane lines on or off.`,
+        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the AU rings, the hatching and the plane lines on or off. "Spacecraft" adds human spacecraft, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body, and the satellites about Earth as two counts.`,
     );
 
     const mapTable = table(
@@ -1670,7 +1890,7 @@ function drawMap(digest) {
                     const { pair } = p;
                     const other = s.members.find((o) => o.id === (pair.a === m.id ? pair.b : pair.a));
                     const { aAU, e, period } = pair.orbit;
-                    notes.push(pair.a === m.id ? `${farDistanceText(p.apart)} from ${shortName(s, other)} on ${longDate(digest.date)}`
+                    notes.push(pair.a === m.id ? `${farDistanceText(p.apart)} from ${shortName(s, other)} on ${longDate(MAP_DAY)}`
                         : `orbits ${shortName(s, other)} every ${period.toFixed(1)} years, between ${(aAU * (1 - e)).toFixed(1)} and ${(aAU * (1 + e)).toFixed(1)} AU apart`);
                 } else if (m.sky) notes.push(`${farDistanceText(apartFrom(body, on.centre))} from ${s.centreName}`);
                 notes.push(planetsText(s, m));

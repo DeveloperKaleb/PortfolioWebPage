@@ -17,7 +17,10 @@ import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createPoliteFetch } from '../js/polite.js';
-import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL, fetchMoonVectors } from '../js/sources.js';
+import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL, fetchMoonVectors, fetchCraftTrack } from '../js/sources.js';
+import { CRAFT } from '../js/spacecraft.js';
+import { TRACKS } from '../js/spacecrafttracks.js';
+import { buildTrack, spacecraftDue } from '../js/spacecraftfit.js';
 import { moonsDue, moonFitTimes, fitMoons, MOON_HORIZONS, BUILT_IN_MOONS } from '../js/moons.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
@@ -226,6 +229,38 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
     }
     digest.moons = moons ? { epoch: moons.epoch, orbits: moons.orbits } : null;
 
+    /* The free-flying spacecraft's tracks for the map (js/spacecraft.js), refetched from JPL
+       Horizons once a month into spacecraft.json, which the page reads only when a reader
+       turns a craft on; it falls back to the tracks built into the site. A year ahead, so a
+       few missed months cost nothing. Craft Horizons stopped following long ago (placed
+       from their last known orbit) are not asked about. One request a craft, a few more
+       where Horizons's track starts or ends inside the span; a craft that gets nothing
+       keeps its last track. If the run's budget runs out, what was fetched is kept and
+       the month is finished next week. */
+    const craftFile = join(dataDir, 'spacecraft.json');
+    const craftStore = { complete: null, tracks: {}, asked: {}, ...readJson(craftFile) };
+    if (spacecraftDue(craftStore, plan.month)) {
+        const day = (offset) => new Date(date.getTime() + offset * 86400000).toISOString().slice(0, 10);
+        const [spanStart, spanStop] = [day(-10), day(400)];
+        const asked = CRAFT.filter((c) => c.horizons && !TRACKS[c.id]?.lastKnown && craftStore.asked[c.id] !== plan.month);
+        let got = 0, kept = 0, stopped = null;
+        for (const craft of asked) {
+            try {
+                const rows = await fetchCraftTrack(polite, craft.horizons, spanStart, spanStop);
+                const track = rows.rows.length ? buildTrack(rows, { spanStart, todayJd: today }) : null;
+                if (track) { craftStore.tracks[craft.id] = { ...track, fetched: date.toISOString().slice(0, 10) }; got++; } else kept++;
+                craftStore.asked[craft.id] = plan.month;
+            } catch (error) {
+                stopped = error.message;
+                break;
+            }
+        }
+        if (!stopped) craftStore.complete = plan.month;
+        craftStore.updated = date.toISOString().slice(0, 10);
+        writeJson(craftFile, craftStore);
+        log(`Spacecraft: ${got} tracks refreshed, ${kept} kept as they were${stopped ? `, stopped (${stopped}); the rest next week` : ''}`);
+    }
+
     /* What shaped the far edge? (js/faredge.js): the most distant orbits' directions, from
        the list already in hand - no request. Its history is kept in far-edge.json and only
        grows. A failure here never costs the run: the section is left out that week. */
@@ -265,6 +300,7 @@ export async function recordedPolite() {
     const { OBJECTS } = await import('../tests/orbit/fixtures.js');
     const { HORIZONS_VECTORS, horizonsResponse } = await import('../tests/moons/fixtures.js');
     const { MOON_HORIZONS } = await import('../js/moons.js');
+    const { VOYAGER_1_TRACK } = await import('../tests/sources/spacecraft-fixtures.js');
     const page = JSON.parse(JPL_PAGE);
     const extra = [['136199', ' 136199 Eris (2003 UB313)', OBJECTS.Eris], ['90377', ' 90377 Sedna (2003 VB12)', OBJECTS.Sedna], ['225088', ' 225088 Gonggong (2007 OR10)', OBJECTS.Gonggong]];
     for (const [pdes, fullName, o] of extra) {
@@ -287,6 +323,12 @@ export async function recordedPolite() {
         if (url.includes('rubin.community')) return answer(RUBIN_NEWS);
         /* Horizons: the recorded rows for that moon, whatever dates were asked (they were
            recorded for an epoch of 2026-10-05). */
+        if (url.includes('horizons.api') && new URL(url).searchParams.get('START_TIME')) {
+            /* A spacecraft's track: Voyager 1's recorded rows, whatever span was asked; any
+               other craft, no track, as Horizons says for a target it does not follow. */
+            const id = Number(new URL(url).searchParams.get('COMMAND').replace(/'/g, ''));
+            return answer(id === -31 ? VOYAGER_1_TRACK : JSON.stringify({ result: 'No ephemeris for target in the dry run.' }));
+        }
         if (url.includes('horizons.api')) {
             const id = Number(new URL(url).searchParams.get('COMMAND').replace(/'/g, ''));
             const name = Object.keys(MOON_HORIZONS).find((n) => MOON_HORIZONS[n][0] === id);

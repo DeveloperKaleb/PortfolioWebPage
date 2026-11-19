@@ -513,3 +513,67 @@ export async function fetchMoonVectors(polite, moons, jds) {
     }
     return { rows, failed };
 }
+
+/* ---- JPL Horizons: the spacecraft, once a month ---------------------------------------
+ *
+ * A free-flying craft's position from the Sun every SPACECRAFT_STEP_DAYS between two dates:
+ * ecliptic J2000, AU. Horizons follows each craft only over the span its team has
+ * published; asked beyond it, it says where its track starts or ends, and the span is cut
+ * to fit with one more request. A dead craft it stopped following before the span gives
+ * its last 120 days instead, for its last known orbit (js/spacecraftfit.js). */
+export const SPACECRAFT_STEP_DAYS = 5;
+
+export function horizonsTrackUrl(id, start, stop) {
+    const query = new URLSearchParams({
+        format: 'json', COMMAND: `'${id}'`, OBJ_DATA: 'NO', MAKE_EPHEM: 'YES', EPHEM_TYPE: 'VECTORS',
+        CENTER: "'500@10'", START_TIME: `'${start}'`, STOP_TIME: `'${stop}'`, STEP_SIZE: `'${SPACECRAFT_STEP_DAYS} d'`,
+        REF_PLANE: 'ECLIPTIC', REF_SYSTEM: 'J2000', OUT_UNITS: 'AU-D', VEC_TABLE: '1', CSV_FORMAT: 'YES', VEC_LABELS: 'NO',
+    });
+    return `https://ssd.jpl.nasa.gov/api/horizons.api?${query}`;
+}
+
+/* Rows of JD, x, y, z; or, where there are none, what Horizons said. */
+export function parseHorizonsTrack(body) {
+    const json = JSON.parse(body);
+    const result = json.result ?? json.error ?? '';
+    const table = result.split('$$SOE')[1]?.split('$$EOE')[0];
+    if (!table) return { rows: [], said: result };
+    const rows = table.trim().split('\n').map((line) => {
+        const cells = line.split(',').map((c) => c.trim());
+        return [Number(cells[0]), Number(cells[2]), Number(cells[3]), Number(cells[4])];
+    }).filter((row) => row.every(Number.isFinite));
+    return { rows, said: '' };
+}
+
+/* "No ephemeris for target ... prior to A.D. 2026-MAR-05 ..." or "after A.D. ...": which
+   end to cut, and the date a day inside it. */
+const MONTH_NUMBER = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+export function horizonsLimit(said) {
+    const m = said.match(/(prior to|after) A\.D\. (\d{4})-([A-Z]{3})-(\d{2})/);
+    if (!m) return null;
+    const day = new Date(Date.UTC(Number(m[2]), MONTH_NUMBER[m[3]] - 1, Number(m[4])));
+    day.setUTCDate(day.getUTCDate() + (m[1] === 'prior to' ? 1 : -1));
+    return { side: m[1] === 'prior to' ? 'start' : 'stop', date: day.toISOString().slice(0, 10) };
+}
+
+/* One craft's rows between start and stop (YYYY-MM-DD), cut to what Horizons holds: at most
+   three requests. { start, stop, rows }, or { rows: [], said } where there are none. */
+export async function fetchCraftTrack(polite, id, start, stop) {
+    let got = { rows: [], said: '' };
+    for (let tries = 0; tries < 3; tries++) {
+        const response = await polite(horizonsTrackUrl(id, start, stop), { headers: { Accept: 'application/json' } });
+        if (!response.ok) return { rows: [], said: `HTTP ${response.status}` };
+        got = parseHorizonsTrack(response.body);
+        if (got.rows.length) return { start, stop, rows: got.rows };
+        const cut = horizonsLimit(got.said);
+        if (!cut) break;
+        if (cut.side === 'start') start = cut.date; else stop = cut.date;
+        if (start >= stop && cut.side === 'stop') {
+            const from = new Date(`${stop}T00:00:00Z`);
+            from.setUTCDate(from.getUTCDate() - 120);
+            start = from.toISOString().slice(0, 10);
+        }
+        if (start >= stop) break;
+    }
+    return { rows: [], said: got.said };
+}

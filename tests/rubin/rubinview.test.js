@@ -7,6 +7,7 @@ import {
     ringLabelSpot,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
+import { positionAt } from '../../js/orbit.js';
 import { MOON_ORBITS } from '../../js/moons.js';
 const MOON_ORBITS_CHARON_A = MOON_ORBITS.Charon.a;
 
@@ -175,6 +176,40 @@ describe('The map', () => {
     test('leaves out an object with no position rather than placing it at the Sun', () => {
         const without = { ...digest, entries: [entry({ now: { r: 44, V: 20, detectable: true } })] };
         expect(mapData(without).marks).toEqual([]);
+    });
+    /* Owner, 2026-11-19: the map shows where things are as the page opens. */
+    describe('drawn for a moment other than the digest date', () => {
+        const exact = { a: 45, e: 0.1, i: 5, om: 30, w: 60, ma: 100, epoch: 2461000.5 };
+        const moving = { ...digest, entries: [entry({ orbit: { a: 45, e: 0.1, i: 5, q: 40.5, exact } })] };
+        const jd = 2461400.5;
+
+        test('moves an object along its exact orbit to that moment, keeping its brightness', () => {
+            const m = mapData(moving, { jd }).marks[0].entry;
+            const p = positionAt(exact, jd);
+            expect([m.now.x, m.now.y, m.now.z, m.now.r]).toEqual([p.x, p.y, p.z, p.r]);
+            expect(m.now.V).toBe(20.1);
+            expect(m.nowFrom).toBeNull();
+        });
+
+        test("leaves an entry from an older digest where the digest put it, saying when", () => {
+            const m = mapData(digest, { jd }).marks[0].entry;
+            const was = mapData(digest).marks[0].entry;
+            expect([m.now.x, m.now.y]).toEqual([was.now.x, was.now.y]);
+            expect(m.nowFrom).toBe(digest.date);
+        });
+
+        test('places the planets for that moment', () => {
+            const then = mapData(digest, { jd });
+            expect(then.jd).toBe(jd);
+            const earth = then.planets.find((p) => p.name === 'Earth');
+            const same = worldsOn(jd).find((p) => p.name === 'Earth');
+            expect([earth.x, earth.y]).toEqual([same.x, same.y]);
+        });
+
+        test('does not change the entries the cards use', () => {
+            mapData(moving, { jd });
+            expect(moving.entries[0].now.x).toBe(30);
+        });
     });
 });
 

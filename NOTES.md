@@ -4327,3 +4327,80 @@ round each other, Alpha Centauri B's widest separation in the table is the drawn
 Proxima's hover puts its orbit line before its distances. Proxima's dashed orbit is still
 its own calculation (`proximaOrbit`), switched on by `roughOrbit`; the caption under the
 map still describes the four systems by name, for stage 3 to rewrite.
+
+## Human spacecraft on the map (owner, 2026-11-19)
+
+**What the owner asked for.** Every human spacecraft, working and not, shown selectively.
+It lives under its own menu, "Spacecraft ▾", apart from Show (which is how the map looks),
+with two branches, Active and Inactive, both off by default. Scope (owner's choice of
+three): each craft beyond Earth orbit as its own mark, and Earth-orbit satellites as two
+counts at Earth. Each branch has a box for the lot (checked, unchecked or partly) and a ▸
+that opens a box per craft. Choices are remembered in `localStorage` (`rubin-map-craft`,
+a list of ids; unknown ids are dropped).
+
+**Where the data comes from.**
+- `CRAFT` in `js/spacecraft.js` is kept by hand: name, agency, launch year, working or not,
+  a line about it, and where it is: `horizons` (a JPL Horizons id, for craft that fly free
+  about the Sun) or `at` (a place it stays with: Earth, L1, L2, Luna, Venus, Mars, Jupiter,
+  Ceres). Statuses are as of `STATUS_AS_OF`; `unsure: true` marks those to check first
+  (Juno, Mars Odyssey, MAVEN, Spektr-RG on 2026-11-19).
+- Left out on purpose: craft that landed (rovers, landers, Rosetta on its comet), craft
+  destroyed or burned up, rocket stages. Earth-orbit craft are only the counts.
+- **Refreshed monthly by the collector (owner, 2026-11-19).** Once a calendar month the
+  weekly run asks Horizons for every free-flying craft's next 400 days (`fetchCraftTrack`
+  in `js/sources.js`, fitted by `buildTrack` in `js/spacecraftfit.js`) and writes
+  rubin-data's `spacecraft.json`: `tracks` (each with the date it was `fetched`), `asked`
+  (the month each craft was last asked about) and `complete` (the last month every craft
+  was). Craft placed from a last known orbit are not asked about. If the run's request
+  budget runs out, what came back is kept and the month finishes the next week; a craft
+  that gets nothing keeps its last track. The page fetches the file only once a reader
+  turns a craft on (`?spacecraft=path` points a preview at a local one), uses its tracks
+  over the built-in ones, and falls back to those if it cannot. A craft's hover says when
+  its path was fetched.
+- The built-in tracks are the fallback: `npm run spacecraft:fetch` (`tools/spacecraft/fetch.mjs`) asks Horizons for each
+  free-flying craft's position from the Sun every 5 days, 2026-01-01 to 2031-01-01, cut to
+  what Horizons holds (it says where its track starts and ends, and the tool asks once
+  more inside that), and counts CelesTrak's catalogue for Earth orbit. All through
+  `js/polite.js`, 5 s apart; each answer is saved in `tools/spacecraft/raw/` and never
+  asked for again (delete a file to refetch it). `raw/major-bodies.txt` is Horizons's list
+  of ids, fetched once, for finding a new craft's id.
+- `npm run spacecraft` (`tools/spacecraft/build.mjs`) writes `js/spacecrafttracks.js`: for
+  each craft a plain orbit about the Sun where one fits every 5-day position (within
+  0.0005 AU, or 0.02% of its distance), which holds at any date; otherwise positions every
+  5-80 days, the widest step a cubic still matches to 0.0002 AU (or 0.01%). Positions run
+  out where the fetched track does: the craft is then listed greyed in the menu and not
+  drawn, unless the monthly file has it. Several active craft's Horizons tracks end in
+  2027 (and MMX's in December 2026); the monthly refresh covers that, so the built-in
+  ones need refetching only now and then (and for new craft added to `CRAFT`).
+
+**How it is drawn.** Free craft at their positions; craft at a place are drawn 11 px down
+and right of that body, so the body and its name (up and right) stay clear. Working craft are filled, dead ones hollow
+and fainter (shape and colour both). Marks within 16 px merge into one with a count: its
+hover lists them, and a click zooms until they part, or, for craft all at one body (which
+never part), centres there. A single craft picked shows its path (dashed): its orbit, two
+years either side, or its fetched track. Only drawn while the Sun's own map is drawn.
+
+## The map shows the moment it is looked at (owner, 2026-11-19)
+
+The map used to draw everything for the digest's date, which moves on only on Mondays, so
+it could be six days behind (Earth moves about 7 degrees a week; the Moon a quarter turn).
+Now `drawMap` takes the moment the page opens (`mapMoment`, `MAP_DAY`) and draws the
+planets, moons, Ceres, the star systems and the spacecraft for it; the caption says "as
+you opened this page, on" that date. The cards below the map, the far-edge chart and the
+status line still go by the digest's date.
+
+The digest's objects move too: since 2026-11-19 the collector writes `orbit.exact` on each
+entry (a, e, i, om, w at full precision, plus ma and epoch; the rounded ones the cards show
+are unchanged), and `mapEntry` in `js/rubinview.js` moves each object along it to that
+moment, keeping the digest's brightness and the rest. An entry without `exact` (any digest
+written before that) stays where the digest put it, and its hover says "Shown where it
+was on" the digest's date. `mapData(digest)` with no `jd` still gives the digest's date, as
+the tests expect.
+
+How current each kind of thing is, as of 2026-11-19 (the owner asked): the digest's objects
+are recomputed every week from orbits JPL refreshes monthly; the spacecraft tracks monthly;
+the moons' fits yearly (the digest carries none yet, so the built-in fit of 2026-11-02 is
+used); the planets, Ceres and the stars are never updated and need not be, being drawn from
+models good for decades. What is not truly where it is drawn: craft placed from a last
+known orbit (11), craft at L1 and L2 (12, drawn at the point; they loop up to about a
+million km round it), and objects whose orbits are flagged uncertain.

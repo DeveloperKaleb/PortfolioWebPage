@@ -21,6 +21,8 @@ import { NEIGHBOURS } from './centauri.js';
 export const DATA_ROOT = '/rubin-data';
 export const DIGEST_URL = `${DATA_ROOT}/digest/latest.json`;
 export const CHANGES_URL = (month) => `${DATA_ROOT}/changes/${month}.json`;
+/* The spacecraft's tracks, refreshed monthly by the collector (js/spacecraftfit.js). */
+export const SPACECRAFT_URL = `${DATA_ROOT}/spacecraft.json`;
 export const DATA_REPO = 'https://github.com/DeveloperKaleb/rubin-data';
 
 export const percent = (chance) => {
@@ -178,16 +180,32 @@ export function chartData({ steps = 120 } = {}) {
 
 /* ---- The map: where the listed objects are now, seen from above -------------------------- */
 
-/* The objects on the map, the planets where they are on the digest's date (js/planets.js),
-   and the radius to fit them: the furthest object rounded up to a round number of AU. */
-export function mapData(digest) {
-    const { known, passes, watch } = sections(digest);
+/* An object as the map draws it on a Julian date (owner, 2026-11-19: the map shows where
+   things are when it is looked at, not on the digest's date): its position moved along its
+   orbit (orbit.exact, from digests since 2026-11-19), its brightness and the rest left as
+   the digest has them. An older digest's entry stays where the digest put it, marked with
+   that date (nowFrom). */
+export function mapEntry(entry, jd, digestDate) {
+    const exact = entry.orbit?.exact;
+    if (!exact || !Number.isFinite(jd)) return { ...entry, nowFrom: digestDate };
+    const p = positionAt(exact, jd);
+    return { ...entry, now: { ...entry.now, x: p.x, y: p.y, z: p.z, r: p.r }, nowFrom: null };
+}
+
+/* The objects on the map, the planets where they are (js/planets.js), and the radius to
+   fit them: the furthest object rounded up to a round number of AU. On the digest's date
+   unless a moment (jd) is given. */
+export function mapData(digest, { jd } = {}) {
+    const digestJd = jdFromDate(new Date(`${digest.date}T00:00:00Z`));
+    const at = jd ?? digestJd;
+    const { known: listedKnown, passes, watch } = sections(digest);
+    const move = (e) => mapEntry(e, jd === undefined ? undefined : at, digest.date);
+    const known = listedKnown.map(move);
     const marks = [
-        ...[...known, ...passes].map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
-        ...watch.map((e) => ({ entry: e, kind: 'watch' })),
+        ...[...known, ...passes.map(move)].map((e) => ({ entry: e, kind: e.flags.includes('disputed') ? 'disputed' : 'passes' })),
+        ...watch.map(move).map((e) => ({ entry: e, kind: 'watch' })),
     ].filter((m) => Number.isFinite(m.entry.now?.x) && Number.isFinite(m.entry.now?.y));
-    const jd = jdFromDate(new Date(`${digest.date}T00:00:00Z`));
-    const planets = worldsOn(jd);
+    const planets = worldsOn(at);
     const furthest = Math.max(31, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y)));
     const radius = Math.ceil(furthest / 50) * 50;
     /* In 3D an object far above or below the plane can reach further across the picture
@@ -195,7 +213,7 @@ export function mapData(digest) {
     const furthest3D = Math.max(furthest, ...marks.map((m) => Math.hypot(m.entry.now.x, m.entry.now.y, m.entry.now.z ?? 0)));
     const radius3D = Math.ceil(furthest3D / 50) * 50;
     /* The digest carries the collector's latest moon fit; an older digest, the built-in one. */
-    return { marks, radius, radius3D, planets, moons: moonsOn(jd, planets, known, digest.moons ?? BUILT_IN_MOONS) };
+    return { marks, radius, radius3D, planets, jd: at, moons: moonsOn(at, planets, known, digest.moons ?? BUILT_IN_MOONS) };
 }
 
 /* What the map draws of an object's orbit once it is picked (owner, 2026-11-16): the

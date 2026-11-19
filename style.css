@@ -2669,6 +2669,60 @@ main.rubin {
     cursor: default;
 }
 
+/* "Spacecraft": two branches, each a box for the lot and a list to open, so it can grow
+   long; it scrolls rather than run off the screen. */
+.rubin-map-craft-menu {
+    min-width: 16em;
+    max-width: min(22em, 90vw);
+    max-height: min(70vh, 30em);
+    overflow-y: auto;
+}
+
+.rubin-map-craft-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.rubin-map-craft-head .rubin-map-show-item {
+    flex: 1;
+    font-weight: bold;
+}
+
+.rubin-map-craft-twist {
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid #51553a;
+    border-radius: 6px;
+    background: none;
+    color: #e3e7af;
+    font: inherit;
+    cursor: pointer;
+}
+
+.rubin-map-craft-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 22px;
+    border-left: 1px solid #51553a;
+    margin-left: 12px;
+}
+
+.rubin-map-craft-list[hidden] {
+    display: none;
+}
+
+.rubin-map-craft-list .rubin-map-show-item {
+    min-height: 32px;
+}
+
+.rubin-map-craft-note {
+    margin: 6px 4px 0;
+    max-width: 20em;
+}
+
 /* Beside the map in full screen the panel scrolls, so the menu opens in its place. */
 .rubin-map-stage.is-side .rubin-map-show-menu {
     position: static;

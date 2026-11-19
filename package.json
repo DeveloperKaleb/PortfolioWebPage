@@ -12,7 +12,9 @@
     "openings": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/mine-openings.mjs",
     "albedos": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/tno-albedos.mjs",
     "collect": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/rubin-collect.mjs",
-    "moons": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/moon-orbits.mjs"
+    "moons": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/moon-orbits.mjs",
+    "spacecraft:fetch": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/spacecraft/fetch.mjs",
+    "spacecraft": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/spacecraft/build.mjs"
   },
   "repository": {
     "type": "git",
