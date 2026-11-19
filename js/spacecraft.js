@@ -14,8 +14,9 @@
  * Earth's pulls balance (L1, L2) - is drawn at that body: its own orbit there is far too
  * small to see on this map.
  *
- * Statuses are as the owner and Claude know them on STATUS_AS_OF; `unsure` marks the ones
- * worth checking first. Craft that landed (rovers, landers, Rosetta on its comet) and craft
+ * Statuses are as the owner and Claude know them on STATUS_AS_OF; `unsure` marks any
+ * worth checking first (none since 2026-11-19, when Juno, Mars Odyssey and Spektr-RG were
+ * confirmed working and MAVEN ended). Craft that landed (rovers, landers, Rosetta on its comet) and craft
  * that were destroyed are left out: this is what is out there, flying. So are dead craft
  * whose last known track cannot be followed on as an orbit (WMAP and LISA Pathfinder, last
  * seen near L2 and L1; Mariner 2, last seen at its Venus flyby in 1962). Pure: no DOM.
@@ -74,7 +75,7 @@ export const CRAFT = [
     c('jwst', 'James Webb Space Telescope', 'NASA, ESA and CSA', 2021, true, AT('L2'), 'The largest telescope in space'),
     c('euclid', 'Euclid', 'ESA', 2023, true, AT('L2'), 'Mapping the dark universe across a third of the sky'),
     c('roman', 'Nancy Grace Roman Space Telescope', 'NASA', 2026, true, AT('L2'), 'A wide-field telescope, launched in 2026'),
-    c('spektrRG', 'Spektr-RG', 'Roscosmos and DLR', 2019, true, AT('L2'), 'An X-ray observatory; its Russian telescope still works', { unsure: true }),
+    c('spektrRG', 'Spektr-RG', 'Roscosmos and DLR', 2019, true, AT('L2'), 'An X-ray observatory at L2; its Russian telescope still works, its German one off since 2022'),
     c('lro', 'Lunar Reconnaissance Orbiter', 'NASA', 2009, true, AT('Luna'), 'Has mapped the Moon in fine detail since 2009'),
     c('chandrayaan2', 'Chandrayaan-2 orbiter', 'ISRO', 2019, true, AT('Luna'), "India's Moon orbiter"),
     c('danuri', 'Danuri', 'KARI', 2022, true, AT('Luna'), "South Korea's first Moon orbiter"),
@@ -83,10 +84,10 @@ export const CRAFT = [
     c('mro', 'Mars Reconnaissance Orbiter', 'NASA', 2005, true, AT('Mars'), 'Its camera can make out a car on the ground'),
     c('marsExpress', 'Mars Express', 'ESA', 2003, true, AT('Mars'), "Europe's first craft at another planet"),
     c('tgo', 'ExoMars Trace Gas Orbiter', 'ESA and Roscosmos', 2016, true, AT('Mars'), "Sniffs Mars's air for gases"),
-    c('odyssey', 'Mars Odyssey', 'NASA', 2001, true, AT('Mars'), 'The longest-working craft at Mars', { unsure: true }),
+    c('odyssey', 'Mars Odyssey', 'NASA', 2001, true, AT('Mars'), 'The longest-working craft at Mars'),
     c('tianwen1', 'Tianwen-1 orbiter', 'CNSA', 2020, true, AT('Mars'), "China's Mars orbiter, which carried the Zhurong rover"),
     c('hope', 'Hope', 'UAE Space Agency', 2020, true, AT('Mars'), "Watches Mars's weather"),
-    c('juno', 'Juno', 'NASA', 2011, true, AT('Jupiter'), 'Has orbited Jupiter since 2016', { unsure: true }),
+    c('juno', 'Juno', 'NASA', 2011, true, AT('Jupiter'), 'Has orbited Jupiter since 2016'),
 
     /* ---- No longer working ---- */
     c('pioneer10', 'Pioneer 10', 'NASA', 1972, false, H(-23), 'The first craft to visit Jupiter; last heard from in 2003'),
@@ -111,7 +112,7 @@ export const CRAFT = [
     c('bioSentinel', 'BioSentinel', 'NASA', 2022, false, H(-70007), 'Carried yeast past the Moon to study deep-space radiation'),
     c('lunarFlashlight', 'Lunar Flashlight', 'NASA', 2022, false, H(-164), 'Meant to look for ice on the Moon; its engines failed'),
     c('lunarTrailblazer', 'Lunar Trailblazer', 'NASA', 2025, false, H(-242), 'Meant to map water on the Moon; lost soon after launch'),
-    c('maven', 'MAVEN', 'NASA', 2013, false, AT('Mars'), 'Studied how Mars lost its air; contact lost in December 2025', { unsure: true }),
+    c('maven', 'MAVEN', 'NASA', 2013, false, AT('Mars'), 'Studied how Mars lost its air; contact lost in December 2025, mission ended June 2026'),
     c('mgs', 'Mars Global Surveyor', 'NASA', 1996, false, AT('Mars'), 'Mapped Mars for nine years; lost in 2006'),
     c('mom', 'Mangalyaan', 'ISRO', 2013, false, AT('Mars'), "India's first Mars orbiter; contact lost in 2022"),
     c('akatsuki', 'Akatsuki', 'JAXA', 2010, false, AT('Venus'), "Japan's Venus orbiter; contact lost in 2024"),
