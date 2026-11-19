@@ -2065,9 +2065,21 @@ main.rubin {
 }
 
 .rubin h2,
+.rubin-subtitle,
 .rubin-intro,
 .rubin-status {
     text-align: center;
+}
+
+.rubin-subtitle {
+    max-width: 640px;
+    margin: -4px auto 16px;
+    font-size: 1.15em;
+    font-style: italic;
+}
+
+.rubin-nowrap {
+    white-space: nowrap;
 }
 
 .rubin-intro {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>The Solar System - Kaleb's Portfolio</title>
+    <title>Our Cosmic Address - Kaleb's Portfolio</title>
     <!-- Asks for the digest before anything else on the page, so it travels while the
          stylesheet, rubin.js and its modules do; rubin.js takes the answer from here
          (loadDigest) and falls back to asking itself. It was the last thing requested,
@@ -44,8 +44,8 @@
     <link rel="modulepreload" href="/PortfolioWebPage/js/spacecraft.js" />
     <link rel="modulepreload" href="/PortfolioWebPage/js/spacecrafttracks.js" />
     <!-- Vendored - see the note in index.html. -->
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261119-1034" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261119-1034" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261119-1113" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261119-1113" rel="stylesheet" />
 </head>
 <body>
     <!-- The mountain stream down the left margin and the forest floor down the right,
@@ -60,11 +60,32 @@
          the words and geometry are worked out in js/rubinview.js. Visitors' browsers
          only ever read that digest - never Fink or JPL. -->
     <main id="main" class="wrapper rubin">
-        <h2>Large worlds at the edge of the Solar System</h2>
+        <!-- The tab's name and line (owner, 2026-11-19): it was "The Solar System" before
+             the map reached the nearest stars. The subtitle ends at Sagittarius A* so the
+             map can keep growing outward without it changing. -->
+        <h2>Our Cosmic Address</h2>
+        <p class="rubin-subtitle">
+            Everything near Earth, where it really is right now, from the Moon to <span class="rubin-nowrap">Sagittarius A*</span>.
+        </p>
+        <!-- The map first (owner, 2026-11-19): it is what the tab's name promises. The
+             Rubin sections follow it. -->
+        <section id="rubin-map" class="rubin-section" hidden>
+            <h3>Where everything is now</h3>
+            <figure class="rubin-figure">
+                <div class="rubin-plot"></div>
+                <figcaption class="rubin-note"></figcaption>
+            </figure>
+            <details class="rubin-table-view">
+                <summary>The map as a table</summary>
+                <div class="rubin-table-wrap"></div>
+            </details>
+        </section>
+
         <p class="rubin-intro">
-            Objects beyond Neptune big enough that their own gravity has probably pulled
-            them round - planets like Pluto and Eris, and any still hiding - checked each month
-            against public data from the Vera C. Rubin Observatory.
+            Also here: the large worlds at the edge of the Solar System. Objects beyond Neptune
+            big enough that their own gravity has probably pulled them round - planets like
+            Pluto and Eris, and any still hiding - checked each month against public data
+            from the Vera C. Rubin Observatory.
         </p>
         <p id="rubin-status" class="rubin-status" role="status">Loading the latest digest…</p>
         <!-- Whether Rubin is observing, and when this page and its Rubin data next change
@@ -97,18 +118,6 @@
             <p class="rubin-note">Faint, so probably small - but large if their surfaces are very dark, and on orbits that mark them out.</p>
             <div class="rubin-picker"></div>
             <div class="rubin-cards"></div>
-        </section>
-
-        <section id="rubin-map" class="rubin-section" hidden>
-            <h3>Where they are now</h3>
-            <figure class="rubin-figure">
-                <div class="rubin-plot"></div>
-                <figcaption class="rubin-note"></figcaption>
-            </figure>
-            <details class="rubin-table-view">
-                <summary>The map as a table</summary>
-                <div class="rubin-table-wrap"></div>
-            </details>
         </section>
 
         <section id="rubin-changes" class="rubin-section" hidden>
@@ -256,10 +265,10 @@
         </div>
     </dialog>
 
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261119-1034"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261119-1034"></script>
-    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261119-1034"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261119-1034"></script>
-    <script type="module" src="./rubin.js?v=20261119-1034"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261119-1113"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261119-1113"></script>
+    <script type="module" blocking="render" src="/PortfolioWebPage/scripts/stream.js?v=20261119-1113"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261119-1113"></script>
+    <script type="module" src="./rubin.js?v=20261119-1113"></script>
 </body>
 </html>

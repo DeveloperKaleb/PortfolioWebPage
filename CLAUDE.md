@@ -7,13 +7,17 @@ certain CSS/layout choices exist, the manual cache-busting workflow, etc.) — c
 before re-deriving something that's already been debugged once.
 
 `NOTES.md` also carries standing design rules, not only gotchas — constraints on new
-work rather than descriptions of old work. Two to know before designing anything they
+work rather than descriptions of old work. Three to know before designing anything they
 touch:
 
 - **Colour choices are held to the contrast rules** in `js/contrast.js`, checked against
   both colour-blindness simulations and asserted in `tests/contrast/`. The one exception
   is the decorative landscape in the page margins (`js/stream.js`), which is held to
   reference photographs instead, by the project owner's decision.
+- **The Solar System tab has stated goals** ("What the Solar System tab is for" in
+  NOTES.md): awe, teaching, famous names in their real place, what is new first, and
+  growing without losing the reader. Check new work on the tab against them; where one
+  conflicts, raise it with the owner and edit the goals rather than quietly bend them.
 - **Any multiplayer is phone to phone, in the same room** - no shared screen, co-presence rewarded by design, plain turn-based play welcome.
 
 ## What this is
@@ -47,7 +51,8 @@ This means the site only fully works when served from that exact subpath (as on 
 
 **Three pages, shared nav and styles:**
 - `index.html` — homepage/bio.
-- `rubin/rubin.html` — the Solar System tab (shown as "The Solar System"; the code, path,
+- `rubin/rubin.html` — the Solar System tab (shown as "Our Cosmic Address" since 2026-11-19,
+  "The Solar System" before; the code, path,
   ids and tests still say rubin, like the games' internal names): built around public
   Rubin data, but not only about Rubin - the known worlds, their moons and the large
   outer Solar System objects. `rubin/rubin.js` builds it from

@@ -3035,6 +3035,77 @@ It also found four problems, all fixed:
    `quality`). Such an object keeps its other flags but is not watched on their
    strength. These lines are conventions, to tune against the data.
 
+## The tab's name: Our Cosmic Address (owner, 2026-11-19)
+
+Shown as "Our Cosmic Address" (nav, title, heading) since 2026-11-19; it was "The Solar
+System" until the map reached the nearest stars. Picked from three ideas Claude offered
+because it carries on the address-like ladder the views are named by (planet, Solar
+System, galactic block, galactic neighbourhood to come, Milky Way). The subtitle, "Everything
+near Earth, where it really is right now, from the Moon to Sagittarius A*", ends at
+Sagittarius A* by the owner's choice: a nod to those who know it, a lead for the curious, and
+far enough out that the map can grow without it changing. The code, ids and paths still say
+rubin, and NOTES.md still calls it the Solar System tab. The old heading, "Large worlds at
+the edge of the Solar System", became the start of the intro ("Also here: ...", worded so
+it still reads if the map fails to load).
+
+The map comes first (owner, 2026-11-19), straight under the heading, since it is what the
+name promises; its heading is now "Where everything is now" (was "Where they are now",
+when "they" were the large worlds). The Rubin intro, status line and sections follow it.
+This replaces the section order approved on 2026-10-02 (below), in which the map was third.
+
+## What the Solar System tab is for (owner, 2026-11-19)
+
+*Drafted by Claude from things the owner has said; the owner kept it as written
+(2026-11-19), to be edited as conflicts turn up. Check new work against it.*
+
+**Who it is for:** a curious visitor with no training in astronomy.
+
+**What it should do for them:**
+
+1. **Inspire awe.** Real distances, real speeds, real places: light crosses the map at the
+   speed of light, and nothing is sped up, shrunk or moved for effect without the page
+   saying so.
+2. **Teach.** Every number comes with plain words for what it means and where it came
+   from. A reader should be able to leave knowing something true they did not know.
+3. **Put famous names in their real place.** Many places people have heard of
+   (TRAPPIST-1, Betelgeuse, the Pleiades, the Voyagers) are hard to place without real
+   work. The page should let anyone find one by name and see where it is compared with
+   Earth, zooming out as far as that takes: in the end, far enough to see where it sits
+   in the Milky Way.
+4. **Show what is new, first.** Rubin's data as it arrives, and slow trends (like the
+   far edge's bunching) that the page can show before the press does.
+5. **Grow without losing the reader.** *(Claude's addition, from the owner saying the page
+   is likely to grow a lot.)* New layers are optional (off by default, like Spacecraft),
+   and the page stays fast and readable on a phone however much is added.
+
+**Rules it keeps while doing that** (decided already; see their sections): Rubin is the
+source of truth; data from the same origin only; the far edge's honesty rules; science
+spacecraft only (commercial maybe later); the contrast rules in `js/contrast.js`.
+
+**Notes on goal 3, for later.** The map now ends at a million AU (15.8 light years).
+TRAPPIST-1 is about 40.7 light years away (12.5 parsecs, about 2.6 million AU), so
+reaching it means going about 2.6 times past that edge. Showing it within the Milky Way
+means another factor of over a thousand (the galaxy's disk is about 100,000 light years
+across, and the Sun is about 26,000 from its centre). The sky behind the map
+(`js/milkyway.js`) already places the galaxy's directions, and SagA's arrow points to its
+centre, so some of the frame exists. Not planned yet.
+
+**What goal 3 is pushing against (owner, 2026-11-19).** The usual way a place is given is
+an astronomer's: "Gaia BH1, the nearest known black hole, is 1,560 light years away in the
+constellation Ophiuchus." That is a direction in Earth's sky and a distance, left for the
+reader to put together; a constellation is only where to look from here, not a place in
+the galaxy, and the two halves mean nothing until combined. The owner finds this kind of
+statement maddening as a layman. The page should do the combining itself: take the sky
+position and the distance together and show the place - where it sits in the Milky Way
+compared with the Sun, toward or away from the centre, above or below the disk, in which
+arm - and say it in those words, with the constellation, if given at all, only as "seen
+from Earth, it lies in the direction of ...". Gaia BH1 and TRAPPIST-1 are the owner's
+two examples.
+
+The test of it, in the owner's words of intent: someone wonders "Where is Gaia BH1?",
+comes to this site, and can see it well - find it by name and be shown where it is,
+not told. That is where the page is meant to end up; build toward it.
+
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)
 
 "Rubin" is a placeholder name; the owner may rename the tab. The sections were approved by
@@ -3884,6 +3955,9 @@ map: the same map now reaches the nearest star system, with its stars in their t
   Luhman 16 too. Its id and `?place=both` are unchanged, so links keep working. The owner
   expects Barnard's Star to join it eventually; it lands about 110px below the picture's
   bottom edge at 750px, so the view would need pulling back by about a third.
+- **"Nearest bodies" became "Galactic block"** (owner, 2026-11-19), with a "Galactic
+  neighbourhood" view likely to follow further out. The id is still `both`, so
+  `?place=both` links keep working; older notes below still say "Nearest bodies".
 - **Barnard's Star, and a list of places** (owner, 2026-11-14). Barnard's Star joined the
   map (Gaia DR3; 5.96 ly, 28 degrees above the plane, drifting about 19 AU a year), with
   its four planets as orbit sizes (periods from Basant et al. 2025, sizes by Kepler's law
