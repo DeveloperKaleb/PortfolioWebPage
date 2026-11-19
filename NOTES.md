@@ -3106,6 +3106,41 @@ The test of it, in the owner's words of intent: someone wonders "Where is Gaia B
 comes to this site, and can see it well - find it by name and be shown where it is,
 not told. That is where the page is meant to end up; build toward it.
 
+**Gaia's stars, if we build toward them (planned with the owner, 2026-11-19; not started).**
+How many Gaia DR3 stars have a good distance (counted from the archive 2026-11-19; the error
+is the parallax's): under 1% 5.8 million, 2% 16.4 million, 5% 48.9 million, 10% 98.3
+million, 20% 192.2 million, of 1.81 billion sources (about 1.47 billion with a parallax).
+All of them cannot be served from GitHub Pages (about 1 GB a site): tens of GB even packed.
+The build order agreed:
+
+1. **A compact binary tile format**: about 8 bytes a star (position as three 16-bit
+   numbers from its tile's corner, a byte of brightness, a byte of colour), in tiles by
+   place and level of detail, so a visitor downloads only what is on screen. At 8 bytes,
+   16 million stars is about 130 MB, 49 million about 390 MB, 98 million about 790 MB.
+2. **A WebGL layer under the existing SVG map** for dense stars: SVG slows past ten
+   thousand marks or so. Positions centred on the view before they reach the GPU, whose
+   numbers are only 32-bit.
+3. **A separate data repository**, like rubin-data, replaced wholesale rather than keeping
+   history (rebuilding hundreds of MB would bloat git), served from the same origin.
+4. **WebAssembly only if profiling asks for it.** It speeds code, not data size; JavaScript
+   with typed arrays decodes fast enough, and WebGL does the drawing. It would also bring a
+   compiler into a site that has no build step.
+
+**What the best of it covers (counted 2026-11-19).** The 5.8 million stars with a parallax
+error under 1% lie within: 326 light years 4%, 980 light years 36%, 1,630 light years 71%,
+2,280 light years 93%, 3,260 light years 99.9% (the farthest about 4,200). So a 1% layer is
+the Sun's surroundings in sharp detail, not the galaxy: about 0.002% to 0.006% of its 100
+to 400 billion stars, about 0.3% of its disk seen from above, reaching a tenth of the way
+to the centre. It is not complete even there, since faint red dwarfs only get a 1%
+distance close by (roughly three quarters of the stars within 326 light years, Claude's
+estimate). Gaia BH1, at 1,560 light years, falls inside it. Further out, the spiral arms
+and the centre, the page would show the drawn model of the galaxy; which is measured and
+which is modelled is a line the honesty rules ask the page to show. Gaia's error is almost
+all along the line of sight, so an uncertain star is a streak pointing at the Sun, not a
+round blur; past about 20% error, 1/parallax misleads and a catalogue such as Bailer-Jones's
+should give the distance.
+
+
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)
 
 "Rubin" is a placeholder name; the owner may rename the tab. The sections were approved by
