@@ -1843,7 +1843,10 @@ function drawMap(digest) {
         if (!dragged) { dragged = true; capture(e.pointerId); hideTooltip(); }
         pointers.set(e.pointerId, [x, y]);
         if (threeD) setCam(turnBy(cam, x - px, y - py));
-        else if (zoomLevel(view) > 1.0001) setView(panBy(view, x - px, y - py));
+        /* Flat, a drag pans at any zoom (owner, 2026-11-19: at the whole view too), within a
+           radius of home (clampView); "Whole map" brings it back. On a phone at the whole
+           view the page keeps vertical swipes for scrolling, so there a drag pans sideways. */
+        else setView(panBy(view, x - px, y - py));
     });
     const release = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; };
     window.addEventListener('pointerup', release);
