@@ -22,8 +22,8 @@ import {
     lightTravelledAU, durationText, milestones, lightSentence, sunlightText, rulerFraction, fromStarFraction, rulerTicks, unseenStretch, CENTAURI, UNSEEN_TEXT, UNSEEN_FROM_AU, firstVisit, hasEarlierVisit, scaleToShow, lightTickMs,
 } from '../js/light.js';
 import { SCOPE_AU, jdFromDate } from '../js/orbit.js';
-import { itemsOf, groupState, readShown, craftOn, craftPath, clusterMarks, PLACE_WORDS, aboutCount, STATUS_AS_OF } from '../js/spacecraft.js';
-import { EARTH_ORBIT, TRACKS, TRACKS_FETCHED } from '../js/spacecrafttracks.js';
+import { itemsOf, groupState, readShown, craftOn, craftPath, clusterMarks, PLACE_WORDS, STATUS_AS_OF } from '../js/spacecraft.js';
+import { TRACKS, TRACKS_FETCHED } from '../js/spacecrafttracks.js';
 import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
@@ -1219,37 +1219,24 @@ function drawMap(digest) {
                     const key = `craft:${item.id}`;
                     const chosen = bodiesPicked.has(key);
                     if (chosen) g.classList.add('is-selected');
-                    if (item.count !== undefined) {
-                        attachDetails(g, [
-                            [aboutCount(item.count), item.name.toLowerCase()],
-                            ...(item.active ? [['Among them', 'the International Space Station, Tiangong and Hubble']] : [['Satellites that have stopped working', 'but not yet fallen back']]),
-                            ['Counted from', `${EARTH_ORBIT.source}, ${longDate(EARTH_ORBIT.date)}`],
-                        ]);
-                        labels.push({ x: cl.x, y: cl.y, text: `${aboutCount(item.count)} satellites`, rank: -1 });
-                    } else {
-                        attachDetails(g, [
-                            [item.name, item.active ? 'spacecraft, working' : 'spacecraft, no longer working'],
-                            [item.blurb],
-                            [`${item.agency},`, `launched ${item.launched}`],
-                            item.at ? [PLACE_WORDS[item.at]] : [au(Math.hypot(members[0].x, members[0].y, members[0].z ?? 0)), 'from the Sun'],
-                            ...(item.at ? [] : [['Path from JPL Horizons,', `fetched ${longDate(craftTracks[item.id]?.fetched ?? TRACKS_FETCHED)}`]]),
-                            ...(members[0].lastKnown ? [[`Placed from its last known orbit, of ${members[0].lastKnown.slice(0, 4)};`, 'it may have drifted well off it since']] : []),
-                            [item.active ? `Working as of ${longDate(STATUS_AS_OF)}` : `Not working as of ${longDate(STATUS_AS_OF)}`],
-                            ['Click to centre the map on it', item.at ? '' : 'and show its path'],
-                        ]);
-                        pickable(g, key, members[0], chosen);
-                        labels.push({ x: cl.x, y: cl.y, text: item.name, rank: -1 });
-                    }
+                    attachDetails(g, [
+                        [item.name, item.active ? 'spacecraft, working' : 'spacecraft, no longer working'],
+                        [item.blurb],
+                        [`${item.agency},`, `launched ${item.launched}`],
+                        item.at ? [PLACE_WORDS[item.at]] : [au(Math.hypot(members[0].x, members[0].y, members[0].z ?? 0)), 'from the Sun'],
+                        ...(item.at ? [] : [['Path from JPL Horizons,', `fetched ${longDate(craftTracks[item.id]?.fetched ?? TRACKS_FETCHED)}`]]),
+                        ...(members[0].lastKnown ? [[`Placed from its last known orbit, of ${members[0].lastKnown.slice(0, 4)};`, 'it may have drifted well off it since']] : []),
+                        [item.active ? `Working as of ${longDate(STATUS_AS_OF)}` : `Not working as of ${longDate(STATUS_AS_OF)}`],
+                        ['Click to centre the map on it', item.at ? '' : 'and show its path'],
+                    ]);
+                    pickable(g, key, members[0], chosen);
+                    labels.push({ x: cl.x, y: cl.y, text: item.name, rank: -1 });
                 } else {
-                    /* Earth's satellites are counts, listed first on rows of their own; the named
-                       craft follow. */
-                    const satellites = members.filter((m) => m.item.count !== undefined);
-                    const names = members.filter((m) => m.item.count === undefined).map((m) => m.item.name);
+                    const names = members.map((m) => m.item.name);
                     const together = new Set(members.map((m) => m.place)).size === 1 && members[0].place;
                     const head = names.length === 1 ? 'One spacecraft' : `${names.length} spacecraft`;
                     const rows = [
-                        [satellites.length ? `${head}, and Earth's satellites,` : head, together ? PLACE_WORDS[members[0].place] : 'too close together to tell apart from here'],
-                        ...satellites.map((m) => [aboutCount(m.item.count), `${m.item.active ? 'working' : 'dead'} satellites in orbit about Earth`]),
+                        [head, together ? PLACE_WORDS[members[0].place] : 'too close together to tell apart from here'],
                         ...names.slice(0, 10).map((n) => [n]),
                         ...(names.length > 10 ? [[`and ${names.length - 10} more`]] : []),
                         [together ? 'Click to centre the map on them' : 'Click to zoom in until they part'],
@@ -1602,7 +1589,7 @@ function drawMap(digest) {
     };
     const branches = [];
     for (const [active, title] of [[true, 'Active'], [false, 'Inactive']]) {
-        const items = itemsOf(active).filter((s) => s.count === undefined || s.count > 0);
+        const items = itemsOf(active);
         const all = el('input', { type: 'checkbox' });
         const head = el('div', { class: 'rubin-map-craft-head' });
         const headLabel = el('label', { class: 'rubin-map-show-item' });
@@ -1614,7 +1601,7 @@ function drawMap(digest) {
         list.hidden = true;
         const boxes = items.map((s) => {
             const box = el('input', { type: 'checkbox' });
-            const where = s.count !== undefined ? `${s.name} (${aboutCount(s.count)})` : s.name;
+            const where = s.name;
             const label = el('label', { class: 'rubin-map-show-item' });
             label.append(box, el('span', {}, where));
             box.addEventListener('change', () => {
@@ -1658,7 +1645,7 @@ function drawMap(digest) {
     }
     syncCraft();
     if (craftShown.size) fetchCraftTracks();
-    craft.menu.append(el('p', { class: 'rubin-note rubin-map-craft-note' }, `Working or not as of ${longDate(STATUS_AS_OF)}. Craft that landed, or were destroyed, are left out.`));
+    craft.menu.append(el('p', { class: 'rubin-note rubin-map-craft-note' }, `Working or not as of ${longDate(STATUS_AS_OF)}. Only craft sent out to do science; those that landed, or were destroyed, and satellites about Earth, are left out.`));
     const zooming = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'Zoom' });
     zooming.append(zoomOut, zoomIn, reset);
     const looking = el('span', { class: 'rubin-map-group', role: 'group', 'aria-label': 'How the map looks' });
@@ -1856,7 +1843,7 @@ function drawMap(digest) {
     section.querySelector('figcaption').replaceChildren(
         `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre and distances to scale. The planets and `,
         tundrWord('tundrs'),
-        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the AU rings, the hatching and the plane lines on or off. "Spacecraft" adds human spacecraft, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body, and the satellites about Earth as two counts.`,
+        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Nearest bodies" pulls back to hold them all. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, the AU rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
     );
 
     const mapTable = table(

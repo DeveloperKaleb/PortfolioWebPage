@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { horizonsTrackUrl, parseHorizonsTrack, horizonsLimit, fetchCraftTrack, SPACECRAFT_STEP_DAYS } from '../../js/sources.js';
-import { orbitTrack, sampleTrack, buildTrack, spacecraftDue, jdOfDay } from '../../js/spacecraftfit.js';
-import { trackPosition } from '../../js/spacecraft.js';
+import { orbitTrack, sampleTrack, buildTrack, spacecraftDue, craftToAsk, jdOfDay } from '../../js/spacecraftfit.js';
+import { trackPosition, CRAFT } from '../../js/spacecraft.js';
+import { TRACKS } from '../../js/spacecrafttracks.js';
 import { positionAt } from '../../js/orbit.js';
 import { VOYAGER_1_TRACK } from '../sources/spacecraft-fixtures.js';
 
@@ -103,5 +104,21 @@ describe('fitting tracks', () => {
         expect(spacecraftDue(null, '2026-11')).toBe(true);
         expect(spacecraftDue({ complete: '2026-10' }, '2026-11')).toBe(true);
         expect(spacecraftDue({ complete: '2026-11' }, '2026-11')).toBe(false);
+    });
+
+    it("waits out the week Fink's month is pulled", () => {
+        expect(spacecraftDue(null, '2026-12', { finkThisRun: true })).toBe(false);
+        expect(spacecraftDue({ complete: '2026-11' }, '2026-12', { finkThisRun: false })).toBe(true);
+    });
+
+    it('asks only about craft that steer, once a month', () => {
+        const craft = [{ id: 'coasting', horizons: -1 }, { id: 'old', horizons: -2 }, { id: 'steering', horizons: -3 }, { id: 'atMars', at: 'Mars' }, { id: 'unbuilt', horizons: -4 }];
+        const builtIn = { coasting: { elements: {} }, old: { elements: {}, lastKnown: '2011-03-12' }, steering: { start: 0, step: 5, xyz: [] } };
+        expect(craftToAsk(craft, builtIn, null, '2026-12').map((c) => c.id)).toEqual(['steering', 'unbuilt']);
+        expect(craftToAsk(craft, builtIn, { asked: { steering: '2026-12' } }, '2026-12').map((c) => c.id)).toEqual(['unbuilt']);
+    });
+
+    it('asks about 16 of the craft built into the site', () => {
+        expect(craftToAsk(CRAFT, TRACKS, null, '2026-12').length).toBe(16);
     });
 });

@@ -10,6 +10,11 @@ import { jdFromDate } from '../../js/orbit.js';
 import { collect, recordedPolite } from '../../tools/rubin-collect.mjs';
 import { GONGGONG_DETECTIONS } from '../sources/fixtures.js';
 import { OBJECTS } from '../orbit/fixtures.js';
+import { craftToAsk } from '../../js/spacecraftfit.js';
+import { CRAFT } from '../../js/spacecraft.js';
+import { TRACKS } from '../../js/spacecrafttracks.js';
+/* The spacecraft step's requests, in the first run after Fink's month is pulled. */
+const CRAFT_ASKED = craftToAsk(CRAFT, TRACKS, null, '2026-10').length;
 
 const tno = (designation, H, elements, provisional = designation, fullName = designation) =>
     ({ designation, provisional, fullName, H, elements });
@@ -146,8 +151,12 @@ describe('A collector run', () => {
         const dir = fresh();
         try {
             await collect({ dataDir: dir, date: new Date('2026-10-05T06:00:00Z'), polite: await recordedPolite() });
+            /* The week after Fink's pull is the spacecraft week: one request a steering craft. */
+            const craftWeek = await recordedPolite();
+            await collect({ dataDir: dir, date: new Date('2026-10-12T06:00:00Z'), polite: craftWeek });
+            expect(craftWeek.used()).toBe(3 + CRAFT_ASKED);
             const polite = await recordedPolite();
-            await collect({ dataDir: dir, date: new Date('2026-10-12T06:00:00Z'), polite });
+            await collect({ dataDir: dir, date: new Date('2026-10-19T06:00:00Z'), polite });
             expect(polite.used()).toBe(3);
             // Still Rubin photometry, from the month's stored detections.
             expect(read(dir, 'digest/latest.json').entries.find((e) => e.designation === '225088').hSource).toMatch(/^Rubin/);

@@ -2729,6 +2729,17 @@ main.rubin {
     margin-top: 4px;
 }
 
+/* The panel is 240px wide, narrower than the Spacecraft menu's usual 16em: there it takes
+   the panel's width, long names wrapping, and the panel's own scroll replaces its own
+   (owner saw it cropped, 2026-11-19). */
+.rubin-map-stage.is-side .rubin-map-craft-menu {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    max-height: none;
+    overflow-y: visible;
+}
+
 /* The second row: where the map can go. The place it is at is marked like a chosen chip. */
 .rubin-map-travel-label {
     color: #b8bc93;

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-    CRAFT, ALL_ITEMS, EARTH_ITEMS, PLACE_WORDS, LAGRANGE_AU, itemsOf, groupState, readShown, trackPosition, trackPath, placesOn, craftOn, clusterMarks, aboutCount,
+    CRAFT, ALL_ITEMS, PLACE_WORDS, LAGRANGE_AU, itemsOf, groupState, readShown, trackPosition, trackPath, placesOn, craftOn, clusterMarks,
 } from '../../js/spacecraft.js';
-import { TRACKS, EARTH_ORBIT } from '../../js/spacecrafttracks.js';
+import { TRACKS } from '../../js/spacecrafttracks.js';
 import { positionAt } from '../../js/orbit.js';
 
 describe('the craft list', () => {
@@ -24,17 +24,16 @@ describe('the craft list', () => {
         for (const s of CRAFT.filter((c) => c.horizons)) expect(TRACKS[s.id], s.name).toBeTruthy();
     });
 
-    it('counts the satellites in Earth orbit, working and not, with a source and date', () => {
-        expect(EARTH_ORBIT.active).toBeGreaterThan(1000);
-        expect(EARTH_ORBIT.inactive).toBeGreaterThan(1000);
-        expect(EARTH_ORBIT.source).toMatch(/CelesTrak/);
-        expect(EARTH_ORBIT.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-        expect(EARTH_ITEMS.map((e) => e.active)).toEqual([true, false]);
+    /* Owner, 2026-11-19: science craft only. */
+    it('lists no commercial craft and no Earth-orbit satellites', () => {
+        const ids = ALL_ITEMS.map((s) => s.id);
+        expect(ids).not.toContain('roadster');
+        expect(ids.some((id) => /^earth/.test(id))).toBe(false);
+        expect(CRAFT.some((s) => /SpaceX|Tesla/.test(`${s.agency} ${s.name}`))).toBe(false);
+        expect(CRAFT.some((s) => s.at === 'Earth')).toBe(false);
     });
 
-    it('splits the tree into active and inactive, the Earth count first in each', () => {
-        expect(itemsOf(true)[0].id).toBe('earthActive');
-        expect(itemsOf(false)[0].id).toBe('earthInactive');
+    it('splits the tree into active and inactive', () => {
         expect(itemsOf(true).every((s) => s.active)).toBe(true);
         expect(itemsOf(false).every((s) => !s.active)).toBe(true);
         expect(itemsOf(true).length + itemsOf(false).length).toBe(ALL_ITEMS.length);
@@ -49,7 +48,7 @@ describe('what is shown', () => {
     });
 
     it('keeps only known ids from what was saved', () => {
-        expect([...readShown(['voyager1', 'nonsense', 3, 'earthActive'])]).toEqual(['voyager1', 'earthActive']);
+        expect([...readShown(['voyager1', 'nonsense', 3, 'mro', 'earthActive'])]).toEqual(['voyager1', 'mro']);
     });
 
     it('reads a branch as all, some or none', () => {
@@ -120,7 +119,6 @@ describe('places', () => {
         const { shown, missing } = craftOn(2461200.5, planets, moons, {});
         const mro = shown.find((c) => c.item.id === 'mro');
         expect([mro.x, mro.y, mro.z, mro.place]).toEqual([1.5, 0, 0.03, 'Mars']);
-        expect(shown.find((c) => c.item.id === 'earthActive').place).toBe('Earth');
         expect(missing.map((s) => s.id)).toContain('voyager1');
         /* Juno's Jupiter is not in this test's planets, so it is missing too. */
         expect(missing.map((s) => s.id)).toContain('juno');
@@ -134,8 +132,4 @@ describe('clusters', () => {
         expect(cl[0].members.map((m) => m.id)).toEqual([1, 2]);
         expect([cl[0].x, cl[0].y]).toEqual([0, 0]);
     });
-});
-
-it('rounds counts to the nearest hundred', () => {
-    expect(aboutCount(11949)).toBe('about 11,900');
 });

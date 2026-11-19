@@ -20,7 +20,7 @@ import { createPoliteFetch } from '../js/polite.js';
 import { fetchTnos, fetchDetections, fetchDiscoveries, fetchStationNames, rubinListUrl, parseRubinList, seenByRubin, nightlyAlertsUrl, RUBIN_NEWS_URL, fetchMoonVectors, fetchCraftTrack } from '../js/sources.js';
 import { CRAFT } from '../js/spacecraft.js';
 import { TRACKS } from '../js/spacecrafttracks.js';
-import { buildTrack, spacecraftDue } from '../js/spacecraftfit.js';
+import { buildTrack, spacecraftDue, craftToAsk } from '../js/spacecraftfit.js';
 import { moonsDue, moonFitTimes, fitMoons, MOON_HORIZONS, BUILT_IN_MOONS } from '../js/moons.js';
 import {
     planRun, selectForFink, choosePhotometry, buildDigest, diffDigests, provenance, stringifyLines, FORMAT,
@@ -232,17 +232,18 @@ export async function collect({ dataDir, date = new Date(), polite, siteCommit =
     /* The free-flying spacecraft's tracks for the map (js/spacecraft.js), refetched from JPL
        Horizons once a month into spacecraft.json, which the page reads only when a reader
        turns a craft on; it falls back to the tracks built into the site. A year ahead, so a
-       few missed months cost nothing. Craft Horizons stopped following long ago (placed
-       from their last known orbit) are not asked about. One request a craft, a few more
+       few missed months cost nothing. Craft built into the site as a plain orbit (coasting,
+       or placed from their last known orbit) are not asked about, and nothing is asked in
+       the week Fink's month is pulled (craftToAsk, spacecraftDue). One request a craft, a few more
        where Horizons's track starts or ends inside the span; a craft that gets nothing
        keeps its last track. If the run's budget runs out, what was fetched is kept and
        the month is finished next week. */
     const craftFile = join(dataDir, 'spacecraft.json');
     const craftStore = { complete: null, tracks: {}, asked: {}, ...readJson(craftFile) };
-    if (spacecraftDue(craftStore, plan.month)) {
+    if (spacecraftDue(craftStore, plan.month, { finkThisRun: Boolean(plan.fetchFink) })) {
         const day = (offset) => new Date(date.getTime() + offset * 86400000).toISOString().slice(0, 10);
         const [spanStart, spanStop] = [day(-10), day(400)];
-        const asked = CRAFT.filter((c) => c.horizons && !TRACKS[c.id]?.lastKnown && craftStore.asked[c.id] !== plan.month);
+        const asked = craftToAsk(CRAFT, TRACKS, craftStore, plan.month);
         let got = 0, kept = 0, stopped = null;
         for (const craft of asked) {
             try {

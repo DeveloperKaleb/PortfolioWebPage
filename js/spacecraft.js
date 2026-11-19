@@ -1,5 +1,10 @@
 /* Human spacecraft on the Solar System map (owner, 2026-11-19): every craft beyond Earth
- * orbit, working or not, and the satellites in Earth orbit as two counts.
+ * orbit sent out to do science, working or not. Only science (owner, 2026-11-19): a craft
+ * that is primarily commercial with no scientific purpose is not listed (Starman's Tesla
+ * Roadster was taken out), nor are the satellites in Earth orbit, which are mostly
+ * commercial and which no catalogue to hand sorts by purpose. Government craft whose
+ * mission is not mainly research stay (owner's choice): MarCO-A and B, which tested
+ * relaying from Mars, and SWFO-L1 and DSCOVR, which watch space weather.
  *
  * CRAFT below is kept by hand: each craft's name, whether it still works, and where it is.
  * A craft that flies free about the Sun (`horizons`) is placed from JPL Horizons, by
@@ -16,14 +21,13 @@
  * seen near L2 and L1; Mariner 2, last seen at its Venus flyby in 1962). Pure: no DOM.
  */
 import { positionAt } from './orbit.js';
-import { TRACKS, EARTH_ORBIT } from './spacecrafttracks.js';
+import { TRACKS } from './spacecrafttracks.js';
 
 export const STATUS_AS_OF = '2026-11-19';
 
 /* The places a craft can stay with, as the map names them. L1 and L2 are 1.5 million km
    (0.01 AU) from Earth, toward the Sun and away from it. */
 export const PLACE_WORDS = {
-    Earth: 'in orbit about Earth',
     L1: 'near L1, 1.5 million km from Earth toward the Sun',
     L2: 'near L2, 1.5 million km from Earth away from the Sun',
     Luna: 'in orbit about the Moon',
@@ -107,7 +111,6 @@ export const CRAFT = [
     c('bioSentinel', 'BioSentinel', 'NASA', 2022, false, H(-70007), 'Carried yeast past the Moon to study deep-space radiation'),
     c('lunarFlashlight', 'Lunar Flashlight', 'NASA', 2022, false, H(-164), 'Meant to look for ice on the Moon; its engines failed'),
     c('lunarTrailblazer', 'Lunar Trailblazer', 'NASA', 2025, false, H(-242), 'Meant to map water on the Moon; lost soon after launch'),
-    c('roadster', "Starman's Tesla Roadster", 'SpaceX', 2018, false, H(-143205), 'A car sent past Mars as a test load, with a dummy driver'),
     c('maven', 'MAVEN', 'NASA', 2013, false, AT('Mars'), 'Studied how Mars lost its air; contact lost in December 2025', { unsure: true }),
     c('mgs', 'Mars Global Surveyor', 'NASA', 1996, false, AT('Mars'), 'Mapped Mars for nine years; lost in 2006'),
     c('mom', 'Mangalyaan', 'ISRO', 2013, false, AT('Mars'), "India's first Mars orbiter; contact lost in 2022"),
@@ -115,15 +118,10 @@ export const CRAFT = [
     c('dawn', 'Dawn', 'NASA', 2007, false, AT('Ceres'), 'Orbited Vesta, then Ceres; out of fuel in 2018'),
 ];
 
-/* The satellites in Earth orbit, as two marks: working and not. */
-export const EARTH_ITEMS = [
-    { id: 'earthActive', name: 'Working satellites in Earth orbit', active: true, at: 'Earth', count: EARTH_ORBIT.active },
-    { id: 'earthInactive', name: 'Dead satellites in Earth orbit', active: false, at: 'Earth', count: EARTH_ORBIT.inactive },
-];
 
 /* Every item of the tree, working first, as the menu lists them. */
-export const ALL_ITEMS = [...CRAFT, ...EARTH_ITEMS];
-export const itemsOf = (active) => [EARTH_ITEMS.find((e) => e.active === active), ...CRAFT.filter((s) => s.active === active)];
+export const ALL_ITEMS = CRAFT;
+export const itemsOf = (active) => CRAFT.filter((s) => s.active === active);
 
 /* A group's box in the tree: all on, some, or none. */
 export function groupState(items, on) {
@@ -220,6 +218,3 @@ export function clusterMarks(points, px) {
     }
     return clusters;
 }
-
-/* A count as the map says it: "about 11,900". */
-export const aboutCount = (n) => `about ${(Math.round(n / 100) * 100).toLocaleString('en-US')}`;

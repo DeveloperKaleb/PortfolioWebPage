@@ -4345,13 +4345,30 @@ a list of ids; unknown ids are dropped).
   Ceres). Statuses are as of `STATUS_AS_OF`; `unsure: true` marks those to check first
   (Juno, Mars Odyssey, MAVEN, Spektr-RG on 2026-11-19).
 - Left out on purpose: craft that landed (rovers, landers, Rosetta on its comet), craft
-  destroyed or burned up, rocket stages. Earth-orbit craft are only the counts.
+  destroyed or burned up, rocket stages.
+- **Science craft only (owner, 2026-11-19).** No craft that is primarily commercial with no
+  scientific purpose: Starman's Tesla Roadster was taken out, and so were the Earth-orbit
+  counts (17,400 working and 2,900 dead on 2026-11-19, from CelesTrak), which are mostly
+  commercial - Starlink alone is over half - and which no catalogue to hand sorts by
+  purpose. Government craft whose mission is not mainly research stay, by the owner's
+  choice: MarCO-A and B (relay tests), SWFO-L1 and DSCOVR (space weather). A new craft
+  goes on the list only if it was sent to do science.
+  The owner may add commercial spacecraft down the line (said 2026-11-19); for now they
+  are out of scope. A suggestion (Claude's, not the owner's): if they come, they would want their own branch of the menu rather
+  than mixing into the science lists, and a source that sorts satellites by purpose
+  before any Earth-orbit count comes back.
 - **Refreshed monthly by the collector (owner, 2026-11-19).** Once a calendar month the
   weekly run asks Horizons for every free-flying craft's next 400 days (`fetchCraftTrack`
   in `js/sources.js`, fitted by `buildTrack` in `js/spacecraftfit.js`) and writes
   rubin-data's `spacecraft.json`: `tracks` (each with the date it was `fetched`), `asked`
   (the month each craft was last asked about) and `complete` (the last month every craft
-  was). Craft placed from a last known orbit are not asked about. If the run's request
+  was). Two trims (owner, 2026-11-19, after asking where the collector's requests go):
+  only craft that steer are asked about (`craftToAsk`: 16 of the 29 free-flying ones on
+  2026-11-19); any built into the site as a plain orbit, coasting or placed from a last
+  known orbit, is not, since a new track would say the same. A craft that starts steering
+  again needs its built-in track rebuilt to be asked again. And nothing is asked in the
+  run that pulls Fink's month (`spacecraftDue`), which alone can use the whole 200-request
+  budget (it did on 2026-11-02); the craft go the week after. If the run's request
   budget runs out, what came back is kept and the month finishes the next week; a craft
   that gets nothing keeps its last track. The page fetches the file only once a reader
   turns a craft on (`?spacecraft=path` points a preview at a local one), uses its tracks
@@ -4360,7 +4377,7 @@ a list of ids; unknown ids are dropped).
 - The built-in tracks are the fallback: `npm run spacecraft:fetch` (`tools/spacecraft/fetch.mjs`) asks Horizons for each
   free-flying craft's position from the Sun every 5 days, 2026-01-01 to 2031-01-01, cut to
   what Horizons holds (it says where its track starts and ends, and the tool asks once
-  more inside that), and counts CelesTrak's catalogue for Earth orbit. All through
+  more inside that). All through
   `js/polite.js`, 5 s apart; each answer is saved in `tools/spacecraft/raw/` and never
   asked for again (delete a file to refetch it). `raw/major-bodies.txt` is Horizons's list
   of ids, fetched once, for finding a new craft's id.
@@ -4404,3 +4421,11 @@ used); the planets, Ceres and the stars are never updated and need not be, being
 models good for decades. What is not truly where it is drawn: craft placed from a last
 known orbit (11), craft at L1 and L2 (12, drawn at the point; they loop up to about a
 million km round it), and objects whose orbits are flagged uncertain.
+
+**Where the collector's requests go (checked 2026-11-19).** The budget is 200 a run
+(`COURTESY.maxRequests`), a safety valve against a runaway loop; hitting it only delays
+the rest a week. Recorded runs: 2026-11-02 used all 200 (Fink's monthly pull: about 84
+batches of 100 for 8,341 objects, plus follow-ups), 11-09 24 (the rest of it), 11-16 87
+(80 MPC lookups, its per-run limit), and quiet weeks 3 to 13. Spacecraft add 16 a month,
+in the week after Fink's. The owner kept the cap: raising it would stretch the Fink run
+(200 took 27 minutes) toward the workflow's 60-minute limit.

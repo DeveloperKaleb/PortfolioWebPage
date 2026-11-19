@@ -104,5 +104,15 @@ export function buildTrack(saved, { spanStart, todayJd }) {
 }
 
 /* The collector refreshes the tracks once a calendar month; a month whose fetch did not
-   finish (the run's request budget ran out) is tried again the next week. */
-export const spacecraftDue = (saved, month) => !saved || saved.complete !== month;
+   finish (the run's request budget ran out) is tried again the next week. Not in a run that
+   pulls Fink's month of detections (owner, 2026-11-19): that pull alone can use the whole
+   budget, so the craft wait for the next week rather than be cut off. */
+export const spacecraftDue = (saved, month, { finkThisRun = false } = {}) => !finkThisRun && (!saved || saved.complete !== month);
+
+/* Which craft to ask Horizons about this month: free-flying ones not yet asked this month,
+   leaving out any built into the site as a plain orbit (owner, 2026-11-19). Those coast
+   with nothing to steer them, so a new track would say the same thing; that takes in the
+   craft placed from a last known orbit. A craft that starts steering again needs its
+   built-in track rebuilt (npm run spacecraft) to be asked again. */
+export const craftToAsk = (craft, builtIn, saved, month) =>
+    craft.filter((c) => c.horizons && !builtIn[c.id]?.elements && saved?.asked?.[c.id] !== month);

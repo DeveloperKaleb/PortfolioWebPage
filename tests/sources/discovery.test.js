@@ -12,6 +12,11 @@ import {
 import { discoveryText, summary } from '../../js/rubinview.js';
 import { collect, recordedPolite, liveFetch } from '../../tools/rubin-collect.mjs';
 import { MPC_GONGGONG, MPC_X05 } from './fixtures.js';
+import { craftToAsk } from '../../js/spacecraftfit.js';
+import { CRAFT } from '../../js/spacecraft.js';
+import { TRACKS } from '../../js/spacecrafttracks.js';
+/* The spacecraft step's requests, in the first run after Fink's month is pulled. */
+const CRAFT_ASKED = craftToAsk(CRAFT, TRACKS, null, '2026-10').length;
 
 describe('Reading the MPC', () => {
     test("finds Gonggong's discovery in its real record: Palomar, 17 July 2007", () => {
@@ -140,10 +145,11 @@ describe('Keeping what was found', () => {
             const store = JSON.parse(readFileSync(join(dir, 'discovery.json'), 'utf8'));
             expect(store.objects['225088']).toEqual({ station: '675', date: '2007-07-17' });
             expect(made.entries.find((e) => e.designation === '225088').discovery).toMatchObject({ date: '2007-07-17', byRubin: false });
-            // The same month again: nothing left to ask, so no MPC requests (only JPL's count, Fink's nightly alerts and Rubin's news).
+            // The same month again: nothing left to ask, so no MPC requests (only JPL's count, Fink's nightly alerts and Rubin's news,
+            // and this being the week after Fink's pull, the spacecraft's).
             const polite = await recordedPolite();
             await collect({ dataDir: dir, date: new Date('2026-10-12T06:00:00Z'), polite });
-            expect(polite.used()).toBe(3);
+            expect(polite.used()).toBe(3 + CRAFT_ASKED);
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
