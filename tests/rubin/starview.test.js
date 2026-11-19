@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     treeOf, nodeOnScreen, tilesToDraw, tintOf, lookOf, STREET_PC, BLOCK_PC, nearestStar, starRows, lightText, colourText, kindText, lightYearsText,
-    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX, focusReachPc, focusGlow, streetFades, FADE_STREET_BEYOND_PC, LY_PER_PARSEC, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, OWN_STREET_MAX,
+    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX, focusReachPc, focusGlow, streetFades, FADE_STREET_BEYOND_PC, LY_PER_PARSEC, nodesNear, streetAbout, designation, hasOwnStreet, markPxOf, OWN_STREET_PC, OWN_STREET_MAX,
 } from '../../js/starview.js';
 import { buildTree, makeIndex, magByte, colourByte, NO_COLOUR, rootCube, encodeIds, decodeIds, encodeTile, decodeTile, cubeOf } from '../../js/startiles.js';
 import { initialView, projector, zoomAt, FLAT } from '../../js/rubinview.js';
@@ -268,6 +268,14 @@ describe("the selected star's own street", () => {
         expect(streetAbout(tiles, [1, 1, 0]).length).toBe(0);
         const crowd = [{ path: 'x', count: 100, xyz: Float64Array.from({ length: 300 }, (_, i) => (i % 3 === 0 ? 100 + (i / 3) * 0.01 : 0)) }];
         expect(streetAbout(crowd, at).length).toBe(OWN_STREET_MAX);
+    });
+
+    it("is drawn for any star in focus outside ours, before ours fades", () => {
+        expect(hasOwnStreet(0)).toBe(false);
+        expect(hasOwnStreet(STREET_PC * 0.9)).toBe(false);
+        expect(hasOwnStreet(20 / LY_PER_PARSEC)).toBe(true);
+        expect(streetFades(20 / LY_PER_PARSEC)).toBe(false);
+        expect(hasOwnStreet(40 / LY_PER_PARSEC)).toBe(true);
     });
 
     it('names a star by its Hipparcos number where it has one, else by Gaia', () => {

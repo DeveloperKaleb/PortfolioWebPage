@@ -230,6 +230,10 @@ export function nearestStar(tiles, view, project, px, py, { outerPc = Infinity, 
  */
 export const OWN_STREET_PC = STREET_PC;
 export const OWN_STREET_MAX = 30;
+/* Any star in focus outside our street gets its own (owner, 2026-11-19: "anytime a star is
+   picked close enough for the street to light up but outside the street should ALSO get
+   its own street"); ours fades only past FADE_STREET_BEYOND_PC (streetFades). */
+export const hasOwnStreet = (focusFromSunPc) => focusFromSunPc > STREET_PC;
 
 /* The tiles whose cubes reach within radiusPc of a point (parsecs, the map's frame): every
    level down, since each holds its own share of the stars there. */

@@ -3302,10 +3302,14 @@ decisions:
   "orbits the galaxy, far off this map" sat on its name.
 - **The selected star's own street** (owner, 2026-11-19: the stars nearest the selected
   star "should appear exactly like the Galactic Street stars do... highlighted with a name
-  ... it's okay if it's just the bland designation"): when the street fades
-  (`streetFades`), every Gaia 1% star within 15.8 light years of the star in focus, the
+  ... it's okay if it's just the bland designation"): for any star in focus outside our
+  street (`hasOwnStreet`; owner, later the same day: not only once ours fades), every Gaia 1% star within 15.8 light years of the star in focus, the
   nearest 30, is drawn as our street's stars are - a cream disc, sized by brightness
   (`markPxOf`), named - and the star layer leaves them out (`ownStreet` in the shader).
+  Between 15.8 and 36 light years (Vega's, say) both streets are drawn, ours bright; a
+  star of ours is never marked twice. Its tiles are asked for again when the index arrives
+  and whenever a download slot frees: a page opened on Vega asked before the index was in,
+  and the view's own tiles can take all six slots.
   `nodesNear` finds the tiles about it at every level, loaded whatever the brightness
   cut, so faint neighbours are there too; `streetAbout` picks the stars. A click on one
   centres the map on it, and its street is drawn instead: star to star. Names come from

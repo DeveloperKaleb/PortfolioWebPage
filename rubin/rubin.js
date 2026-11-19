@@ -34,7 +34,7 @@ import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf, idsName, decodeIds } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, hasOwnStreet, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -587,6 +587,9 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
     fetch(`${base}/index.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((index) => {
         tree = treeOf(index);
         redraw();
+        /* A page opened on a far star (?place=, "Go to") asked for its street before the
+           index was in. */
+        onStreet();
     }).catch(() => {});
     const load = (path) => {
         const node = tree.get(path);
@@ -615,7 +618,9 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
         }).catch(() => tiles.set(path, { state: 'failed' })).finally(() => {
             loading--;
             redraw();
-            if (streetPaths.includes(path)) onStreet();
+            /* A street tile in, or a slot free for one still waiting (at most MAX_LOADING
+               at once, and the view's own tiles can take them all): look again. */
+            if (streetPaths.includes(path) || streetPaths.some((p) => !tiles.has(p))) onStreet();
         });
     };
     /* The ID files (idsName), fetched only for the selected star's street. */
@@ -981,7 +986,7 @@ function drawMap(digest) {
     const streetFaded = () => place.beyondStreet && streetFades(Math.hypot(...focusPc()));
     /* And that star's own street is drawn as ours is, marked and named (owner, 2026-11-19):
        the radius in parsecs the star layer leaves to the marks, 0 when there is none. */
-    const ownStreetPc = () => (streetFaded() && starsOut() ? OWN_STREET_PC : 0);
+    const ownStreetPc = () => (starsOut() && hasOwnStreet(Math.hypot(...focusPc())) ? OWN_STREET_PC : 0);
     let streetAsked = 0;
     /* What the map is centred on, by name, for "6.2 light years from ...". */
     const near = (a, b) => b && Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0)) < 1;
