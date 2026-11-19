@@ -6,10 +6,10 @@ import { holdsNotable, BLOCK_PC, NEIGHBORHOOD_PC, STREET_PC } from '../../js/sta
 const byId = Object.fromEntries(NOTABLE_LIST.map((n) => [n.id, n]));
 
 describe('the notable objects', () => {
-    it('are the fourteen the owner chose, each with an id of its own', () => {
+    it('are the fifteen the owner chose, each with an id of its own', () => {
         expect(NOTABLE_LIST.map((n) => n.id).sort()).toEqual([
             'aldebaran', 'antares', 'arcturus', 'betelgeuse', 'deneb', 'gaiabh1', 'hyades',
-            'orionnebula', 'pleiades', 'polaris', 'rigel', 'rxj1856', 'vega', 'velapulsar',
+            'orionnebula', 'pleiades', 'polaris', 'rigel', 'rxj1856', 'tabby', 'vega', 'velapulsar',
         ]);
         const systemIds = new Set(SYSTEMS.map((s) => s.id));
         for (const n of NOTABLE_LIST) expect(systemIds.has(n.id)).toBe(false);
@@ -27,7 +27,7 @@ describe('the notable objects', () => {
             expect(byId[id].rungPc).toBe(BLOCK_PC);
             expect(holdsNotable(BLOCK_PC, byId[id].pc)).toBe(true);
         }
-        for (const id of ['rigel', 'velapulsar', 'orionnebula', 'gaiabh1', 'deneb']) {
+        for (const id of ['rigel', 'velapulsar', 'orionnebula', 'gaiabh1', 'tabby', 'deneb']) {
             expect(byId[id].rungPc).toBe(NEIGHBORHOOD_PC);
             expect(holdsNotable(BLOCK_PC, byId[id].pc)).toBe(false);
             expect(holdsNotable(NEIGHBORHOOD_PC, byId[id].pc)).toBe(true);
@@ -43,6 +43,7 @@ describe('the notable objects', () => {
         expect(byId.betelgeuse.system.farText).toBe('~500 to 720 ly');
         expect(byId.deneb.system.farText).toBe('~1,400 to 2,600 ly');
         expect(byId.vega.system.farText).toBe('25 ly');
+        expect(byId.tabby.system.farText).toBe('1,450 ly');
     });
 
     it('each have their own view, holding the Sun too when near', () => {
@@ -77,7 +78,7 @@ describe('the kinds they bring', () => {
         expect(ids(['nebula'])).toEqual(['orionnebula']);
         expect(ids(['neutronstar'])).toEqual(['rxj1856', 'velapulsar']);
         expect(ids(['blackhole'])).toEqual(['gaiabh1']);
-        expect(ids(['white'])).toEqual(['vega']);
+        expect(ids(['white'])).toEqual(['tabby', 'vega']);
         const offered = new Set(GO_KINDS.map((k) => k.id));
         for (const s of systems) for (const k of kindsOf(s)) expect(offered.has(k)).toBe(true);
     });

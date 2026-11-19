@@ -118,6 +118,17 @@ export const NOTABLES = [
         ],
     },
     {
+        /* Added 2026-11-19 at the owner's asking. In Gaia's 1% stars itself: its place and
+           parallax (2.2545 mas) are Gaia DR3's, as saved in tools/gaiastars/raw (epoch 2016). */
+        id: 'tabby', name: "Tabby's Star", kind: 'star', type: 'F3 V', ra: 301.5643214, dec: 44.4568407, pc: 443.6,
+        where: 'in Cygnus', source: "Gaia DR3's parallax (Gaia Collaboration, Vallenari et al. 2023)",
+        facts: [
+            ['KIC 8462852: a star a little hotter than the Sun', 'that dims, now and then, by as much as a fifth'],
+            ['Found by volunteers of Planet Hunters', 'in Kepler\'s data, and named for Tabetha Boyajian, who led the study (2016)'],
+            ['Once half-jokingly blamed on an alien megastructure;', 'the dips are deeper in blue light than red, as dust makes them (Boyajian et al. 2018)'],
+        ],
+    },
+    {
         id: 'deneb', name: 'Deneb', kind: 'star', type: 'A2 Ia', ra: 310.35798, dec: 45.28034, pc: 802,
         where: 'in Cygnus', source: 'its spectrum, 2,600 ly (Schiller & Przybilla 2008); Hipparcos, 1,400 (van Leeuwen 2007); other estimates run to 3,200',
         farWords: 'About 1,400 to 2,600 light years',

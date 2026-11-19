@@ -3338,6 +3338,11 @@ decisions:
   parallax, has a boiling surface that moves its centre of light. The companion reported
   in 2025 may one day give an orbital parallax; the hover says so. Adding one: an entry in
   `NOTABLES`, a test line in `tests/rubin/notables.test.js`, and its source in the Sources.
+  Tabby's Star (KIC 8462852), added 2026-11-19 at the owner's asking, is the fifteenth and
+  the first that is also one of Gaia's 1% stars: its place and parallax are Gaia DR3's
+  own. So its own street would find its Gaia dot beside the notable's mark; the nearest
+  star within 0.25 pc of the centre counts as the centre itself, and only that one, so a
+  close companion keeps its mark.
 - **Checked against the catalogues, 2026-11-19** (`tools/simbadcheck/`: `sample.mjs`,
   `fetch.py`, `check.py`, the answers in `raw/`, the result in `report.txt`). SIMBAD was
   down (Strasbourg and its Harvard mirror), so against what it draws on: Gaia DR3 from
