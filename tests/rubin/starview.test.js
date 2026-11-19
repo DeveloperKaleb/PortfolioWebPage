@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
     treeOf, nodeOnScreen, tilesToDraw, tintOf, lookOf, STREET_PC, BLOCK_PC, nearestStar, starRows, lightText, colourText, kindText, lightYearsText,
-    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX, focusReachPc, focusGlow, streetFades, FADE_STREET_BEYOND_PC, LY_PER_PARSEC,
+    GAIA_BH1_ROWS, gaiaBh1Pc, holdsNotable, NEIGHBORHOOD_PC, magLimitOf, frontierOf, frontierLimit, glowOf, nearness, NEAR_PX, PICK_PX, focusReachPc, focusGlow, streetFades, FADE_STREET_BEYOND_PC, LY_PER_PARSEC, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, OWN_STREET_MAX,
 } from '../../js/starview.js';
-import { buildTree, makeIndex, magByte, colourByte, NO_COLOUR, rootCube } from '../../js/startiles.js';
+import { buildTree, makeIndex, magByte, colourByte, NO_COLOUR, rootCube, encodeIds, decodeIds, encodeTile, decodeTile, cubeOf } from '../../js/startiles.js';
 import { initialView, projector, zoomAt, FLAT } from '../../js/rubinview.js';
 import { AU_PER_PARSEC } from '../../js/centauri.js';
 
@@ -229,5 +229,74 @@ describe('the star in focus', () => {
         expect(streetFades(0)).toBe(false);
         expect(streetFades(30 / LY_PER_PARSEC)).toBe(false);
         expect(streetFades(40 / LY_PER_PARSEC)).toBe(true);
+    });
+});
+
+describe("the selected star's own street", () => {
+    /* A small tree: a star at 100 pc along x, neighbours about it, and stars elsewhere. */
+    const at = [100, 0, 0];
+    const stars = [
+        { x: 100, y: 0, z: 0, absMag: 5, colour: 1, id: '111', hip: null },
+        { x: 102, y: 0, z: 0, absMag: 6, colour: 1.5, id: '222', hip: '54321' },
+        { x: 100, y: 3, z: 1, absMag: 9, colour: 2.5, id: '333', hip: null },
+        { x: 100, y: 0, z: 20, absMag: 4, colour: 0.5, id: '444', hip: null },
+        { x: 1, y: 1, z: 0, absMag: 4, colour: 0.8, id: '555', hip: null },
+        ...Array.from({ length: 200 }, (_, k) => ({ x: -500 + k, y: 300, z: -200, absMag: 3 + k / 100, colour: 1, id: String(1000 + k), hip: null })),
+    ];
+    const { nodes } = buildTree(stars, { perNode: 50 });
+    const tree = treeOf(makeIndex(nodes, { perNode: 50 }));
+    const tiles = nodesNear(tree, at, OWN_STREET_PC).map((path) => {
+        const cube = cubeOf(path);
+        return { path, ...decodeTile(encodeTile(nodes.get(path), cube), cube), stars: nodes.get(path) };
+    });
+
+    it('reaches only the tiles about the star, every level down', () => {
+        expect(tiles.map((t) => t.path)).toContain('');
+        expect(tiles.length).toBeLessThan(nodes.size);
+    });
+
+    it("finds the stars within our street's size of it, nearest first, itself first", () => {
+        const street = streetAbout(tiles, at);
+        const ids = street.map((s) => s.tile.stars[s.k].id);
+        expect(ids).toEqual(['111', '222', '333']);
+        expect(street[0].d).toBeLessThan(0.05);
+        expect(street[1].d).toBeCloseTo(2, 1);
+        expect(OWN_STREET_PC * LY_PER_PARSEC).toBeCloseTo(15.8, 1);
+    });
+
+    it('leaves out our own street, and stops at OWN_STREET_MAX', () => {
+        expect(streetAbout(tiles, [1, 1, 0]).length).toBe(0);
+        const crowd = [{ path: 'x', count: 100, xyz: Float64Array.from({ length: 300 }, (_, i) => (i % 3 === 0 ? 100 + (i / 3) * 0.01 : 0)) }];
+        expect(streetAbout(crowd, at).length).toBe(OWN_STREET_MAX);
+    });
+
+    it('names a star by its Hipparcos number where it has one, else by Gaia', () => {
+        expect(designation('222', 54321)).toBe('HIP 54321');
+        expect(designation('4373465352415301632', null)).toBe('Gaia DR3 4373465352415301632');
+        expect(designation(null, null)).toBe(null);
+    });
+
+    it('sizes its marks as our street does, brighter larger', () => {
+        expect(markPxOf(4.67)).toBeCloseTo(3.5, 6);
+        expect(markPxOf(-5)).toBe(4.5);
+        expect(markPxOf(15)).toBe(2.5);
+    });
+});
+
+describe('ID files', () => {
+    it("keep each star's source_id and Hipparcos number, in the tile's order", () => {
+        const stars = [
+            { id: '4373465352415301632', hip: null },
+            { id: '18446744073709551615', hip: '91262' },
+            { id: '1', hip: null },
+        ];
+        const ids = decodeIds(encodeIds(stars), 3);
+        expect([0, 1, 2].map(ids.id)).toEqual(['4373465352415301632', '18446744073709551615', '1']);
+        expect([0, 1, 2].map(ids.hip)).toEqual([null, 91262, null]);
+        expect(encodeIds(stars).length).toBe(3 * 8 + 4 + 8);
+    });
+
+    it('refuse one too short for its tile', () => {
+        expect(() => decodeIds(new Uint8Array(10), 3)).toThrow();
     });
 });

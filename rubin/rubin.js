@@ -32,9 +32,9 @@ import { NOTABLE_LIST, notableViewPc } from '../js/notables.js';
 import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, GO_KINDS, kindsOf, filterSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC, skyToMap } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
-import { decodeTile, tileName, magOf } from '../js/startiles.js';
+import { decodeTile, tileName, magOf, idsName, decodeIds } from '../js/startiles.js';
 import {
-    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
@@ -503,7 +503,7 @@ function legend(items) {
    to the view's middle in full precision here, and only the stars' small offsets within
    their tile go to the graphics card, whose numbers are 32-bit. Returns null where WebGL
    is not to be had; the map is then as it was. */
-function starLayer(canvas, base, redraw) {
+function starLayer(canvas, base, redraw, onStreet = () => {}) {
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false });
     if (!gl) return null;
     const shader = (type, source) => {
@@ -530,13 +530,16 @@ function starLayer(canvas, base, redraw) {
         uniform float dpr;
         uniform vec3 pointer;
         uniform vec4 focus;
+        uniform float ownStreet;
         varying vec4 v;
         void main() {
             vec3 d = offset + local * ${AU_PER_PARSEC.toFixed(4)};
             float across = d.x * turn.x - d.y * turn.y;
             float up = (d.x * turn.y + d.y * turn.x) * turn.z + d.z * turn.w;
             float fromSun = length(centrePc + local);
-            bool hidden = fromSun < streetPc || fromSun > outerPc || mag > magLimit;
+            /* The selected star's own street is drawn as marks instead (ownStreet, its
+               radius; 0 for none). */
+            bool hidden = fromSun < streetPc || fromSun > outerPc || mag > magLimit || length(local - focus.xyz) < ownStreet;
             gl_Position = hidden ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(across * scale, up * scale, 0.0, 1.0);
             /* Near the pointer (pointer.xy, in picture pixels about the middle; pointer.z the
                reach, 0 when away): brighter and larger, the nearer the more (nearness). */
@@ -569,7 +572,7 @@ function starLayer(canvas, base, redraw) {
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
     const where = Object.fromEntries(['local', 'tint', 'size', 'mag'].map((n) => [n, gl.getAttribLocation(program, n)]));
-    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr', 'pointer', 'focus'].map((n) => [n, gl.getUniformLocation(program, n)]));
+    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr', 'pointer', 'focus', 'ownStreet'].map((n) => [n, gl.getUniformLocation(program, n)]));
     /* Each star's look, by its brightness and colour bytes, worked out once. */
     const looks = Array.from({ length: 256 }, (_, k) => lookOf(k));
     const tints = Array.from({ length: 256 }, (_, k) => tintOf(k));
@@ -608,11 +611,22 @@ function starLayer(canvas, base, redraw) {
             gl.bindBuffer(gl.ARRAY_BUFFER, tint);
             gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.STATIC_DRAW);
             /* The stars themselves are kept too, for pointing at one (nearestStar). */
-            tiles.set(path, { state: 'ready', count, position, tint, cube: node.cube, xyz, mag, colour, faintest: count ? magOf(Math.max(...mag)) : undefined });
+            tiles.set(path, { state: 'ready', path, count, position, tint, cube: node.cube, xyz, mag, colour, faintest: count ? magOf(Math.max(...mag)) : undefined });
         }).catch(() => tiles.set(path, { state: 'failed' })).finally(() => {
             loading--;
             redraw();
+            if (streetPaths.includes(path)) onStreet();
         });
+    };
+    /* The ID files (idsName), fetched only for the selected star's street. */
+    const idFiles = new Map();
+    let streetPaths = [];
+    let streetCache = null;
+    const loadIds = (path, count) => {
+        idFiles.set(path, { state: 'loading' });
+        fetch(`${base}/${idsName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((buffer) => {
+            idFiles.set(path, { state: 'ready', ids: decodeIds(new Uint8Array(buffer), count) });
+        }).catch(() => idFiles.set(path, { state: 'failed' })).finally(onStreet);
     };
     /* Tiles not wanted for a while are let go once more than this many stars are held. */
     const HOLD_STARS = 1200000;
@@ -620,7 +634,7 @@ function starLayer(canvas, base, redraw) {
         let held = 0;
         for (const t of tiles.values()) if (t.state === 'ready') held += t.count;
         if (held <= HOLD_STARS) return;
-        const keep = new Set(wanted);
+        const keep = new Set([...wanted, ...streetPaths]);
         for (const [path, t] of tiles) {
             if (held <= HOLD_STARS) break;
             if (t.state !== 'ready' || keep.has(path)) continue;
@@ -638,9 +652,11 @@ function starLayer(canvas, base, redraw) {
     let pointer = null;
     /* The star in focus, parsecs from the Sun. */
     let focusAt = [0, 0, 0];
-    const plan = (view, cam, outer, focus = [0, 0, 0]) => {
+    let ownStreetPc = 0;
+    const plan = (view, cam, outer, focus = [0, 0, 0], own = 0) => {
         outerPc = outer;
         focusAt = focus;
+        ownStreetPc = own;
         planned = { view, cam };
         if (!tree || !outerPc) { wanted = []; return; }
         const project = projector(view, cam);
@@ -690,6 +706,7 @@ function starLayer(canvas, base, redraw) {
                 gl.uniform3f(uniform.offset, cx * AU_PER_PARSEC - view.cx, cy * AU_PER_PARSEC - view.cy, cz * AU_PER_PARSEC - (view.cz ?? 0));
                 gl.uniform3f(uniform.centrePc, cx, cy, cz);
                 gl.uniform4f(uniform.focus, focusAt[0] - cx, focusAt[1] - cy, focusAt[2] - cz, focusReachPc(outerPc));
+                gl.uniform1f(uniform.ownStreet, ownStreetPc);
                 gl.bindBuffer(gl.ARRAY_BUFFER, t.position);
                 gl.enableVertexAttribArray(where.local);
                 gl.vertexAttribPointer(where.local, 3, gl.FLOAT, false, 20, 0);
@@ -720,7 +737,34 @@ function starLayer(canvas, base, redraw) {
         },
         /* outer: the place's edge in parsecs; 0 draws none (the street and nearer). */
         /* focus: the star in focus, parsecs from the Sun ([x, y, z]). */
-        draw(view, cam, outer, focus) { plan(view, cam, outer, focus); paint(); },
+        draw(view, cam, outer, focus, own) { plan(view, cam, outer, focus, own); paint(); },
+        /* The selected star's own street (streetAbout): its stars, with names once their ID
+           files are in; loads what it needs, and calls onStreet as more arrives. null until
+           the index is in; complete false while tiles are still coming. */
+        street(centre) {
+            if (!tree) return null;
+            streetPaths = nodesNear(tree, centre, OWN_STREET_PC);
+            let complete = true;
+            for (const path of streetPaths) {
+                const t = tiles.get(path);
+                if (!t) { complete = false; if (loading < MAX_LOADING) load(path); } else if (t.state === 'loading') complete = false;
+            }
+            const ready = streetPaths.map((p) => tiles.get(p)).filter((t) => t?.state === 'ready');
+            const key = `${centre.join(',')}|${ready.length}`;
+            if (streetCache?.key !== key) streetCache = { key, list: streetAbout(ready, centre) };
+            return {
+                complete,
+                stars: streetCache.list.map((s) => {
+                    const names = idFiles.get(s.tile.path);
+                    if (!names) loadIds(s.tile.path, s.tile.count);
+                    return {
+                        x: s.x, y: s.y, z: s.z, d: s.d,
+                        magByte: s.tile.mag[s.k], colourByte: s.tile.colour[s.k],
+                        name: names?.state === 'ready' ? designation(names.ids.id(s.k), names.ids.hip(s.k)) : null,
+                    };
+                }),
+            };
+        },
         /* Where the pointer is, in picture pixels, or null when it has gone. */
         point(at) { pointer = at; paint(); },
     };
@@ -935,12 +979,25 @@ function drawMap(digest) {
     const focusPc = () => { const f = focusAU(); return [f.x / AU_PER_PARSEC, f.y / AU_PER_PARSEC, (f.z ?? 0) / AU_PER_PARSEC]; };
     /* Focused on a star well beyond the street, the street's stars fade (streetFades). */
     const streetFaded = () => place.beyondStreet && streetFades(Math.hypot(...focusPc()));
+    /* And that star's own street is drawn as ours is, marked and named (owner, 2026-11-19):
+       the radius in parsecs the star layer leaves to the marks, 0 when there is none. */
+    const ownStreetPc = () => (streetFaded() && starsOut() ? OWN_STREET_PC : 0);
+    let streetAsked = 0;
+    /* What the map is centred on, by name, for "6.2 light years from ...". */
+    const near = (a, b) => b && Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0)) < 1;
+    const focusName = () => {
+        const f = focusAU();
+        if (pickedStar && near(f, pickedStar.at)) return pickedStar.name ?? 'the star picked';
+        return NOTABLE_MARKS.find((n) => near(f, n.body))?.name ?? place.label;
+    };
     /* How far the place's galactic map reaches, whether or not its stars are shown: notable
        objects are marked only inside it (holdsNotable). */
     const galacticPc = () => (place.beyondStreet ? place.starsPc : 0);
     const notablesShown = () => NOTABLE_MARKS.filter((n) => holdsNotable(galacticPc(), n.pc));
     if (STARS_URL) {
-        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut(), focusPc())); } catch { stars = null; }
+        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut(), focusPc(), ownStreetPc()), () => {
+        if (!streetAsked) streetAsked = requestAnimationFrame(() => { streetAsked = 0; render(); });
+    }); } catch { stars = null; }
     }
 
     const RULER_HEIGHT = 88;
@@ -1178,9 +1235,9 @@ function drawMap(digest) {
             const bottom = y - LABEL.offset + 3;
             ringNames.push({ left, right: left + text.length * LABEL.charPx, top: bottom - LABEL.linePx, bottom });
         };
-        if (pickedStar && starsOut()) keepClear(pickedStar.at, `A star, ${lightYearsText(pickedStar.pc)}`);
+        if (pickedStar && starsOut()) keepClear(pickedStar.at, pickedStar.name ?? `A star, ${lightYearsText(pickedStar.pc)}`);
         for (const n of notablesShown()) keepClear(n.body, n.name);
-        const radii = shown.rings ? ringRadii(view, ringsFrom, 60, ringStretch(at3.squash)) : [];
+        const radii = shown.rings ? ringRadii(view, ringsFrom, 60, ringStretch(at3.squash), Boolean(place.beyondStreet)) : [];
         const gap = radii.length > 1 ? radii[1] - radii[0] : 1;
         const nameEvery = [1, 2, 5, 10, 20].find((k) => radii.length / k <= 12) ?? 20;
         for (const r of radii) {
@@ -1471,6 +1528,43 @@ function drawMap(digest) {
                 ["Barnard's Star lies almost the same way", 'on our sky'],
             ]);
         }
+        /* The selected star's own street: each of its stars marked as ours are, named by
+           its catalogue number, its details on hover; a click centres the map on it, and
+           its street is then drawn instead. */
+        let centreName = null;
+        if (ownStreetPc() && stars) {
+            const street = stars.street(focusPc());
+            const about = focusName();
+            for (const s of street?.stars ?? []) {
+                if (s.d < 1e-6) { centreName = s.name; continue; }
+                const body = { x: s.x * AU_PER_PARSEC, y: s.y * AU_PER_PARSEC, z: s.z * AU_PER_PARSEC };
+                const [x, y] = at3(body.x, body.y, body.z);
+                if (x < -20 || x > SIZE + 20 || y < -20 || y > SIZE + 20) continue;
+                const name = s.name ?? 'A star';
+                const rows = [
+                    [name, "from Gaia's map, its distance known to within 1%"],
+                    ...starRows(s, s.magByte, s.colourByte).slice(1),
+                    [lightYearsText(s.d), `from ${about}`],
+                    ["Gaia's 1% stars only:", 'fainter neighbours are there too, not measured so well'],
+                    ['Click to centre the map on it'],
+                ];
+                const g = svg('g', { class: 'rubin-mark rubin-mark-pickable' });
+                g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+                g.append(svg('circle', { cx: x, cy: y, r: markPxOf(magOf(s.magByte)), fill: C.text, stroke: C.space, 'stroke-width': 2 }));
+                attachDetails(g, rows);
+                g.setAttribute('role', 'button');
+                const pick = () => {
+                    hideTooltip();
+                    pickedStar = { rows: rows.slice(0, -3), at: body, pc: Math.hypot(s.x, s.y, s.z), name: s.name };
+                    centreOn(body);
+                };
+                g.addEventListener('click', pick);
+                g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+                g.addEventListener('dblclick', (e) => e.stopPropagation());
+                parts.push(g);
+                labels.push({ x, y, text: name, rank: -magOf(s.magByte) });
+            }
+        }
         /* The star of Gaia's picked: a ring about it, named by its distance, its details on
            hover; a click lets it go. Only where Gaia's stars are drawn. */
         if (pickedStar && starsOut() && pickedStar.pc <= starsOut()) {
@@ -1480,6 +1574,8 @@ function drawMap(digest) {
                 const g = svg('g', { class: 'rubin-mark rubin-mark-pickable is-selected' });
                 g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
                 g.append(svg('circle', { cx: x, cy: y, r: 7, fill: 'none', stroke: C.text, 'stroke-width': 1.5 }));
+                if (ownStreetPc()) g.append(svg('circle', { cx: x, cy: y, r: 3, fill: C.text }));
+                if (centreName && !pickedStar.name) pickedStar.name = centreName;
                 attachDetails(g, [...pickedStar.rows, ['Click to let it go']]);
                 g.setAttribute('role', 'button');
                 g.setAttribute('aria-pressed', 'true');
@@ -1488,7 +1584,7 @@ function drawMap(digest) {
                 g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); letGo(); } });
                 g.addEventListener('dblclick', (e) => e.stopPropagation());
                 parts.push(g);
-                labels.push({ x, y, text: `A star, ${lightYearsText(pickedStar.pc)}`, rank: Infinity });
+                labels.push({ x, y, text: pickedStar.name ?? `A star, ${lightYearsText(pickedStar.pc)}`, rank: Infinity });
             }
         }
         /* The notable objects, marked before the pointer comes near; only where the galactic
@@ -1616,7 +1712,7 @@ function drawMap(digest) {
             parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
-        stars?.draw(view, cam, starsOut(), focusPc());
+        stars?.draw(view, cam, starsOut(), focusPc(), ownStreetPc());
 
         const level = zoomLevel(view);
         const where = place.id === 'sun' ? '' : `${place.label}: `;

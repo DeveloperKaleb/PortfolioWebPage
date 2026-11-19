@@ -404,17 +404,21 @@ export const zoomLevel = (view) => view.scale / view.fitScale;
 export const LIGHT_YEAR_RINGS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000];
 const NICE = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000,
     10000, 20000, 50000, 100000, 200000, 500000, ...LIGHT_YEAR_RINGS.map((ly) => ly * AU_PER_LIGHT_YEAR)];
-export function ringSpacing(view) {
+/* Past the street, rings only in whole light years (owner, 2026-11-19: a notable's own
+   view showed "31,000,000 AU"): 1, 2, 5, 10 and on. */
+const NICE_LY = [1, 2, 5, ...LIGHT_YEAR_RINGS].map((ly) => ly * AU_PER_LIGHT_YEAR);
+export function ringSpacing(view, lightYears = false) {
     const visible = (view.sizePx / 2) / view.scale;
-    return NICE.find((s) => visible / s <= 5) ?? NICE.at(-1);
+    const steps = lightYears ? NICE_LY : NICE;
+    return steps.find((s) => visible / s <= 5) ?? steps.at(-1);
 }
 
 /* The rings that cross the picture: radii at that spacing about a point whose distance
    from the middle of the view is given, in AU. Rings wholly off the picture are left out,
    which matters once the map can be 270,000 AU from the Sun - a ring that far off is
    millions of pixels wide, and browsers draw such things badly. */
-export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
-    const spacing = ringSpacing(view);
+export function ringRadii(view, distanceAU, most = 60, stretch = 1, lightYears = false) {
+    const spacing = ringSpacing(view, lightYears);
     /* In 3D a ring is squashed top to bottom (stretch is one over its squash, ringStretch),
        so a ring too wide to cross the picture side to side can still cross it at the top
        or bottom. */
@@ -430,7 +434,7 @@ export function ringRadii(view, distanceAU, most = 60, stretch = 1) {
 const withCommas = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 export function ringLabel(radiusAU) {
     const ly = radiusAU / AU_PER_LIGHT_YEAR;
-    if (ly >= 10 - 1e-9 && Math.abs(ly - Math.round(ly)) < 1e-6) return `${withCommas(Math.round(ly))} light years`;
+    if (ly >= 1 - 1e-9 && Math.abs(ly - Math.round(ly)) < 1e-6) return Math.round(ly) === 1 ? '1 light year' : `${withCommas(Math.round(ly))} light years`;
     return `${withCommas(Number(radiusAU.toPrecision(6)))} AU`;
 }
 

@@ -220,6 +220,59 @@ export function nearestStar(tiles, view, project, px, py, { outerPc = Infinity, 
     return best;
 }
 
+/* ---- The selected star's own street -------------------------------------------------------
+ *
+ * Owner, 2026-11-19: centred on a star well beyond ours, the stars nearest it are drawn as
+ * our street's are - marked and named, if only by a catalogue number. Its street is ours
+ * in size: every star of Gaia's 1% within a million AU (15.8 light years) of it, the
+ * nearest OWN_STREET_MAX. Far off, Gaia measured only the brighter stars to 1%, so a far
+ * star's street is emptier than it really is; the hovers say so.
+ */
+export const OWN_STREET_PC = STREET_PC;
+export const OWN_STREET_MAX = 30;
+
+/* The tiles whose cubes reach within radiusPc of a point (parsecs, the map's frame): every
+   level down, since each holds its own share of the stars there. */
+export function nodesNear(tree, [px, py, pz], radiusPc) {
+    const out = [];
+    const visit = (path) => {
+        const node = tree.get(path);
+        if (!node) return;
+        const { cx, cy, cz, half } = node.cube;
+        const gap = Math.hypot(Math.max(0, Math.abs(px - cx) - half), Math.max(0, Math.abs(py - cy) - half), Math.max(0, Math.abs(pz - cz) - half));
+        if (gap > radiusPc) return;
+        out.push(path);
+        node.children.forEach(visit);
+    };
+    visit('');
+    return out;
+}
+
+/* The stars within radiusPc of a point, nearest first, at most max: { tile, k, x, y, z, d }
+   with d parsecs from the point. The star at the point itself, if one is, comes first, d 0.
+   Stars inside our own street are left out: it has its own marks. */
+export function streetAbout(tiles, [px, py, pz], { radiusPc = OWN_STREET_PC, max = OWN_STREET_MAX } = {}) {
+    const found = [];
+    for (const tile of tiles) {
+        const { xyz } = tile;
+        for (let k = 0; k < tile.count; k++) {
+            const [x, y, z] = [xyz[k * 3], xyz[k * 3 + 1], xyz[k * 3 + 2]];
+            const d = Math.hypot(x - px, y - py, z - pz);
+            if (d > radiusPc || Math.hypot(x, y, z) < STREET_PC) continue;
+            found.push({ tile, k, x, y, z, d });
+        }
+    }
+    return found.sort((a, b) => a.d - b.d).slice(0, max);
+}
+
+/* A star's name from its ID file: its Hipparcos number where it has one, the plainer name;
+   else Gaia's own. */
+export const designation = (id, hip) => (hip ? `HIP ${hip}` : id ? `Gaia DR3 ${id}` : null);
+
+/* How big a named star's mark is, in pixels, as our street's are (3 to 4.5): the brighter
+   the larger, the Sun's brightness at 3.5. */
+export const markPxOf = (absMag) => Math.min(4.5, Math.max(2.5, 3.5 + (SUN_ABS_G - absMag) * 0.2));
+
 /* ---- What a star is, in words -------------------------------------------------------------
  *
  * From the little a tile keeps: where it is, its absolute brightness in Gaia's light (G)

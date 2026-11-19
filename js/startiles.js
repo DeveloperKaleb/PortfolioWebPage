@@ -24,6 +24,13 @@
  * Each tile is a file of nothing but its stars (its length says how many). Which tiles
  * exist, and where their cubes are, comes from the index (makeIndex), so a tile needs no
  * header.
+ *
+ * Beside each tile, r<path>.ids names its stars, in the same order (owner, 2026-11-19: the
+ * selected star's neighbours named). Fetched only for the tiles about a star the map is
+ * centred on, so a visitor who never picks one never loads them:
+ *   - Each star's Gaia DR3 source_id: an unsigned 64-bit number, little-endian.
+ *   - Then a count, unsigned 32-bit, of stars that have a Hipparcos number, and for each
+ *     its place in the tile and the number, both unsigned 32-bit.
  */
 import { skyToMap } from './centauri.js';
 
@@ -67,6 +74,7 @@ export function cubeOf(path, half = ROOT_HALF) {
     return cube;
 }
 export const tileName = (path) => `r${path}.bin`;
+export const idsName = (path) => `r${path}.ids`;
 
 const clampRound = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(v)));
 export const quantize = (v, centre, half) => clampRound(((v - centre) / half + 1) / 2 * Q, 0, Q);
@@ -108,6 +116,30 @@ export function decodeTile(bytes, cube) {
         colour[k] = bytes[o + 7];
     }
     return { count, xyz, mag, colour };
+}
+
+/* stars: as encodeTile's, each with id (Gaia DR3 source_id, as a string) and hip (a
+   Hipparcos number, or none). */
+export function encodeIds(stars) {
+    const hips = [];
+    stars.forEach((s, k) => { if (s.hip) hips.push([k, Number(s.hip)]); });
+    const bytes = new Uint8Array(stars.length * 8 + 4 + hips.length * 8);
+    const view = new DataView(bytes.buffer);
+    stars.forEach((s, k) => view.setBigUint64(k * 8, BigInt(s.id), true));
+    let o = stars.length * 8;
+    view.setUint32(o, hips.length, true);
+    for (const [k, hip] of hips) { view.setUint32(o + 4, k, true); view.setUint32(o + 8, hip, true); o += 8; }
+    return bytes;
+}
+
+/* An ID file back: the source_id of star k (a string), and its Hipparcos number if any. */
+export function decodeIds(bytes, count) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    if (bytes.length < count * 8 + 4) throw new Error(`An ID file for ${count} stars must be at least ${count * 8 + 4} bytes; this one is ${bytes.length}`);
+    const hip = new Map();
+    const n = view.getUint32(count * 8, true);
+    for (let j = 0; j < n; j++) hip.set(view.getUint32(count * 8 + 4 + j * 8, true), view.getUint32(count * 8 + 8 + j * 8, true));
+    return { count, id: (k) => view.getBigUint64(k * 8, true).toString(), hip: (k) => hip.get(k) ?? null };
 }
 
 /* The octree: a Map from path to that node's stars, brightest first. Stars outside the

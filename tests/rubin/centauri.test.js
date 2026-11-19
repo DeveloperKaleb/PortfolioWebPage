@@ -236,6 +236,17 @@ describe('Rings that cross the picture', () => {
         expect(ringLabel(50 * AU_PER_LIGHT_YEAR)).toBe('50 light years');
         expect(ringLabel(1000 * AU_PER_LIGHT_YEAR)).toBe('1,000 light years');
     });
+
+    test("zoomed in past the street, rings stay in whole light years, not millions of AU", () => {
+        /* A notable's view zoomed in: about 8 parsecs from the middle to the edge. */
+        const view = { ...initialView(8 * 206264.806, 750) };
+        expect(ringSpacing(view)).toBe(500000);
+        const spacing = ringSpacing(view, true);
+        expect([1, 2, 5, 10]).toContain(spacing / AU_PER_LIGHT_YEAR);
+        expect(ringLabel(ringRadii(view, 0, 60, 1, true)[0])).toMatch(/light years?$/);
+        expect(ringLabel(AU_PER_LIGHT_YEAR)).toBe('1 light year');
+        expect(ringLabel(5 * AU_PER_LIGHT_YEAR)).toBe('5 light years');
+    });
 });
 
 describe('Travelling', () => {

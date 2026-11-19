@@ -3300,6 +3300,23 @@ decisions:
   street's star marks fade to faint unnamed dots (`.is-background`); the Sun keeps its
   mark and name, to say where home is. A notable object picked draws no note beside it:
   "orbits the galaxy, far off this map" sat on its name.
+- **The selected star's own street** (owner, 2026-11-19: the stars nearest the selected
+  star "should appear exactly like the Galactic Street stars do... highlighted with a name
+  ... it's okay if it's just the bland designation"): when the street fades
+  (`streetFades`), every Gaia 1% star within 15.8 light years of the star in focus, the
+  nearest 30, is drawn as our street's stars are - a cream disc, sized by brightness
+  (`markPxOf`), named - and the star layer leaves them out (`ownStreet` in the shader).
+  `nodesNear` finds the tiles about it at every level, loaded whatever the brightness
+  cut, so faint neighbours are there too; `streetAbout` picks the stars. A click on one
+  centres the map on it, and its street is drawn instead: star to star. Names come from
+  ID files beside the tiles (`r<path>.ids`, `encodeIds`/`decodeIds` in js/startiles.js:
+  each star's Gaia DR3 source_id, and its Hipparcos number where Gaia's best-neighbour
+  table gives one), fetched only for the tiles about a selected star; until they are
+  published, "A star". Far off the street is emptier than it truly is - Gaia measured only
+  the brighter stars there to 1% - and each hover says so. Building them: `npm run
+  gaiastars:fetch -- --max-pc 100000 --pieces 40 --ids`, then `-- --hip`, then `npm run
+  gaiastars -- --max-pc 100000`; if the rebuilt .bin tiles match the published ones byte
+  for byte, only the .ids files need adding to gaia-stars.
 - **Notable objects only inside the map drawn** (owner, 2026-11-19; `holdsNotable`): a
   notable object such as Gaia BH1 is marked before the pointer comes near, but only once
   the place's galactic map reaches it - Gaia BH1 (477 pc) in the neighborhood and its own

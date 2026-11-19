@@ -3,6 +3,7 @@
  *
  *   node tools/gaiastars/fetch.mjs --max-pc 100                  (then build.mjs --max-pc 100)
  *   node tools/gaiastars/fetch.mjs --max-pc 100000 --pieces 30   (the whole 1% set)
+ *   node tools/gaiastars/fetch.mjs --max-pc 100000 --pieces 40 --ids   (with source_ids)
  *
  * Asynchronous queries to the Gaia archive, asked anonymously, one at a time; this waits
  * on each, asking how it is going every 15 seconds. Saved as gzipped CSV: ra, dec
@@ -24,10 +25,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const arg = (name, fallback) => { const k = process.argv.indexOf(`--${name}`); return k < 0 ? fallback : process.argv[k + 1]; };
 const maxPc = Number(arg('max-pc', 100));
 const pieces = Number(arg('pieces', 1));
+/* --ids: with each star's Gaia DR3 source_id too (owner, 2026-11-19: the selected star's
+   neighbours named), saved apart as gaia-1pct-ids-<max-pc>pc.csv.gz; build.mjs then writes
+   an ID file beside each tile. */
+const ids = process.argv.includes('--ids');
+/* --hip: every 1% star's Hipparcos number, where Gaia's best-neighbour table gives one; a
+   single small query, saved as gaia-1pct-hip.csv.gz. */
+const hipOnly = process.argv.includes('--hip');
 const raw = join(here, 'raw');
 mkdirSync(raw, { recursive: true });
-const file = join(raw, `gaia-1pct-${maxPc}pc.csv.gz`);
-if (existsSync(file)) { console.error(`${file} is already saved; delete it to fetch again.`); process.exit(0); }
+const file = join(raw, `gaia-1pct-${ids ? 'ids-' : ''}${maxPc}pc.csv.gz`);
+if (existsSync(file) && !hipOnly) { console.error(`${file} is already saved; delete it to fetch again.`); process.exit(0); }
 
 /* gaiadr3.gaia_source's random_index runs from 0 to one less than its 1,811,709,771 rows. */
 const SOURCES = 1811709771;
@@ -49,8 +57,16 @@ async function ask(query) {
     return (await fetch(`${job}/results/result`)).text();
 }
 
+if (hipOnly) {
+    const hipFile = join(raw, 'gaia-1pct-hip.csv.gz');
+    if (existsSync(hipFile)) { console.error(`${hipFile} is already saved; delete it to fetch again.`); process.exit(0); }
+    const csv = await ask(`SELECT h.source_id, h.original_ext_source_id AS hip FROM gaiadr3.hipparcos2_best_neighbour AS h JOIN gaiadr3.gaia_source AS g ON g.source_id = h.source_id WHERE g.parallax_over_error > 100 AND g.parallax > ${1000 / maxPc}`);
+    writeFileSync(hipFile, gzipSync(csv));
+    console.error(`Saved ${csv.split('\n').length - 2} Hipparcos numbers to ${hipFile}`);
+    process.exit(0);
+}
 const where = `parallax_over_error > 100 AND parallax > ${1000 / maxPc} AND phot_g_mean_mag IS NOT NULL`;
-const select = 'SELECT ra, dec, parallax, phot_g_mean_mag, bp_rp FROM gaiadr3.gaia_source WHERE';
+const select = `SELECT ${ids ? 'source_id, ' : ''}ra, dec, parallax, phot_g_mean_mag, bp_rp FROM gaiadr3.gaia_source WHERE`;
 if (pieces === 1) {
     const csv = await ask(`${select} ${where}`);
     writeFileSync(file, gzipSync(csv));
@@ -73,7 +89,7 @@ if (pieces === 1) {
             return `${head}\n${[...rowsA, ...rowsB].join('\n')}\n`;
         }
     };
-    const parts = join(raw, `parts-${maxPc}pc`);
+    const parts = join(raw, `parts-${ids ? 'ids-' : ''}${maxPc}pc`);
     mkdirSync(parts, { recursive: true });
     const partFile = (k) => join(parts, `part-${String(k).padStart(3, '0')}.csv.gz`);
     for (let k = 0; k < pieces; k++) {
