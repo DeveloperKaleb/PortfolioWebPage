@@ -28,11 +28,13 @@ import {
     EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
-import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC } from '../js/centauri.js';
+import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, starKind, memberTypeText, systemTypeText, findSystems, AU_PER_LIGHT_YEAR, seenNearOf, seenNearOfPair, SAG_A, towardSagA, farDistanceText, farPlaneText, AU_PER_PARSEC, skyToMap } from '../js/centauri.js';
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
-import { decodeTile, tileName } from '../js/startiles.js';
-import { treeOf, tilesToDraw, lookOf, tintOf, reachOf, STREET_PC, BLOCK_PC } from '../js/starview.js';
+import { decodeTile, tileName, magOf } from '../js/startiles.js';
+import {
+    treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, GAIA_BH1, GAIA_BH1_ROWS, gaiaBh1Pc,
+} from '../js/starview.js';
 import { observingStatus, nextUpdates, statusText, updateText } from '../js/rubinstatus.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -513,22 +515,26 @@ function starLayer(canvas, base, redraw) {
         attribute vec3 local;
         attribute vec4 tint;
         attribute float size;
+        attribute float mag;
+        uniform float magLimit;
+        uniform float glow;
         uniform vec3 offset;
         uniform vec4 turn;
         uniform float scale;
         uniform vec3 centrePc;
         uniform float streetPc;
-        uniform float reach;
+        uniform float outerPc;
         uniform float dpr;
         varying vec4 v;
         void main() {
             vec3 d = offset + local * ${AU_PER_PARSEC.toFixed(4)};
             float across = d.x * turn.x - d.y * turn.y;
             float up = (d.x * turn.y + d.y * turn.x) * turn.z + d.z * turn.w;
-            bool hidden = length(centrePc + local) < streetPc || length(d) > reach;
+            float fromSun = length(centrePc + local);
+            bool hidden = fromSun < streetPc || fromSun > outerPc || mag > magLimit;
             gl_Position = hidden ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(across * scale, up * scale, 0.0, 1.0);
             gl_PointSize = size * dpr;
-            v = tint;
+            v = vec4(tint.rgb, tint.a * glow);
         }`));
     gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `
         precision mediump float;
@@ -542,8 +548,8 @@ function starLayer(canvas, base, redraw) {
         }`));
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
-    const where = Object.fromEntries(['local', 'tint', 'size'].map((n) => [n, gl.getAttribLocation(program, n)]));
-    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'reach', 'dpr'].map((n) => [n, gl.getUniformLocation(program, n)]));
+    const where = Object.fromEntries(['local', 'tint', 'size', 'mag'].map((n) => [n, gl.getAttribLocation(program, n)]));
+    const uniform = Object.fromEntries(['offset', 'turn', 'scale', 'centrePc', 'streetPc', 'outerPc', 'magLimit', 'glow', 'dpr'].map((n) => [n, gl.getUniformLocation(program, n)]));
     /* Each star's look, by its brightness and colour bytes, worked out once. */
     const looks = Array.from({ length: 256 }, (_, k) => lookOf(k));
     const tints = Array.from({ length: 256 }, (_, k) => tintOf(k));
@@ -553,6 +559,8 @@ function starLayer(canvas, base, redraw) {
     let loading = 0;
     const MAX_LOADING = 6;
     let wanted = [];
+    let limit = 99;
+    let outerPc = 0;
     fetch(`${base}/index.json`).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((index) => {
         tree = treeOf(index);
         redraw();
@@ -564,11 +572,12 @@ function starLayer(canvas, base, redraw) {
         fetch(`${base}/${tileName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((buffer) => {
             const { count, xyz, mag, colour } = decodeTile(new Uint8Array(buffer), node.cube);
             const { cx, cy, cz } = node.cube;
-            /* Per star: x, y, z within the tile (parsecs), then size; tint as four bytes. */
-            const floats = new Float32Array(count * 4);
+            /* Per star: x, y, z within the tile (parsecs), size, then absolute magnitude; tint
+               as four bytes. */
+            const floats = new Float32Array(count * 5);
             const bytes = new Uint8Array(count * 4);
             for (let k = 0; k < count; k++) {
-                floats.set([xyz[k * 3] - cx, xyz[k * 3 + 1] - cy, xyz[k * 3 + 2] - cz, looks[mag[k]].size], k * 4);
+                floats.set([xyz[k * 3] - cx, xyz[k * 3 + 1] - cy, xyz[k * 3 + 2] - cz, looks[mag[k]].size, magOf(mag[k])], k * 5);
                 const t = tints[colour[k]];
                 bytes.set([t[0] * 255, t[1] * 255, t[2] * 255, looks[mag[k]].alpha * 255], k * 4);
             }
@@ -578,7 +587,8 @@ function starLayer(canvas, base, redraw) {
             const tint = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, tint);
             gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.STATIC_DRAW);
-            tiles.set(path, { state: 'ready', count, position, tint, cube: node.cube });
+            /* The stars themselves are kept too, for pointing at one (nearestStar). */
+            tiles.set(path, { state: 'ready', count, position, tint, cube: node.cube, xyz, mag, colour, faintest: count ? magOf(Math.max(...mag)) : undefined });
         }).catch(() => tiles.set(path, { state: 'failed' })).finally(() => {
             loading--;
             redraw();
@@ -601,7 +611,16 @@ function starLayer(canvas, base, redraw) {
         }
     };
     return {
-        draw(view, cam) {
+        /* The star drawn at a point of the picture, as hover rows; null if none. */
+        pick(view, cam, x, y) {
+            if (!outerPc) return null;
+            const ready = wanted.map((p) => tiles.get(p)).filter((t) => t?.state === 'ready');
+            const hit = nearestStar(ready, view, projector(view, cam), x, y, { outerPc, magLimit: limit });
+            return hit && starRows(hit, hit.tile.mag[hit.k], hit.tile.colour[hit.k]);
+        },
+        /* outer: the place's edge in parsecs; 0 draws none (the street and nearer). */
+        draw(view, cam, outer) {
+            outerPc = outer;
             const dpr = window.devicePixelRatio || 1;
             const w = Math.round(canvas.clientWidth * dpr);
             const h = Math.round(canvas.clientHeight * dpr);
@@ -609,8 +628,10 @@ function starLayer(canvas, base, redraw) {
             gl.viewport(0, 0, w, h);
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
-            if (!tree) return;
-            wanted = tilesToDraw(tree, view, projector(view, cam));
+            if (!tree || !outerPc) { wanted = []; return; }
+            const project = projector(view, cam);
+            wanted = tilesToDraw(tree, view, project, { outerPc });
+            limit = frontierLimit(frontierOf(tree, wanted, view, project, outerPc), (p) => tiles.get(p)?.faintest, magLimitOf(outerPc));
             for (const path of wanted) if (!tiles.has(path) && loading < MAX_LOADING) load(path);
             gl.useProgram(program);
             gl.enable(gl.BLEND);
@@ -618,7 +639,16 @@ function starLayer(canvas, base, redraw) {
             gl.uniform4f(uniform.turn, Math.cos(cam.turn), Math.sin(cam.turn), Math.cos(cam.tilt), Math.sin(cam.tilt));
             gl.uniform1f(uniform.scale, view.scale / (view.sizePx / 2));
             gl.uniform1f(uniform.streetPc, STREET_PC);
-            gl.uniform1f(uniform.reach, reachOf(view));
+            gl.uniform1f(uniform.outerPc, outerPc);
+            gl.uniform1f(uniform.magLimit, limit);
+            /* How many stars pass the cut, for dimming them all alike (glowOf). */
+            let shown = 0;
+            for (const path of wanted) {
+                const t = tiles.get(path);
+                if (t?.state !== 'ready') continue;
+                for (let k = 0; k < t.count; k++) if (magOf(t.mag[k]) <= limit) shown++;
+            }
+            gl.uniform1f(uniform.glow, glowOf(shown, view, outerPc));
             gl.uniform1f(uniform.dpr, dpr * canvas.clientWidth / view.sizePx);
             for (const path of wanted) {
                 const t = tiles.get(path);
@@ -628,9 +658,11 @@ function starLayer(canvas, base, redraw) {
                 gl.uniform3f(uniform.centrePc, cx, cy, cz);
                 gl.bindBuffer(gl.ARRAY_BUFFER, t.position);
                 gl.enableVertexAttribArray(where.local);
-                gl.vertexAttribPointer(where.local, 3, gl.FLOAT, false, 16, 0);
+                gl.vertexAttribPointer(where.local, 3, gl.FLOAT, false, 20, 0);
                 gl.enableVertexAttribArray(where.size);
-                gl.vertexAttribPointer(where.size, 1, gl.FLOAT, false, 16, 12);
+                gl.vertexAttribPointer(where.size, 1, gl.FLOAT, false, 20, 12);
+                gl.enableVertexAttribArray(where.mag);
+                gl.vertexAttribPointer(where.mag, 1, gl.FLOAT, false, 20, 16);
                 gl.bindBuffer(gl.ARRAY_BUFFER, t.tint);
                 gl.enableVertexAttribArray(where.tint);
                 gl.vertexAttribPointer(where.tint, 4, gl.UNSIGNED_BYTE, true, 4, 0);
@@ -668,8 +700,14 @@ function drawMap(digest) {
     const STARS_URL = params.get('stars');
     if (STARS_URL) {
         const r = BLOCK_PC * AU_PER_PARSEC;
-        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r };
+        PLACES.block = { id: 'block', name: 'the galactic block', label: 'Galactic block (preview)', cx: 0, cy: 0, cz: 0, radiusAU: r, radius3D: r, beyondStreet: true };
+        /* And the neighborhood, the next rung, out to a thousand parsecs: far enough to hold
+           Gaia BH1 (owner, 2026-11-19), 477 parsecs out. */
+        const n = NEIGHBORHOOD_PC * AU_PER_PARSEC;
+        PLACES.neighborhood = { id: 'neighborhood', name: 'the galactic neighborhood', label: 'Galactic neighborhood (preview)', cx: 0, cy: 0, cz: 0, radiusAU: n, radius3D: n, beyondStreet: true };
     }
+    /* Gaia BH1, the nearest black hole known, where it is on the map; with the stars only. */
+    const BH1 = STARS_URL ? (() => { const [x, y, z] = skyToMap(GAIA_BH1.ra, GAIA_BH1.dec, gaiaBh1Pc() * AU_PER_PARSEC); return { x, y, z }; })() : null;
     /* Flat, or 3D (owner, 2026-11-16): the camera that turns and tips the map
        (js/rubinview.js). In 3D a drag turns it instead of moving it, zooming keeps to the
        middle, and each place is fitted to its bodies' true distances. */
@@ -724,6 +762,7 @@ function drawMap(digest) {
             }
             out[`body:${s.id}`] ??= on.pairs.length ? { ...out[`body:${on.pairs[0].pair.key}`] } : { body: on.centre, note: galaxy };
         }
+        if (BH1) out['body:gaiabh1'] = { body: BH1, note: 'orbits the galaxy, far off this map' };
         return out;
     })();
     /* A neighbour's "Zoom on" step as a view, from its rungs. */
@@ -819,8 +858,11 @@ function drawMap(digest) {
     const starCanvas = el('canvas', { class: 'rubin-map-stars', 'aria-hidden': 'true' });
     frame.append(starCanvas, plot);
     let stars = null;
+    /* Each place its own stars (owner, 2026-11-19): out to the place's edge; none of Gaia's
+       at the street or nearer. */
+    const starsOut = () => (place.beyondStreet ? place.radiusAU / AU_PER_PARSEC : 0);
     if (STARS_URL) {
-        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam)); } catch { stars = null; }
+        try { stars = starLayer(starCanvas, STARS_URL.replace(/\/$/, ''), () => stars?.draw(view, cam, starsOut())); } catch { stars = null; }
     }
 
     const RULER_HEIGHT = 88;
@@ -1022,7 +1064,7 @@ function drawMap(digest) {
                 ...on.lone.map((m) => ({ ...on.at.get(m.id), radiusAU: seenNearOf(on.system, m) })),
             ]),
         ], undefined, at3);
-        if (holes && shown.hatching && place.id !== 'block') {
+        if (holes && shown.hatching && !place.beyondStreet) {
             const hole = ({ x, y, r }) => `M${(x - r).toFixed(1)},${y.toFixed(1)}a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(2 * r).toFixed(1)},0a${r.toFixed(1)},${r.toFixed(1)} 0 1,0 ${(-2 * r).toFixed(1)},0Z`;
             const unseen = svg('path', { d: `M0,0H${SIZE}V${SIZE}H0Z${holes.map(hole).join('')}`, fill: 'url(#rubin-unseen-map)', 'fill-rule': 'evenodd', class: 'rubin-unseen' });
             attachDetails(unseen, [[UNSEEN_TEXT]]);
@@ -1335,6 +1377,25 @@ function drawMap(digest) {
                 ["Barnard's Star lies almost the same way", 'on our sky'],
             ]);
         }
+        /* Gaia BH1: a ring, dark inside, for a black hole; from the block, where it is out of
+           the picture, a globe pointing its way. */
+        if (BH1) {
+            const [x, y] = at3(BH1.x, BH1.y, BH1.z);
+            const inside = x > 0 && x < SIZE && y > 0 && y < SIZE;
+            if (inside) {
+                drop(BH1, x, y);
+                const chosen = bodiesPicked.has('body:gaiabh1');
+                const g = svg('g', { class: chosen ? 'rubin-mark rubin-mark-pickable is-selected' : 'rubin-mark rubin-mark-pickable' });
+                g.append(svg('circle', { cx: x, cy: y, r: 12, fill: 'transparent' }));
+                g.append(svg('circle', { cx: x, cy: y, r: 5, fill: C.space, stroke: C.text, 'stroke-width': 2 }));
+                attachDetails(g, [...GAIA_BH1_ROWS, ['Click to centre the map on it']]);
+                pickable(g, 'body:gaiabh1', BH1, chosen);
+                parts.push(g);
+                labels.push({ x, y, text: GAIA_BH1.name, rank: Infinity });
+            } else if (place.beyondStreet) {
+                arrow(48, SIZE - 52, [BH1.x - view.cx, BH1.y - view.cy, BH1.z - (view.cz ?? 0)], 'Toward Gaia BH1', GAIA_BH1_ROWS);
+            }
+        }
         if (elsewhere) {
             arrow(48, SIZE - 52, fromSun.map((v) => -v), 'Toward Earth', [
                 ['Toward Earth:', `${farDistanceText(away)} from the middle of the map`],
@@ -1438,7 +1499,7 @@ function drawMap(digest) {
             parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
-        stars?.draw(view, cam);
+        stars?.draw(view, cam, starsOut());
 
         const level = zoomLevel(view);
         const where = place.id === 'sun' ? '' : `${place.label}: `;
@@ -1548,6 +1609,7 @@ function drawMap(digest) {
        less motion it is simply there. */
     const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
     const blockButton = PLACES.block ? el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.block.label) : null;
+    const hoodButton = PLACES.neighborhood ? el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.neighborhood.label) : null;
     const goInput = el('input', {
         type: 'text', class: 'rubin-tool rubin-map-go-input', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false',
         'aria-controls': 'rubin-map-go-list', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'go',
@@ -1559,6 +1621,7 @@ function drawMap(digest) {
     function showPlace() {
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
         blockButton?.setAttribute('aria-pressed', String(place.id === 'block'));
+        hoodButton?.setAttribute('aria-pressed', String(place.id === 'neighborhood'));
         for (const option of goList.children) option.classList.toggle('is-here', option.dataset.place === place.id);
         for (const [id, row] of zoomRows) row.hidden = place.id !== id;
         findLight.hidden = place.id !== 'sun';
@@ -1569,7 +1632,7 @@ function drawMap(digest) {
         cancelAnimationFrame(centring);
         travelling = centring = 0;
         const from = view;
-        const wide = (p) => p.id === 'both' || p.id === 'block';
+        const wide = (p) => p.id === 'both' || p.beyondStreet;
         const direct = place === target || wide(place) || wide(target);
         const via = homeView(PLACES.both);
         place = target;
@@ -1695,6 +1758,25 @@ function drawMap(digest) {
     window.addEventListener('pointerup', release);
     window.addEventListener('pointercancel', release);
     plot.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); dragged = false; } }, true);
+    /* Gaia's stars, under the marks: pointing at one (a mouse over it, or a tap) shows what
+       Gaia's map says of it. A mark under the pointer has its own details, so it wins. */
+    if (stars) {
+        let starTip = false;
+        let asked = null;
+        const tipAt = (e) => {
+            if (e.target.closest?.('.rubin-mark')) return;
+            const rows = stars.pick(view, cam, ...local(e));
+            if (rows) { showTooltip(rows, e.clientX, e.clientY); starTip = true; } else if (starTip) { hideTooltip(); starTip = false; }
+        };
+        plot.addEventListener('pointermove', (e) => {
+            if (pointers.size || e.pointerType !== 'mouse') return;
+            /* At most once a frame: a busy view can hold 400,000 stars. */
+            if (!asked) requestAnimationFrame(() => { tipAt(asked); asked = null; });
+            asked = e;
+        });
+        plot.addEventListener('pointerleave', () => { if (starTip) { hideTooltip(); starTip = false; } });
+        plot.addEventListener('click', (e) => { if (e.pointerType !== 'mouse') tipAt(e); });
+    }
     /* In 3D a point in the picture is not one place on the map, so zooming keeps to the middle. */
     const anchorAt = (e) => (threeD ? undefined : toWorld(view, ...local(e)));
     plot.addEventListener('dblclick', (e) => setView(zoomAt(view, MAP_ZOOM.step, anchorAt(e))));
@@ -1912,7 +1994,8 @@ function drawMap(digest) {
     travel.append(goBox, nearestButton);
     if (PLACES.block) {
         blockButton.addEventListener('click', () => goTo(PLACES.block));
-        travel.append(blockButton);
+        hoodButton.addEventListener('click', () => goTo(PLACES.neighborhood));
+        travel.append(blockButton, hoodButton);
     }
     /* Under the bar: where the map is and how near, and the steps in where it has some. */
     const under = el('div', { class: 'rubin-map-controls rubin-map-under' });

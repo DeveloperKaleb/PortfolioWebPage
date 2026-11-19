@@ -3246,9 +3246,23 @@ without it the map is as before. The decisions:
 - **The map's own projection in the shader.** Each tile's centre is placed relative to the
   view's middle in full precision on the page; only stars' offsets within their tile go to
   the GPU (32-bit). Works flat and in 3D.
-- **A ball, not a column** (`reachOf`): only stars within the picture's corner distance of
-  the view's middle are drawn, and only tiles touching that ball are fetched. Looking down
-  at first showed a column 2,600 pc deep through a 250 pc view, a white wash.
+- **Each place its own stars** (owner, 2026-11-19): the Block shows Gaia's stars within
+  250 pc of the Sun, the Neighborhood those within 1,000 pc, the Street and nearer none of
+  Gaia's, only their marks; past a place's edge the Milky Way picture stands in for the
+  rest. Only tiles reaching inside the place's edge are fetched. (The first try drew a ball
+  about the view's middle instead; the owner's rule is plainer and replaced it.)
+- **The same kinds of star everywhere** (`magLimitOf`, `frontierOf`): Gaia's 1% stars are
+  not spread evenly - near the Sun it caught even dim red dwarfs, far off only bright
+  stars - so drawn all together they made a white ball about the Sun that was only how
+  Gaia measures, the kind of picture that would mislead. Two cuts: stars fainter than Gaia
+  could measure to 1% at the place's edge are left out (absolute G about 6.4 in the Block,
+  4.3 in the Neighborhood, from DR3's parallax errors); and where the star budget ran out
+  part way down a level of tiles, stars fainter than the faintest of the tiles left short
+  are left out too, which also cured square steps in the picture. Zooming in loads deeper
+  tiles and the second cut eases.
+- **Dimmed when crowded** (`glowOf`): every star's light is scaled by how many share each
+  pixel, so a crowded view is a field of stars and not a glare over the map's marks. Set by
+  eye at one star in eight pixels over the disc they fill.
 - **Tiles best first** (`tilesToDraw`): the largest on screen first, children while a
   tile is wider than 48 px, at most 400,000 stars; up to 6 fetches at once; tiles not
   wanted are let go past 1.2 million stars held.
@@ -3258,8 +3272,24 @@ without it the map is as before. The decisions:
   magnitude, added together as light; colour from BP-RP, blue-white to orange-red. These
   are the stars' own colours, roughly, not a palette carrying meaning, so they were not
   run through the contrast rules - the owner may want to rule on that.
-- **The preview's Galactic block:** a place 250 pc out ("Galactic block (preview)"), so
-  there is room to see them; the hatching is not drawn there.
+- **The preview's places:** "Galactic block (preview)", 250 pc, and "Galactic neighborhood
+  (preview)", 1,000 pc, the next rung, added for Gaia BH1; the hatching is not drawn in
+  either.
+- **Pointing at a star** (`nearestStar`, `starRows`): a mouse over a star, or a tap, shows
+  how far it is, how much light it gives off against the Sun, its colour in words, and
+  "a giant" or "a white dwarf" where colour and brightness put it off the run of stars like
+  the Sun (rough lines on Gaia's colour-brightness chart). A map mark under the pointer
+  wins. Checked once a frame at most.
+- **Gaia BH1** (owner's test, "Where is Gaia BH1?"): a ring, dark inside, at its place
+  1,560 light years out (El-Badry et al. 2023; Gaia DR3 4373465352415301632's sky place and
+  parallax), named, with its story on hover; click centres on it. From the Block, where it
+  is out of the picture, a "Toward Gaia BH1" globe points its way. Its companion star, in
+  Gaia's 1% set, sits under the mark.
+
+What the Neighborhood shows: the stars thin out about 2,000 light years out, short of its
+3,260 light-year edge - as far as Gaia measured any to 1%. Turned in 3D, they gather in a
+slanted band: the Milky Way's disc, tilted against the plane of Earth's orbit the map is
+drawn in. Dragging there took 17.6 ms a step.
 
 Measured in the preview: the whole Block view fetched 100 tiles (3.1 MB); at 8x zoom, 218
 in all. Dragging in 3D took 18.4 ms of work a step with the stars and 13.4 ms without (the
@@ -3269,8 +3299,9 @@ in); since 2026-11-19 the spacing goes on past the street in light years (10, 20
 ...; `LIGHT_YEAR_RINGS` in js/rubinview.js) and those rings are labelled "200 light years".
 The street keeps its AU rings, so the two scales meet at the street's edge. Light years
 over parsecs: the Gaia BH1 caption that started this ("1,560 ly") and most public writing
-use them. Still to do before it is more than a preview: a Show item to turn the stars off; hover or
-pick for a star (none yet); and step 3, a home for the tiles.
+use them. Still to do before it is more than a preview: a Show item to turn the stars off;
+Gaia BH1 in "Go to"; a note in the picture of where Gaia's 1% stars end; and step 3, a home
+for the tiles.
 
 
 ## The Rubin tab (`rubin/rubin.html`, `rubin/rubin.js`, `js/rubinview.js`)

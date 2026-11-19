@@ -184,9 +184,12 @@ under Vitest without a browser:
   `npm run gaiastars:fetch -- --max-pc 100` then `npm run gaiastars -- --max-pc 100` build
   tiles locally (`tools/gaiastars/`; raw/ and out/ are not committed). See NOTES.md.
 - `js/starview.js` — drawing Gaia's star tiles on the map: which tiles a view needs (best
-  first, within a ball about the view, under a star budget) and how each star looks. The
-  WebGL is `starLayer` in `rubin/rubin.js`; preview only, with `?stars=<tiles folder>`
-  (which also adds a 250 pc "Galactic block (preview)" place). See NOTES.md.
+  first, within the place's edge, under a star budget), the brightness cuts that keep the
+  picture honest, how each star looks, the star under the pointer and its words, and
+  Gaia BH1. The WebGL is `starLayer` in `rubin/rubin.js`; preview only, with
+  `?stars=<tiles folder>`, which adds "Galactic block (preview)" (250 pc) and "Galactic
+  neighborhood (preview)" (1,000 pc) places. Each place shows only its own stars. See
+  NOTES.md.
 - `js/rubincolors.js` — the Solar System tab's eight chart and map colours, apart from the
   games' palettes in `logic.js` so the tab does not load the games' code. Held to the
   contrast rules like the rest.
