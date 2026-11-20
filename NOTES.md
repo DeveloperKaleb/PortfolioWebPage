@@ -3334,6 +3334,25 @@ decisions:
   identifiers, and within 100 ly the GJ/Wolf/Ross/LHS/HD/V* ones. SIMBAD's NAMEs include
   catalogue numbers ("SAO 237920B"); `nameOf` drops those. A folder without name files
   still works: the page shows catalogue numbers.
+- **First recorded** (owner, 2026-11-19): each street star's card gives the oldest
+  catalogue it is in (`firstRecord`, `FIRST_RECORDS` in js/starnames.js; `r<path>.first.json`
+  beside the tiles), from SIMBAD's identifiers (plus a third query, BD/CD/CPD names of
+  Gaia stars nearer than 1 kpc) and Hipparcos; none older, Gaia's own. It is the oldest
+  catalogue, not the first sighting: a naked-eye star was seen long before. The notables
+  say how each was found (`found`, js/notables.js). The owner asked that nothing be
+  "strictly from memory": every particular was checked on 2026-11-19, and two were wrong
+  and fixed (the Córdoba survey ran to 1932, not 1914; Palomar plates are the 2002
+  revision of LHS, not Luyten's 1979 original). Sources: BD, HEASARC's catalogue page
+  (78 mm telescope, visual) and Wikipedia's Durchmusterung; CD, the Córdoba volumes as
+  cited in NASA NTRS 19850016738; CPD, Britannica; HD, Wikipedia's Henry Draper Catalogue
+  and Cannon 1918, AnHar 92; Wolf and Ross, Wikipedia's Max Wolf and Frank Elmore Ross;
+  LHS, HEASARC's revised LHS page; Bayer, Linda Hall Library's Uranometria exhibit;
+  Flamsteed, Britannica's Historia Coelestis Britannica; Lacaille, St Andrews MacTutor and
+  SAAO's ASSA page on his catalogue; Hipparcos, the catalogue itself (ESA 1997, VizieR
+  I/239). Notables: RX J1856.5-3754, Walter, Wolk & Neuhäuser 1996, Nature 379, 233, and
+  Elvis et al. 1992 (via arXiv astro-ph/0111339); Vela pulsar, Large, Vaughan & Mills 1968,
+  Nature 220, 340; Orion Nebula, SEDS's M42 page; Tabby's Star, Boyajian et al. 2016,
+  MNRAS 457, 3988; Gaia BH1, El-Badry et al. 2023.
 - **Notable objects only inside the map drawn** (owner, 2026-11-19; `holdsNotable`): a
   notable object such as Gaia BH1 is marked before the pointer comes near, but only once
   the place's galactic map reaches it - Gaia BH1 (477 pc) in the neighborhood and its own

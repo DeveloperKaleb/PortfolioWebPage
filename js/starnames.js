@@ -107,3 +107,58 @@ export function bestName(identifiers) {
     }
     return best?.name ?? null;
 }
+
+/* ---- The oldest catalogue a star is in ---------------------------------------------------
+ *
+ * Owner, 2026-11-19: each star's card says where it was first recorded - the oldest of the
+ * catalogues it is in, as far as SIMBAD and Hipparcos know, which is not always who first
+ * saw it (a naked-eye star was seen long before any of these). Gaia measured the distance
+ * of every one; it first recorded only those in none of the older ones. Codes are what
+ * r<path>.first.json holds, { k: code }; a star not in it was first recorded by Gaia.
+ * Each line's particulars were checked against sources on 2026-11-19; NOTES.md, "First
+ * recorded", lists them. Change none from memory.
+ */
+export const FIRST_RECORDS = {
+    bayer: ["Bayer's star atlas, Uranometria (1603)", "from Tycho Brahe's naked-eye measurements"],
+    flam: ["Flamsteed's catalogue (1725)", 'from his observations at Greenwich'],
+    lac: ["Lacaille's southern survey (1751-52)", 'through a small telescope at the Cape of Good Hope'],
+    bd: ['The Bonner Durchmusterung (1859-62)', 'by eye through a small telescope at Bonn'],
+    cd: ['The Córdoba Durchmusterung (1892-1932)', 'by eye through a telescope in Argentina'],
+    cpd: ['The Cape Photographic Durchmusterung (1896-1900)', 'from photographic plates taken at the Cape of Good Hope'],
+    hd: ['The Henry Draper Catalogue (1918-24)', 'from photographic plates at Harvard'],
+    wolf: ["Max Wolf's search for fast-moving stars (1919 on)", 'from photographic plates at Heidelberg'],
+    ross: ["Frank Ross's search for fast-moving stars (1925-39)", 'at Yerkes Observatory'],
+    lhs: ["Luyten's Half-Second catalogue (1979)", 'of stars moving more than half a second of arc a year'],
+    hip: ['The Hipparcos catalogue (ESA 1997)', "from ESA's Hipparcos satellite"],
+    gaia: ["Gaia's own catalogue (DR3)", "ESA's Gaia spacecraft"],
+};
+const ORDER = Object.keys(FIRST_RECORDS);
+
+/* The code of one identifier's catalogue, or null. */
+export function recordOf(identifier) {
+    const s = String(identifier).trim().replace(/\s+/g, ' ');
+    if (s.startsWith('* ')) return nameOf(s)?.rank === 1 ? 'bayer' : nameOf(s) ? 'flam' : null;
+    if (/^NAME Lacaille \d/.test(s)) return 'lac';
+    if (/^BD[+-]/.test(s)) return 'bd';
+    if (/^CD-/.test(s)) return 'cd';
+    if (/^CPD-/.test(s)) return 'cpd';
+    if (/^HD \d/.test(s)) return 'hd';
+    if (/^Wolf \d/.test(s)) return 'wolf';
+    if (/^Ross \d/.test(s)) return 'ross';
+    if (/^LHS \d/.test(s)) return 'lhs';
+    if (/^HIP \d/.test(s)) return 'hip';
+    return null;
+}
+
+/* The oldest catalogue among a star's identifiers; 'gaia' when none is older. */
+export function firstRecord(identifiers) {
+    let best = ORDER.length - 1;
+    for (const id of identifiers) {
+        const code = recordOf(id);
+        if (code) best = Math.min(best, ORDER.indexOf(code));
+    }
+    return ORDER[best];
+}
+
+export const firstName = (path) => `r${path}.first.json`;
+

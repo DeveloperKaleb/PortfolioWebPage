@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GENITIVE, nameOf, bestName, namesName } from '../../js/starnames.js';
+import { GENITIVE, nameOf, bestName, namesName, recordOf, firstRecord, FIRST_RECORDS } from '../../js/starnames.js';
 
 describe('star names', () => {
     it('know all 88 constellations', () => {
@@ -40,6 +40,20 @@ describe('star names', () => {
         expect(bestName(['NAME Fomalhaut', 'NAME Fomalhaut A 2'])).toBe('Fomalhaut');
         expect(bestName(['TIC 1'])).toBeNull();
         expect(bestName([])).toBeNull();
+    });
+
+    it('find the oldest catalogue a star is in, else Gaia', () => {
+        expect(recordOf('BD+14   622')).toBe('bd');
+        expect(recordOf('CD-36 15693')).toBe('cd');
+        expect(recordOf('* alf PsA')).toBe('bayer');
+        expect(recordOf('* 61 Cyg A')).toBe('flam');
+        expect(recordOf('NAME Lacaille 9352')).toBe('lac');
+        expect(recordOf('GJ 887')).toBeNull();
+        expect(firstRecord(['GJ 887', 'HD 217987', 'CD-36 15693', 'NAME Lacaille 9352', 'HIP 114046'])).toBe('lac');
+        expect(firstRecord(['HIP 1', 'HD 2', 'BD+1 3'])).toBe('bd');
+        expect(firstRecord(['GJ 1'])).toBe('gaia');
+        expect(firstRecord([])).toBe('gaia');
+        for (const [title, how] of Object.values(FIRST_RECORDS)) expect(title && how).toBeTruthy();
     });
 
     it('live beside each tile', () => {

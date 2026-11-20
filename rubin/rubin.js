@@ -33,7 +33,7 @@ import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, s
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf, idsName, decodeIds } from '../js/startiles.js';
-import { namesName } from '../js/starnames.js';
+import { namesName, firstName, FIRST_RECORDS } from '../js/starnames.js';
 import {
     treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, hasOwnStreet, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
@@ -632,8 +632,9 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
     const loadIds = (path, count) => {
         idFiles.set(path, { state: 'loading' });
         const names = fetch(`${base}/${namesName(path)}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+        const first = fetch(`${base}/${firstName(path)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
         fetch(`${base}/${idsName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then(async (buffer) => {
-            idFiles.set(path, { state: 'ready', ids: decodeIds(new Uint8Array(buffer), count), names: await names });
+            idFiles.set(path, { state: 'ready', ids: decodeIds(new Uint8Array(buffer), count), names: await names, first: await first });
         }).catch(() => idFiles.set(path, { state: 'failed' })).finally(onStreet);
     };
     /* Tiles not wanted for a while are let go once more than this many stars are held. */
@@ -771,6 +772,8 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
                         name: names?.state === 'ready' ? (names.names[s.k] ?? designation(names.ids.id(s.k), names.ids.hip(s.k))) : null,
                         /* Its catalogue number too, where the name is a friendlier one. */
                         also: names?.state === 'ready' && names.names[s.k] ? designation(names.ids.id(s.k), names.ids.hip(s.k)) : null,
+                        /* The oldest catalogue it is in (firstRecord); none known before the files are in. */
+                        first: names?.state === 'ready' && names.first ? FIRST_RECORDS[names.first[s.k] ?? 'gaia'] : null,
                     };
                 }),
             };
@@ -1560,6 +1563,7 @@ function drawMap(digest) {
                     ...(s.also ? [['Also', s.also]] : []),
                     ...starRows(s, s.magByte, s.colourByte).slice(1),
                     [lightYearsText(s.d), `from ${about}`],
+                    ...(s.first ? [['First recorded:', `${s.first[0]}, ${s.first[1]}`]] : []),
                     ["Gaia's 1% stars only:", 'fainter neighbours are there too, not measured so well'],
                     ['Click to centre the map on it'],
                 ];

@@ -16,7 +16,7 @@ import { GAIA_BH1, gaiaBh1Pc, GAIA_BH1_ROWS, GAIA_BH1_SYSTEM, BLOCK_PC, NEIGHBOR
 
 export const NOTABLES = [
     {
-        id: 'vega', name: 'Vega', kind: 'star', type: 'A0 V', ra: 279.23473, dec: 38.78369, pc: 7.68,
+        id: 'vega', found: 'by eye, since antiquity', name: 'Vega', kind: 'star', type: 'A0 V', ra: 279.23473, dec: 38.78369, pc: 7.68,
         where: 'in Lyra', source: 'Hipparcos (van Leeuwen 2007)',
         facts: [
             ['A white star about twice the Sun\'s mass,', 'spinning so fast it bulges at its middle'],
@@ -24,7 +24,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'arcturus', name: 'Arcturus', kind: 'star', type: 'K1.5 III', ra: 213.91530, dec: 19.18241, pc: 11.26,
+        id: 'arcturus', found: 'by eye, since antiquity', name: 'Arcturus', kind: 'star', type: 'K1.5 III', ra: 213.91530, dec: 19.18241, pc: 11.26,
         where: 'in Boötes', source: 'Hipparcos (van Leeuwen 2007)',
         facts: [
             ['An orange giant:', 'a star like the Sun grown old, swollen to about 25 times its width'],
@@ -32,7 +32,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'aldebaran', name: 'Aldebaran', kind: 'star', type: 'K5 III', ra: 68.98016, dec: 16.50930, pc: 20.43,
+        id: 'aldebaran', found: 'by eye, since antiquity', name: 'Aldebaran', kind: 'star', type: 'K5 III', ra: 68.98016, dec: 16.50930, pc: 20.43,
         where: 'in Taurus', source: 'Hipparcos (van Leeuwen 2007)',
         facts: [
             ['An orange giant', 'about 45 times the Sun\'s width'],
@@ -40,7 +40,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'hyades', name: 'Hyades', kind: 'cluster', type: 'CL', ra: 67.689, dec: 16.845, pc: 47.5,
+        id: 'hyades', found: 'by eye, since antiquity', name: 'Hyades', kind: 'cluster', type: 'CL', ra: 67.689, dec: 16.845, pc: 47.5,
         where: 'in Taurus', source: 'Gaia DR2 (Gaia Collaboration, Babusiaux et al. 2018)',
         facts: [
             ['The nearest star cluster:', 'hundreds of stars born together, about 650 million years ago'],
@@ -48,7 +48,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'rxj1856', name: 'RX J1856.5−3754', kind: 'neutronstar', type: 'NS', ra: 284.14917, dec: -37.91000, pc: 123,
+        id: 'rxj1856', found: "as an X-ray source in the Einstein satellite's slew survey (Elvis et al. 1992); shown with ROSAT to be a lone neutron star (Walter, Wolk & Neuhäuser 1996)", name: 'RX J1856.5−3754', kind: 'neutronstar', type: 'NS', ra: 284.14917, dec: -37.91000, pc: 123,
         where: 'in Corona Australis', source: 'Walter et al. 2010',
         facts: [
             ['A neutron star:', 'the collapsed core of a star that exploded, about 25 km across'],
@@ -56,7 +56,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'polaris', name: 'Polaris', kind: 'star', type: 'F7 Ib', ra: 37.95456, dec: 89.26411, pc: 133,
+        id: 'polaris', found: 'by eye, since antiquity', name: 'Polaris', kind: 'star', type: 'F7 Ib', ra: 37.95456, dec: 89.26411, pc: 133,
         where: 'in Ursa Minor', source: 'Hipparcos (van Leeuwen 2007); 447 by its companion (Bond et al. 2018)',
         farWords: 'About 430 to 450 light years',
         facts: [
@@ -65,7 +65,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'pleiades', name: 'Pleiades', kind: 'cluster', type: 'CL', ra: 56.85, dec: 24.1167, pc: 136,
+        id: 'pleiades', found: 'by eye, since antiquity', name: 'Pleiades', kind: 'cluster', type: 'CL', ra: 56.85, dec: 24.1167, pc: 136,
         where: 'in Taurus', source: 'Gaia DR2 (Gaia Collaboration, Babusiaux et al. 2018)',
         facts: [
             ['The Seven Sisters:', 'over a thousand stars born together, about 100 million years ago'],
@@ -73,7 +73,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'betelgeuse', name: 'Betelgeuse', kind: 'star', type: 'M2 Iab', ra: 88.79294, dec: 7.40706, pc: 168,
+        id: 'betelgeuse', found: 'by eye, since antiquity', name: 'Betelgeuse', kind: 'star', type: 'M2 Iab', ra: 88.79294, dec: 7.40706, pc: 168,
         where: 'in Orion', source: 'its pulsations, 550 ly (Joyce et al. 2020); Hipparcos alone, 500 (van Leeuwen 2007); radio and Hipparcos together, 720 (Harper et al. 2017)',
         farWords: 'About 500 to 720 light years',
         facts: [
@@ -84,7 +84,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'antares', name: 'Antares', kind: 'star', type: 'M1.5 Iab', ra: 247.35192, dec: -26.43200, pc: 170,
+        id: 'antares', found: 'by eye, since antiquity', name: 'Antares', kind: 'star', type: 'M1.5 Iab', ra: 247.35192, dec: -26.43200, pc: 170,
         where: 'in Scorpius', source: 'Hipparcos (van Leeuwen 2007)',
         farWords: 'About 550 light years',
         facts: [
@@ -93,7 +93,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'rigel', name: 'Rigel', kind: 'star', type: 'B8 Ia', ra: 78.63447, dec: -8.20164, pc: 265,
+        id: 'rigel', found: 'by eye, since antiquity', name: 'Rigel', kind: 'star', type: 'B8 Ia', ra: 78.63447, dec: -8.20164, pc: 265,
         where: 'in Orion', source: 'Hipparcos (van Leeuwen 2007)',
         farWords: 'About 860 light years',
         facts: [
@@ -102,7 +102,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'velapulsar', name: 'Vela pulsar', kind: 'neutronstar', type: 'NS', ra: 128.83588, dec: -45.17635, pc: 287,
+        id: 'velapulsar', found: 'by radio, at Molonglo, Australia (Large, Vaughan & Mills 1968)', name: 'Vela pulsar', kind: 'neutronstar', type: 'NS', ra: 128.83588, dec: -45.17635, pc: 287,
         where: 'in Vela', source: 'its parallax by radio (Dodson et al. 2003)',
         facts: [
             ['A neutron star spinning 11 times a second,', 'sweeping a beam of radio across Earth with each turn'],
@@ -110,7 +110,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'orionnebula', name: 'Orion Nebula', kind: 'nebula', type: 'NEB', ra: 83.82208, dec: -5.39111, pc: 414,
+        id: 'orionnebula', found: 'through a telescope, by Nicolas-Claude Fabri de Peiresc, 26 November 1610 (in his notes, published by Bigourdan in 1916)', name: 'Orion Nebula', kind: 'nebula', type: 'NEB', ra: 83.82208, dec: -5.39111, pc: 414,
         where: 'in Orion', source: 'its stars\' parallaxes by radio (Menten et al. 2007)',
         facts: [
             ['A cloud of gas where stars are being born,', 'lit by young, hot stars at its heart'],
@@ -120,7 +120,7 @@ export const NOTABLES = [
     {
         /* Added 2026-11-19 at the owner's asking. In Gaia's 1% stars itself: its place and
            parallax (2.2545 mas) are Gaia DR3's, as saved in tools/gaiastars/raw (epoch 2016). */
-        id: 'tabby', name: "Tabby's Star", kind: 'star', type: 'F3 V', ra: 301.5643214, dec: 44.4568407, pc: 443.6,
+        id: 'tabby', found: "its dips, by Planet Hunters volunteers in the Kepler telescope's data (Boyajian et al. 2016)", name: "Tabby's Star", kind: 'star', type: 'F3 V', ra: 301.5643214, dec: 44.4568407, pc: 443.6,
         where: 'in Cygnus', source: "Gaia DR3's parallax (Gaia Collaboration, Vallenari et al. 2023)",
         facts: [
             ['KIC 8462852: a star a little hotter than the Sun', 'that dims, now and then, by as much as a fifth'],
@@ -129,7 +129,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'deneb', name: 'Deneb', kind: 'star', type: 'A2 Ia', ra: 310.35798, dec: 45.28034, pc: 802,
+        id: 'deneb', found: 'by eye, since antiquity', name: 'Deneb', kind: 'star', type: 'A2 Ia', ra: 310.35798, dec: 45.28034, pc: 802,
         where: 'in Cygnus', source: 'its spectrum, 2,600 ly (Schiller & Przybilla 2008); Hipparcos, 1,400 (van Leeuwen 2007); other estimates run to 3,200',
         farWords: 'About 1,400 to 2,600 light years',
         facts: [
@@ -155,6 +155,7 @@ export const NOTABLE_LIST = [
                 [n.name, KIND_WORDS[n.kind]],
                 [far, `from the Sun, ${n.where}`],
                 ...n.facts,
+                ['Found:', n.found],
                 ['How far:', `from ${n.source}`],
             ],
             system: {
