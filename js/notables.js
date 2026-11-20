@@ -56,7 +56,7 @@ export const NOTABLES = [
         ],
     },
     {
-        id: 'polaris', found: 'by eye, since antiquity', name: 'Polaris', kind: 'star', type: 'F7 Ib', ra: 37.95456, dec: 89.26411, pc: 133,
+        id: 'polaris', found: 'by eye, since antiquity', name: 'Polaris', kind: 'star', type: 'F8 Ib', ra: 37.95456, dec: 89.26411, pc: 133,
         where: 'in Ursa Minor', source: 'Hipparcos (van Leeuwen 2007); 447 by its companion (Bond et al. 2018)',
         farWords: 'About 430 to 450 light years',
         facts: [

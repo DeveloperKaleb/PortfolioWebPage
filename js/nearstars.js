@@ -17,8 +17,18 @@
  *     a pair is mirrored front to back by a few AU.
  *   - Planets: NASA Exoplanet Archive (pscomppars), sizes of orbit only; those it flags as
  *     disputed are drawn as candidates.
- *   - Spectral types: as usually given (RECONS, the Exoplanet Archive, the papers above).
- *     SIMBAD was unreachable on 2026-11-18, so they were not checked against it.
+ *   - Spectral types: SIMBAD's (Wenger et al. 2000; its IDIA mirror, data to 2026-10-14),
+ *     checked 2026-11-20 against tools/nearstars/simbad-types-near.csv. Thirteen first given
+ *     "as usually given" differed by about a subclass and now take SIMBAD's, with its
+ *     reference: Sirius B DA1.9 (2011ApJ...743..138G), Ross 248 M5.0 V (2015A&A...577A.128A),
+ *     Lacaille 9352 M2 V and Gliese 674 M3 V (2006A&A...460..695T), Groombridge 34 A M2 V and
+ *     Lacaille 8760 M1 V (1989ApJS...71..245K), YZ Ceti M4.0 Ve (2015AJ....149..106D),
+ *     Teegarden's Star M6 V (dM6, 2019AJ....157...63K), van Maanen's Star DZ7.5
+ *     (1993PASP..105..761W), Gliese 1 M2 V (1982MSS...C03....0H), Gliese 876 M3.5 V
+ *     (1983SAAOC...7..106W), WISE 0855-0714 Y2 (2015ApJ...799...37L). To do (owner): check
+ *     these by hand against recent papers; SIMBAD shows one study, some from the 1980s.
+ *     SIMBAD has no type of its own for Wolf 424 A and B, Ross 614 B or EZ Aquarii B and
+ *     C, so theirs are unchecked.
  *   - Sizes: measured (interferometry, or for white dwarfs their light and gravity) where
  *     the source says so; for red dwarfs, worked out from their infrared brightness (2MASS
  *     K, Mann et al. 2015's relation; how: 'brightness'); otherwise the size usual for the
@@ -40,7 +50,7 @@ export const NEARSTARS = [
         name: "WISE 0855-0714",
         sky: { ra: 133.795132, dec: -7.245146, epoch: 2000.0, pmRa: -8123.7, pmDec: 673.2, parallax: 439.0 } /* SIMBAD position via Wikipedia; drift and parallax Kirkpatrick et al. 2021 */,
         members: [
-            { id: "wise0855", name: "WISE 0855-0714", type: "Y4", markPx: 3, size: { jupiters: 1.045, plusMinus: 0.072, how: "light" }, blurb: "The coldest known object outside the Solar System: about 3 degrees C" },
+            { id: "wise0855", name: "WISE 0855-0714", type: "Y2", markPx: 3, size: { jupiters: 1.045, plusMinus: 0.072, how: "light" }, blurb: "The coldest known object outside the Solar System: about 3 degrees C" },
         ],
     },
     {
@@ -66,7 +76,7 @@ export const NEARSTARS = [
         sky: { ra: 101.284634497, dec: -16.721408866, epoch: 2016.0, pmRa: -534.987605648, pmDec: -1249.783496643, parallax: 378.9 } /* centre of gravity from Gaia DR3 B (2016.0) and Hipparcos A (1991.25) on the orbit; parallax Bond et al. 2017 */,
         members: [
             { id: "siriusA", name: "Sirius A", type: "A1 V", markPx: 4.5, size: { suns: 1.7144 }, blurb: "The brightest star in our night sky" },
-            { id: "siriusB", name: "Sirius B", type: "DA2", markPx: 2.5, size: { suns: 0.008098 }, blurb: "The nearest white dwarf: about Earth's size with about the Sun's mass" },
+            { id: "siriusB", name: "Sirius B", type: "DA1.9", markPx: 2.5, size: { suns: 0.008098 }, blurb: "The nearest white dwarf: about Earth's size with about the Sun's mass" },
         ],
         pairs: [{ key: "sirius", name: "Sirius A and B", a: "siriusA", b: "siriusB", orbit: { period: 50.1284, periastron: 1994.5715, e: 0.59142, aAU: 19.7828, i: 136.336, node: 45.4, peri: 149.161, massA: 2.063, massB: 1.018 }, markPx: 4.5 }],
     },
@@ -93,7 +103,7 @@ export const NEARSTARS = [
         name: "Ross 248",
         sky: { ra: 355.480015258, dec: 44.170375701, epoch: 2016.0, pmRa: 112.527464934, pmDec: -1591.649761815, parallax: 316.481186782 } /* Gaia DR3 1926461164913660160 */,
         members: [
-            { id: "ross248", name: "Ross 248", type: "M6 Ve", markPx: 3, size: { suns: 0.178, plusMinus: 0.005, how: "brightness" }, blurb: "Coming toward us: in about 36,000 years it will be the nearest star to the Sun" },
+            { id: "ross248", name: "Ross 248", type: "M5.0 V", markPx: 3, size: { suns: 0.178, plusMinus: 0.005, how: "brightness" }, blurb: "Coming toward us: in about 36,000 years it will be the nearest star to the Sun" },
         ],
     },
     {
@@ -110,7 +120,7 @@ export const NEARSTARS = [
         name: "Lacaille 9352",
         sky: { ra: 346.50391668, dec: -35.847164208, epoch: 2016.0, pmRa: 6765.995136251, pmDec: 1330.285274718, parallax: 304.1353692 } /* Gaia DR3 6553614253923452800 */,
         members: [
-            { id: "lacaille9352", name: "Lacaille 9352", type: "M0.5 V", markPx: 3.5, size: { suns: 0.468, plusMinus: 0.02, how: "catalogue" } },
+            { id: "lacaille9352", name: "Lacaille 9352", type: "M2 V", markPx: 3.5, size: { suns: 0.468, plusMinus: 0.02, how: "catalogue" } },
         ],
         planets: [{ star: "lacaille9352", name: "Lacaille 9352 e", a: 0.0417, status: "confirmed" }, { star: "lacaille9352", name: "Lacaille 9352 b", a: 0.0683, status: "confirmed" }, { star: "lacaille9352", name: "Lacaille 9352 c", a: 0.121, status: "confirmed" }, { star: "lacaille9352", name: "Lacaille 9352 d", a: 0.212, status: "confirmed" }],
     },
@@ -170,7 +180,7 @@ export const NEARSTARS = [
         name: "Groombridge 34",
         sky: { ra: 4.613226258, dec: 44.024786744, epoch: 2016.0, pmRa: 2891.518077337, pmDec: 411.832020366, parallax: 280.706821579 } /* Gaia DR3 385334230892516480 */,
         members: [
-            { id: "groombridge34A", name: "Groombridge 34 A", type: "M1.5 V", markPx: 3.5, size: { suns: 0.406, plusMinus: 0.012, how: "brightness" } },
+            { id: "groombridge34A", name: "Groombridge 34 A", type: "M2 V", markPx: 3.5, size: { suns: 0.406, plusMinus: 0.012, how: "brightness" } },
             { id: "groombridge34B", name: "Groombridge 34 B", type: "M3.5 V", markPx: 3, size: { suns: 0.196, plusMinus: 0.006, how: "brightness" }, sky: { ra: 4.625300681, dec: 44.028744517, epoch: 2016.0, pmRa: 2862.796426497, pmDec: 336.431903719, parallax: 280.706821579 } /* Gaia DR3 385334196532776576 */ },
         ],
         centreName: "Groombridge 34 A",
@@ -220,7 +230,7 @@ export const NEARSTARS = [
         name: "YZ Ceti",
         sky: { ra: 18.133254254, dec: -16.996154872, epoch: 2016.0, pmRa: 1205.074450318, pmDec: 637.546633968, parallax: 269.05730465 } /* Gaia DR3 2358524597030794112 */,
         members: [
-            { id: "yzCet", name: "YZ Ceti", type: "M4.5 V", markPx: 3, size: { suns: 0.169, plusMinus: 0.005, how: "brightness" } },
+            { id: "yzCet", name: "YZ Ceti", type: "M4.0 Ve", markPx: 3, size: { suns: 0.169, plusMinus: 0.005, how: "brightness" } },
         ],
         planets: [{ star: "yzCet", name: "YZ Ceti b", a: 0.01634, status: "confirmed" }, { star: "yzCet", name: "YZ Ceti c", a: 0.02156, status: "confirmed" }, { star: "yzCet", name: "YZ Ceti d", a: 0.02851, status: "confirmed" }],
     },
@@ -238,7 +248,7 @@ export const NEARSTARS = [
         name: "Teegarden's Star",
         sky: { ra: 43.269642477, dec: 16.864373819, epoch: 2016.0, pmRa: 3429.082826808, pmDec: -3805.541122737, parallax: 260.98844068 } /* Gaia DR3 35227046884571776 */,
         members: [
-            { id: "teegarden", name: "Teegarden's Star", type: "M7 V", markPx: 3, size: { suns: 0.119, plusMinus: 0.004, how: "brightness" }, blurb: "So faint it was found only in 2003" },
+            { id: "teegarden", name: "Teegarden's Star", type: "M6 V", markPx: 3, size: { suns: 0.119, plusMinus: 0.004, how: "brightness" }, blurb: "So faint it was found only in 2003" },
         ],
         planets: [{ star: "teegarden", name: "Teegarden's Star b", a: 0.0259, status: "confirmed" }, { star: "teegarden", name: "Teegarden's Star c", a: 0.0455, status: "confirmed" }, { star: "teegarden", name: "Teegarden's Star d", a: 0.0791, status: "confirmed" }],
     },
@@ -256,7 +266,7 @@ export const NEARSTARS = [
         name: "Lacaille 8760",
         sky: { ra: 319.295018138, dec: -38.872456401, epoch: 2016.0, pmRa: -3258.966218702, pmDec: -1145.862396912, parallax: 251.912422211 } /* Gaia DR3 6583272171336048640 */,
         members: [
-            { id: "lacaille8760", name: "Lacaille 8760", type: "M0 V", markPx: 3.5, size: { suns: 0.592, plusMinus: 0.045, how: "brightness" }, blurb: "The brightest red dwarf in our sky, just visible to the eye" },
+            { id: "lacaille8760", name: "Lacaille 8760", type: "M1 V", markPx: 3.5, size: { suns: 0.592, plusMinus: 0.045, how: "brightness" }, blurb: "The brightest red dwarf in our sky, just visible to the eye" },
         ],
     },
     {
@@ -319,7 +329,7 @@ export const NEARSTARS = [
         name: "van Maanen's Star",
         sky: { ra: 12.29674025, dec: 5.376556608, epoch: 2016.0, pmRa: 1231.399465379, pmDec: -2711.882504485, parallax: 231.779999532 } /* Gaia DR3 2552928187080872832 */,
         members: [
-            { id: "vanMaanen", name: "van Maanen's Star", type: "DZ8", markPx: 2.5, size: { suns: 0.011, plusMinus: 0.002, how: "typical" }, blurb: "The nearest lone white dwarf" },
+            { id: "vanMaanen", name: "van Maanen's Star", type: "DZ7.5", markPx: 2.5, size: { suns: 0.011, plusMinus: 0.002, how: "typical" }, blurb: "The nearest lone white dwarf" },
         ],
     },
     {
@@ -327,7 +337,7 @@ export const NEARSTARS = [
         name: "Gliese 1",
         sky: { ra: 1.383284152, dec: -37.367744028, epoch: 2016.0, pmRa: 5633.438087895, pmDec: -2334.721272652, parallax: 230.097034029 } /* Gaia DR3 2306965202564744064 */,
         members: [
-            { id: "gj1", name: "Gliese 1", type: "M1.5 V", markPx: 3.5, size: { suns: 0.396, plusMinus: 0.012, how: "brightness" } },
+            { id: "gj1", name: "Gliese 1", type: "M2 V", markPx: 3.5, size: { suns: 0.396, plusMinus: 0.012, how: "brightness" } },
         ],
     },
     {
@@ -363,7 +373,7 @@ export const NEARSTARS = [
         name: "Gliese 674",
         sky: { ra: 262.170163922, dec: -46.899104899, epoch: 2016.0, pmRa: 572.56846182, pmDec: -880.582618762, parallax: 219.646251388 } /* Gaia DR3 5951824121022278144 */,
         members: [
-            { id: "gj674", name: "Gliese 674", type: "M2.5 V", markPx: 3.5, size: { suns: 0.365, plusMinus: 0.011, how: "brightness" } },
+            { id: "gj674", name: "Gliese 674", type: "M3 V", markPx: 3, size: { suns: 0.365, plusMinus: 0.011, how: "brightness" } },
         ],
         planets: [{ star: "gj674", name: "Gliese 674 b", a: 0.039, status: "confirmed" }],
     },
@@ -407,7 +417,7 @@ export const NEARSTARS = [
         name: "Gliese 876",
         sky: { ra: 343.324111002, dec: -14.266689394, epoch: 2016.0, pmRa: 957.714731289, pmDec: -673.601236481, parallax: 214.037988874 } /* Gaia DR3 2603090003484152064 */,
         members: [
-            { id: "gj876", name: "Gliese 876", type: "M4 V", markPx: 3, size: { suns: 0.352, plusMinus: 0.011, how: "brightness" }, blurb: "Four planets, two of them giants" },
+            { id: "gj876", name: "Gliese 876", type: "M3.5 V", markPx: 3, size: { suns: 0.352, plusMinus: 0.011, how: "brightness" }, blurb: "Four planets, two of them giants" },
         ],
         planets: [{ star: "gj876", name: "Gliese 876 d", a: 0.0208, status: "confirmed" }, { star: "gj876", name: "Gliese 876 c", a: 0.1296, status: "confirmed" }, { star: "gj876", name: "Gliese 876 b", a: 0.2083, status: "confirmed" }, { star: "gj876", name: "Gliese 876 e", a: 0.3343, status: "confirmed" }],
     },

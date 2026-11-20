@@ -4610,7 +4610,13 @@ no request. What to know:
 - SIMBAD was down (404) on 2026-11-18, so the census is Gaia DR3 plus Hipparcos for bright
   stars Gaia lacks (Sirius A, Procyon, Kruger 60, Ross 614), plus Wikipedia infobox values
   with their sources for EZ Aquarii and four tundrs too faint for Gaia. Spectral types
-  were not checked against SIMBAD.
+  were not checked against SIMBAD then. **Checked 2026-11-20** (SIMBAD's IDIA mirror;
+  answers saved in `tools/nearstars/simbad-types-near.csv` and `-notables.csv`): of 75
+  types on the map, about 55 agreed, 13 differed by about a subclass and now take
+  SIMBAD's with its reference (listed in build.py's header; Polaris F8 Ib in
+  js/notables.js), and 5 have no SIMBAD type of their own. **To do, owner's request: hand
+  check these types against recent papers or RECONS later.** SIMBAD shows one study per
+  star, some from the 1980s, and types differ between studies by a subclass or so.
 - The 2MASS crossmatch in the Gaia archive gives wrong, faint matches for these
   fast-moving stars, so `ks.py` moves each star back to 2000.0 and takes the brightest
   source within 8 arcseconds.
