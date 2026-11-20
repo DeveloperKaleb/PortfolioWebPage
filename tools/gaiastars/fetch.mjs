@@ -16,10 +16,10 @@
  * raw/parts-<max-pc>pc/, and never asked for again, so a run cut short picks up where it
  * stopped; once all are in, they are joined into the one file and the pieces removed.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gunzipSync, gzipSync } from 'node:zlib';
+import { createGzip, gunzipSync, gzipSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const arg = (name, fallback) => { const k = process.argv.indexOf(`--${name}`); return k < 0 ? fallback : process.argv[k + 1]; };
@@ -100,17 +100,21 @@ if (pieces === 1) {
         console.error(`Piece ${k + 1} of ${pieces}: ${csv.split('\n').length - 2} stars`);
         await wait(5000);
     }
-    /* Join them, the header once. */
+    /* Join them, the header once, written piece by piece: the whole set with source_ids
+       is over 512 MB of text, longer than one string may be (2026-11-19). */
     let header = null, rows = 0;
-    const chunks = [];
+    const gz = createGzip();
+    const done = new Promise((resolve, reject) => { const out = createWriteStream(file); gz.pipe(out); out.on('finish', resolve); out.on('error', reject); });
+    const put = (text) => (gz.write(text) ? Promise.resolve() : new Promise((r) => gz.once('drain', r)));
     for (let k = 0; k < pieces; k++) {
         const lines = gunzipSync(readFileSync(partFile(k))).toString('utf8').split('\n').filter(Boolean);
-        header ??= lines[0];
+        if (header === null) { header = lines[0]; await put(`${header}\n`); }
         if (lines[0] !== header) throw new Error(`Piece ${k} has a different header`);
-        chunks.push(lines.slice(1).join('\n'));
+        await put(`${lines.slice(1).join('\n')}\n`);
         rows += lines.length - 1;
     }
-    writeFileSync(file, gzipSync(`${header}\n${chunks.join('\n')}\n`));
+    gz.end();
+    await done;
     rmSync(parts, { recursive: true, force: true });
     console.error(`Saved ${rows} stars to ${file}`);
 }

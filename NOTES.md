@@ -3320,7 +3320,20 @@ decisions:
   the brighter stars there to 1% - and each hover says so. Building them: `npm run
   gaiastars:fetch -- --max-pc 100000 --pieces 40 --ids`, then `-- --hip`, then `npm run
   gaiastars -- --max-pc 100000`; if the rebuilt .bin tiles match the published ones byte
-  for byte, only the .ids files need adding to gaia-stars.
+  for byte, only the .ids files need adding to gaia-stars. Published 2026-11-19 (gaia-stars
+  ffbdd54): the rebuild matched byte for byte, and 500 sampled IDs re-encoded to exactly
+  their stars.
+- **Star names** (owner, 2026-11-19, asked whether stars 20-30 ly out had older names than
+  Gaia's): beside each tile, `r<path>.names.json` (`js/starnames.js`; built by `npm run
+  gaiastars:names -- --max-pc 100000` from `tools/gaiastars/raw/names/`) gives the stars
+  that have one their friendliest name: proper > Bayer > Flamsteed > Wolf/Ross > GJ >
+  variable > HD > LHS; the page falls back on HIP, then Gaia DR3, and the hover adds the
+  catalogue number ("Also"). 62,682 named. Sources, saved once: HD from VizieR I/239 at
+  Harvard; SIMBAD through its IDIA mirror (simbad.idia.ac.za; Strasbourg offline after a
+  CDS cybersecurity incident, 2026-11-18), two queries: every Gaia DR3 star's NAME and "* "
+  identifiers, and within 100 ly the GJ/Wolf/Ross/LHS/HD/V* ones. SIMBAD's NAMEs include
+  catalogue numbers ("SAO 237920B"); `nameOf` drops those. A folder without name files
+  still works: the page shows catalogue numbers.
 - **Notable objects only inside the map drawn** (owner, 2026-11-19; `holdsNotable`): a
   notable object such as Gaia BH1 is marked before the pointer comes near, but only once
   the place's galactic map reaches it - Gaia BH1 (477 pc) in the neighborhood and its own

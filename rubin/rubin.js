@@ -33,6 +33,7 @@ import { centauriOn, places, proximaOrbit, SYSTEMS, NEIGHBOURS, planetSummary, s
 import { funFact } from '../js/funfacts.js';
 import { paintSky, skyBasis } from '../js/milkyway.js';
 import { decodeTile, tileName, magOf, idsName, decodeIds } from '../js/startiles.js';
+import { namesName } from '../js/starnames.js';
 import {
     treeOf, tilesToDraw, frontierOf, frontierLimit, glowOf, NEAR_PX, lightYearsText, focusReachPc, streetFades, hasOwnStreet, nodesNear, streetAbout, designation, markPxOf, OWN_STREET_PC, lookOf, tintOf, magLimitOf, nearestStar, starRows, STREET_PC, BLOCK_PC, NEIGHBORHOOD_PC, STARS_ROOT, holdsNotable,
 } from '../js/starview.js';
@@ -623,14 +624,16 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
             if (streetPaths.includes(path) || streetPaths.some((p) => !tiles.has(p))) onStreet();
         });
     };
-    /* The ID files (idsName), fetched only for the selected star's street. */
+    /* The ID files (idsName) and name files (namesName), fetched only for the selected
+       star's street. A folder without name files still has its catalogue numbers. */
     const idFiles = new Map();
     let streetPaths = [];
     let streetCache = null;
     const loadIds = (path, count) => {
         idFiles.set(path, { state: 'loading' });
-        fetch(`${base}/${idsName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((buffer) => {
-            idFiles.set(path, { state: 'ready', ids: decodeIds(new Uint8Array(buffer), count) });
+        const names = fetch(`${base}/${namesName(path)}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+        fetch(`${base}/${idsName(path)}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(`HTTP ${r.status}`)))).then(async (buffer) => {
+            idFiles.set(path, { state: 'ready', ids: decodeIds(new Uint8Array(buffer), count), names: await names });
         }).catch(() => idFiles.set(path, { state: 'failed' })).finally(onStreet);
     };
     /* Tiles not wanted for a while are let go once more than this many stars are held. */
@@ -765,7 +768,9 @@ function starLayer(canvas, base, redraw, onStreet = () => {}) {
                     return {
                         x: s.x, y: s.y, z: s.z, d: s.d,
                         magByte: s.tile.mag[s.k], colourByte: s.tile.colour[s.k],
-                        name: names?.state === 'ready' ? designation(names.ids.id(s.k), names.ids.hip(s.k)) : null,
+                        name: names?.state === 'ready' ? (names.names[s.k] ?? designation(names.ids.id(s.k), names.ids.hip(s.k))) : null,
+                        /* Its catalogue number too, where the name is a friendlier one. */
+                        also: names?.state === 'ready' && names.names[s.k] ? designation(names.ids.id(s.k), names.ids.hip(s.k)) : null,
                     };
                 }),
             };
@@ -1552,6 +1557,7 @@ function drawMap(digest) {
                 const name = s.name ?? 'A star';
                 const rows = [
                     [name, "from Gaia's map, its distance known to within 1%"],
+                    ...(s.also ? [['Also', s.also]] : []),
                     ...starRows(s, s.magByte, s.colourByte).slice(1),
                     [lightYearsText(s.d), `from ${about}`],
                     ["Gaia's 1% stars only:", 'fainter neighbours are there too, not measured so well'],

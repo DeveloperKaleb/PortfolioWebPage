@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261119-1724';
+const VERSION = '20261119-1908';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -71,6 +71,7 @@ const PRECACHE = [
     `${BASE}/js/spacecraft.js`,
     `${BASE}/js/spacecrafttracks.js`,
     `${BASE}/js/startiles.js`,
+    `${BASE}/js/starnames.js`,
     `${BASE}/js/starview.js`,
     `${BASE}/js/notables.js`,
     /* The picture of the sky behind the Solar System map is left to the browser's

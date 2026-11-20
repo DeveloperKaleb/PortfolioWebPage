@@ -80,7 +80,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is forty modules, all free of `document`/DOM calls so they stay testable
+The pure layer is forty-one modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -194,6 +194,9 @@ under Vitest without a browser:
   the "Galactic block" (250 pc) and "Galactic neighborhood" (1,000 pc) places and Gaia BH1
   in "Go to". Each place shows only its own stars. "Go to"'s filter is `GO_KINDS`/`filterSystems` in js/centauri.js. See
   NOTES.md.
+- `js/starnames.js` — a star's friendliest name from its catalogue identifiers (proper,
+  Bayer, Flamsteed, … HD), for the name files beside the Gaia tiles; built by `npm run
+  gaiastars:names`. See NOTES.md, "Star names".
 - `js/notables.js` — the galactic map's notable objects (Vega, Betelgeuse, the Pleiades,
   Gaia BH1 and the rest): where each is, its words and sources, the place whose map first
   holds it, and its row in "Go to". See NOTES.md.
