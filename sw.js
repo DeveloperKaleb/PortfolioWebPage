@@ -13,7 +13,7 @@
  * already caused confusion once. See NOTES.md.
  */
 
-const VERSION = '20261122-0105';
+const VERSION = '20261122-0106';
 const CACHE = `portfolio-${VERSION}`;
 const BASE = '/PortfolioWebPage';
 
@@ -24,6 +24,7 @@ const PRECACHE = [
     `${BASE}/index.html`,
     `${BASE}/entertainment/entertainment.html`,
     `${BASE}/rubin/rubin.html`,
+    `${BASE}/rubin/skyphoto.html`,
     `${BASE}/rubin/rubin.js?v=${VERSION}`,
     `${BASE}/style.css?v=${VERSION}`,
     `${BASE}/vendor/normalize.css?v=${VERSION}`,
