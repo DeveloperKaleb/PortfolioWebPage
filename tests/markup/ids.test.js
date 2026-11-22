@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const pages = ['index.html', 'entertainment/entertainment.html', 'rubin/rubin.html'];
+const pages = ['index.html', 'entertainment/entertainment.html', 'rubin/rubin.html', 'rubin/skyphoto.html'];
 
 const read = (page) => readFileSync(resolve(root, page), 'utf8');
 const idsIn = (html) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);

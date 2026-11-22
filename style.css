@@ -3112,3 +3112,16 @@ html.rubin-filling {
 .rubin-notice-link {
     color: #b8bc93;
 }
+
+/* Sky photos test page (rubin/skyphoto.html): the photo with its stars ringed, as wide as
+   the column, and the file input on its own line under its label. */
+.skyphoto canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+}
+.skyphoto input[type="file"] {
+    display: block;
+    margin-top: 0.5rem;
+}

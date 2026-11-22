@@ -4874,3 +4874,48 @@ batches of 100 for 8,341 objects, plus follow-ups), 11-09 24 (the rest of it), 1
 (80 MPC lookups, its per-run limit), and quiet weeks 3 to 13. Spacecraft add 16 a month,
 in the week after Fink's. The owner kept the cap: raising it would stretch the Fink run
 (200 took 27 minutes) toward the workflow's 60-minute limit.
+
+## Sky photos (owner, 2026-11-22)
+
+The owner asked whether a visitor on a phone could photograph the night sky and be told
+which stars are in it, working only on night-sky photos and saying so politely otherwise.
+Three ways were weighed: send the photo to Astrometry.net's solver (photos leave the site,
+slow, and an API key cannot be kept secret on GitHub Pages); solve on the phone, using its
+compass, tilt, place and time as a head start; or skip the photo and show what the phone
+points at. The owner chose the second. The photo never leaves the phone.
+
+**Memory (the owner asked).** A photo is shrunk to `MAX_SIDE` (1,600 px) before anything
+else, so one search holds a canvas and a few Float32 copies of 1,600 x 1,200: tens of MB at
+the peak, freed after. The catalogue for step 2 (naked-eye stars, about 9,000 to V 6.5) is
+about 100 KB.
+
+**Step 1, done: finding the stars** (`js/skyphoto.js`, tested on made-up skies in
+`tests/rubin/skyphoto.test.js`; test page `rubin/skyphoto.html`, linked from nowhere yet).
+- The sky's level is the median of 48 px cells, followed smoothly between cell centres,
+  so a sky brightening toward the horizon is not mistaken for stars.
+- A star is the brightest point within 4 px of a 3x3-smoothed picture, at least `SIGMA`
+  (6) noise levels above the sky. The noise is measured on the smoothed picture itself:
+  JPEG and the shrinking leave neighbouring pixels' noise alike, so working it out from
+  the photo's (a third of it, for independent pixels) came out too low and let noise
+  clumps through. At 5, a made-up JPEG sky gave 10 such clumps; at 6, none, and 59 of its
+  60 stars.
+- Width is the area above half the smoothed peak, as a circle's diameter. Moments were
+  tried first and were pulled up by the sky's noise across the measuring window, losing
+  real stars. Rejected: wider than `MAX_SIZE` (8 px: cloud edges, lit windows, the Moon),
+  and a single hot pixel (over 60% of the light in one pixel).
+- `judgeSky`: a median brighter than `MAX_NIGHT_MEDIAN` (110 of 255) is "a daytime or
+  indoor picture"; fewer than `MIN_STARS` (8) is "couldn't find enough stars". **Both
+  numbers are provisional** until real phone photos are tried; night mode brightens a
+  city sky a lot.
+- About 0.2 s for a 1,600 x 1,067 picture on the desktop.
+- The test page shows the size, sky level and time after the count; that is for testing.
+
+**Step 2, to do: naming them.** Read the phone's orientation (DeviceOrientation; iOS asks
+permission, and it needs HTTPS, so the live site rather than the local preview over Wi-Fi),
+place and time to predict roughly where catalogue stars and the planets fall in the photo,
+then match patterns of the brightest found stars to settle the pointing exactly (the
+compass is often tens of degrees out). If the sensors are refused, fall back to a full
+search by star-pattern hashing over the bright-star list. The bright stars must come from
+Hipparcos, not the Gaia tiles, which miss or mismeasure the brightest stars. The photo's
+field of view is unknown in a browser (EXIF focal length is not always kept), so it is
+fitted in the match.
