@@ -2078,6 +2078,13 @@ main.rubin {
     font-style: italic;
 }
 
+/* The line linking the sky-photo page (rubin/skyphoto.html), under the subtitle. */
+.rubin-skyphoto-link {
+    max-width: 640px;
+    margin: -8px auto 16px;
+    text-align: center;
+}
+
 .rubin-nowrap {
     white-space: nowrap;
 }
