@@ -4910,12 +4910,55 @@ about 100 KB.
 - About 0.2 s for a 1,600 x 1,067 picture on the desktop.
 - The test page shows the size, sky level and time after the count; that is for testing.
 
-**Step 2, to do: naming them.** Read the phone's orientation (DeviceOrientation; iOS asks
-permission, and it needs HTTPS, so the live site rather than the local preview over Wi-Fi),
-place and time to predict roughly where catalogue stars and the planets fall in the photo,
-then match patterns of the brightest found stars to settle the pointing exactly (the
-compass is often tens of degrees out). If the sensors are refused, fall back to a full
-search by star-pattern hashing over the bright-star list. The bright stars must come from
-Hipparcos, not the Gaia tiles, which miss or mismeasure the brightest stars. The photo's
-field of view is unknown in a browser (EXIF focal length is not always kept), so it is
-fitted in the match.
+**Step 1, changed in step 2.** `MAX_SIZE` is 16 px, not 8: a made-up Jupiter (a burnt-out
+disc) was thrown away as a smear. A star's width is counted in square rings outward,
+stopping at the first ring with nothing above half (so a neighbour is not counted in);
+its light is summed over a window as wide as it is, and its centre from the middle 9 x 9
+only. `readExif` reads only the 35 mm-equivalent focal length and when the photo was
+taken.
+
+**Step 2, done 2026-11-22: naming them** (`js/skysolve.js`, `js/skystars.js`,
+`rubin/skysolve-worker.js`; tests in `tests/rubin/skysolve.test.js`).
+- **The catalogue.** Every Hipparcos star brighter than V 6.5 (8,785; VizieR I/239,
+  Harvard mirror), positions at J1991.25 not moved for proper motion (under a pixel for all
+  but a handful). Names from SIMBAD's IDIA mirror by `bestName` (js/starnames.js): 4,047
+  named, every star brighter than magnitude 3 among them. A first query that kept only
+  stars with a V flux in SIMBAD lost some bright ones (Algieba); the saved one has no
+  brightness filter. `npm run skystars` rebuilds; `fetch.py` makes the two requests.
+- **The planets** come from the site's own `js/planets.js` and `earthAt`, turned to
+  geocentric equatorial. Tested against JPL Horizons (Jupiter and Venus, 2026-11-22 03:00
+  UT, saved in `tools/skystars/raw/`): both within 0.1 degrees. Their magnitudes (rough
+  V(1,0), no phase or rings) only rank them among the stars and are never shown.
+- **Not the phone's sensors, for now.** The plan was a compass head start. The search
+  turned out fast enough without one (a real sky solves in well under a second here), and
+  without sensors it also works on photos picked from the gallery, and over plain http.
+  Sensors stay an option if real phones prove slow.
+- **How.** For each likely lens (the photo's EXIF 35 mm figure first, else `GUESS_MM`:
+  main cameras 22-32 mm stepped 5%, ultra-wides, zooms), the photo's pixels become
+  directions, and triangles of the 10 brightest found stars are looked up among pairs of
+  the brightest catalogue objects (as many as would put twice the photo's star count in its
+  field), same handedness. The first side may be out by the lens guess; it sets the scale,
+  and the other two sides must agree to 0.6%. A candidate turn (Horn's quaternion method)
+  must line up 40% of the 10 brightest stars, then of the 30 brightest, then is refined:
+  lens and turn fitted to every lined-up star (golden section on f), three rounds, a
+  tolerance of a few pixels.
+- **Judged.** Accepted only if it lines up half of the 20 brightest found stars to under
+  2.5 px rms. A pairing is dropped when the found star is over 1.75 magnitudes brighter
+  than its object should be (a plane by a faint star); looking fainter is allowed up to 4,
+  because bright objects burn out (a made-up Jupiter came out 1.8 short and was being
+  dropped).
+- **Speed.** Made-up photos of Orion, the Big Dipper, Cassiopeia and Scorpius solve in well
+  under a second each, every star named right; a made-up city sky of 8 objects (Jupiter,
+  Mars, Regulus and five stars) plus a plane in 0.1 s. Random dots, which match nothing,
+  take about 5.5 s on this computer to give up; a phone is slower, so the search gives up
+  at `SOLVE.budgetMs` (20 s) with a polite message. Profiling took that case from 58 s:
+  typed pair arrays shared between lens guesses, the first-side scale fixing the other
+  two, a cube grid for nearby objects looking only where the tolerance reaches, and
+  dropping a guess after a few misses.
+- **The page** runs the search in a module worker, so it stays usable. Matched stars get a
+  white ring and name (planets gold), placed right, left, above or below where free.
+
+**Still to do:** try real phone photos (the thresholds in step 1 and the lens list are
+the guesses most likely to be off); lens distortion is not fitted (fine for main cameras,
+maybe not ultra-wides); then link the page from the tab.
+

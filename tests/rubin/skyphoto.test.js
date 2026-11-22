@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toGray, fitSize, photoStats, findStars, judgeSky, MIN_STARS, MAX_SIDE } from '../../js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, MIN_STARS, MAX_SIDE } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -57,7 +57,7 @@ describe('sky photos', () => {
     });
 
     it('pass over hot pixels, smears and plain noise', () => {
-        const pic = sky({ hot: [[50, 50], [200, 120], [333, 222]], stars: [{ x: 100, y: 100, flux: 40000, fwhm: 14 }], seed: 3 });
+        const pic = sky({ hot: [[50, 50], [200, 120], [333, 222]], stars: [{ x: 100, y: 100, flux: 160000, fwhm: 30 }], seed: 3 });
         expect(findStars(pic.gray, pic.width, pic.height)).toEqual([]);
     });
 
@@ -73,5 +73,37 @@ describe('sky photos', () => {
         const verdict = judgeSky(photoStats(cloud.gray), findStars(cloud.gray, cloud.width, cloud.height));
         expect(verdict.reason).toBe('few');
         expect(verdict.message).toMatch(/outside at night/);
+    });
+});
+
+// A minimal JPEG with an EXIF block: SOI, APP1 "Exif", a big-endian TIFF with IFD0 pointing
+// at an EXIF IFD holding FocalLengthIn35mmFilm, DateTimeOriginal and OffsetTimeOriginal.
+function jpegWithExif({ mm = 26, when = '2026:11:21 22:15:30', zone = '-06:00' } = {}) {
+    const t = [];
+    const u16 = (v) => t.push((v >> 8) & 255, v & 255);
+    const u32 = (v) => t.push((v >>> 24) & 255, (v >> 16) & 255, (v >> 8) & 255, v & 255);
+    t.push(0x4d, 0x4d); u16(42); u32(8);                 // header, IFD0 at 8
+    u16(1); u16(0x8769); u16(4); u32(1); u32(26); u32(0); // IFD0: ExifIFD at 26
+    const strings = 26 + 2 + 3 * 12 + 4;                  // after the EXIF IFD
+    u16(3);
+    u16(0xa405); u16(3); u32(1); u16(mm); u16(0);
+    u16(0x9003); u16(2); u32(20); u32(strings);
+    u16(0x9011); u16(2); u32(7); u32(strings + 20);
+    u32(0);
+    t.push(...[...when].map((c) => c.charCodeAt(0)), 0);
+    t.push(...[...zone].map((c) => c.charCodeAt(0)), 0);
+    const app1 = [0x45, 0x78, 0x69, 0x66, 0, 0, ...t];
+    return new Uint8Array([0xff, 0xd8, 0xff, 0xe1, ((app1.length + 2) >> 8) & 255, (app1.length + 2) & 255, ...app1, 0xff, 0xd9]);
+}
+
+describe('photo EXIF', () => {
+    it('reads the lens and when the photo was taken', () => {
+        const { mm35, taken } = readExif(jpegWithExif());
+        expect(mm35).toBe(26);
+        expect(taken.toISOString()).toBe('2026-11-22T04:15:30.000Z');
+    });
+    it('says nothing for a file without it', () => {
+        expect(readExif(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toEqual({ mm35: null, taken: null });
+        expect(readExif(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))).toEqual({ mm35: null, taken: null });
     });
 });

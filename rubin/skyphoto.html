@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Stars in your photo (test) - Kaleb's Portfolio</title>
     <!-- Sky photos, step 1 (NOTES.md, "Sky photos"): a test page, linked from nowhere yet.
-         It finds the stars in a photo and rings them; naming them comes with step 2. The
+         It finds the stars in a photo and names them (step 2, js/skysolve.js). The
          photo never leaves the phone: it is read and searched in this page. -->
     <meta name="robots" content="noindex" />
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261122-0035" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261122-0035" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261122-0102" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261122-0102" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
     <main id="main" class="wrapper rubin skyphoto">
         <h2>Stars in your photo</h2>
         <p class="rubin-subtitle">
-            A test: take a photo of the night sky, outside after dark, and this page rings the
-            stars it finds. Your photo stays on your phone; nothing is uploaded.
+            A test: take a photo of the night sky, outside after dark, and this page finds
+            its stars and names them. Your photo stays on your phone; nothing is uploaded.
         </p>
         <p>
             <label class="skyphoto-pick" for="skyphoto-file">Choose or take a photo</label>
@@ -26,9 +26,9 @@
         <p id="skyphoto-status" role="status" aria-live="polite"></p>
         <canvas id="skyphoto-canvas" hidden></canvas>
     </main>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261122-0035"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261122-0035"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261122-0035"></script>
-    <script type="module" src="./skyphoto.js?v=20261122-0035"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261122-0102"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261122-0102"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261122-0102"></script>
+    <script type="module" src="./skyphoto.js?v=20261122-0102"></script>
 </body>
 </html>

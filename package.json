@@ -17,7 +17,8 @@
     "spacecraft": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/spacecraft/build.mjs",
     "gaiastars:fetch": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/gaiastars/fetch.mjs",
     "gaiastars": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/gaiastars/build.mjs",
-    "gaiastars:names": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/gaiastars/names.mjs"
+    "gaiastars:names": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/gaiastars/names.mjs",
+    "skystars": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/skystars/build.mjs"
   },
   "repository": {
     "type": "git",

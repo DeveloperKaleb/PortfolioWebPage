@@ -84,14 +84,17 @@ export function photoStats(gray) {
  * fraction of a pixel. A star must stand SIGMA noise levels above the sky after a 3x3
  * smoothing, be the brightest point within RADIUS, and be neither a single hot pixel
  * (all its light in one pixel) nor a smear wider than MAX_SIZE (a cloud edge, a lit
- * window, the Moon).
+ * window, a streetlight's glow).
  */
 export const SIGMA = 6; // 5 let JPEG noise clumps through on a made-up sky (NOTES.md)
 export const RADIUS = 4;
-export const MAX_SIZE = 8;
-/* A star is measured out to twice RADIUS, so a wide smear is seen whole rather than cut
-   down to star size by the window. */
-const MEASURE = 2 * RADIUS;
+/* 16, not 8: a bright star or planet in a phone photo is a bloated, burnt-out disc (a
+   made-up Jupiter at 8 px was thrown away). The Moon (about 12 px at a 26 mm lens) gets
+   through and is simply matched to nothing. */
+export const MAX_SIZE = 16;
+/* A star is measured out to three times RADIUS, so a wide smear is seen whole rather than
+   cut down to star size by the window, and a bloated bright star's light is all counted. */
+const MEASURE = 3 * RADIUS;
 export function findStars(gray, width, height, { limit = 300 } = {}) {
     const grid = skyGrid(gray, width, height);
     const sky = new Float32Array(width * height);
@@ -134,27 +137,42 @@ export function findStars(gray, width, height, { limit = 300 } = {}) {
     return stars.slice(0, limit);
 }
 
-/* Centroid and light of a star within RADIUS of its brightest point, and its width: the
-   area of the smoothed picture above half the smoothed peak, out to MEASURE, read as a
-   circle's diameter (a star's FWHM, a little widened by the smoothing). Read off the
-   half-peak area, the width is not pulled up by the sky's noise as moments would be. */
+/* A star's width first: the area of the smoothed picture above half the smoothed peak,
+   out to MEASURE, read as a circle's diameter (its FWHM, a little widened by the
+   smoothing); read that way it is not pulled up by the sky's noise as moments would be.
+   Then its centroid and light within a window as wide as it is (RADIUS at least), so a
+   bloated bright star's light is all counted and a faint one's window holds little noise. */
 function measure(rest, smooth, width, x0, y0) {
-    let flux = 0, sx = 0, sy = 0, peak = 0;
-    for (let dy = -RADIUS; dy <= RADIUS; dy++) {
-        for (let dx = -RADIUS; dx <= RADIUS; dx++) {
-            const v = rest[(y0 + dy) * width + x0 + dx];
-            if (v <= 0) continue;
-            flux += v; sx += v * dx; sy += v * dy;
-            if (v > peak) peak = v;
-        }
-    }
-    if (flux <= 0) return null;
+    // Square rings outward, stopping at the first with nothing above half: a neighbour
+    // further out is not counted into this star.
     const half = smooth[y0 * width + x0] / 2;
     let area = 0;
-    for (let dy = -MEASURE; dy <= MEASURE; dy++) {
-        for (let dx = -MEASURE; dx <= MEASURE; dx++) if (smooth[(y0 + dy) * width + x0 + dx] > half) area++;
+    for (let d = 0; d <= MEASURE; d++) {
+        let ring = 0;
+        for (let dy = -d; dy <= d; dy++) {
+            for (let dx = -d; dx <= d; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue;
+                if (smooth[(y0 + dy) * width + x0 + dx] > half) ring++;
+            }
+        }
+        if (ring === 0) break;
+        area += ring;
     }
-    return { x: x0 + sx / flux, y: y0 + sy / flux, flux, peak, size: 2 * Math.sqrt(area / Math.PI) };
+    const size = 2 * Math.sqrt(area / Math.PI);
+    const r = Math.min(MEASURE, Math.max(RADIUS, Math.ceil(size)));
+    let flux = 0, sx = 0, sy = 0, peak = 0, near = 0;
+    for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+            const v = rest[(y0 + dy) * width + x0 + dx];
+            if (v <= 0) continue;
+            flux += v;
+            if (v > peak) peak = v;
+            // The centre from the middle only, where a neighbour's light cannot reach.
+            if (Math.abs(dx) <= RADIUS && Math.abs(dy) <= RADIUS) { near += v; sx += v * dx; sy += v * dy; }
+        }
+    }
+    if (flux <= 0 || near <= 0) return null;
+    return { x: x0 + sx / near, y: y0 + sy / near, flux, peak, size };
 }
 
 /* The polite answers, by reason. */
@@ -173,4 +191,59 @@ export function judgeSky(stats, stars) {
     if (stats.median > MAX_NIGHT_MEDIAN) return { ok: false, reason: 'bright', message: NOT_SKY.bright };
     if (stars.length < MIN_STARS) return { ok: false, reason: 'few', message: NOT_SKY.few };
     return { ok: true };
+}
+
+/* What a photo's EXIF says that the search can use: the 35 mm-equivalent focal length
+   (tag 0xA405), and when it was taken (DateTimeOriginal, 0x9003, with its time zone,
+   OffsetTimeOriginal, 0x9011, when the phone wrote one). Only these are read; nothing
+   else in the file is looked at or kept. Returns { mm35, taken } with either missing
+   (null) when the file does not say, or is not a JPEG. */
+export function readExif(bytes) {
+    const none = { mm35: null, taken: null };
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (b[0] !== 0xff || b[1] !== 0xd8) return none;
+    let p = 2;
+    while (p + 4 < b.length && b[p] === 0xff) {
+        const marker = b[p + 1], size = (b[p + 2] << 8) | b[p + 3];
+        if (marker === 0xe1 && String.fromCharCode(...b.subarray(p + 4, p + 8)) === 'Exif') return readTiff(b, p + 10, size - 8) ?? none;
+        if (marker === 0xda) break;
+        p += 2 + size;
+    }
+    return none;
+}
+function readTiff(b, start, length) {
+    const end = Math.min(b.length, start + length);
+    const little = b[start] === 0x49;
+    const u16 = (o) => (o + 2 > end ? 0 : little ? b[o] | (b[o + 1] << 8) : (b[o] << 8) | b[o + 1]);
+    const u32 = (o) => (o + 4 > end ? 0 : little ? (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0 : ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0);
+    const ascii = (o, n) => String.fromCharCode(...b.subarray(o, Math.min(o + n, end))).replace(/\0.*$/, '');
+    const entries = (ifd) => {
+        const at = start + ifd, n = u16(at), out = new Map();
+        for (let k = 0; k < n && at + 2 + 12 * k + 12 <= end; k++) {
+            const e = at + 2 + 12 * k;
+            out.set(u16(e), { type: u16(e + 2), count: u32(e + 4), at: e + 8 });
+        }
+        return out;
+    };
+    const ifd0 = entries(u32(start + 4));
+    const exifPtr = ifd0.get(0x8769);
+    if (!exifPtr) return null;
+    const exif = entries(u32(exifPtr.at));
+    const value = (tag) => {
+        const e = exif.get(tag);
+        if (!e) return null;
+        if (e.type === 3) return u16(e.at);
+        if (e.type === 2) return ascii(e.count > 4 ? start + u32(e.at) : e.at, e.count);
+        return null;
+    };
+    const mm = value(0xa405);
+    const when = value(0x9003), zone = value(0x9011);
+    let taken = null;
+    const m = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(when ?? '');
+    if (m) {
+        const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}${/^[+-]\d\d:\d\d$/.test(zone ?? '') ? zone : ''}`;
+        const d = new Date(iso);
+        if (!Number.isNaN(d.getTime())) taken = d;
+    }
+    return { mm35: mm > 0 ? mm : null, taken };
 }
