@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, solveAimed, times, turnBetween } from '../../js/skyaim.js';
+import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, cameraAltitude, solveAimed, times, turnBetween } from '../../js/skyaim.js';
 import { apply, applyT, skyObjects, skyVector, focalPixels, toPixel } from '../../js/skysolve.js';
 import { jdFromDate } from '../../js/orbit.js';
 
@@ -20,6 +20,16 @@ describe('where the phone points', () => {
         expect(gmst(2451545)).toBeCloseTo(280.46061837, 8);
         // One sidereal day on: the same sidereal time.
         expect(gmst(2451545 + 0.99726957)).toBeCloseTo(280.4606, 2);
+    });
+
+    it("tells how high the camera points from the tilt alone, as the full turn does", () => {
+        expect(cameraAltitude(0, 0)).toBeCloseTo(-90, 9); // flat on a table, screen up
+        expect(cameraAltitude(90, 0)).toBeCloseTo(0, 9); // upright, portrait
+        expect(cameraAltitude(180, 0)).toBeCloseTo(90, 9); // screen down, lens to the zenith
+        for (const [alpha, beta, gamma] of [[30, 140, 10], [200, 60, -25], [90, 100, 70], [0, 20, 0]]) {
+            const lens = apply(times(deviceToHorizon(alpha, beta, gamma), cameraToDevice(0)), [0, 0, 1]);
+            expect(cameraAltitude(beta, gamma)).toBeCloseTo(Math.asin(lens[2]) / DEG, 9);
+        }
     });
 
     it('puts the celestial pole at the latitude, due north', () => {

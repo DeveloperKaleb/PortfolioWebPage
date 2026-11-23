@@ -189,6 +189,9 @@ function measure(rest, smooth, width, x0, y0) {
 /* The polite answers, by reason. */
 export const NOT_SKY = {
     bright: "This looks like a daytime or indoor picture. Star finding works on a photo of the night sky, taken outside after dark. Night mode helps, if your phone has it.",
+    // Aim and shoot: the camera is known to be pointing up at the sky, so a bright picture
+    // is told as glare (or the camera turning itself up), not as an indoor photo.
+    glare: "The picture came out too bright to show stars. Point away from streetlights and lit buildings, at the darkest patch of sky you can see.",
     few: "We couldn't find enough stars in this picture to work out which part of the sky it shows. Clouds, haze or city glow may be hiding them. Try a photo taken outside at night, pointed up at a clear patch of sky, away from streetlights and roof lights if you can. Holding the phone very still (or leaning it on something) helps a lot.",
     unmatched: "We found the stars but couldn't match them to the sky. Some may not be stars at all (thin cloud, lights, planes), or there may be too few real ones to make out a pattern. A clear night works best.",
     slow: "We found the stars but couldn't work out which part of the sky this is in the time we allow. A photo of a clear patch of sky, with more stars in it, may work better.",

@@ -5055,6 +5055,18 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
 - With six or more stars the pattern search runs first (5 s budget, main-camera lenses),
   as it does not trust the compass. A sure answer stores the measured lens in this
   browser (`skyphoto-lens`), so later shots start from it.
+- **First real test (owner, 2026-11-23, evening).** Two things went wrong. (1) Shoot never
+  finished and the preview slowly turned white. Not seen on the phone itself, so the cause
+  is a best reading: `brighten` asked for the camera's *maximum* exposure, which on some
+  phones is seconds a frame; frames then crawl in (the stack waits for two) and the
+  picture saturates. Now: exposure held to 1/4 s (`MAX_EXPOSURE`, exposureTime counts
+  100 µs), a frame count shown while it stacks, and a give-up after 6 s (`STACK_GIVE_UP`)
+  that uses the frames so far or says the camera sent none. (2) Pointed at the ground, it
+  called the picture daytime. True to the rule but unhelpful: Shoot now refuses below 10
+  degrees (`MIN_ALTITUDE`, from the tilt alone: `cameraAltitude` in js/skyaim.js) and says
+  to tilt up; and a bright aim-and-shoot picture is called glare (`NOT_SKY.glare`), never
+  daytime, since the visitor is plainly out under the sky trying. If the next test still turns
+  white, the ISO request (still the maximum) is the next suspect.
 
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
 and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);

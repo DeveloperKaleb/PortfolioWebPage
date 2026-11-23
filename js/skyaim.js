@@ -67,6 +67,13 @@ export function cameraToDevice(screenAngle = 0) {
     return [c, -s, 0, -s, -c, 0, 0, 0, -1];
 }
 
+/** How high the back camera points, in degrees above the horizon (negative: below), from
+    the phone's tilt alone: the lens looks along the device's -z, whose Up part is
+    -cos(beta) cos(gamma) whatever the compass says. */
+export function cameraAltitude(beta, gamma) {
+    return Math.asin(Math.min(1, Math.max(-1, -Math.cos(beta * DEG) * Math.cos(gamma * DEG)))) / DEG;
+}
+
 /** Where the phone says its camera points: the turn from camera to sky. */
 export function aimedTurn({ alpha, beta, gamma, screenAngle = 0, jd, lat, lon }) {
     return times(times(horizonToSky(jd, lat, lon), deviceToHorizon(alpha, beta, gamma)), cameraToDevice(screenAngle));

@@ -7,7 +7,7 @@
  *   are enough (js/skyaim.js).
  * Nothing is sent anywhere. */
 import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY } from '/PortfolioWebPage/js/skyphoto.js';
-import { aimedTurn, averageTurn } from '/PortfolioWebPage/js/skyaim.js';
+import { aimedTurn, averageTurn, cameraAltitude } from '/PortfolioWebPage/js/skyaim.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
 const input = document.getElementById('skyphoto-file');
@@ -68,7 +68,8 @@ async function analyse({ ask, ctx, photo, jd, mm35 = null, aim = null }) {
     const tip = (text) => [text, lensTip(mm35)].filter(Boolean).join(' ');
     if (!verdict.ok) {
         const found = `(${plural(stars.length, 'star')} found.)`;
-        status.textContent = verdict.reason === 'bright' ? `${verdict.message} ${found}` : tip(`${verdict.message} ${found}`);
+        if (verdict.reason === 'bright') status.textContent = `${aim ? NOT_SKY.glare : verdict.message} ${found}`;
+        else status.textContent = tip(`${verdict.message} ${found}`);
         return;
     }
     status.textContent = `${plural(stars.length, 'star')} found. Working out which part of the sky this is…`;
@@ -204,12 +205,20 @@ aimButton.addEventListener('click', async () => {
     }
 });
 
-/* The longest exposure and highest sensitivity the camera lets a page set, where it lets
-   one at all (Chrome on Android, for some cameras). Anything refused is left as it was. */
+/* A longer exposure and the highest sensitivity the camera lets a page set, where it lets
+   one at all (Chrome on Android, for some cameras). Anything refused is left as it was.
+   The exposure is held to MAX_EXPOSURE (exposureTime counts 100 microseconds): a camera's
+   own maximum can be seconds a frame: the likely cause of a shot that never finished, and
+   a preview gone white, on the owner's phone (NOTES.md, "Aim and shoot"). */
+const MAX_EXPOSURE = 2500;
+const MIN_ALTITUDE = 10;
 async function brighten(track) {
     const caps = track.getCapabilities?.() ?? {};
     const want = {};
-    if (caps.exposureMode?.includes('manual') && caps.exposureTime) { want.exposureMode = 'manual'; want.exposureTime = caps.exposureTime.max; }
+    if (caps.exposureMode?.includes('manual') && caps.exposureTime) {
+        want.exposureMode = 'manual';
+        want.exposureTime = Math.max(caps.exposureTime.min ?? 0, Math.min(caps.exposureTime.max, MAX_EXPOSURE));
+    }
     if (caps.iso) want.iso = caps.iso.max;
     if (!Object.keys(want).length) return;
     try { await track.applyConstraints({ advanced: [want] }); } catch { /* left as it was */ }
@@ -218,6 +227,13 @@ async function brighten(track) {
 shootButton.addEventListener('click', async () => {
     if (!stream || !reading || !place) {
         status.textContent = !reading ? "Still waiting for the phone's compass…" : 'Still waiting for your location…';
+        return;
+    }
+    const altitude = cameraAltitude(reading.beta, reading.gamma);
+    if (altitude < MIN_ALTITUDE) {
+        status.textContent = altitude < 0
+            ? `The camera is pointing ${Math.round(-altitude)}° below the horizon. Tilt the phone up toward the sky, then press Shoot.`
+            : 'The camera is pointing at the horizon, where buildings, trees and haze hide the stars. Tilt the phone up a little more, then press Shoot.';
         return;
     }
     const ask = ++asked;
@@ -245,6 +261,7 @@ cancelButton.addEventListener('click', () => { stopLive(); status.textContent = 
    out of the noise, as in a phone's night mode, though nothing here lines the frames up:
    hence holding still), and the sensors' readings over the same time. */
 const STACK_MS = 1200;
+const STACK_GIVE_UP = 6000;
 async function stack() {
     const { width, height } = fitSize(video.videoWidth, video.videoHeight);
     const scratch = document.createElement('canvas');
@@ -258,15 +275,23 @@ async function stack() {
     const jd = jdFromDate(middle);
     const screenAngle = screen.orientation?.angle ?? window.orientation ?? 0;
     let frames = 0;
-    const nextFrame = () => new Promise((done) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => done()) : requestAnimationFrame(() => done())));
+    // A frame that never comes (a stalled camera) must not hold the shot for ever: after
+    // STACK_GIVE_UP the frames so far are used, and with none the shot fails and says so.
+    const nextFrame = (wait) => new Promise((done) => {
+        const timer = setTimeout(() => done(false), Math.max(0, wait));
+        const got = () => { clearTimeout(timer); done(true); };
+        if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(got); else requestAnimationFrame(got);
+    });
     do {
-        await nextFrame();
+        if (!await nextFrame(started + STACK_GIVE_UP - performance.now())) break;
         sctx.drawImage(video, 0, 0, width, height);
         const data = sctx.getImageData(0, 0, width, height).data;
         for (let i = 0; i < data.length; i++) sum[i] += data[i];
         turns.push(aimedTurn({ ...reading, screenAngle, jd, lat: place.latitude, lon: place.longitude }));
         frames++;
+        status.textContent = `Hold still… (${plural(frames, 'frame')})`;
     } while ((performance.now() - started < STACK_MS || frames < 2) && frames < 250);
+    if (!frames) throw new Error("the camera sent no pictures; try Aim and shoot again");
     const photo = new ImageData(width, height);
     for (let i = 0; i < sum.length; i++) photo.data[i] = (i & 3) === 3 ? 255 : Math.round(sum[i] / frames);
     return { photo, R0: averageTurn(turns), f0: lensGuess(width, height), jd };
