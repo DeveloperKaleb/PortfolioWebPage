@@ -146,11 +146,41 @@ export function changeText(change, byDesignation = new Map()) {
         case 'left digest': return `${who} no longer qualifies for the list.`;
         case 'now passes': return `${who} now passes (${percent(change.chance)}).`;
         case 'no longer passes': return `${who} no longer passes (${percent(change.chance)}).`;
-        case 'flags gained': return `${who} is now ${change.flags.map((f) => FLAGS[f]?.label.toLowerCase() ?? f).join(', ')}.`;
-        case 'flags lost': return `${who} is no longer ${change.flags.map((f) => FLAGS[f]?.label.toLowerCase() ?? f).join(', ')}.`;
+        // "Gained a flag", not "is now ...": a label such as "Differs from JPL" is not an
+        // adjective ("is now differs from jpl" was on the page, 2026-11-23).
+        case 'flags gained': return `${who} gained ${flagWords(change.flags)}.`;
+        case 'flags lost': return `${who} lost ${flagWords(change.flags)}.`;
         case 'H changed': return `${who}'s brightness was revised from H ${change.from} to H ${change.to} (${change.hSource}).`;
         default: return `${who}: ${change.what}.`;
     }
+}
+const flagWords = (flags) => `${flags.length === 1 ? 'a flag' : 'flags'}: ${flags.map((f) => FLAGS[f]?.label ?? f).join(', ')}`;
+
+/* The month's changes as the tab lists them: an object starting or stopping passing, and
+   flags, one line each; new objects, objects leaving the list and revised brightnesses
+   each gathered into a line (brightnesses one line per method, so the method is said
+   once). A month had 72 lines, 30 of them "... no longer qualifies for the list". */
+export function changeLines(changes, byDesignation = new Map()) {
+    const name = (c) => { const known = byDesignation.get(c.designation); return known ? displayName(known) : c.designation; };
+    const of = (what) => changes.filter((c) => c.what === what);
+    const names = (list) => list.map(name).join(', ');
+    const lines = [];
+    for (const what of ['now passes', 'no longer passes', 'flags gained', 'flags lost']) lines.push(...of(what).map((c) => changeText(c, byDesignation)));
+    const fresh = of('new in digest');
+    if (fresh.length === 1) lines.push(changeText(fresh[0], byDesignation));
+    else if (fresh.length) lines.push(`${fresh.length} objects appear for the first time: ${names(fresh)}.`);
+    const bySource = new Map();
+    for (const c of of('H changed')) bySource.set(c.hSource, [...(bySource.get(c.hSource) ?? []), c]);
+    for (const [source, list] of bySource) {
+        if (list.length === 1) { lines.push(changeText(list[0], byDesignation)); continue; }
+        lines.push(`${list.length} brightnesses revised (${source}): ${list.map((c) => `${name(c)}, H ${c.from} to ${c.to}`).join('; ')}.`);
+    }
+    const gone = of('left digest');
+    if (gone.length === 1) lines.push(changeText(gone[0], byDesignation));
+    else if (gone.length) lines.push(`${gone.length} objects no longer qualify for the list: ${names(gone)}.`);
+    const known = new Set(['now passes', 'no longer passes', 'flags gained', 'flags lost', 'new in digest', 'H changed', 'left digest']);
+    lines.push(...changes.filter((c) => !known.has(c.what)).map((c) => changeText(c, byDesignation)));
+    return lines;
 }
 
 /* ---- The chart: chance of having been shaped by gravity against diameter --------------- */

@@ -2396,6 +2396,13 @@ main.rubin {
     color: #e3e7af;
     min-height: 32px;
 }
+/* The map's "How to read the map", folded under its short caption. */
+.rubin-map-guide {
+    margin-top: 0.5rem;
+}
+.rubin-map-guide p {
+    margin: 0.5rem 0 0;
+}
 
 .rubin-table-wrap {
     overflow-x: auto;

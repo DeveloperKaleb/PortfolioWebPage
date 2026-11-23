@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import {
     CUTS, TRUSTED, isTrusted, inCut, longAxis, foundYear, groups, MIN_SAMPLE, bunching, groupBunching, oneMore, split,
     backfill, weekPoint, appendHistory, PASSING_STAR, isPfalznerSednaLike, isBackwards, shares, BIAS_WARNING, shareText,
-    chanceText, bunchingText, oneMoreText, splitText, waitingText, PUBLISHED, EXPLANATIONS,
+    chanceText, bunchingText, bunchingPairText, oneMoreText, splitText, waitingText, PUBLISHED, EXPLANATIONS,
     PLANET_MASS, sunFromCentre, aboutCentre, fromCatalogue, shortName, buildSection, emptyStore, RUBIN_FROM,
     thinText, splitNamesText, waitingCountText, sharesText, evidenceText, publishedText, DIAL, dialRadius, dialXY, yearFraction,
 } from '../../js/faredge.js';
@@ -357,6 +357,17 @@ describe('The words, and the rules they are held to', () => {
             expect(text).toContain('of the time');
             expect(text).toContain(BIAS_WARNING);
         }
+    });
+
+    test('both figures for a group, with the warning once', () => {
+        const both = groupBunching(g.extreme);
+        const text = bunchingPairText(both.axes, both.tilts, 'extreme');
+        expect(text).toMatch(/^Of the 18 extreme objects, the long axes are bunched at 0\.38, toward 38° and the tilts at 0\.\d\d/);
+        expect(text).toMatch(/about 7% of the time for the long axes and about \d+% of the time for the tilts\./);
+        expect(text.split(BIAS_WARNING)).toHaveLength(2);
+        // Different counts, or no tilt figure: the sentences stay separate, each whole.
+        expect(bunchingPairText(both.axes, { ...both.tilts, n: 17 }, 'extreme').split(BIAS_WARNING)).toHaveLength(3);
+        expect(bunchingPairText(both.axes, { ...both.tilts, p: null }, 'extreme')).toBe(bunchingText(both.axes, 'long axes', 'extreme'));
     });
 
     test('too few objects get no figure at all', () => {

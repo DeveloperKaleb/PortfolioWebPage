@@ -354,6 +354,18 @@ export function bunchingText(result, what, groupName) {
     return `The ${what} of the ${n} ${groupName} objects are bunched at ${r.toFixed(2)} on a scale from 0 (none) to 1 (all the same)${where}. Directions drawn at random would look at least this bunched ${chanceText(p)}. ${BIAS_WARNING}`;
 }
 
+/* Both figures for one group, the long axes' and the tilts', in two sentences with the
+   warning once (owner, 2026-11-23: two near-identical sentences each ending in the same
+   warning read as repetition). Still held to the rules: each figure with its count, each
+   chance with the warning. Separate sentences when the counts differ or either is too few. */
+export function bunchingPairText(axes, tilts, groupName) {
+    if (!tilts || tilts.p === null || axes.n < MIN_SAMPLE || tilts.n !== axes.n) {
+        return [bunchingText(axes, 'long axes', groupName), tilts && tilts.p !== null ? bunchingText(tilts, 'tilts', groupName) : null].filter(Boolean).join(' ');
+    }
+    const toward = (t) => (t === null ? '' : `, toward ${Math.round(t)}°`);
+    return `Of the ${axes.n} ${groupName} objects, the long axes are bunched at ${axes.r.toFixed(2)}${toward(axes.toward)} and the tilts at ${tilts.r.toFixed(2)}${toward(tilts.toward)}, on a scale from 0 (none) to 1 (all the same). Directions drawn at random would look at least this bunched ${chanceText(axes.p)} for the long axes and ${chanceText(tilts.p)} for the tilts. ${BIAS_WARNING}`;
+}
+
 export function oneMoreText(anglesDeg) {
     const next = oneMore(anglesDeg);
     if (!next || anglesDeg.length < MIN_SAMPLE) return null;

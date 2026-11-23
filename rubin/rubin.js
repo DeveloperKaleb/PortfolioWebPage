@@ -14,7 +14,7 @@ import {
     DIGEST_URL, CHANGES_URL, SPACECRAFT_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, ringLabelSpot, glideView, journeyView, unseenHoles,
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
     zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
-    whyWatched, changeText, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
+    whyWatched, changeLines, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, LABEL, nasaImages, knownRow, knownWorlds, isKnownShape,
     sizeRange, STAR_SIZES, sizeLineup, lineupText, lineupSubjects, LINEUP_PX,
 } from '../js/rubinview.js';
@@ -25,7 +25,7 @@ import { SCOPE_AU, jdFromDate } from '../js/orbit.js';
 import { itemsOf, groupState, readShown, craftOn, craftPath, clusterMarks, PLACE_WORDS, STATUS_AS_OF } from '../js/spacecraft.js';
 import { TRACKS, TRACKS_FETCHED } from '../js/spacecrafttracks.js';
 import {
-    EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
+    EXPLANATIONS, PUBLISHED, DIAL, dialRadius, dialXY, yearFraction, bunchingPairText, thinText, splitNamesText, waitingCountText, evidenceText, publishedText,
 } from '../js/faredge.js';
 import { RUBIN_COLORS as C, STAR_TYPE_COLORS } from '../js/rubincolors.js';
 import { NOTABLE_LIST, notableViewPc } from '../js/notables.js';
@@ -1116,7 +1116,9 @@ function drawMap(digest) {
             fastest = Math.max(fastest, at(rulerFraction(travelled + lightTravelledAU(1000))) - x);
         }
 
-        say(lightNow, lightSentence({ since: 'as you opened this page', elapsedSeconds: (now - OPENED) / 1000, travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge }));
+        // The time to the outer limit is said once: on the first visit's light when there is
+        // one, as that is further along (the two differ by days in a year and a half).
+        say(lightNow, lightSentence({ since: 'as you opened this page', elapsedSeconds: (now - OPENED) / 1000, travelledAU: lightTravelledAU(now - OPENED), sorted: stops, edge: earlier ? null : edge }));
         if (earlier) {
             say(lightFirst, `${lightSentence({ since: `when you first opened this page on ${firstDate}`, elapsedSeconds: (now - firstOpened) / 1000, travelledAU: lightTravelledAU(now - firstOpened), sorted: stops, edge })} (That date is kept in this browser and sent nowhere.)`);
         } else if (remembersVisits) {
@@ -2400,10 +2402,23 @@ function drawMap(digest) {
         lightFirst,
         rulerNote,
     );
+    /* A short lead, and the rest under "How to read the map", each thing said once: the
+       ruler's note above already gives Alpha Centauri's distance, Proxima and the hatching
+       (owner, 2026-11-23: the caption ran to 800 words and repeated itself). */
+    const holding = (tag, attrs, ...kids) => { const node = el(tag, attrs); node.append(...kids); return node; };
+    const guide = (...parts) => holding('p', {}, ...parts);
     section.querySelector('figcaption').replaceChildren(
-        `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre and distances to scale. The planets and `,
+        `Seen from above the plane of Earth's orbit as you opened this page, on ${longDate(MAP_DAY)}, with the Sun at the centre, distances to scale, and the planets and `,
         tundrWord('tundrs'),
-        ` are where they were at that moment. Distances on the map are along that plane, so an object on a steeply tilted orbit sits closer in than its true distance from the Sun; its details give both. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around. Click anything on the map to centre the map on it and draw its orbit; an orbit not yet known well enough is not drawn, and the map says so beside the object. Under the map, the two bodies picked last are drawn beside the familiar bodies nearest them in size, all to one scale, since the map itself cannot show size: at the whole map, even Jupiter would be far smaller than a pixel. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark. "Go to" takes the same map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" pulls back to hold them all. "Galactic block" pulls further back, to 815 light years, and "Galactic neighborhood" to 3,260: there the stars are Gaia's, each where Gaia measured it to within 1%, only those inside the place's edge, with the Milky Way's picture beyond. Point at one, or tap it, to see how far it is, how much light it gives off against the Sun, and its colour. Gaia measured faint stars well only near us, so each view leaves out the stars too faint for Gaia to have caught all the way to its edge; otherwise the stars would seem to crowd about the Sun, which is only how Gaia measures. They thin out about 2,000 light years away, as far as Gaia measured any to 1%. Some famous objects are marked and named, once the place's map reaches them: in the block, Vega, Arcturus, Aldebaran, Polaris, Betelgeuse and Antares, the Hyades and Pleiades clusters, and the neutron star RX J1856.5-3754; in the neighborhood also Rigel, Deneb, the Vela pulsar, the Orion Nebula, Tabby's Star, and Gaia BH1, the nearest black hole known. Most are too bright for Gaia to measure, so their places come from other measurements, and where those disagree, as for Betelgeuse, their details say so. Each is in "Go to", whose Filter narrows the list by what each place holds: kinds of star, giants and supergiants, white dwarfs, neutron stars, black holes, tundrs on their own, clusters and nebulae, or confirmed planets. Alpha Centauri, the nearest, is ${farDistanceText(system.centre.r)} away and well below the plane, so it too sits closer in than its true distance; A and B follow the paths drawn. A pair whose orbit is known is drawn on it once there is room; pairs and triples whose orbits are not in hand stay one mark. The fainter marks are Hydrogen Tundrs, usually called brown dwarfs. The dashed circles about stars are planets' orbits at their right size; how they are tilted is not known, and those still disputed are marked as candidates. About a single star whose planets all lie close in, Mercury's orbit about the Sun is drawn for scale: Barnard's Star's four planets would fit inside it ten times over. Picking Proxima draws its orbit about A and B, dashed, since it is known only roughly. The arrow in that view points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; centred on another star system, a second arrow points toward Earth. The hatching covers everything beyond 1,000 AU from the Sun short of these systems, where nothing has yet been seen in place. "3D" tips the map over to show depth: drag it, or use the arrow keys, to turn it and tip it. There a dashed line drops from each body to the plane of the rings, showing how far above or below it the body is, and the map shows true distances rather than distances along the plane. Behind the map is the sky beyond it, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. Seen from above, that is the sky toward the south pole of Earth's orbit, with the Milky Way's band along one side; in 3D it turns with the map. Everything on the map lies deep inside the galaxy's disk, which is about 1,000 light years thick, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here. "Show" turns it, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`,
+        ' where they were at that moment. Zoom with the buttons, a pinch, Ctrl and scroll, or a double-click; drag to move around; click anything to centre the map on it and draw its orbit.',
+        holding('details', { class: 'rubin-table-view rubin-map-guide' },
+            el('summary', {}, 'How to read the map'),
+            guide(`Distances are along that plane, so anything well above or below it, on a steeply tilted orbit or as Alpha Centauri is, sits closer in than it truly is; its details give both, and "3D" shows true distances. An orbit not yet known well enough is not drawn, and the map says so beside the object. The map cannot show size (at the whole map even Jupiter would be far smaller than a pixel), so the two bodies picked last are drawn under it beside the familiar bodies nearest them in size, all to one scale. Where a size is estimated from brightness, the solid disc is its size if its surface is bright and the dashed ring its size if it is dark.`),
+            guide(`"Go to" takes the map to any of the ${system.systems.length} star systems within a million AU (15.8 light years) of the Sun, each where it is on that date, and "Galactic street" holds them all. The fainter marks are Hydrogen `, tundrWord('Tundrs'), `, usually called brown dwarfs. A pair whose orbit is known is drawn on it once there is room; others stay one mark. Dashed circles about stars are their planets' orbits at the right size, tilt unknown, with disputed planets marked as candidates; about a star whose planets all lie close in, Mercury's orbit is drawn for scale (Barnard's Star's four planets would fit inside it ten times over). Picking Proxima draws its orbit about A and B, dashed, as it is known only roughly. There an arrow points toward SagA (Sagittarius A*), the supermassive black hole at the centre of the Milky Way, ${SAG_A.lightYears.toLocaleString('en-US')} light years away; from another star system, a second points toward Earth. The hatching on the map, as on the ruler, is where nothing has yet been seen.`),
+            guide(`"Galactic block" (815 light years) and "Galactic neighborhood" (3,260) show Gaia's stars, each placed to within 1%; point at one, or tap it, for its distance, its light against the Sun's, and its colour. Each view leaves out stars too faint for Gaia to have caught all the way to its edge, which would otherwise seem to crowd about the Sun; they thin out about 2,000 light years away. Famous objects are named once a place reaches them: in the block, Vega, Arcturus, Aldebaran, Polaris, Betelgeuse and Antares, the Hyades and Pleiades clusters, and the neutron star RX J1856.5-3754; in the neighborhood also Rigel, Deneb, the Vela pulsar, the Orion Nebula, Tabby's Star, and Gaia BH1, the nearest black hole known. Most are too bright for Gaia, so they are placed from other measurements, and their details say where those disagree, as for Betelgeuse. Each is in "Go to", whose Filter narrows the list by what a place holds: kinds of star, giants and supergiants, white dwarfs, neutron stars, black holes, tundrs on their own, clusters and nebulae, or confirmed planets.`),
+            guide(`"3D" tips the map over to show depth: drag it, or use the arrow keys, to turn and tip it. A dashed line drops from each body to the plane of the rings, showing how far above or below it the body is. Behind the map is the sky, as if seen through a lens 90 degrees wide: the Milky Way, drawn from how crowded Gaia found the sky with stars. From above, that is the sky toward the south pole of Earth's orbit; in 3D it turns with the map. The galaxy's disk is about 1,000 light years thick and everything on the map lies deep inside it, so the galaxy cannot be drawn to scale; the sky is the truest picture of it from here.`),
+            guide(`"Show" turns the sky, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, and those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`),
+        ),
     );
 
     const mapTable = table(
@@ -2648,8 +2663,7 @@ function drawFarEdge(digest) {
     /* The numbers, in words. */
     const words = section.querySelector('.rubin-far-numbers');
     const lines = [
-        bunchingText(far.axes, 'long axes', 'extreme'),
-        far.tilts.p !== null ? bunchingText(far.tilts, 'tilts', 'extreme') : null,
+        bunchingPairText(far.axes, far.tilts, 'extreme'),
         thinText(far.axes.n, far.oneMore),
         splitNamesText(far.sednaLike),
         waitingCountText(far.waiting),
@@ -2848,7 +2862,7 @@ async function render() {
         const first = changes.from === null;
         list.replaceChildren(...(first
             ? [el('li', {}, `This is the first digest, so everything in it is new: ${digest.entries.length} objects listed.`)]
-            : changes.entries.map((c) => el('li', {}, changeText(c, byDesignation)))));
+            : changeLines(changes.entries, byDesignation).map((line) => el('li', {}, line))));
         if (!first && changes.entries.length === 0) list.replaceChildren(el('li', {}, 'Nothing changed since last month.'));
         document.getElementById('rubin-changes').hidden = false;
     } catch {

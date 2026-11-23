@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import {
-    DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText,
+    DIGEST_URL, CHANGES_URL, summary, sections, displayName, sizeOf, flagsOf, whyWatched, changeText, changeLines,
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
     KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons, MOON_DRAW_PX, initialView, MAP_ZOOM,
@@ -119,9 +119,33 @@ describe('Changes in words', () => {
     test.each([
         [{ designation: '136199', what: 'new in digest' }, 'Eris appears for the first time.'],
         [{ designation: '120347', what: 'now passes', chance: 0.99 }, 'Salacia now passes (99.0%).'],
-        [{ designation: '2012 VP113', what: 'flags gained', flags: ['extremeOrbit'] }, '2012 VP113 is now extreme orbit.'],
+        [{ designation: '2012 VP113', what: 'flags gained', flags: ['extremeOrbit'] }, '2012 VP113 gained a flag: Extreme orbit.'],
         [{ designation: '9', what: 'left digest' }, '9 no longer qualifies for the list.'],
     ])('%o', (change, words) => expect(changeText(change, byDesignation)).toBe(words));
+
+    test('says a flag such as Differs from JPL in a sentence that reads', () => {
+        expect(changeText({ designation: '2017 FO161', what: 'flags gained', flags: ['jplDisagrees'] })).toBe('2017 FO161 gained a flag: Differs from JPL.');
+        expect(changeText({ designation: 'x', what: 'flags lost', flags: ['detached', 'retrograde'] })).toBe('x lost flags: Detached, Retrograde.');
+    });
+
+    test('gathers a month of changes into a few lines', () => {
+        const mpc = 'Rubin via the MPC: r with a typical TNO colour';
+        const lines = changeLines([
+            { designation: 'a', what: 'left digest' }, { designation: 'b', what: 'left digest' },
+            { designation: 'c', what: 'new in digest' }, { designation: 'd', what: 'new in digest' },
+            { designation: 'e', what: 'H changed', from: 4.09, to: 4.33, hSource: mpc },
+            { designation: 'f', what: 'H changed', from: 4.24, to: 4.47, hSource: mpc },
+            { designation: 'g', what: 'H changed', from: 5.25, to: 5.65, hSource: 'Rubin: r with a typical TNO colour' },
+            { designation: '120347', what: 'now passes', chance: 0.99 },
+        ], byDesignation);
+        expect(lines).toEqual([
+            'Salacia now passes (99.0%).',
+            '2 objects appear for the first time: c, d.',
+            `2 brightnesses revised (${mpc}): e, H 4.09 to 4.33; f, H 4.24 to 4.47.`,
+            "g's brightness was revised from H 5.25 to H 5.65 (Rubin: r with a typical TNO colour).",
+            '2 objects no longer qualify for the list: a, b.',
+        ]);
+    });
 
     test('says when Rubin revised a brightness', () => {
         expect(changeText({ designation: '136199', what: 'H changed', from: 1.82, to: 2.17, hSource: 'Rubin' }, byDesignation))

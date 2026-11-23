@@ -7,7 +7,7 @@ certain CSS/layout choices exist, the manual cache-busting workflow, etc.) — c
 before re-deriving something that's already been debugged once.
 
 `NOTES.md` also carries standing design rules, not only gotchas — constraints on new
-work rather than descriptions of old work. Three to know before designing anything they
+work rather than descriptions of old work. Four to know before designing anything they
 touch:
 
 - **Colour choices are held to the contrast rules** in `js/contrast.js`, checked against
@@ -19,6 +19,9 @@ touch:
   growing without losing the reader. Check new work on the tab against them; where one
   conflicts, raise it with the owner and edit the goals rather than quietly bend them.
 - **Any multiplayer is phone to phone, in the same room** - no shared screen, co-presence rewarded by design, plain turn-based play welcome.
+- **Sky-photo analysis stands for dark skies** - never draw where stars should be over a
+  sky that does not show them; be honest about what light pollution hides, and point
+  toward darker skies ("Rule: picture analysis stands for dark skies" in NOTES.md).
 
 ## What this is
 

@@ -4875,6 +4875,47 @@ batches of 100 for 8,341 objects, plus follow-ups), 11-09 24 (the rest of it), 1
 in the week after Fink's. The owner kept the cap: raising it would stretch the Fink run
 (200 took 27 minutes) toward the workflow's 60-minute limit.
 
+## Trimming the tab's text (owner, 2026-11-23)
+
+The owner asked for a read of all the site's text for length, holding that being thorough
+is a virtue when the information is dense, but that restating the same thing is not.
+The home page, Entertainment, the cards and the section intros were judged fine. Three
+changes on the Solar System tab:
+- **The map caption** (about 800 words in one block, a manual for every control) is now
+  a two-sentence lead with the rest under "How to read the map" (a `details`, styled as
+  "The map as a table"), in five paragraphs, each thing said once. Left to the ruler's
+  note above: Alpha Centauri's distance, Proxima, and what the hatching means. The two
+  light paragraphs no longer both end with the time to the outer limit: it is said on the
+  first visit's light when there is one.
+- **What changed this month** (72 lines, 30 of them "... no longer qualifies") is
+  `changeLines`: passing changes and flags one line each, the rest gathered (brightness
+  revisions one line per method). Also fixed: "X is now differs from jpl" - flags now read
+  "X gained a flag: Differs from JPL".
+- **The far edge's two figures** are one sentence pair with the warning once
+  (`bunchingPairText`), still each with its count and each chance beside the warning, as
+  its tests require; separate sentences when the counts differ.
+
+## Rule: picture analysis stands for dark skies (owner, 2026-11-23)
+
+**All analysis of visitors' sky pictures must support dark-sky advocacy.** The owner's
+words: "I want all picture analysis to be strictly dark sky advocacy supporting."
+
+What it rules out: anything that makes a light-polluted sky look whole, such as drawing
+where the stars *should* be over a photo that does not show them ("expected but not
+found" marks, filled-in star fields, constellation figures drawn through missing stars).
+These hide the loss that the photo records. The 2026-11-22 idea of marking bright stars
+the matching expected but did not find is dropped for this reason. (Constellation lines
+drawn only between stars actually found would need the owner's say first.)
+
+What it favours: being honest about what a sky shows and why fewer stars show than
+should; pointing visitors toward darker skies. The owner suggested a "nearest dark sky to
+you" feature, not yet designed (it would need a sourced list of dark-sky places, and the
+visitor's location used on the phone only).
+
+Checked against what exists on 2026-11-23, nothing needed to change: the matching uses the
+stars it expected internally (`solveAimed`'s cost) but never draws them; the "too few
+stars" message already names city glow as a cause.
+
 ## Sky photos (owner, 2026-11-22)
 
 The owner asked whether a visitor on a phone could photograph the night sky and be told
