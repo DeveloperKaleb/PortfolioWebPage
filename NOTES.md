@@ -4981,7 +4981,41 @@ blame editing (`NOT_SKY.unmatched`, `NOT_SKY.slow`). The test "cloud texture on 
 near-black sky" mimics these photos. Unchecked: whether a bright planet in a real phone
 photo is ever wider than 6 px with a peak under 64; if one is, it is now dropped.
 
+**Aim and shoot (owner, 2026-11-23).** The owner pointed out that "too few stars" only
+happens because the phone's sensors were not used; this is the sensors-as-head-start plan
+from the start, dropped in step 2 while the pattern search was fast enough on clear skies.
+`js/skyaim.js`, tested in `tests/rubin/skyaim.test.js`; the page's "Aim and shoot" button.
+- **Why a shot in the page, not a gallery photo:** the compass has to be read when the
+  picture is taken. The cost: a page's camera cannot use Night mode, so about a second of
+  video frames (`STACK_MS`) is averaged instead, unaligned, so the phone must be held
+  still. Where Chrome lets a page set them, the longest exposure and highest ISO are asked
+  for (`brighten`); focus is left to the camera (to do: infinity focus, if it hunts).
+- **Where the phone points:** DeviceOrientation's alpha, beta, gamma (the W3C spec's
+  Rz Rx Ry order and frames) turned to the horizon, then to the sky by the local sidereal
+  time (GMST by the USNO's approximation, 280.46061837 + 360.98564736629 x days from
+  J2000) and the latitude; precession left out (0.4 degrees). Chrome on Android sends
+  `deviceorientationabsolute`; Safari's `webkitCompassHeading` is used as alpha = 360 -
+  heading. **Unchecked on a real phone:** the Safari heading when the phone is held
+  upright, the screen-angle direction in landscape (portrait is the safe way to hold
+  it), and whether the video frames arrive upright. Magnetic, not true, north (Madison's
+  declination is about 3 degrees, inside the tolerance).
+- **Matching:** found pairs against pairs of the 150 brightest objects that could be in
+  the picture, each near where the phone puts it (25 degrees for compass and tilt error,
+  `AIM.maxTurn`), the same distance apart to within the lens guess (`fSlack` 0.15; 0.25
+  let Castor and Dubhe pass for Castor and Alioth). Other stars must then land within
+  0.35 degrees and agree in brightness. Answers are weighed: matches less 0.3 x (bright
+  objects it puts in the picture that were not found + brightness disagreement + how far
+  it turns the phone's reading).
+- **How sure, said on the page:** 'sure' (4+ matched, few spots left over), 'likely' (2+,
+  at most one left over), 'guess' (one star, or more spots unexplained; names get a "?").
+  Made-up shots, 300 each, compass 15 degrees out: one star right 79% (a guess); two stars
+  98%; three stars with one false spot and 30% of stars hidden by cloud 96% right, a wrong
+  answer called likely or sure in 1-2 of 300 cases at most. Under 0.15 s.
+- With six or more stars the pattern search runs first (5 s budget, main-camera lenses),
+  as it does not trust the compass. A sure answer stores the measured lens in this
+  browser (`skyphoto-lens`), so later shots start from it.
+
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
-and `MAX_NIGHT_MEDIAN`; lens distortion is not fitted (fine for main cameras, maybe not
-ultra-wides).
+and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);
+lens distortion is not fitted (fine for main cameras, maybe not ultra-wides).
 

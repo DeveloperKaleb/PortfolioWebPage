@@ -80,7 +80,7 @@ called the same thing in both places, and Tic-Tac-Toe nearly is (`tictactoe`).
 
 **Game/toy logic split (pure logic in `js/`, DOM/state in `entertainment/`):**
 
-The pure layer is forty-four modules, all free of `document`/DOM calls so they stay testable
+The pure layer is forty-five modules, all free of `document`/DOM calls so they stay testable
 under Vitest without a browser:
 
 - `js/logic.js` — grid HTML generation, Snake movement/collision maths, Tetris piece
@@ -199,7 +199,11 @@ under Vitest without a browser:
   gaiastars:names`. See NOTES.md, "Star names".
 - `js/skyphoto.js` — sky photos: finding the stars in a visitor's photo of the night sky,
   whether a photo is one (politely saying so if not), and the lens and time from its EXIF.
-  Its test page is `rubin/skyphoto.html`, linked from nowhere yet. See NOTES.md, "Sky photos".
+  Its test page is `rubin/skyphoto.html`, linked from the Solar System tab. See NOTES.md, "Sky photos".
+- `js/skyaim.js` — sky photos, aim and shoot: where the phone says its camera points
+  (DeviceOrientation, place and sidereal time to a turn of the sky), and naming as few as
+  one or two stars with that as a head start, saying how sure it is. The camera, frame
+  stacking and sensor reading are in `rubin/skyphoto.js`.
 - `js/skysolve.js` — sky photos: which stars a photo shows (plate solving on the phone, no
   service asked): triangles of found stars matched to the catalogue for each likely lens,
   then a fit of the lens and the pointing. The page runs it in `rubin/skysolve-worker.js`.

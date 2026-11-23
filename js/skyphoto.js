@@ -210,10 +210,11 @@ export const MIN_STARS = 8;
 /** Brightest a night sky's median is allowed to be (0-255). Provisional: to be set from real phone photos. */
 export const MAX_NIGHT_MEDIAN = 110;
 
-/** Whether a picture is a night sky worth matching: { ok: true } or { ok: false, reason, message }. */
-export function judgeSky(stats, stars) {
+/** Whether a picture is a night sky worth matching: { ok: true } or { ok: false, reason, message }.
+    A shot aimed with the phone's sensors (js/skyaim.js) needs only one star. */
+export function judgeSky(stats, stars, { minStars = MIN_STARS } = {}) {
     if (stats.median > MAX_NIGHT_MEDIAN) return { ok: false, reason: 'bright', message: NOT_SKY.bright };
-    if (stars.length < MIN_STARS) return { ok: false, reason: 'few', message: NOT_SKY.few };
+    if (stars.length < minStars) return { ok: false, reason: 'few', message: NOT_SKY.few };
     return { ok: true };
 }
 
