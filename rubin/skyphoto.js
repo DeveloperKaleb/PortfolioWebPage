@@ -2,7 +2,7 @@
  * it (js/skyphoto.js, fitSize), finds the stars and rings them, then asks the worker
  * (skysolve-worker.js, js/skysolve.js) which stars they are and labels them. Nothing is
  * sent anywhere. */
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif } from '/PortfolioWebPage/js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY } from '/PortfolioWebPage/js/skyphoto.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
 const input = document.getElementById('skyphoto-file');
@@ -42,16 +42,20 @@ input.addEventListener('change', async () => {
         const verdict = judgeSky(stats, stars);
         ring(ctx, stars, verdict.ok ? '#7fd3ff' : '#ffb04d', width);
         canvas.hidden = false;
-        if (!verdict.ok) { status.textContent = `${verdict.message} (${plural(stars.length, 'star')} found.)`; return; }
+        // A daytime picture needs no lens advice; every other failure gets it when it fits.
+        const tip = (text) => [text, lensTip(exif.mm35)].filter(Boolean).join(' ');
+        if (!verdict.ok) {
+            const found = `(${plural(stars.length, 'star')} found.)`;
+            status.textContent = verdict.reason === 'bright' ? `${verdict.message} ${found}` : tip(`${verdict.message} ${found}`);
+            return;
+        }
 
         status.textContent = `${plural(stars.length, 'star')} found. Working out which part of the sky this is…`;
         const taken = exif.taken ?? new Date(file.lastModified || Date.now());
         worker.onmessage = ({ data }) => {
             if (ask !== asked) return;
             if (!data.solved) {
-                status.textContent = data.gaveUp
-                    ? "We found the stars but couldn't work out which part of the sky this is in the time we allow. A photo with more stars in it, or taken without zoom, may work better."
-                    : "We found the stars but couldn't match them to the sky. If the photo was zoomed in, cropped or edited, try the original from the camera.";
+                status.textContent = tip(data.gaveUp ? NOT_SKY.slow : NOT_SKY.unmatched);
                 return;
             }
             ctx.putImageData(photo, 0, 0);

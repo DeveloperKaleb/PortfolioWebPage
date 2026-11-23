@@ -4958,7 +4958,30 @@ taken.
 - **The page** runs the search in a module worker, so it stays usable. Matched stars get a
   white ring and name (planets gold), placed right, left, above or below where free.
 
-**Still to do:** try real phone photos (the thresholds in step 1 and the lens list are
-the guesses most likely to be off); lens distortion is not fitted (fine for main cameras,
-maybe not ultra-wides); then link the page from the tab.
+**First real photos (owner, 2026-11-22, three shots at 1:10 AM local).** All said "couldn't
+match them to the sky". Run through the same code here (decoded with System.Drawing,
+shrunk to 1,205 x 1,600; the photos were not committed, as they show the owner's house):
+- The sky was mostly lit cloud, and the phone had crushed it to near black (medians 1-2
+  of 255). Each photo held only about three real stars: sharp dots 2.5-3.5 px wide, peaks
+  13-30 above the sky.
+- The finder took cloud texture for stars: 56, 23 and 8 "stars", nearly all wide and
+  faint (4.8-15.8 px, peaks 2-13), plus the roofline's lights. So the photos passed
+  `judgeSky` and the matching failed, with a message that blamed cropping and editing.
+- All three came from the ultra-wide lens (EXIF 35 mm figure 12).
+
+**What changed.** A spot wider than `COMPACT` (6 px) counts only if its peak is at least
+`BLOATED_PEAK` (64) above the sky, because faint stars are points and only bright ones
+bloat. The smoothed noise floor went from 0.25 to 0.5 grey levels: on a crushed sky, a
+2-level ripple (one JPEG rounding step) had passed as 6 noise levels. The three photos now
+find 7, 4 and 3, the real stars among them, and each says "couldn't find enough stars"
+(the message now names clouds, haze and city glow). A photo whose EXIF says it came from
+the ultra-wide lens (`ULTRA_WIDE_MM`, under 20 mm) gets `LENS_TIP`, asking for 1×, after
+every failure message but the daytime one. The no-match and gave-up messages no longer
+blame editing (`NOT_SKY.unmatched`, `NOT_SKY.slow`). The test "cloud texture on a
+near-black sky" mimics these photos. Unchecked: whether a bright planet in a real phone
+photo is ever wider than 6 px with a peak under 64; if one is, it is now dropped.
+
+**Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
+and `MAX_NIGHT_MEDIAN`; lens distortion is not fitted (fine for main cameras, maybe not
+ultra-wides).
 

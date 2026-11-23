@@ -52,7 +52,10 @@ function skyGrid(gray, width, height) {
             const m = median(sample);
             const mad = median(sample.map((v) => Math.abs(v - m)));
             level[cy * cols + cx] = m;
-            noise[cy * cols + cx] = Math.max(1.4826 * mad, 0.25);
+            // Never under half a grey level: a phone's night sky is often crushed to near
+            // black, where the measured noise is nearly nil and a cloud's 2-level ripple
+            // (one JPEG rounding step) would pass as a star (the owner's photos, 2026-11-22).
+            noise[cy * cols + cx] = Math.max(1.4826 * mad, 0.5);
         }
     }
     return { cols, rows, level, noise };
@@ -84,7 +87,7 @@ export function photoStats(gray) {
  * fraction of a pixel. A star must stand SIGMA noise levels above the sky after a 3x3
  * smoothing, be the brightest point within RADIUS, and be neither a single hot pixel
  * (all its light in one pixel) nor a smear wider than MAX_SIZE (a cloud edge, a lit
- * window, a streetlight's glow).
+ * window, a streetlight's glow), nor wider than COMPACT unless it is bright.
  */
 export const SIGMA = 6; // 5 let JPEG noise clumps through on a made-up sky (NOTES.md)
 export const RADIUS = 4;
@@ -92,6 +95,13 @@ export const RADIUS = 4;
    made-up Jupiter at 8 px was thrown away). The Moon (about 12 px at a 26 mm lens) gets
    through and is simply matched to nothing. */
 export const MAX_SIZE = 16;
+/* Faint stars are points, all the camera's own small size (2.5-3.5 px in the owner's
+   phone photos of 2026-11-22, at MAX_SIDE); only a bright one bloats. So a spot wider
+   than COMPACT counts only if its peak is at least BLOATED_PEAK (0-255) above the sky.
+   Those photos were mostly lit cloud on a near-black sky: its texture came through as
+   dozens of wide, faint "stars" (4.8-15.8 px, peaks 2-13) that hid the three real ones. */
+export const COMPACT = 6;
+export const BLOATED_PEAK = 64;
 /* A star is measured out to three times RADIUS, so a wide smear is seen whole rather than
    cut down to star size by the window, and a bloated bright star's light is all counted. */
 const MEASURE = 3 * RADIUS;
@@ -129,6 +139,7 @@ export function findStars(gray, width, height, { limit = 300 } = {}) {
             const star = measure(rest, smooth, width, x, y);
             if (!star) continue;
             if (star.size > MAX_SIZE) continue;
+            if (star.size > COMPACT && star.peak < BLOATED_PEAK) continue;
             if (star.peak > 0.6 * star.flux) continue;
             stars.push(star);
         }
@@ -178,8 +189,21 @@ function measure(rest, smooth, width, x0, y0) {
 /* The polite answers, by reason. */
 export const NOT_SKY = {
     bright: "This looks like a daytime or indoor picture. Star finding works on a photo of the night sky, taken outside after dark. Night mode helps, if your phone has it.",
-    few: "We couldn't find enough stars in this picture. Try a photo taken outside at night, pointed up at a clear patch of sky, away from streetlights if you can. Holding the phone very still (or leaning it on something) helps a lot.",
+    few: "We couldn't find enough stars in this picture to work out which part of the sky it shows. Clouds, haze or city glow may be hiding them. Try a photo taken outside at night, pointed up at a clear patch of sky, away from streetlights and roof lights if you can. Holding the phone very still (or leaning it on something) helps a lot.",
+    unmatched: "We found the stars but couldn't match them to the sky. Some may not be stars at all (thin cloud, lights, planes), or there may be too few real ones to make out a pattern. A clear night works best.",
+    slow: "We found the stars but couldn't work out which part of the sky this is in the time we allow. A photo of a clear patch of sky, with more stars in it, may work better.",
 };
+
+/* Below this 35 mm-equivalent focal length a photo came from a phone's ultra-wide (0.5x)
+   lens: 13-16 mm on current phones, against 23-28 mm for the main lens. The owner's first
+   real photos (2026-11-22) were all 12 mm. Its edges bend the sky, which the matching
+   does not allow for yet, and it spreads the stars thin. */
+export const ULTRA_WIDE_MM = 20;
+export const LENS_TIP = "Your phone took this photo with its ultra-wide (0.5×) lens. Switching to 1× before you take it usually catches more stars, and doesn't bend the edges of the picture.";
+/** The lens tip for a photo whose EXIF says it came from the ultra-wide lens, else ''. */
+export function lensTip(mm35) {
+    return mm35 && mm35 < ULTRA_WIDE_MM ? LENS_TIP : '';
+}
 
 /** Fewest stars a picture needs before matching is worth trying. */
 export const MIN_STARS = 8;

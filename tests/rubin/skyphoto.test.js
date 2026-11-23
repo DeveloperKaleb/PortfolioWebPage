@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, MIN_STARS, MAX_SIDE } from '../../js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -59,6 +59,26 @@ describe('sky photos', () => {
     it('pass over hot pixels, smears and plain noise', () => {
         const pic = sky({ hot: [[50, 50], [200, 120], [333, 222]], stars: [{ x: 100, y: 100, flux: 160000, fwhm: 30 }], seed: 3 });
         expect(findStars(pic.gray, pic.width, pic.height)).toEqual([]);
+    });
+
+    // The owner's first real photos (2026-11-22): lit cloud on a sky the phone crushed to
+    // near black, whole grey levels only, with three real stars showing through.
+    it('pass over cloud texture on a near-black sky and keep the real stars', () => {
+        const r = rng(11);
+        const clouds = Array.from({ length: 60 }, () => ({ x: 20 + r() * 360, y: 20 + r() * 260, flux: 150 + r() * 900, fwhm: 8 + r() * 10 }));
+        const stars = [{ x: 80.3, y: 60.6, flux: 160 }, { x: 300.2, y: 210.4, flux: 220 }, { x: 190.7, y: 140.1, flux: 120 }];
+        const pic = sky({ level: 1, noise: 0.4, stars: [...clouds, ...stars], seed: 5 });
+        for (let i = 0; i < pic.gray.length; i++) pic.gray[i] = Math.max(0, Math.round(pic.gray[i]));
+        const found = findStars(pic.gray, pic.width, pic.height);
+        expect(found.length).toBe(stars.length);
+        for (const s of stars) expect(found.some((f) => Math.hypot(f.x - s.x, f.y - s.y) < 1)).toBe(true);
+        expect(judgeSky(photoStats(pic.gray), found).reason).toBe('few');
+    });
+
+    it('suggest the 1x lens only for a photo from the ultra-wide one', () => {
+        expect(lensTip(12)).toMatch(/0\.5×.*1×/);
+        expect(lensTip(26)).toBe('');
+        expect(lensTip(null)).toBe('');
     });
 
     it('tell a night sky from a day picture or an empty dark one', () => {
