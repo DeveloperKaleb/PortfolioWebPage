@@ -3153,14 +3153,85 @@ html.rubin-filling {
     font-size: 0.9em;
     margin-top: 0.25rem;
 }
-/* The details of the last attempt: long lines scroll sideways rather than widen the page. */
-.skyphoto-details {
-    margin: 1rem 0;
+/* Help us calibrate: a dialog in the colours of the site's others (UI_COLORS.dialog* in
+   js/logic.js, contrast-checked), nearly the phone's full width, with thumb-sized choices
+   and buttons. The report's text scrolls inside it rather than widening it. */
+#skyphoto-dialog {
+    box-sizing: border-box;
+    width: min(94vw, 32rem);
+    max-height: 90vh;
+    max-height: 90dvh;
+    padding: 0;
+    background: #002e2c;                    /* UI_COLORS.dialogBackground */
+    color: #eff1c5;                         /* UI_COLORS.dialogText */
+    border: 2px solid #dfe38c;
+    border-radius: 8px;
 }
-.skyphoto-details pre {
-    font-size: 0.75rem;
+#skyphoto-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+.skyphoto-dialog-panel {
+    padding: 1rem 1.1rem;
+    text-align: left;
+}
+.skyphoto-dialog-panel h3 {
+    margin: 0 0 0.5rem;
+}
+.skyphoto-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 44px;
+    padding: 0.25rem 0;
+}
+.skyphoto-choice input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+}
+#skyphoto-words {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0.25rem 0 0.5rem;
+    font: inherit;
+}
+.skyphoto-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+.skyphoto-buttons button,
+.skyphoto-send,
+#skyphoto-help {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font: inherit;
+}
+/* .skyphoto-note's display would otherwise beat the hidden attribute. */
+#skyphoto-dialog [hidden] {
+    display: none;
+}
+#skyphoto-dialog .skyphoto-send,
+#skyphoto-dialog .skyphoto-send:link,
+#skyphoto-dialog .skyphoto-send:visited {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    background: #dfe38c;
+    color: #002e2c;
+    border-radius: 4px;
+    font-weight: bold;
+    text-decoration: none;
+}
+#skyphoto-contents {
+    padding-left: 1.2rem;
+    margin: 0.25rem 0 0.75rem;
+}
+#skyphoto-dialog pre {
+    font-size: 0.72rem;
     line-height: 1.35;
-    overflow-x: auto;
-    max-height: 60vh;
+    overflow: auto;
+    max-height: 40vh;
     white-space: pre;
 }

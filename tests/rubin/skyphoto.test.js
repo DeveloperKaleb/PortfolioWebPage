@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX } from '../../js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX, REPORT_TO, REPORT_SUBJECT, REPORT_MAX_ENCODED, reportBody, reportContents, fitForEmail, reportLink } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -159,5 +159,64 @@ describe('the details of an attempt', () => {
         expect(meanBrightness(rgba)).toBeCloseTo(40, 6);
         expect(meanBrightness(rgba, 1)).toBeCloseTo(40, 6);
         expect(meanBrightness(new Uint8ClampedArray(0))).toBe(0);
+    });
+});
+
+describe('help us calibrate: the emailed report', () => {
+    const line = (t, what, fields) => logLine(t, what, fields);
+    const aimLog = [
+        line(0, 'aim and shoot', { page: '20261124-0900' }),
+        line(0.1, 'camera can do', { exposureTime: { min: 1, max: 30000 } }),
+        line(0.4, 'first deviceorientationabsolute', { alpha: 10, beta: 120, gamma: 2 }),
+        line(1.2, 'location', { latitude: '43.1', longitude: '-89.4', accuracyM: 12 }),
+        ...Array.from({ length: 300 }, (_, i) => line(2 + 2 * i, 'preview', { brightness: 20 + i / 10, exposureTime: 2500, iso: 3200, alpha: 10, beta: 120, gamma: 2, altitude: 30 })),
+        ...Array.from({ length: 40 }, (_, i) => line(700 + i / 30, 'frame', { n: i + 1, gapMs: 33, brightness: 21 })),
+        line(702, 'stars found (x,y,peak,size)', { spots: ['10.0,20.0,200,3'] }),
+        line(703, 'matching', { solved: true, route: 'compass' }),
+    ].join('\n');
+
+    it('sends to the address and under the subject it always uses', () => {
+        const link = reportLink('hello there');
+        expect(link.startsWith(`mailto:${REPORT_TO}?subject=`)).toBe(true);
+        expect(decodeURIComponent(link.split('subject=')[1].split('&')[0])).toBe(REPORT_SUBJECT);
+        expect(decodeURIComponent(link.split('body=')[1])).toBe('hello there');
+    });
+
+    it('puts the reason and the visitor\'s words first', () => {
+        const body = reportBody({ reason: 'problem', words: '  It turned white.  ', logText: 'x' });
+        expect(body.startsWith('Why: I saw a problem\nWhat they saw: It turned white.\n\n--- Details ---\nx')).toBe(true);
+        expect(reportBody({ reason: 'calibration', words: '', logText: 'x' })).not.toMatch(/What they saw/);
+    });
+
+    it('says in plain words what is in it, including the 0.1 degree location only when there is one', () => {
+        const said = reportContents(aimLog).join('\n');
+        expect(said).toMatch(/camera was asked for/);
+        expect(said).toMatch(/compass and tilt/);
+        expect(said).toMatch(/0\.1°/);
+        expect(said).toMatch(/positions only, no picture/);
+        expect(said).toMatch(/how sure/);
+        expect(reportContents(line(0, 'photo chosen', {}) + '\n' + line(0, 'file', { type: 'image/jpeg' })).join('\n')).not.toMatch(/Your location/);
+    });
+
+    it('leaves a short report whole', () => {
+        expect(fitForEmail('a\nb')).toEqual({ text: 'a\nb', cut: false });
+    });
+
+    it('thins the preview readings first to fit an email, keeping the first and last and saying so', () => {
+        const { text, cut } = fitForEmail(aimLog);
+        expect(cut).toBe(true);
+        expect(encodeURIComponent(text).length).toBeLessThanOrEqual(REPORT_MAX_ENCODED);
+        expect(text).toMatch(/\(\d+ preview lines left out to fit in an email\)/);
+        expect(text).toMatch(/stars found/);
+        expect(text).toMatch(/matching: solved=true/);
+        expect(text).toMatch(/ location: latitude=43\.1/);
+        expect((text.match(/ preview: /g) ?? []).length).toBe(4);
+    });
+
+    it('cuts short at the end only when thinning is not enough', () => {
+        const { text, cut } = fitForEmail(aimLog, 600);
+        expect(cut).toBe(true);
+        expect(encodeURIComponent(text).length).toBeLessThanOrEqual(600);
+        expect(text.endsWith('(cut short here: the rest did not fit in an email)')).toBe(true);
     });
 });

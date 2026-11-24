@@ -5084,6 +5084,29 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
   answer was from the compass (`offBy`) and the lens from its guess (`lensVsGuess`), which
   is how the compass tolerance and the 26 mm guess get checked on real phones. Never a
   picture, a file name or a finer place. At most `LOG_MAX` (400) lines.
+- **Help us calibrate (owner, 2026-11-24).** The folded details became a "Help us
+  calibrate" button and a two-step dialog: why (I saw a problem, with a box to describe it;
+  or Sending to help with calibration), then what is in the report in plain words
+  (`reportContents`) with the full text behind "Show everything", then **Send by email**: a
+  mailto: link to `REPORT_TO` (the address the home page's contact links already show)
+  under the fixed subject `REPORT_SUBJECT`, "Sky photo calibration report", so reports can
+  be filtered. Owner's choice: email to him, not a form service (no third party sees the
+  report) and not the share sheet. A Copy fallback shows when no email app opens.
+  - **Location to 0.1 degree** (about 11 km), latitude and longitude (owner, 2026-11-24).
+    The phone already works with its exact place; the report needs it only to re-run a
+    shot, where 0.1 degree is far inside the compass's 25. Finer adds nothing for
+    calibration and points at where the photo was taken, often home.
+  - **Enough to re-run a shot here:** the 60 brightest spots' x, y, peak and size; the
+    time (JD to 1e-6) and, for aim and shoot, the phone's turn and lens guess; on a match
+    the answer's turn and lens and each name's position.
+  - **Fitting an email** (`fitForEmail`, `REPORT_MAX_ENCODED` 16,000 encoded characters,
+    as some desktop mail apps cut long links): the preview readings are thinned first
+    (first and last two kept, the gap marked), then the frames, and only then is the end
+    cut, and the dialog says so.
+- **Seen while testing the dialog (2026-11-24, not yet looked into):** twelve made-up dots
+  on a near-regular grid were "6 stars matched" as Orion with a 'sure' answer by the
+  pattern search. Real skies are not grids, but a sure answer from made-up dots is worth
+  a look before trusting 'sure' on sparse photos.
 
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
 and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);

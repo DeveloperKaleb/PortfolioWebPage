@@ -326,3 +326,73 @@ export function meanBrightness(rgba, step = 97) {
     for (let p = 0; p < rgba.length; p += 4 * step) { sum += 0.2126 * rgba[p] + 0.7152 * rgba[p + 1] + 0.0722 * rgba[p + 2]; n++; }
     return n ? sum / n : 0;
 }
+
+/* ---- Help us calibrate (owner, 2026-11-24) ----
+   The details of an attempt, sent by the visitor's own email app (a mailto: link: the site
+   has no server, and no third party sees the report), to the address the home page's
+   contact links already show, under one subject so reports are easy to find and filter.
+   The visitor is shown exactly what will be sent before their email app opens. */
+export const REPORT_TO = 'kalajholt@gmail.com';
+export const REPORT_SUBJECT = 'Sky photo calibration report';
+/** Why the visitor is sending, as the dialog offers it and the report says it. */
+export const REASONS = { problem: 'I saw a problem', calibration: 'Sending to help with calibration' };
+/** The longest body, URL-encoded, put in a mailto: link. Phones' mail apps take far more,
+    but some desktop ones cut long links short; repeated lines are thinned to fit first. */
+export const REPORT_MAX_ENCODED = 16000;
+
+/** The email's body: why, the visitor's own words if any, then the details. */
+export function reportBody({ reason, words = '', logText }) {
+    const head = [`Why: ${REASONS[reason] ?? reason}`];
+    if (words.trim()) head.push(`What they saw: ${words.trim()}`);
+    return `${head.join('\n')}\n\n--- Details ---\n${logText}\n`;
+}
+
+/** What a report holds, in plain words, read from its details: for step 2 of the dialog. */
+export function reportContents(logText) {
+    const has = (re) => re.test(logText);
+    const out = ['Your reason, and your words if you wrote any', 'Your phone and browser (the model where the browser gives it)'];
+    if (has(/ file: /)) out.push("The photo's size and lens (not the photo itself, or its name)");
+    if (has(/ camera can do: | camera opened: /)) out.push('What the camera was asked for and what it did, frame by frame');
+    if (has(/ first deviceorientation/)) out.push('Where the phone said it was pointing (compass and tilt)');
+    if (has(/ location: /)) out.push('Your location to about 11 km (0.1°), and its accuracy');
+    if (has(/ stars found /)) out.push('Where the stars were found in the picture, and how bright (positions only, no picture)');
+    if (has(/ matching: /)) out.push('Which stars it named, and how sure it was');
+    if (has(/ unexpected error| crashed| failed| could not /)) out.push('Any errors along the way');
+    out.push('No picture, no file name, and no location finer than 0.1°');
+    return out;
+}
+
+const encodedLength = (s) => encodeURIComponent(s).length;
+
+/* Keeps the first and last `keep` of the lines matching `re`, the rest replaced by a note
+   where they were. */
+function thin(lines, re, keep, word) {
+    const at = lines.map((l, i) => (re.test(l) ? i : -1)).filter((i) => i >= 0);
+    if (at.length <= 2 * keep + 1) return lines;
+    const drop = new Set(at.slice(keep, at.length - keep));
+    const out = [];
+    lines.forEach((l, i) => {
+        if (!drop.has(i)) out.push(l);
+        else if (i === at[keep]) out.push(`(${drop.size} ${word} lines left out to fit in an email)`);
+    });
+    return out;
+}
+
+/** The details made to fit an email: the preview's repeated readings thinned first, then
+    the frames, and only then cut short at the end. Says whether anything was left out. */
+export function fitForEmail(logText, budget = REPORT_MAX_ENCODED) {
+    let lines = logText.split('\n');
+    if (encodedLength(logText) <= budget) return { text: logText, cut: false };
+    for (const [re, keep, word] of [[/ s {2}preview: /, 2, 'preview'], [/ s {2}frame: /, 3, 'frame'], [/ s {2}preview: /, 0, 'preview']]) {
+        lines = thin(lines, re, keep, word);
+        if (encodedLength(lines.join('\n')) <= budget) return { text: lines.join('\n'), cut: true };
+    }
+    const end = '(cut short here: the rest did not fit in an email)';
+    while (lines.length > 1 && encodedLength([...lines, end].join('\n')) > budget) lines.pop();
+    return { text: [...lines, end].join('\n'), cut: true };
+}
+
+/** The mailto: link for a report. */
+export function reportLink(body) {
+    return `mailto:${REPORT_TO}?subject=${encodeURIComponent(REPORT_SUBJECT)}&body=${encodeURIComponent(body)}`;
+}

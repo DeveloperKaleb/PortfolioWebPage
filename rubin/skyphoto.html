@@ -8,8 +8,8 @@
          It finds the stars in a photo and names them (step 2, js/skysolve.js). The
          photo never leaves the phone: it is read and searched in this page. -->
     <meta name="robots" content="noindex" />
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261123-1759" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261123-1759" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261124-0821" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261124-0821" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -39,24 +39,54 @@
         </div>
         <p id="skyphoto-status" role="status" aria-live="polite"></p>
         <canvas id="skyphoto-canvas" hidden></canvas>
-        <!-- The details of the last attempt (owner, 2026-11-23): always kept, cleared by the
-             next attempt or by leaving, sent nowhere unless the visitor sends them. -->
-        <details id="skyphoto-details" class="skyphoto-details" hidden>
-            <summary>Something look wrong? Details to share</summary>
-            <p>
-                What the camera, compass and star search did on this attempt. If something
-                went wrong, copy them and send them to Kaleb (contact links are on the
-                <a href="/PortfolioWebPage/">home page</a>). No picture is in them, and no
-                place finer than your latitude to the nearest degree. They stay on this page
-                until your next attempt.
-            </p>
-            <p><button id="skyphoto-copy" type="button">Copy details</button></p>
-            <pre id="skyphoto-log"></pre>
-        </details>
+        <!-- Help us calibrate (owner, 2026-11-24): the details of the last attempt, always
+             kept, cleared by the next attempt or by leaving. Sent only by the visitor's own
+             email app, after step 2 shows what is in them. -->
+        <p id="skyphoto-help-row" hidden>
+            <button id="skyphoto-help" type="button">Help us calibrate</button>
+        </p>
+        <dialog id="skyphoto-dialog" aria-labelledby="skyphoto-dialog-title">
+            <div class="skyphoto-dialog-panel">
+                <h3 id="skyphoto-dialog-title">Help us calibrate</h3>
+                <form id="skyphoto-step1">
+                    <p>Why are you sending this?</p>
+                    <label class="skyphoto-choice"><input type="radio" name="why" value="problem" /> I saw a problem</label>
+                    <textarea id="skyphoto-words" rows="4" placeholder="What went wrong? (optional)" aria-label="What went wrong" hidden></textarea>
+                    <label class="skyphoto-choice"><input type="radio" name="why" value="calibration" /> Sending to help with calibration</label>
+                    <p class="skyphoto-buttons">
+                        <button type="button" class="skyphoto-close">Cancel</button>
+                        <button id="skyphoto-next" type="button" disabled>Next</button>
+                    </p>
+                </form>
+                <div id="skyphoto-step2" hidden>
+                    <p>What you're sending:</p>
+                    <ul id="skyphoto-contents"></ul>
+                    <p id="skyphoto-cut" hidden>It was too long for an email, so some repeated readings are left out (marked where).</p>
+                    <details>
+                        <summary>Show everything</summary>
+                        <pre id="skyphoto-log"></pre>
+                    </details>
+                    <p class="skyphoto-buttons">
+                        <button id="skyphoto-back" type="button">Back</button>
+                        <a id="skyphoto-send" class="skyphoto-send" href="#">Send by email</a>
+                    </p>
+                    <p class="skyphoto-note">
+                        This opens your email app with the report filled in. Nothing is sent
+                        until you press send there.
+                    </p>
+                    <p id="skyphoto-sent" class="skyphoto-note" hidden>
+                        Thank you! If no email app opened,
+                        <button id="skyphoto-copy" type="button">Copy the report</button>
+                        and email it to <span id="skyphoto-to"></span>.
+                    </p>
+                    <p class="skyphoto-buttons"><button type="button" class="skyphoto-close">Close</button></p>
+                </div>
+            </div>
+        </dialog>
     </main>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261123-1759"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261123-1759"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261123-1759"></script>
-    <script type="module" src="./skyphoto.js?v=20261123-1759"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261124-0821"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261124-0821"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261124-0821"></script>
+    <script type="module" src="./skyphoto.js?v=20261124-0821"></script>
 </body>
 </html>

@@ -5,9 +5,9 @@
  * - aim and shoot: the camera shown in the page, about a second of frames averaged into
  *   one picture, and the phone's compass, tilt and place read meanwhile, so a few stars
  *   are enough (js/skyaim.js).
- * Every attempt keeps its details (shotLog), shown folded under the result for the visitor
- * to copy and send if something went wrong. Nothing is sent anywhere by the page. */
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, shotLog, meanBrightness } from '/PortfolioWebPage/js/skyphoto.js';
+ * Every attempt keeps its details (shotLog). "Help us calibrate" lets the visitor send them
+ * by their own email app, after seeing what is in them. The page itself sends nothing. */
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, shotLog, meanBrightness, REASONS, REPORT_TO, REPORT_SUBJECT, reportBody, reportContents, fitForEmail, reportLink } from '/PortfolioWebPage/js/skyphoto.js';
 import { aimedTurn, averageTurn, cameraAltitude } from '/PortfolioWebPage/js/skyaim.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
@@ -30,13 +30,10 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
    Always kept (owner, 2026-11-23), thrown away by the next attempt or by leaving the page:
    what the camera and sensors were asked for and did, frame by frame, and what the
    analysis made of it. See js/skyphoto.js shotLog for what is never in it. */
-const details = document.getElementById('skyphoto-details');
-const logView = document.getElementById('skyphoto-log');
-const copyButton = document.getElementById('skyphoto-copy');
+const helpRow = document.getElementById('skyphoto-help-row');
 let log = null;
 function begin(kind) {
     log = shotLog(() => performance.now());
-    copyButton.textContent = 'Copy details';
     note(kind, {
         at: `${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`,
         page: new URL(import.meta.url).searchParams.get('v'),
@@ -61,17 +58,68 @@ function begin(kind) {
 function note(what, fields) {
     if (!log) return;
     log.add(what, fields);
-    logView.textContent = log.text();
-    details.hidden = false;
+    helpRow.hidden = false;
 }
+
+/* ---- Help us calibrate: a two-step dialog (owner, 2026-11-24) ----
+   Step 1, why: a problem (with room to describe it) or just to help calibrate. Step 2, what
+   is in the report, in plain words and in full, then the visitor's email app opens with it
+   (js/skyphoto.js REPORT_TO, REPORT_SUBJECT). */
+const dialog = document.getElementById('skyphoto-dialog');
+const step1 = document.getElementById('skyphoto-step1');
+const step2 = document.getElementById('skyphoto-step2');
+const words = document.getElementById('skyphoto-words');
+const nextButton = document.getElementById('skyphoto-next');
+const contents = document.getElementById('skyphoto-contents');
+const logView = document.getElementById('skyphoto-log');
+const sendLink = document.getElementById('skyphoto-send');
+const sentNote = document.getElementById('skyphoto-sent');
+const cutNote = document.getElementById('skyphoto-cut');
+const copyButton = document.getElementById('skyphoto-copy');
+let reportText = '';
+document.getElementById('skyphoto-to').textContent = `${REPORT_TO}, subject "${REPORT_SUBJECT}"`;
+const reason = () => step1.querySelector('input[name="why"]:checked')?.value;
+function showStep(n) {
+    step1.hidden = n !== 1;
+    step2.hidden = n !== 2;
+}
+document.getElementById('skyphoto-help').addEventListener('click', () => {
+    showStep(1);
+    sentNote.hidden = true;
+    dialog.showModal();
+});
+step1.addEventListener('change', () => {
+    words.hidden = reason() !== 'problem';
+    nextButton.disabled = !reason();
+    if (reason() === 'problem') words.focus();
+});
+nextButton.addEventListener('click', () => {
+    if (!log || !reason()) return;
+    const fitted = fitForEmail(log.text());
+    reportText = reportBody({ reason: reason(), words: words.value, logText: fitted.text });
+    contents.replaceChildren(...reportContents(log.text()).map((line) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        return li;
+    }));
+    logView.textContent = reportText;
+    cutNote.hidden = !fitted.cut;
+    sendLink.href = reportLink(reportText);
+    copyButton.textContent = 'Copy the report';
+    showStep(2);
+});
+document.getElementById('skyphoto-back').addEventListener('click', () => showStep(1));
+document.querySelectorAll('.skyphoto-close').forEach((b) => b.addEventListener('click', () => dialog.close()));
+// A tap on the scrim around the panel closes it, as the site's other dialogs do.
+dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+sendLink.addEventListener('click', () => { sentNote.hidden = false; });
 copyButton.addEventListener('click', async () => {
-    if (!log) return;
     try {
-        await navigator.clipboard.writeText(log.text());
+        await navigator.clipboard.writeText(`To: ${REPORT_TO}\nSubject: ${REPORT_SUBJECT}\n\n${reportText}`);
         copyButton.textContent = 'Copied';
     } catch {
         // No clipboard (an old browser, or not allowed): select the text for a long-press copy.
-        details.open = true;
+        logView.parentElement.open = true;
         getSelection().selectAllChildren(logView);
         copyButton.textContent = 'Selected: copy it from the menu';
     }
@@ -129,8 +177,12 @@ async function analyse({ ask, ctx, photo, jd, mm35 = null, aim = null }) {
     const verdict = judgeSky(stats, stars, aim ? { minStars: 1 } : {});
     note('stars searched', { size: `${width}x${height}`, median: stats.median, white: stats.white, stars: stars.length, ms: Math.round(performance.now() - searching) });
     if (stars.length) {
-        note('brightest spots (peak/size px)', { spots: [...stars].sort((a, b) => b.peak - a.peak).slice(0, 8).map((st) => `${Math.round(st.peak)}/${Math.round(st.size)}`) });
+        // Enough to run the search again away from the phone: the brightest 60 spots'
+        // places, peaks and sizes. Positions in a picture only; no picture.
+        note('stars found (x,y,peak,size)', { spots: [...stars].sort((a, b) => b.peak - a.peak).slice(0, 60).map((st) => `${st.x.toFixed(1)},${st.y.toFixed(1)},${Math.round(st.peak)},${Math.round(st.size)}`) });
     }
+    if (aim) note('aimed', { jd: jd.toFixed(6), focalPx: aim.f0.toFixed(1), turn: aim.R0.map((v) => v.toFixed(5)) });
+    else note('time', { jd: jd.toFixed(6), lens35mm: mm35 });
     note('verdict', { ok: verdict.ok, reason: verdict.reason });
     ring(ctx, stars, verdict.ok ? '#7fd3ff' : '#ffb04d', width);
     canvas.hidden = false;
@@ -150,7 +202,10 @@ async function analyse({ ask, ctx, photo, jd, mm35 = null, aim = null }) {
             matched: data.matches?.length, fieldDeg: data.fov && [data.fov.width, data.fov.height],
             fitPx: data.rmsPixels, compassOffByDeg: data.offBy, lensVsGuess: data.lensVsGuess,
         });
-        if (data.matches) note('named', { stars: data.matches.map((m) => m.name) });
+        if (data.matches) {
+            note('named (name@x,y)', { stars: data.matches.map((m) => `${m.name}@${m.x.toFixed(1)},${m.y.toFixed(1)}`) });
+            note('answer', { focalPx: data.f.toFixed(1), turn: data.R.map((v) => v.toFixed(5)) });
+        }
         if (!data.solved) {
             status.textContent = tip(data.gaveUp ? NOT_SKY.slow : NOT_SKY.unmatched);
             return;
@@ -296,8 +351,9 @@ aimButton.addEventListener('click', async () => {
         watch();
         const fix = await where;
         place = fix.coords;
-        // Never the place itself: latitude to a whole degree is all the details need.
-        note('location', { latitudeDeg: Math.round(place.latitude), accuracyM: place.accuracy, ageS: (Date.now() - fix.timestamp) / 1000 });
+        // Never the place itself: to 0.1 degree (about 11 km) is all a re-run needs, well
+        // inside what the compass leaves (owner, 2026-11-24).
+        note('location', { latitude: place.latitude.toFixed(1), longitude: place.longitude.toFixed(1), accuracyM: Math.round(place.accuracy), ageS: Math.round((Date.now() - fix.timestamp) / 1000) });
         status.textContent = 'Point at the sky and hold the phone very still (leaning it on something helps), then press Shoot.';
         setTimeout(() => {
             if (stream && !compassSeen) {
