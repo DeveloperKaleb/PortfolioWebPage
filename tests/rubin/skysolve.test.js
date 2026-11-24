@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bestTurn, apply, skyObjects, planetsSeen, skyVector, raDec, solve, focalPixels, toPixel, cameraVector } from '../../js/skysolve.js';
+import { bestTurn, apply, skyObjects, planetsSeen, skyVector, raDec, solve, focalPixels, toPixel, cameraVector, brightnessOrder, BRIGHT_CHECK } from '../../js/skysolve.js';
 import { jdFromDate } from '../../js/orbit.js';
 
 function rng(seed) {
@@ -101,5 +101,32 @@ describe('plate solving', () => {
         const found = Array.from({ length: 25 }, () => ({ x: r() * 1600, y: r() * 1200, flux: r() })).sort((a, b) => b.flux - a.flux);
         let clock = 0;
         expect(solve(found, 1600, 1200, objects, { budgetMs: 10, now: () => (clock += 1) })).toEqual({ gaveUp: true });
+    });
+});
+
+describe('not fooled by spots that only look like a pattern (2026-11-24)', () => {
+    const objects = skyObjects(jdFromDate(new Date('2026-11-24T14:00:00Z')));
+    // Twelve equal dots on a near-regular grid, as drawn in a browser test: once named as
+    // six faint stars of Orion, with Rigel, Betelgeuse and the belt "in the picture" unseen.
+    const grid = Array.from({ length: 12 }, (_, i) => ({ x: 40 + i * 60, y: 50 + ((i * 137) % 500), flux: 300, peak: 250, size: 6 }));
+
+    it('finds no answer for the grid, and did find Orion without the bright-star checks', () => {
+        expect(solve(grid, 800, 600, objects, { budgetMs: 1e6 })).toBeNull();
+        const kept = { ...BRIGHT_CHECK };
+        try {
+            Object.assign(BRIGHT_CHECK, { atLeast: Infinity, minOrder: -Infinity });
+            const fooled = solve(grid, 800, 600, objects, { budgetMs: 1e6 });
+            expect(fooled.matches.map((m) => m.object.name)).toContain('Pi¹ Orionis');
+        } finally {
+            Object.assign(BRIGHT_CHECK, kept);
+        }
+    }, 60000);
+
+    it('scores brightness order from 1 (brightest spots on the brightest stars) to -1', () => {
+        const found = [{ flux: 900 }, { flux: 400 }, { flux: 100 }, { flux: 50 }];
+        const objs = [{ mag: 1 }, { mag: 2 }, { mag: 3 }, { mag: 4 }];
+        expect(brightnessOrder(found, objs, [[0, 0], [1, 1], [2, 2], [3, 3]])).toBe(1);
+        expect(brightnessOrder(found, objs, [[0, 3], [1, 2], [2, 1], [3, 0]])).toBe(-1);
+        expect(brightnessOrder(found, objs, [[0, 0], [1, 1]])).toBe(1); // too few to say
     });
 });

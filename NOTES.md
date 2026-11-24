@@ -5103,10 +5103,25 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
     as some desktop mail apps cut long links): the preview readings are thinned first
     (first and last two kept, the gap marked), then the frames, and only then is the end
     cut, and the dialog says so.
-- **Seen while testing the dialog (2026-11-24, not yet looked into):** twelve made-up dots
-  on a near-regular grid were "6 stars matched" as Orion with a 'sure' answer by the
-  pattern search. Real skies are not grids, but a sure answer from made-up dots is worth
-  a look before trusting 'sure' on sparse photos.
+- **False sure answers from few spots, found and fixed (2026-11-24).** Testing the dialog,
+  twelve made-up dots on a near-regular grid were "6 stars matched" as faint Orion stars
+  (3.7-4.8) by the pattern search, while that answer put Rigel, Betelgeuse, the belt and
+  eleven more stars brighter than 3.5 inside the picture, none found. Not a grid quirk:
+  **25 of 30 random fields of 12 dots got an answer**; 1 of 30 at 20 dots. The search only
+  asked whether the found spots lined up with something (half the brightest 20, to 2.5
+  px), and with few spots and 15 lenses x 120 triangles some chance turn always does.
+  Two checks in `refine` (js/skysolve.js `BRIGHT_CHECK`, tested in tests/rubin/skysolve):
+  - **Bright stars accounted for:** catalogue stars 0.3 mag or more brighter than the
+    faintest matched one, inside the matched stars' convex hull (so a roof or trees over
+    part of the picture excuse what they cover), must be at least half seen.
+  - **Brightness order:** the spots' and stars' brightness ranks must agree (Spearman 0.3
+    or more); burnt-out bright stars still keep their rank.
+  - Sweeps (scratch scripts, made-up skies at 800x600, 26 mm): random fields of 9-15 dots
+    2 answers in 180 (was ~25 in 30); real skies to mag 3-4.8 (8-30 stars, half with a
+    cloud edge, fake spots) 96 of 100 named, as before; harsher (a cloud mid-picture and a
+    quarter of stars lost) 91 of 100, from 95. A share of 0.6 lost 17 of 76 harsh skies,
+    so 0.5. No real sky was ever named wrongly in any sweep. The aim-and-shoot search
+    (js/skyaim.js) has its own missing-star cost and is unchanged.
 
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
 and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);

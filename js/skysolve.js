@@ -349,12 +349,88 @@ function refine(found, width, height, objects, map, f0, pairs) {
     const topMatched = pairs.filter(([i]) => i < 20).length;
     if (topMatched < Math.ceil(0.5 * Math.min(found.length, 20))) return null;
     if (fit.rms * fit.f > 2.5) return null;
+    if (missesBrightStars(found, objects, fit, pairs, width, height)) return null;
+    if (brightnessOrder(found, objects, pairs) < BRIGHT_CHECK.minOrder) return null;
     const centre = raDec(apply(fit.R, [0, 0, 1]));
     return {
         R: fit.R, f: fit.f, rms: fit.rms, centre,
         fov: { width: 2 * Math.atan(width / 2 / fit.f) / DEG, height: 2 * Math.atan(height / 2 / fit.f) / DEG },
         matches: pairs.map(([i, j]) => ({ star: found[i], object: objects[j] })),
     };
+}
+
+/** An answer must account for the bright stars it puts in the picture (2026-11-24). Twelve
+    made-up dots were named as faint stars of Orion while the same answer put Rigel,
+    Betelgeuse, the belt and eleven more stars brighter than 3.5 in the picture, none of
+    them found; 25 of 30 random fields of 12 dots got such an answer. Counted: the
+    catalogue objects at least `brighterBy` magnitudes brighter than the faintest matched
+    one (`from`; 'median' was tried), inside the outline (convex hull) of the matched stars,
+    so a roof or trees across part of the picture hide nothing counted; seen if a found spot
+    is within `nearPx` (or 4x the fit's miss). With at least `atLeast` counted, under
+    `share` seen is no answer. Then `minOrder`: the brightness order (brightnessOrder) of
+    spots and stars must agree at least that well.
+    Measured on made-up skies (NOTES.md, "Sky photos"): random fields of 9-15 dots matched
+    2 times in 180, from about 25 in 30; real skies of 8-30 stars named 96 of 100 as before,
+    and 91 of 100 (95 before) with a cloud in mid-picture and a quarter of stars lost.
+    A share of 0.6 lost 17 of 76 of those. */
+export const BRIGHT_CHECK = { brighterBy: 0.3, share: 0.5, atLeast: 3, nearPx: 6, from: 'faintest', minOrder: 0.3 };
+function missesBrightStars(found, objects, fit, pairs, width, height) {
+    const hull = convexHull(pairs.map(([i]) => [found[i].x, found[i].y]));
+    if (hull.length < 3) return false;
+    const mags = pairs.map(([, j]) => objects[j].mag).sort((a, b) => a - b);
+    const limit = (BRIGHT_CHECK.from === 'faintest' ? mags.at(-1) : mags[mags.length >> 1]) - BRIGHT_CHECK.brighterBy;
+    const used = new Set(pairs.map(([, j]) => j));
+    const near = Math.max(BRIGHT_CHECK.nearPx, 4 * fit.rms * fit.f);
+    const solution = { R: fit.R, f: fit.f };
+    let counted = 0, seen = 0;
+    for (let j = 0; j < objects.length && objects[j].mag < limit; j++) {
+        if (used.has(j)) { counted++; seen++; continue; }
+        const p = toPixel(solution, objects[j].v, width, height);
+        if (!p || !insideHull(hull, p.x, p.y)) continue;
+        counted++;
+        if (found.some((s) => Math.hypot(s.x - p.x, s.y - p.y) <= near)) seen++;
+    }
+    return counted >= BRIGHT_CHECK.atLeast && seen < BRIGHT_CHECK.share * counted;
+}
+/** How well the found spots' brightness order follows their stars' (Spearman's rank
+    correlation, -1 to 1): a true answer pairs the brightest spots with the brightest stars,
+    give or take burnt-out ones; spots that fit a pattern by chance follow no order. */
+export function brightnessOrder(found, objects, pairs) {
+    const n = pairs.length;
+    if (n < 3) return 1;
+    const rank = (values) => {
+        const order = values.map((v, k) => [v, k]).sort((a, b) => a[0] - b[0]);
+        const r = new Array(n);
+        order.forEach(([, k], at) => { r[k] = at; });
+        return r;
+    };
+    const a = rank(pairs.map(([i]) => -found[i].flux)), b = rank(pairs.map(([, j]) => objects[j].mag));
+    let d2 = 0;
+    for (let k = 0; k < n; k++) d2 += (a[k] - b[k]) ** 2;
+    return 1 - 6 * d2 / (n * (n * n - 1));
+}
+/* The convex hull of points [x, y], anticlockwise in the picture's own axes (monotone chain). */
+function convexHull(points) {
+    const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (pts.length < 3) return pts;
+    const cross2 = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const half = (list) => {
+        const out = [];
+        for (const p of list) {
+            while (out.length >= 2 && cross2(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+            out.push(p);
+        }
+        out.pop();
+        return out;
+    };
+    return [...half(pts), ...half([...pts].reverse())];
+}
+function insideHull(hull, x, y) {
+    for (let k = 0; k < hull.length; k++) {
+        const [ax, ay] = hull[k], [bx, by] = hull[(k + 1) % hull.length];
+        if ((bx - ax) * (y - ay) - (by - ay) * (x - ax) < 0) return false;
+    }
+    return true;
 }
 
 /* Drops line-ups whose brightness disagrees: the photo's magnitude scale is its own
