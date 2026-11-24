@@ -201,7 +201,8 @@ under Vitest without a browser:
   Bayer, Flamsteed, … HD), for the name files beside the Gaia tiles; built by `npm run
   gaiastars:names`. See NOTES.md, "Star names".
 - `js/skyphoto.js` — sky photos: finding the stars in a visitor's photo of the night sky,
-  whether a photo is one (politely saying so if not), and the lens and time from its EXIF.
+  whether a photo is one (politely saying so if not), and the lens and time from its EXIF;
+  also `shotLog`, the details of each attempt that the page shows for the visitor to share.
   Its test page is `rubin/skyphoto.html`, linked from the Solar System tab. See NOTES.md, "Sky photos".
 - `js/skyaim.js` — sky photos, aim and shoot: where the phone says its camera points
   (DeviceOrientation, place and sidereal time to a turn of the sky), and naming as few as

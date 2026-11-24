@@ -275,3 +275,54 @@ function readTiff(b, start, length) {
     }
     return { mm35: mm > 0 ? mm : null, taken };
 }
+
+/* ---- The details of one attempt (owner, 2026-11-23) ----
+   What the page asked the camera and sensors for, what it got, frame by frame, and what the
+   analysis made of it, as plain text the visitor can copy and send if something went wrong.
+   Kept only in the page: thrown away by the next attempt or by leaving. No picture, and no
+   place finer than a whole degree of latitude. */
+
+/** Lines kept per attempt; a long wait with the camera open must not grow without end. */
+export const LOG_MAX = 400;
+
+/** One value as the log writes it: numbers to 4 figures, {min, max} as a range, lists
+    joined, nothing as "none". */
+export function logValue(v) {
+    if (v == null) return 'none';
+    if (typeof v === 'number') return Number.isFinite(v) ? String(Number.isInteger(v) ? v : Number(v.toPrecision(4))) : String(v);
+    if (Array.isArray(v)) return `[${v.map(logValue).join(', ')}]`;
+    if (typeof v === 'object') {
+        if ('min' in v && 'max' in v) return `${logValue(v.min)}-${logValue(v.max)}`;
+        return `{${Object.entries(v).map(([k, x]) => `${k} ${logValue(x)}`).join(', ')}}`;
+    }
+    return String(v);
+}
+
+/** One line: seconds since the attempt began, what happened, and its figures. */
+export function logLine(seconds, what, fields = {}) {
+    const parts = Object.entries(fields).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}=${logValue(v)}`);
+    return `${seconds.toFixed(2).padStart(7)} s  ${what}${parts.length ? `: ${parts.join(', ')}` : ''}`;
+}
+
+/** A log for one attempt. now() is in milliseconds (performance.now on the page). */
+export function shotLog(now) {
+    const start = now();
+    const lines = [];
+    let dropped = 0;
+    return {
+        add(what, fields) {
+            if (lines.length < LOG_MAX) lines.push(logLine((now() - start) / 1000, what, fields));
+            else dropped++;
+        },
+        text() {
+            return dropped ? `${lines.join('\n')}\n(${dropped} more lines not kept)` : lines.join('\n');
+        },
+    };
+}
+
+/** Mean brightness 0-255 of RGBA bytes, from every step-th pixel: cheap enough per frame. */
+export function meanBrightness(rgba, step = 97) {
+    let sum = 0, n = 0;
+    for (let p = 0; p < rgba.length; p += 4 * step) { sum += 0.2126 * rgba[p] + 0.7152 * rgba[p + 1] + 0.0722 * rgba[p + 2]; n++; }
+    return n ? sum / n : 0;
+}

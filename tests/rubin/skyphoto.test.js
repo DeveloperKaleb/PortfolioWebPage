@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE } from '../../js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -125,5 +125,39 @@ describe('photo EXIF', () => {
     it('says nothing for a file without it', () => {
         expect(readExif(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toEqual({ mm35: null, taken: null });
         expect(readExif(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))).toEqual({ mm35: null, taken: null });
+    });
+});
+
+describe('the details of an attempt', () => {
+    it('writes values short and plain', () => {
+        expect(logValue(null)).toBe('none');
+        expect(logValue(3)).toBe('3');
+        expect(logValue(1 / 3)).toBe('0.3333');
+        expect(logValue({ min: 1, max: 2500 })).toBe('1-2500');
+        expect(logValue(['manual', 'continuous'])).toBe('[manual, continuous]');
+        expect(logValue({ a: 1, b: 'x' })).toBe('{a 1, b x}');
+        expect(logValue(true)).toBe('true');
+    });
+
+    it('stamps each line with the seconds since the attempt began, leaving out what is undefined', () => {
+        expect(logLine(1.234, 'frame', { n: 2, shown: undefined, brightness: 12.345 })).toBe('   1.23 s  frame: n=2, brightness=12.35');
+        expect(logLine(0, 'cancelled')).toBe('   0.00 s  cancelled');
+    });
+
+    it('keeps at most LOG_MAX lines and says how many it dropped', () => {
+        let t = 1000;
+        const log = shotLog(() => t);
+        for (let i = 0; i < LOG_MAX + 5; i++) { t += 10; log.add('preview', { i }); }
+        const lines = log.text().split('\n');
+        expect(lines).toHaveLength(LOG_MAX + 1);
+        expect(lines[0]).toBe('   0.01 s  preview: i=0');
+        expect(lines.at(-1)).toBe('(5 more lines not kept)');
+    });
+
+    it('measures mean brightness from a sample of pixels', () => {
+        const rgba = new Uint8ClampedArray(4 * 1000).fill(40);
+        expect(meanBrightness(rgba)).toBeCloseTo(40, 6);
+        expect(meanBrightness(rgba, 1)).toBeCloseTo(40, 6);
+        expect(meanBrightness(new Uint8ClampedArray(0))).toBe(0);
     });
 });

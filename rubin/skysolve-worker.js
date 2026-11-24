@@ -1,9 +1,10 @@
 /* The sky-photo page's matching (js/skysolve.js, js/skyaim.js), off the page's own thread
  * so the page stays usable while it works. Takes { stars, width, height, jd, mm35, aim },
  * aim being { R0, f0 } for a shot taken in the page with the phone's sensors, and answers
- * with the solution's plain numbers and names, or { solved: false, gaveUp }. */
+ * with the solution's plain numbers and names, or { solved: false, gaveUp }; either way
+ * with route (which search answered) for the page's details of the attempt. */
 import { skyObjects, solve, GUESS_MM, SOLVE } from '/PortfolioWebPage/js/skysolve.js';
-import { solveAimed } from '/PortfolioWebPage/js/skyaim.js';
+import { solveAimed, turnBetween } from '/PortfolioWebPage/js/skyaim.js';
 
 let objects = null, objectsJd = null;
 
@@ -12,13 +13,13 @@ self.onmessage = ({ data }) => {
     // The planets move about a degree a day at most; one catalogue a day is plenty.
     if (!objects || Math.abs(jd - objectsJd) > 0.5) { objects = skyObjects(jd); objectsJd = jd; }
     const started = performance.now();
-    let got = null;
+    let got = null, route = aim ? 'compass' : 'pattern';
     if (aim) {
         // Enough stars for the pattern alone: that first, as it does not trust the compass.
         // The lens is near the guess, so only the main cameras' lengths, and not for long.
         if (stars.length >= SOLVE.minMatches) {
             const pattern = solve(stars, width, height, objects, { mm: GUESS_MM.slice(0, 8), budgetMs: 5000 });
-            if (pattern && !pattern.gaveUp) got = { ...pattern, confidence: 'sure' };
+            if (pattern && !pattern.gaveUp) { got = { ...pattern, confidence: 'sure' }; route = 'pattern first'; }
         }
         got ??= solveAimed(stars, width, height, objects, aim);
     } else {
@@ -28,9 +29,12 @@ self.onmessage = ({ data }) => {
         if (got && !got.gaveUp) got.confidence = 'sure';
     }
     const ms = Math.round(performance.now() - started);
-    if (!got || got.gaveUp) { self.postMessage({ solved: false, gaveUp: Boolean(got?.gaveUp), ms }); return; }
+    if (!got || got.gaveUp) { self.postMessage({ solved: false, gaveUp: Boolean(got?.gaveUp), ms, route }); return; }
     self.postMessage({
-        solved: true, ms, confidence: got.confidence,
+        solved: true, ms, route, confidence: got.confidence,
+        // How far the answer is from where the phone said it pointed, and its lens from the
+        // guess: what the compass and the lens guess are really worth, on a real phone.
+        offBy: aim ? turnBetween(aim.R0, got.R) * 180 / Math.PI : null, lensVsGuess: aim ? got.f / aim.f0 : null,
         R: got.R, f: got.f, rmsPixels: got.rms * got.f, centre: got.centre, fov: got.fov,
         matches: got.matches.map((m) => ({ x: m.star.x, y: m.star.y, name: m.object.name, mag: m.object.mag, planet: Boolean(m.object.planet) })),
     });

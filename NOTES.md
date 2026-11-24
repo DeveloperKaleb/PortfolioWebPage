@@ -5067,6 +5067,23 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
   to tilt up; and a bright aim-and-shoot picture is called glare (`NOT_SKY.glare`), never
   daytime, since the visitor is plainly out under the sky trying. If the next test still turns
   white, the ISO request (still the maximum) is the next suspect.
+- **The details of each attempt (owner, 2026-11-23).** So the next failure is measured, not
+  guessed: every attempt keeps a plain-text log (`shotLog` in js/skyphoto.js), always on,
+  folded under the result as "Something look wrong? Details to share", with a Copy button
+  and a line asking the visitor to send it to Kaleb. Thrown away by the next attempt or by
+  leaving; nothing is sent by the page. It holds: page stamp, browser, screen, cores and
+  memory, and the phone's model where Chrome gives it (`userAgentData`; its agent line hides
+  the model, and Safari never gives one); the page being hidden (screen locked, another
+  app), the camera muted or ended by the phone, and uncaught errors on the page or in the
+  worker; the
+  camera's capabilities, what was asked, any refusal and the settings after; the first
+  event of each sensor type and counts; location as accuracy and latitude to a whole degree
+  only; the preview's brightness, exposure and aim every 2 s (10 s after a minute); every
+  stacked frame's gap, presentedFrames and brightness; the background, the brightest spots
+  and the verdict; and the solver's route, time, confidence, and on a match how far the
+  answer was from the compass (`offBy`) and the lens from its guess (`lensVsGuess`), which
+  is how the compass tolerance and the 26 mm guess get checked on real phones. Never a
+  picture, a file name or a finer place. At most `LOG_MAX` (400) lines.
 
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
 and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);

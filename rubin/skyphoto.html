@@ -8,8 +8,8 @@
          It finds the stars in a photo and names them (step 2, js/skysolve.js). The
          photo never leaves the phone: it is read and searched in this page. -->
     <meta name="robots" content="noindex" />
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261123-1745" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261123-1745" rel="stylesheet" />
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261123-1759" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261123-1759" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -39,10 +39,24 @@
         </div>
         <p id="skyphoto-status" role="status" aria-live="polite"></p>
         <canvas id="skyphoto-canvas" hidden></canvas>
+        <!-- The details of the last attempt (owner, 2026-11-23): always kept, cleared by the
+             next attempt or by leaving, sent nowhere unless the visitor sends them. -->
+        <details id="skyphoto-details" class="skyphoto-details" hidden>
+            <summary>Something look wrong? Details to share</summary>
+            <p>
+                What the camera, compass and star search did on this attempt. If something
+                went wrong, copy them and send them to Kaleb (contact links are on the
+                <a href="/PortfolioWebPage/">home page</a>). No picture is in them, and no
+                place finer than your latitude to the nearest degree. They stay on this page
+                until your next attempt.
+            </p>
+            <p><button id="skyphoto-copy" type="button">Copy details</button></p>
+            <pre id="skyphoto-log"></pre>
+        </details>
     </main>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261123-1745"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261123-1745"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261123-1745"></script>
-    <script type="module" src="./skyphoto.js?v=20261123-1745"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261123-1759"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261123-1759"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261123-1759"></script>
+    <script type="module" src="./skyphoto.js?v=20261123-1759"></script>
 </body>
 </html>
