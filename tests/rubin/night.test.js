@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 /* rubin/night.js is a classic script (it runs in the page's head, before the page paints),
    so it is run here in a sandbox and its window.skyNight tested. */
-function load({ coarse = true, stored = {}, search = '' } = {}) {
+function load({ coarse = true, stored = {}, search = '', layoutOnly = false } = {}) {
     const store = { ...stored };
     const classes = new Set();
     const window = {
@@ -16,6 +16,7 @@ function load({ coarse = true, stored = {}, search = '' } = {}) {
     const document = {
         documentElement: { classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)), contains: (c) => classes.has(c) } },
         querySelector: () => null,
+        currentScript: { hasAttribute: (name) => layoutOnly && name === 'data-layout-only' },
     };
     vm.runInNewContext(readFileSync(resolve(__dirname, '../../rubin/night.js'), 'utf8'), { window, document, Date, Math, JSON, String, Number, Boolean, isFinite });
     return { night: window.skyNight, classes, store };
@@ -74,5 +75,15 @@ describe('night mode: when it is dark', () => {
         expect(load({ coarse: false }).classes.has('phone')).toBe(false);
         expect(load({ coarse: false, search: '?layout=phone' }).classes.has('phone')).toBe(true);
         expect(load({ coarse: true, search: '?x=1&layout=wide' }).classes.has('phone')).toBe(false);
+    });
+});
+
+describe('night mode: the Cosmic Address page', () => {
+    it('takes the phone layout but never night mode, with data-layout-only', () => {
+        const late = { 'skyphoto-night': JSON.stringify({ on: true, until: Date.now() + 3600000 }) };
+        const { classes } = load({ stored: late, layoutOnly: true });
+        expect(classes.has('phone')).toBe(true);
+        expect(classes.has('night')).toBe(false);
+        expect(load({ stored: late }).classes.has('night')).toBe(true);
     });
 });

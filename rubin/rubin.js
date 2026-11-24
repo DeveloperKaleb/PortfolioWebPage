@@ -13,7 +13,7 @@
 import {
     DIGEST_URL, CHANGES_URL, SPACECRAFT_URL, FILTER_FROM, matchesQuery, initialView, zoomAt, panBy, toWorld, ringRadii, ringLabel, ringLabelSpot, glideView, journeyView, unseenHoles,
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
-    zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
+    zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, PHONE_MAP_GUTTER, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeLines, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
     rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, LABEL, nasaImages, knownRow, knownWorlds, isKnownShape,
     sizeRange, STAR_SIZES, sizeLineup, lineupText, lineupSubjects, LINEUP_PX,
@@ -794,7 +794,8 @@ function drawMap(digest) {
     if (!data.marks.length) { section.hidden = true; return; }
     /* Drawn at the width it is shown (mapSizeFor); the stylesheet sets the same width. Full
        screen draws it again, larger (resize). */
-    let SIZE = mapSizeFor(document.documentElement.clientWidth);
+    const gutter = PHONE ? PHONE_MAP_GUTTER : undefined;
+    let SIZE = mapSizeFor(document.documentElement.clientWidth, gutter);
     /* The ruler keeps the size it was made at: full screen leaves it out. */
     const RULER_SIZE = SIZE;
     let view = initialView(data.radius, SIZE);
@@ -2327,6 +2328,26 @@ function drawMap(digest) {
     controls.append(travel, zooming, looking);
     panel.append(controls, under);
     stage.append(panel, frame, sizeBox);
+    /* The phone view (owner, 2026-11-24): the same controls, rearranged as a maps app has
+       them. Zoom on the map's corner; under it, within the thumb's reach, Go to and its
+       filter, then Places (the three wide views, in a menu), Whole map, Flat or 3D, Show,
+       Spacecraft and full screen; the menus open as sheets from the foot of the screen
+       (style.css, html.phone). Nothing the map does is left out. */
+    if (PHONE) {
+        const float = el('div', { class: 'rubin-map-float', role: 'group', 'aria-label': 'Zoom' });
+        float.append(zoomIn, zoomOut);
+        frame.append(float);
+        const places = dropdown('Places ▾', 'rubin-map-places', 'Places the map can show', 'rubin-map-places');
+        for (const button of [nearestButton, blockButton, hoodButton].filter(Boolean)) {
+            places.menu.append(button);
+            button.addEventListener('click', () => places.open(false));
+        }
+        travel.replaceChildren(goBox, filter.box);
+        const viewing = el('span', { class: 'rubin-map-group rubin-map-viewing', role: 'group', 'aria-label': 'Where the map is and how it looks' });
+        viewing.append(places.box, reset, depth, showBox, craft.box, fullButton);
+        controls.replaceChildren(travel, viewing);
+        stage.append(frame, panel, sizeBox);
+    }
     const tooltipHome = tooltip.parentNode;
     function resize(next) {
         if (next === SIZE) return;
@@ -2345,7 +2366,7 @@ function drawMap(digest) {
     const fit = () => {
         stage.classList.remove('is-side');
         stage.append(sizeBox);
-        if (!filling) { frame.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth)); return; }
+        if (!filling) { frame.style.width = ''; resize(mapSizeFor(document.documentElement.clientWidth, gutter)); return; }
         const [w, h] = [stage.clientWidth || innerWidth, stage.clientHeight || innerHeight];
         const aboveSize = fullScreenSizeFor(w, h, { above: panel.offsetHeight + sizeBox.offsetHeight + 32 });
         stage.classList.add('is-side');
@@ -2389,19 +2410,19 @@ function drawMap(digest) {
 
     const holder = section.querySelector('.rubin-plot');
     const present = [...new Set(data.marks.map((m) => m.kind))];
-    holder.replaceChildren(
-        legend([
+    const mapLegend = legend([
             ...present.map((k) => ({ label: MARK_STYLE[k].label, swatch: mark(MARK_STYLE[k], 11, 7, 4) })),
             ...['planet', 'hydrogen', 'water'].map((kind) => ({
                 label: KIND_LABEL[kind], tundr: kind !== 'planet', swatch: svg('circle', { cx: 11, cy: 7, r: 3.5, fill: C.muted }),
             })),
-        ]),
-        stage,
-        ruler,
-        lightNow,
-        lightFirst,
-        rulerNote,
-    );
+    ]);
+    /* On a phone the map comes first, its key under it, and the longer words fold into
+       "About this map" (the caption joins them below). */
+    const about = PHONE ? el('details', { class: 'rubin-table-view rubin-map-about' }) : null;
+    if (PHONE) {
+        about.append(el('summary', {}, 'About this map'), lightFirst, rulerNote);
+        holder.replaceChildren(stage, ruler, lightNow, mapLegend, about);
+    } else holder.replaceChildren(mapLegend, stage, ruler, lightNow, lightFirst, rulerNote);
     /* A short lead, and the rest under "How to read the map", each thing said once: the
        ruler's note above already gives Alpha Centauri's distance, Proxima and the hatching
        (owner, 2026-11-23: the caption ran to 800 words and repeated itself). */
@@ -2420,6 +2441,13 @@ function drawMap(digest) {
             guide(`"Show" turns the sky, Gaia's stars, the distance rings, the hatching and the plane lines on or off. "Spacecraft" adds the spacecraft sent out to do science, working and not, each where it is: those flying free on the paths JPL's Horizons gives, and those orbiting a planet or the Moon, or looping about the points 1.5 million km from Earth where the Sun's and Earth's pulls balance, beside that body. Satellites in orbit about Earth are left out: most are commercial.`),
         ),
     );
+    if (PHONE) {
+        const caption = section.querySelector('figcaption');
+        const words = el('div', { class: 'rubin-note' });
+        words.append(...caption.childNodes);
+        about.append(words);
+        caption.hidden = true;
+    }
 
     const mapTable = table(
         ['Object', 'Listed as', 'From the Sun', 'Along the plane and out of it', 'Size'],
@@ -2808,6 +2836,9 @@ async function getJson(url) {
 
 /* A preview can point the page at a local digest: ?digest=path (and ?changes=path). */
 const params = new URLSearchParams(location.search);
+/* The phone layout, set before the page painted by rubin/night.js (a coarse pointer, or
+   ?layout=phone to preview it on a computer). */
+const PHONE = document.documentElement.classList.contains('phone');
 
 async function loadDigest() {
     try {

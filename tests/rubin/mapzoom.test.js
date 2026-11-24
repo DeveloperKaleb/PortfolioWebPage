@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { mapSizeFor, MAP_WIDTH } from '../../js/rubinview.js';
+import { mapSizeFor, MAP_WIDTH, PHONE_MAP_GUTTER } from '../../js/rubinview.js';
 import { planetsOn, planetElements, VALID_UNTIL_JD } from '../../js/planets.js';
 import { jdFromDate } from '../../js/orbit.js';
 import {
@@ -113,7 +113,10 @@ describe('Map size', () => {
         expect(mapSizeFor(1400)).toBe(MAP_WIDTH);
         expect(MAP_WIDTH / 600).toBeGreaterThanOrEqual(1.25);
     });
-    test('the screen less 16px each side on a phone', () => {
+    test('the screen less 16px each side on a narrow computer window', () => {
         expect(mapSizeFor(390)).toBe(358);
+    });
+    test("the phone view's map runs edge to edge", () => {
+        expect(mapSizeFor(390, PHONE_MAP_GUTTER)).toBe(390);
     });
 });

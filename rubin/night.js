@@ -4,7 +4,8 @@
  * Sun is 6 degrees below the horizon (civil twilight's end); a visitor's own choice wins
  * for 12 hours. The colours are js/nightcolors.js's, held to the contrast rules.
  *
- * It also marks the phone layout (html.phone: a coarse pointer, or ?layout=phone to preview
+ * It also marks the phone layout (for the Cosmic Address page too, which loads it with
+ * data-layout-only and so never turns night mode on): html.phone: a coarse pointer, or ?layout=phone to preview
  * it on a computer; ?layout=wide the other way), for the same reason.
  *
  * A classic script loaded in the head, before the page paints, so a phone at night never
@@ -96,8 +97,14 @@
         phoneLayout: phoneLayout, apply: apply, current: current, choose: choose, rememberPlace: rememberPlace,
         DUSK: DUSK, KEEP_CHOICE_MS: KEEP_CHOICE_MS,
     };
+    /* A page that wants only the layout (the Cosmic Address page: no night mode there yet)
+       loads it with data-layout-only. */
+    var layoutOnly = false;
+    try { layoutOnly = Boolean(document.currentScript && document.currentScript.hasAttribute('data-layout-only')); } catch (e) { /* both */ }
     if (typeof document !== 'undefined' && document.documentElement) {
         try { document.documentElement.classList.toggle('phone', phoneLayout(window.location && window.location.search, isPhone())); } catch (e) { /* computer layout */ }
-        try { apply(current()); } catch (e) { /* day colours */ }
+        if (!layoutOnly) {
+            try { apply(current()); } catch (e) { /* day colours */ }
+        }
     }
 })();

@@ -3078,6 +3078,29 @@ This replaces the section order approved on 2026-10-02 (below), in which the map
    is likely to grow a lot.)* New layers are optional (off by default, like Spacecraft),
    and the page stays fast and readable on a phone however much is added.
 
+**The phone view (owner, 2026-11-24).** The owner asked for a strong phone-only view,
+keeping the map and all it can do, and took three stages: (1) the map first, as a maps app
+has it; (2) every section below as a one-line headline that opens; (3) phone versions of
+the heavy parts (the far edge's explanations table as cards, readable history chart, one
+picker). Computers keep the page exactly as it is. On a phone 390 px wide the page was
+about 10,000 px long, the map shared its column with four rows of buttons and 1,000 px
+of text, and the far edge alone was 3,300 px.
+- **How a phone is told:** `rubin/night.js` (the sky-photo page's head script) loaded with
+  `data-layout-only` sets `html.phone` before the page paints (a coarse pointer, or
+  `?layout=phone` to preview it), and never turns night mode on here. `PHONE` in
+  `rubin/rubin.js` reads the class.
+- **Stage 1, the map:** edge to edge (`PHONE_MAP_GUTTER`); + and − on its corner; under it
+  Go to (its list opens upward, over the map, clear of the keyboard; 16 px text so an
+  iPhone does not zoom) and Filter, then Places (Galactic street, block, neighborhood, in
+  a menu), Whole map, Flat or 3D, Show, Spacecraft and full screen. Every menu opens as a
+  sheet from the foot of the screen. The same buttons and handlers as on a computer,
+  only rearranged, so nothing the map does is lost. The light ruler and this visit's light
+  stay; the first visit's light, the ruler's note and the caption (with "How to read the
+  map") fold into "About this map", the key under the map. In full screen the sizes box is
+  shortened to 120 px so the map takes the screen's width.
+- Seen only at 390 px in a frame on a computer (the browser tool cannot be a phone): no
+  real touch, pinch, keyboard or iPhone full screen tried.
+
 **Rules it keeps while doing that** (decided already; see their sections): Rubin is the
 source of truth; data from the same origin only; the far edge's honesty rules; science
 spacecraft only (commercial maybe later); the contrast rules in `js/contrast.js`.

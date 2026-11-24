@@ -378,7 +378,9 @@ export const maxZoomOf = (view) => Math.max(MAP_ZOOM.max, (view.radiusAU ?? 0) /
    so labels and marks stay their intended size instead of being stretched with it. */
 export const MAP_WIDTH = 750;
 export const MAP_GUTTER = 16;
-export const mapSizeFor = (viewportPx) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * MAP_GUTTER)));
+export const mapSizeFor = (viewportPx, gutter = MAP_GUTTER) => Math.max(240, Math.min(MAP_WIDTH, Math.round(viewportPx - 2 * gutter)));
+/* On a phone the map runs edge to edge (owner, 2026-11-24: the phone view is the map first). */
+export const PHONE_MAP_GUTTER = 0;
 
 /* Full screen (owner, 2026-11-18), the map stays round and square: as large as fits the
    screen, less the gutter, and less the controls - above it (above, in pixels, with the

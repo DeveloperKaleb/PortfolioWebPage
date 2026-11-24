@@ -212,6 +212,8 @@ under Vitest without a browser:
   `rubin/skyphoto.js`. On a phone the page's layout and night mode (red on black after
   dusk) are set before it paints by `rubin/night.js`, a classic script in its head (tested
   in a sandbox); `?layout=phone` previews the phone layout on a computer.
+  The Cosmic Address page loads the same script with `data-layout-only` for its phone
+  view (`PHONE` in `rubin/rubin.js`; NOTES.md, "The phone view"), never its night mode.
 - `js/nightcolors.js` — the sky-photo page's night mode colours, held to the contrast rules.
 - `js/skysolve.js` — sky photos: which stars a photo shows (plate solving on the phone, no
   service asked): triangles of found stars matched to the catalogue for each likely lens,

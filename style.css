@@ -3313,6 +3313,114 @@ html.rubin-filling {
     white-space: pre;
 }
 
+/* --- Our Cosmic Address on a phone (html.phone, set by rubin/night.js with
+   data-layout-only; owner, 2026-11-24: a phone view of its own, keeping the map and all it
+   can do). Stage 1, the map: edge to edge, zoom on its corner, the controls under it
+   within the thumb's reach, the menus as sheets from the foot of the screen. The colours
+   are the tab's own (menus' #17120e and #e3e7af). --- */
+html.phone #rubin-map .rubin-map-frame {
+    width: 100vw;
+}
+
+html.phone .rubin-map-float {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+html.phone .rubin-map-float .rubin-tool {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 22px;
+    line-height: 1;
+    background: #17120e;
+}
+
+html.phone #rubin-map .rubin-map-stage:not(.is-filling) .rubin-map-panel {
+    margin-top: 10px;
+}
+
+html.phone #rubin-map .rubin-map-controls .rubin-tool {
+    min-height: 44px;
+    font-size: 16px;
+}
+
+/* Go to: the whole width, its list opening upward over the map, clear of the keyboard.
+   16px text, below which an iPhone zooms the page on typing. */
+html.phone .rubin-map-travel {
+    display: flex;
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+html.phone .rubin-map-go {
+    flex: 1;
+    min-width: 0;
+}
+
+html.phone .rubin-map-go-input {
+    width: 100%;
+    max-width: none;
+    min-height: 44px;
+    font-size: 16px;
+}
+
+html.phone .rubin-map-go-list {
+    top: auto;
+    bottom: calc(100% + 4px);
+    max-height: min(55vh, 420px);
+    max-width: calc(100vw - 16px);
+}
+
+html.phone .rubin-map-go-option {
+    min-height: 44px;
+}
+
+/* The menus (Places, Filter, Show, Spacecraft) as sheets along the foot of the screen. */
+html.phone .rubin-map-show-menu {
+    position: fixed;
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 50;
+    min-width: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.6);
+}
+
+html.phone .rubin-map-show-item {
+    min-height: 44px;
+    align-items: center;
+}
+
+html.phone .rubin-map-places .rubin-tool {
+    min-height: 48px;
+}
+
+html.phone .rubin-map-about {
+    margin-top: 12px;
+}
+
+/* In full screen on a phone the sizes keep to a short box of their own (it scrolls), so the
+   map, held to the screen's width anyway, keeps most of the height. */
+html.phone .rubin-map-stage.is-filling .rubin-size {
+    height: min(16vh, 120px);
+}
+
+html.phone .rubin-map-stage.is-filling .rubin-map-panel {
+    margin-top: 6px;
+}
+
 /* --- Sky photos on a phone (html.phone, set by rubin/night.js for a coarse pointer or
    ?layout=phone; owner, 2026-11-24) ---
    Larger type and controls, the short introduction instead of the long one, Aim and shoot
