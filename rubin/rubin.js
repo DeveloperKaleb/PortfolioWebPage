@@ -393,6 +393,7 @@ function select(designation, on, { scrollTo = false } = {}) {
     renderCards(picker);
     onPick(designation, on);
     if (on && scrollTo) {
+        openFold(picker.holder.closest('.rubin-section'));
         picker.cards.get(designation)?.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
     }
 }
@@ -2614,6 +2615,9 @@ function farMark(o, cx, cy, ground) {
 function drawFarEdge(digest) {
     const section = document.getElementById('rubin-faredge');
     const far = digest.farEdge;
+    /* Its headline gives the count, never the bunching alone: the number goes nowhere
+       without the count and the bias warning beside it (NOTES.md). */
+    if (far?.axes?.n) headline('rubin-faredge', `${far.axes.n} extreme orbits, measured each week`);
     if (!far || !far.objects?.length) { section.hidden = true; return; }
     const cuts = far.cuts;
 
@@ -2858,7 +2862,43 @@ async function loadDigest() {
     }
 }
 
+/* ---- The phone view, stage 2 (owner, 2026-11-24): each section below the map as one
+ * line, its heading and a few words of what is in it, opened with a tap. "What changed"
+ * comes first. Computers keep every section open as before. */
+function foldSections() {
+    if (!PHONE) return;
+    const passes = document.getElementById('rubin-passes');
+    passes.before(document.getElementById('rubin-changes'));
+    for (const section of document.querySelectorAll('main .rubin-section:not(#rubin-map)')) {
+        const heading = section.querySelector(':scope > h3');
+        if (!heading) continue;
+        const button = el('button', { type: 'button', class: 'rubin-fold', 'aria-expanded': 'false' });
+        button.append(el('span', { class: 'rubin-fold-title' }, heading.textContent), el('span', { class: 'rubin-fold-line' }, section.dataset.line ?? ''));
+        heading.replaceChildren(button);
+        section.classList.add('is-folded');
+        button.addEventListener('click', () => setFold(section, section.classList.contains('is-folded')));
+    }
+}
+function setFold(section, open) {
+    if (!section?.querySelector(':scope > h3 > .rubin-fold')) return;
+    section.classList.toggle('is-folded', !open);
+    section.querySelector(':scope > h3 > .rubin-fold').setAttribute('aria-expanded', String(open));
+}
+const openFold = (section) => { if (section?.classList.contains('is-folded')) setFold(section, true); };
+/* The few words after a section's heading. Kept on the section too, for a fold made later. */
+function headline(id, text) {
+    const section = document.getElementById(id);
+    if (!section) return;
+    section.dataset.line = text;
+    const line = section.querySelector('.rubin-fold-line');
+    if (line) line.textContent = text;
+}
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 async function render() {
+    foldSections();
+    headline('rubin-method', 'how the chance is worked out');
+    headline('rubin-sources', 'where every number comes from');
     drawChart();
     const status = document.getElementById('rubin-status');
     const { digest, stale } = await loadDigest();
@@ -2882,6 +2922,10 @@ async function render() {
     buildPicker('rubin-passes', passes, { onMap: true, group: '.rubin-likely' });
     buildPicker('rubin-watch', watch, { onMap: true, extra: (e) => ({ extra: whyWatched(e) }) });
     buildPicker('rubin-dark', largeIfDark);
+    const known = knownRow(digest).length;
+    headline('rubin-passes', passes.length ? `${known} known, ${passes.length} likely` : `${known} known`);
+    headline('rubin-watch', plural(watch.length, 'object'));
+    headline('rubin-dark', plural(largeIfDark.length, 'object'));
     drawMap(digest);
     drawFarEdge(digest);
 
@@ -2895,6 +2939,7 @@ async function render() {
             ? [el('li', {}, `This is the first digest, so everything in it is new: ${digest.entries.length} objects listed.`)]
             : changeLines(changes.entries, byDesignation).map((line) => el('li', {}, line))));
         if (!first && changes.entries.length === 0) list.replaceChildren(el('li', {}, 'Nothing changed since last month.'));
+        headline('rubin-changes', first ? 'the first digest: everything is new' : changes.entries.length ? plural(list.children.length, 'change') : 'nothing changed');
         document.getElementById('rubin-changes').hidden = false;
     } catch {
         /* No changes file reachable: the section stays hidden. */

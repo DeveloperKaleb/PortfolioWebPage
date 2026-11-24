@@ -3098,6 +3098,16 @@ of text, and the far edge alone was 3,300 px.
   stay; the first visit's light, the ruler's note and the caption (with "How to read the
   map") fold into "About this map", the key under the map. In full screen the sizes box is
   shortened to 120 px so the map takes the screen's width.
+- **Stage 2, the sections:** each section below the map is one line, its heading and a
+  few words of what is in it ("8 changes", "33 known, 39 likely", "286 objects"), opened
+  with a tap (`foldSections`, `headline` in `rubin/rubin.js`; the heading becomes a button
+  with `aria-expanded`). "What changed this month" moves first. The far edge's line gives
+  only its count ("18 extreme orbits, measured each week"), never the bunching: its
+  honesty rules keep the count and the bias warning beside that number. The "likely"
+  count is the chips under Likely, not the status line's total, which also counts the
+  passes already among the known worlds. Picking a body on the map or in the map's table
+  opens its section before scrolling to the card (`openFold`). On a phone 390 px wide the
+  page went from about 10,000 px to 2,400 with everything folded.
 - Seen only at 390 px in a frame on a computer (the browser tool cannot be a phone): no
   real touch, pinch, keyboard or iPhone full screen tried.
 
