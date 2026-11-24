@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, cameraAltitude, solveAimed, times, turnBetween } from '../../js/skyaim.js';
+import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness, STEADY, solveAimed, times, turnBetween } from '../../js/skyaim.js';
 import { apply, applyT, skyObjects, skyVector, focalPixels, toPixel } from '../../js/skysolve.js';
 import { jdFromDate } from '../../js/orbit.js';
 
@@ -150,5 +150,32 @@ describe('naming stars with the phone as a head start', () => {
         const t = performance.now();
         solveAimed(s.found, s.width, s.height, objects, { R0: s.R0, f0: s.f0 });
         expect(performance.now() - t).toBeLessThan(1500);
+    });
+});
+
+describe('how steady the phone is', () => {
+    const at = (t, alpha, beta, gamma) => ({ t, alpha, beta, gamma });
+
+    it('measures a steady turn in degrees a second', () => {
+        // Tilting up at 2 degrees a second, read 60 times a second.
+        const s = Array.from({ length: 40 }, (_, k) => at(1000 + k * 1000 / 60, 30, 100 + 2 * k / 60, 0));
+        expect(turnRate(s)).toBeCloseTo(2, 1);
+        expect(steadiness(turnRate(s))).toBe('moving');
+    });
+
+    it("does not count the sensor's flicker as shaking", () => {
+        // +-0.05 degrees of noise on a phone that is not moving.
+        const s = Array.from({ length: 40 }, (_, k) => at(1000 + k * 1000 / 60, 30 + (k % 2 ? 0.05 : -0.05), 100 + (k % 3 ? 0.05 : -0.05), 0));
+        expect(turnRate(s)).toBeLessThan(STEADY.still);
+        expect(steadiness(turnRate(s))).toBe('still');
+    });
+
+    it('looks only at the last moments, and says nothing until it can', () => {
+        const old = Array.from({ length: 30 }, (_, k) => at(k * 20, 30, 100 + k, 0)); // moving, long ago
+        const now = Array.from({ length: 40 }, (_, k) => at(5000 + k * 20, 30, 130, 0)); // still since
+        expect(steadiness(turnRate([...old, ...now]))).toBe('still');
+        expect(turnRate([at(0, 1, 2, 3)])).toBeNull();
+        expect(steadiness(null)).toBeNull();
+        expect(steadiness(0.5)).toBe('nearly');
     });
 });

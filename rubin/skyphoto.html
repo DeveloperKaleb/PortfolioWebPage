@@ -8,37 +8,83 @@
          It finds the stars in a photo and names them (step 2, js/skysolve.js). The
          photo never leaves the phone: it is read and searched in this page. -->
     <meta name="robots" content="noindex" />
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261124-0855" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261124-0855" rel="stylesheet" />
+    <meta name="theme-color" content="#3b3026" />
+    <!-- Night mode decides before the page paints (rubin/night.js), so a phone at night
+         never flashes the day colours. -->
+    <script src="/PortfolioWebPage/rubin/night.js?v=20261124-0920"></script>
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261124-0920" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261124-0920" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
     <main id="main" class="wrapper rubin skyphoto">
+        <p class="skyphoto-top">
+            <button id="skyphoto-night" class="skyphoto-night-toggle" type="button" aria-pressed="false">Night mode</button>
+        </p>
         <h2>Stars in your photo</h2>
-        <p class="rubin-subtitle">
+        <!-- Computers get the whole explanation; phones (pointer: coarse, style.css) one
+             line, with the rest folded under "How it works" (owner, 2026-11-24). -->
+        <p class="rubin-subtitle skyphoto-wide">
             A test: take a photo of the night sky, outside after dark, and this page finds
             its stars and names them. Your photo stays on your phone; nothing is uploaded.
         </p>
-        <p>
-            <label class="skyphoto-pick" for="skyphoto-file">Choose or take a photo</label>
-            <input id="skyphoto-file" type="file" accept="image/*" />
+        <p class="skyphoto-lead skyphoto-narrow">
+            Point your phone at the night sky and find out which stars you're seeing.
         </p>
-        <!-- Aim and shoot (NOTES.md, "Sky photos"): the camera in the page, with the phone's
-             compass, tilt and location, so a few stars are enough. -->
-        <p>
-            Or, for a sky with only a few stars showing:
-            <button id="skyphoto-aim" type="button">Aim and shoot</button>
-            <span class="skyphoto-note">Uses your camera, compass and location, here on your phone only.</span>
-        </p>
-        <div id="skyphoto-live" hidden>
-            <video id="skyphoto-video" playsinline muted></video>
+        <details class="skyphoto-how skyphoto-narrow">
+            <summary>How it works</summary>
             <p>
-                <button id="skyphoto-shoot" type="button">Shoot</button>
+                Aim and shoot uses your camera, compass and location to work out where the
+                phone is pointing, so even one or two stars can be enough. It takes about a
+                second, so hold still, or lean the phone on something.
+            </p>
+            <p>
+                You can also choose a photo you've already taken. That needs more stars
+                showing (six or more), because it goes by their pattern alone.
+            </p>
+            <p>
+                Everything happens here on your phone; nothing is uploaded. After dark the
+                page turns red, which keeps your eyes used to the dark. The Night mode button
+                switches it.
+            </p>
+        </details>
+        <div class="skyphoto-start">
+            <p class="skyphoto-photo">
+                <label class="skyphoto-pick" for="skyphoto-file">Choose or take a photo</label>
+                <input id="skyphoto-file" type="file" accept="image/*" />
+            </p>
+            <!-- Aim and shoot (NOTES.md, "Sky photos"): the camera in the page, with the
+                 phone's compass, tilt and location, so a few stars are enough. First on a
+                 phone. -->
+            <p class="skyphoto-aim">
+                <span class="skyphoto-wide">Or, for a sky with only a few stars showing:</span>
+                <button id="skyphoto-aim" type="button">Aim and shoot</button>
+                <span class="skyphoto-note">Uses your camera, compass and location, here on your phone only.</span>
+            </p>
+        </div>
+        <!-- The camera's view. On a phone it fills the screen like a camera app, with the
+             status, tilt and steadiness over it and the Shoot button under the thumb. -->
+        <div id="skyphoto-live" class="skyphoto-live" hidden>
+            <div class="skyphoto-view"><video id="skyphoto-video" playsinline muted></video></div>
+            <div class="skyphoto-hud">
+                <p id="skyphoto-live-status" aria-hidden="true"></p>
+                <p class="skyphoto-gauges">
+                    <span id="skyphoto-tilt"></span>
+                    <span id="skyphoto-steady"></span>
+                </p>
+            </div>
+            <p class="skyphoto-live-buttons">
                 <button id="skyphoto-cancel" type="button">Cancel</button>
+                <button id="skyphoto-shoot" class="skyphoto-shutter" type="button">Shoot</button>
             </p>
         </div>
         <p id="skyphoto-status" role="status" aria-live="polite"></p>
-        <canvas id="skyphoto-canvas" hidden></canvas>
+        <div class="skyphoto-view"><canvas id="skyphoto-canvas" hidden></canvas></div>
+        <!-- The numbers behind an answer: open on a computer, folded on a phone. -->
+        <details id="skyphoto-tech" class="skyphoto-tech" hidden>
+            <summary>Technical details</summary>
+            <p id="skyphoto-tech-text"></p>
+        </details>
         <!-- Help us calibrate (owner, 2026-11-24): the details of the last attempt, always
              kept, cleared by the next attempt or by leaving. Sent only by the visitor's own
              email app, after step 2 shows what is in them. -->
@@ -84,9 +130,9 @@
             </div>
         </dialog>
     </main>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261124-0855"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261124-0855"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261124-0855"></script>
-    <script type="module" src="./skyphoto.js?v=20261124-0855"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261124-0920"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261124-0920"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261124-0920"></script>
+    <script type="module" src="./skyphoto.js?v=20261124-0920"></script>
 </body>
 </html>

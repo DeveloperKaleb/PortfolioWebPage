@@ -3128,18 +3128,79 @@ html.rubin-filling {
 }
 
 /* Sky photos test page (rubin/skyphoto.html): the photo with its stars ringed, as wide as
-   the column, and the file input on its own line under its label. */
+   the column. Its controls take the site's button colours (UI_COLORS.dialog*, the
+   contrast-checked teal and cream), not the browser's white; on a phone and at night they
+   change again, below. */
 .skyphoto canvas {
     display: block;
     max-width: 100%;
     height: auto;
     margin: 1rem 0;
 }
-.skyphoto input[type="file"] {
-    display: block;
-    margin-top: 0.5rem;
+.skyphoto button,
+.skyphoto-pick {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font: inherit;
+    background: #002e2c;                    /* UI_COLORS.dialogBackground */
+    color: #eff1c5;                         /* UI_COLORS.dialogText */
+    border: 2px solid #dfe38c;
+    border-radius: 6px;
+    cursor: pointer;
 }
-/* Aim and shoot: the camera's view as wide as the column, its note on its own line. */
+/* Never opacity for a control that cannot be used yet: the site's disabled colours,
+   contrast-checked, and a dashed edge. */
+.skyphoto button:disabled {
+    background: #b9bba4;                    /* UI_COLORS.disabledBackground */
+    color: #2f2a1f;                         /* UI_COLORS.disabledText */
+    border-color: #2f2a1f;
+    border-style: dashed;
+    cursor: not-allowed;
+}
+/* The file input is opened by its label, styled as a button; the input itself stays in
+   the page (and the keyboard order) but out of sight. */
+.skyphoto input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+.skyphoto-photo:focus-within .skyphoto-pick {
+    outline: 2px solid #dfe38c;
+    outline-offset: 2px;
+}
+.skyphoto-top {
+    margin: 0;
+    text-align: right;
+}
+.skyphoto-night-toggle {
+    font-size: 0.9em;
+}
+.skyphoto-narrow {
+    display: none;
+}
+.skyphoto-tech {
+    margin: 0 0 1rem;
+}
+.skyphoto-tech summary,
+.skyphoto-how summary {
+    /* Padding, not flex, for the tap height: flex would take the fold's arrow away. */
+    padding: 0.7rem 0;
+    cursor: pointer;
+}
+/* The camera's view and the photo each sit in a .skyphoto-view, which carries night
+   mode's red layer over them. flow-root keeps the photo's margins inside it. */
+.skyphoto-view {
+    position: relative;
+    display: flow-root;
+}
+/* Aim and shoot on a computer: the camera's view as wide as the column, the live line and
+   gauges under it. */
 .skyphoto video {
     display: block;
     width: 100%;
@@ -3147,6 +3208,22 @@ html.rubin-filling {
     object-fit: contain;
     background: #000;
     margin-top: 0.5rem;
+}
+.skyphoto-hud p {
+    margin: 0.5rem 0 0;
+}
+.skyphoto-gauges {
+    display: flex;
+    gap: 1.25rem;
+    justify-content: center;
+}
+.skyphoto-live-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+.skyphoto-shutter {
+    font-weight: bold;
 }
 .skyphoto-note {
     display: block;
@@ -3234,4 +3311,195 @@ html.rubin-filling {
     overflow: auto;
     max-height: 40vh;
     white-space: pre;
+}
+
+/* --- Sky photos on a phone (html.phone, set by rubin/night.js for a coarse pointer or
+   ?layout=phone; owner, 2026-11-24) ---
+   Larger type and controls, the short introduction instead of the long one, Aim and shoot
+   first and full width, and the camera filling the screen like a camera app: the status,
+   tilt and steadiness over the top, Cancel and a round Shoot button under the thumb. Text
+   is 17px and the report box 16px, below which iOS zooms in on a tap. */
+html.phone .skyphoto {
+    font-size: 17px;
+    line-height: 1.45;
+}
+html.phone .skyphoto-wide {
+    display: none;
+}
+html.phone .skyphoto-narrow {
+    display: block;
+}
+html.phone .skyphoto-lead {
+    font-size: 1.15em;
+    text-align: center;
+    margin: 0 0 0.5rem;
+}
+html.phone .skyphoto-start {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+}
+html.phone .skyphoto-aim {
+    order: -1;
+}
+html.phone .skyphoto-start p {
+    margin: 0.25rem 0;
+    text-align: center;
+}
+html.phone .skyphoto-start button,
+html.phone .skyphoto-start .skyphoto-pick {
+    width: 100%;
+    min-height: 56px;
+    font-size: 1.1em;
+}
+html.phone .skyphoto-aim button {
+    font-weight: bold;
+}
+html.phone #skyphoto-status {
+    font-size: 1.1em;
+    scroll-margin-top: 0.5rem;
+}
+html.phone #skyphoto-words {
+    font-size: 16px;
+}
+html.phone.skyphoto-shooting,
+html.phone.skyphoto-shooting body {
+    overflow: hidden;
+}
+html.phone .skyphoto-live:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #000;
+}
+html.phone .skyphoto-live .skyphoto-view {
+    position: absolute;
+    inset: 0;
+}
+html.phone .skyphoto-live video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    /* contain, not cover: the whole picture the shot will take, nothing cropped. */
+    object-fit: contain;
+}
+html.phone .skyphoto-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: #e3e7af;
+    text-align: center;
+    font-size: 1.1em;
+}
+html.phone .skyphoto-hud p {
+    margin: 0.25rem 0;
+}
+html.phone .skyphoto-gauges span[data-state="warn"] {
+    font-weight: bold;
+}
+html.phone .skyphoto-live-buttons {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 1rem 1.5rem max(1.25rem, env(safe-area-inset-bottom));
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+}
+html.phone .skyphoto-live-buttons .skyphoto-shutter {
+    width: 84px;
+    height: 84px;
+    padding: 0;
+    border-radius: 50%;
+    border-width: 4px;
+}
+/* Cancel on the left, Shoot in the middle where the thumb rests. */
+html.phone .skyphoto-live-buttons::after {
+    content: "";
+    width: 84px;
+}
+
+/* --- Sky photos at night (html.night, set by rubin/night.js; owner, 2026-11-24) ---
+   Dim red on black and nothing else (js/nightcolors.js, contrast-checked): white and blue
+   light undo the eyes' dark adaptation, red barely touches it. The camera's view and the
+   photo are made red too, by a filter, so the star names drawn on it turn red with them. */
+html.night {
+    color-scheme: dark;
+}
+html.night,
+html.night body,
+html.night header,
+html.night main,
+html.night footer {
+    background: #000000;                    /* NIGHT_COLORS.background */
+    color: #ff4a2a;                         /* NIGHT_COLORS.text */
+}
+html.night a,
+html.night a:visited,
+html.night #last-updated {
+    color: #ff4a2a;
+}
+html.night .skyphoto button,
+html.night .skyphoto-pick,
+html.night #skyphoto-dialog button {
+    background: #200604;                    /* NIGHT_COLORS.control */
+    color: #ff4a2a;
+    border-color: #ff4a2a;
+}
+html.night .skyphoto button:disabled {
+    background: #000000;
+    color: #ff4a2a;
+    border-color: #ff4a2a;
+}
+html.night .skyphoto .skyphoto-shutter,
+html.night #skyphoto-dialog .skyphoto-send {
+    background: #ff4a2a;                    /* NIGHT_COLORS.shutter */
+    color: #000000;
+}
+html.night .skyphoto-photo:focus-within .skyphoto-pick {
+    outline-color: #ff4a2a;
+}
+html.night .skyphoto-view video,
+html.night .skyphoto-view canvas {
+    filter: grayscale(1) brightness(0.8);
+}
+html.night .skyphoto-view::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #ff0000;                    /* NIGHT_COLORS.tint, multiplied: red only */
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+html.night .skyphoto-hud {
+    color: #ff4a2a;
+    background: rgba(0, 0, 0, 0.7);
+}
+html.night .skyphoto-live-buttons {
+    background: rgba(0, 0, 0, 0.7);
+}
+html.night #skyphoto-dialog {
+    background: #000000;
+    color: #ff4a2a;
+    border-color: #ff4a2a;
+}
+html.night #skyphoto-words {
+    background: #000000;
+    color: #ff4a2a;
+    border: 1px solid #ff4a2a;
+}
+html.night #skyphoto-words::placeholder {
+    color: #ff4a2a;
+}
+html.night .skyphoto input[type="radio"] {
+    accent-color: #ff4a2a;
 }

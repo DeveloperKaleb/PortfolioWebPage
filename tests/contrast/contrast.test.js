@@ -12,6 +12,7 @@ import {
 } from '../../js/contrast.js';
 import { TETRIS_COLORS, BOARD_COLORS, SNAKE_COLORS, SNAKE_GRADIENTS, UI_COLORS, TOY_COLORS, toHex, MINE_COLORS, MINE_NUMBER_TIERS, MINE_GRADIENTS, MINE_MINIMAP, numberColor, SEQUENCE_COLORS, SEQUENCE_PADS, TICTACTOE_COLORS, PETS_COLORS, PETS_SKIES, CONTROL_THEMES, TETRIS_CONTROL_ACCENTS } from '../../js/logic.js';
 import { RUBIN_COLORS } from '../../js/rubincolors.js';
+import { NIGHT_COLORS } from '../../js/nightcolors.js';
 
 describe('Contrast maths', () => {
     test('black on white is the maximum 21:1', () => {
@@ -594,5 +595,29 @@ describe('Rubin tab palette', () => {
         const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf8');
         const rubin = css.slice(css.indexOf('/* --- The Rubin tab'));
         [RUBIN_COLORS.surface, RUBIN_COLORS.space, RUBIN_COLORS.text, RUBIN_COLORS.muted, RUBIN_COLORS.grid].forEach((c) => expect(rubin).toContain(c));
+    });
+});
+
+/* The sky-photo page's night mode: red on black, every read pairing clearing 4.5:1 in the
+   worst case (pure red does not, for protanopes), and the stylesheet using these colours. */
+describe('Sky photo night mode', () => {
+    test.each([
+        ['text on black', NIGHT_COLORS.text, NIGHT_COLORS.background],
+        ['text on a button', NIGHT_COLORS.text, NIGHT_COLORS.control],
+        ['black on the Shoot button', NIGHT_COLORS.background, NIGHT_COLORS.shutter],
+    ])('%s is legible', (name, color, background) => {
+        expect(worstCaseContrast(color, background)).toBeGreaterThanOrEqual(MIN_AGAINST_BACKGROUND);
+    });
+
+    test('pure red would not have been', () => {
+        expect(worstCaseContrast('#ff0000', '#000000')).toBeLessThan(MIN_AGAINST_BACKGROUND);
+    });
+
+    test('the stylesheet uses the same colours, and nothing light, in night mode', () => {
+        const css = readFileSync(resolve(__dirname, '../../style.css'), 'utf8');
+        const night = css.slice(css.indexOf('/* --- Sky photos at night'));
+        Object.values(NIGHT_COLORS).forEach((c) => expect(night).toContain(c));
+        const colours = night.match(/#[0-9a-f]{6}\b/gi).map((c) => c.toLowerCase());
+        expect(new Set(colours)).toEqual(new Set(Object.values(NIGHT_COLORS)));
     });
 });

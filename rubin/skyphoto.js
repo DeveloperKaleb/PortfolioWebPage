@@ -6,9 +6,11 @@
  *   one picture, and the phone's compass, tilt and place read meanwhile, so a few stars
  *   are enough (js/skyaim.js).
  * Every attempt keeps its details (shotLog). "Help us calibrate" lets the visitor send them
- * by their own email app, after seeing what is in them. The page itself sends nothing. */
+ * by their own email app, after seeing what is in them. The page itself sends nothing.
+ * On a phone (pointer: coarse) aim and shoot fills the screen like a camera app, with tilt
+ * and steadiness shown live; night mode (rubin/night.js) turns the page red after dusk. */
 import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, shotLog, meanBrightness, REASONS, REPORT_TO, REPORT_SUBJECT, reportBody, reportContents, fitForEmail, reportLink } from '/PortfolioWebPage/js/skyphoto.js';
-import { aimedTurn, averageTurn, cameraAltitude } from '/PortfolioWebPage/js/skyaim.js';
+import { aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness } from '/PortfolioWebPage/js/skyaim.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
 const input = document.getElementById('skyphoto-file');
@@ -19,6 +21,45 @@ const live = document.getElementById('skyphoto-live');
 const video = document.getElementById('skyphoto-video');
 const shootButton = document.getElementById('skyphoto-shoot');
 const cancelButton = document.getElementById('skyphoto-cancel');
+const liveStatus = document.getElementById('skyphoto-live-status');
+const tiltGauge = document.getElementById('skyphoto-tilt');
+const steadyGauge = document.getElementById('skyphoto-steady');
+const techBox = document.getElementById('skyphoto-tech');
+const techText = document.getElementById('skyphoto-tech-text');
+const nightButton = document.getElementById('skyphoto-night');
+// The phone layout, as rubin/night.js set it before the page painted (a coarse pointer, or
+// ?layout=phone); the stylesheet keys on the same class.
+const phone = document.documentElement.classList.contains('phone');
+
+/* The status line, and its copy over the full-screen camera view. */
+function say(text) {
+    status.textContent = text;
+    liveStatus.textContent = text;
+}
+/* The numbers behind an answer, kept out of the way on a phone. */
+function technical(text) {
+    techText.textContent = text;
+    techBox.hidden = !text;
+    techBox.open = Boolean(text) && !phone;
+}
+
+/* ---- Night mode (rubin/night.js decides; this is the button) ---- */
+const isNight = () => document.documentElement.classList.contains('night');
+function showNight() {
+    nightButton.setAttribute('aria-pressed', String(isNight()));
+    nightButton.textContent = isNight() ? 'Night mode: on' : 'Night mode: off';
+}
+nightButton.addEventListener('click', () => {
+    window.skyNight?.choose(!isNight());
+    note('night mode chosen', { on: isNight() });
+    showNight();
+});
+showNight();
+// Dusk can fall while the page is open; the visitor's choice still wins (night.js).
+setInterval(() => {
+    if (window.skyNight) window.skyNight.apply(window.skyNight.current());
+    showNight();
+}, 60000);
 
 // The worker carries this page's ?v= stamp, so a push never pairs it with an old page.
 const worker = new Worker(new URL(`./skysolve-worker.js${new URL(import.meta.url).search}`, import.meta.url), { type: 'module' });
@@ -34,11 +75,13 @@ const helpRow = document.getElementById('skyphoto-help-row');
 let log = null;
 function begin(kind) {
     log = shotLog(() => performance.now());
+    technical('');
     note(kind, {
         at: `${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`,
         page: new URL(import.meta.url).searchParams.get('v'),
         screen: `${screen.width}x${screen.height}`, pixelRatio: devicePixelRatio,
         turned: screen.orientation?.angle ?? window.orientation,
+        phoneLayout: phone, night: isNight(),
     });
     note('browser', { agent: navigator.userAgent });
     note('device', { cores: navigator.hardwareConcurrency, memoryGB: navigator.deviceMemory, touchPoints: navigator.maxTouchPoints });
@@ -138,7 +181,7 @@ input.addEventListener('change', async () => {
     const ask = ++asked;
     stopLive();
     begin('photo chosen');
-    status.textContent = 'Looking for stars…';
+    say('Looking for stars…');
     canvas.hidden = true;
     try {
         const exif = readExif(new Uint8Array(await file.slice(0, 256 * 1024).arrayBuffer()));
@@ -160,7 +203,7 @@ input.addEventListener('change', async () => {
     } catch (error) {
         note('could not read the file', failed(error));
         canvas.hidden = true;
-        status.textContent = `That file couldn't be read as a picture. (${error.message})`;
+        say(`That file couldn't be read as a picture. (${error.message})`);
     }
 });
 
@@ -190,11 +233,11 @@ async function analyse({ ask, ctx, photo, jd, mm35 = null, aim = null }) {
     const tip = (text) => [text, lensTip(mm35)].filter(Boolean).join(' ');
     if (!verdict.ok) {
         const found = `(${plural(stars.length, 'star')} found.)`;
-        if (verdict.reason === 'bright') status.textContent = `${aim ? NOT_SKY.glare : verdict.message} ${found}`;
-        else status.textContent = tip(`${verdict.message} ${found}`);
+        if (verdict.reason === 'bright') say(`${aim ? NOT_SKY.glare : verdict.message} ${found}`);
+        else say(tip(`${verdict.message} ${found}`));
         return;
     }
-    status.textContent = `${plural(stars.length, 'star')} found. Working out which part of the sky this is…`;
+    say(`${plural(stars.length, 'star')} found. Working out which part of the sky this is…`);
     worker.onmessage = ({ data }) => {
         if (ask !== asked) return;
         note('matching', {
@@ -207,32 +250,47 @@ async function analyse({ ask, ctx, photo, jd, mm35 = null, aim = null }) {
             note('answer', { focalPx: data.f.toFixed(1), turn: data.R.map((v) => v.toFixed(5)) });
         }
         if (!data.solved) {
-            status.textContent = tip(data.gaveUp ? NOT_SKY.slow : NOT_SKY.unmatched);
+            say(tip(data.gaveUp ? NOT_SKY.slow : NOT_SKY.unmatched));
             return;
         }
         ctx.putImageData(photo, 0, 0);
         ring(ctx, stars, 'rgba(127, 211, 255, 0.45)', width);
         label(ctx, data.matches, width, data.confidence === 'guess');
         if (aim && data.confidence === 'sure') rememberLens(data.f, width, height);
-        const named = data.matches.filter((m) => !/^HIP /.test(m.name)).length;
-        const where = `in a field ${data.fov.width.toFixed(0)}° × ${data.fov.height.toFixed(0)}° `
-            + `centred at RA ${data.centre.ra.toFixed(1)}°, Dec ${data.centre.dec.toFixed(1)}°. `
-            + `(${(data.ms / 1000).toFixed(1)} s, fit to ${data.rmsPixels.toFixed(1)} px.)`;
+        const unsure = data.confidence === 'guess';
+        const list = namedList(data.matches, unsure);
         if (data.confidence === 'sure') {
-            status.textContent = `${plural(data.matches.length, 'star')} matched (${named} with names), ${where}`;
+            say(`Named ${plural(data.matches.length, 'star')}: ${list}.`);
         } else if (data.confidence === 'likely') {
-            status.textContent = `Named ${plural(data.matches.length, 'star')} with help from your phone's compass. `
-                + `Probably right, but with so few stars it's worth checking one against a sky app. ${where}`;
+            say(`Probably ${list}, with help from your phone's compass. With so few stars, it's worth checking one against a sky app.`);
         } else {
-            status.textContent = `A best guess, from your phone's compass and ${plural(data.matches.length, 'star')}: `
-                + `it could easily be wrong, so the ${data.matches.length === 1 ? 'name has' : 'names have'} a question mark. ${where}`;
+            say(`A best guess from your phone's compass: ${list}. It could easily be wrong, hence the question ${data.matches.length === 1 ? 'mark' : 'marks'}.`);
         }
+        technical(`${plural(data.matches.length, 'star')} matched (${data.matches.filter((m) => !/^HIP /.test(m.name)).length} with names, `
+            + `${data.confidence}), in a field ${data.fov.width.toFixed(0)}° × ${data.fov.height.toFixed(0)}° `
+            + `centred at RA ${data.centre.ra.toFixed(1)}°, Dec ${data.centre.dec.toFixed(1)}°. `
+            + `${(data.ms / 1000).toFixed(1)} s, fit to ${data.rmsPixels.toFixed(1)} px.`);
+        if (phone) status.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
     worker.onerror = (e) => {
         note('star search crashed', { message: e.message, where: `${e.filename?.split('/').pop()}:${e.lineno}` });
-        if (ask === asked) status.textContent = "The star search stopped with an error. The details below say where; please send them.";
+        if (ask === asked) say('The star search stopped with an error. "Help us calibrate" below sends the details of where.');
     };
     worker.postMessage({ stars, width, height, jd, mm35, aim });
+}
+
+/* The named stars in words, brightest first, at most LIST_NAMES of them (a rich photo
+   names seventy, a wall of text on a phone; the photo shows every name); catalogue numbers
+   only counted, since "HIP 26199" tells a visitor nothing. */
+const LIST_NAMES = 8;
+function namedList(matches, unsure) {
+    const mark = unsure ? '?' : '';
+    const names = [...matches].sort((a, b) => a.mag - b.mag).filter((m) => !/^HIP /.test(m.name)).map((m) => `${m.name}${mark}`);
+    if (!names.length) return `${matches.length === 1 ? 'a faint catalogue star' : `${matches.length} faint catalogue stars`}${mark}`;
+    const shown = names.slice(0, LIST_NAMES);
+    const rest = matches.length - shown.length;
+    if (rest) return `${shown.join(', ')}, and ${rest} ${shown.length < names.length ? 'more' : `fainter ${rest === 1 ? 'one' : 'ones'}`}`;
+    return shown.length === 1 ? shown[0] : `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}`;
 }
 
 function ring(ctx, stars, colour, width) {
@@ -288,6 +346,7 @@ function label(ctx, matches, width, unsure = false) {
 /* ---- Aim and shoot ---- */
 
 let stream = null, reading = null, place = null, compassSeen = false, sensorEvents = {};
+let samples = [], wakeLock = null, gaugesDue = false;
 
 /* The phone's orientation, from north. Chrome on Android sends deviceorientationabsolute;
    Safari sends deviceorientation with webkitCompassHeading (clockwise from north, so
@@ -308,16 +367,41 @@ function onOrientation(e) {
     } else if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0) {
         compassSeen = true;
         reading = { alpha: (360 - e.webkitCompassHeading) % 360, beta: e.beta, gamma: e.gamma };
-    }
+    } else return;
+    const t = performance.now();
+    samples.push({ t, ...reading });
+    while (samples.length && samples[0].t < t - 2000) samples.shift();
+    if (!gaugesDue) { gaugesDue = true; requestAnimationFrame(showGauges); }
+}
+
+/* Over the camera's view: how high it points (and which way to tilt), and how still the
+   phone is (js/skyaim.js turnRate, steadiness). */
+const STEADY_WORDS = { still: 'Steady', nearly: 'Nearly steady', moving: 'Hold still' };
+function showGauges() {
+    gaugesDue = false;
+    if (!stream || !reading) return;
+    const altitude = cameraAltitude(reading.beta, reading.gamma);
+    tiltGauge.textContent = altitude < MIN_ALTITUDE ? `Tilt up ${Math.ceil(MIN_ALTITUDE - altitude)}°` : `Aimed ${Math.round(altitude)}° up`;
+    tiltGauge.dataset.state = altitude < MIN_ALTITUDE ? 'warn' : 'ok';
+    const state = steadiness(turnRate(samples, performance.now()));
+    steadyGauge.textContent = state ? STEADY_WORDS[state] : '';
+    steadyGauge.dataset.state = state === 'still' ? 'ok' : 'warn';
 }
 
 aimButton.addEventListener('click', async () => {
     ++asked;
     stopLive();
     begin('aim and shoot');
-    reading = null; place = null; compassSeen = false; sensorEvents = {};
+    reading = null; place = null; compassSeen = false; sensorEvents = {}; samples = [];
     canvas.hidden = true;
-    status.textContent = 'Asking for your camera, compass and location…';
+    if (phone) {
+        // The camera screen at once, inside the tap (a browser allows full screen only
+        // then); it shows the questions' progress until the camera starts.
+        live.hidden = false;
+        document.documentElement.classList.add('skyphoto-shooting');
+        live.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { /* the fixed layer covers the page anyway */ });
+    }
+    say('Asking for your camera, compass and location…');
     try {
         // Safari asks for the motion sensors on a tap, before anything else waits.
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -349,25 +433,45 @@ aimButton.addEventListener('click', async () => {
         note('preview playing', { video: `${video.videoWidth}x${video.videoHeight}` });
         live.hidden = false;
         watch();
+        keepAwake();
         const fix = await where;
         place = fix.coords;
+        // Kept on this phone, so night mode knows its dusk next time (rubin/night.js).
+        window.skyNight?.rememberPlace(place.latitude, place.longitude);
+        window.skyNight?.apply(window.skyNight.current());
+        showNight();
         // Never the place itself: to 0.1 degree (about 11 km) is all a re-run needs, well
         // inside what the compass leaves (owner, 2026-11-24).
         note('location', { latitude: place.latitude.toFixed(1), longitude: place.longitude.toFixed(1), accuracyM: Math.round(place.accuracy), ageS: Math.round((Date.now() - fix.timestamp) / 1000) });
-        status.textContent = 'Point at the sky and hold the phone very still (leaning it on something helps), then press Shoot.';
+        say(phone ? 'Point at the sky, hold still (leaning on something helps), then Shoot.'
+            : 'Point at the sky and hold the phone very still (leaning it on something helps), then press Shoot.');
         setTimeout(() => {
             if (stream && !compassSeen) {
                 note('no compass after 2 s', { events: sensorEvents });
-                status.textContent = "This phone isn't sharing its compass with the page, so aiming can't help. You can still choose a photo above.";
+                say("This phone isn't sharing its compass with the page, so aiming can't help. You can still choose a photo instead.");
             }
         }, 2000);
     } catch (error) {
         note('could not start', failed(error));
         stopLive();
         const why = { compass: 'the motion sensors', location: 'your location' }[error.message] ?? 'the camera';
-        status.textContent = `Aim and shoot needs ${why}, and couldn't get it. You can still choose a photo above. (${error.message})`;
+        say(`Aim and shoot needs ${why}, and couldn't get it. You can still choose a photo instead. (${error.message})`);
     }
 });
+
+/* The screen kept on while the camera is up, so it cannot dim or lock partway through a
+   shot (the page hidden stops the camera). Asked for again if the page comes back. */
+async function keepAwake() {
+    if (!navigator.wakeLock || wakeLock) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+        note('screen kept on');
+    } catch (error) {
+        note('screen could not be kept on', failed(error));
+    }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && stream) keepAwake(); });
 
 /* A longer exposure and the highest sensitivity the camera lets a page set, where it lets
    one at all (Chrome on Android, for some cameras). Anything refused is left as it was.
@@ -424,40 +528,42 @@ function aimFigures() {
 shootButton.addEventListener('click', async () => {
     if (!stream || !reading || !place) {
         note('shoot pressed too early', { compass: Boolean(reading), location: Boolean(place), events: sensorEvents });
-        status.textContent = !reading ? "Still waiting for the phone's compass…" : 'Still waiting for your location…';
+        say(!reading ? "Still waiting for the phone's compass…" : 'Still waiting for your location…');
         return;
     }
     const altitude = cameraAltitude(reading.beta, reading.gamma);
-    note('shoot pressed', { ...aimFigures(), events: sensorEvents });
+    note('shoot pressed', { ...aimFigures(), turnRateDegS: turnRate(samples, performance.now()), events: sensorEvents });
     if (altitude < MIN_ALTITUDE) {
         note('not taken: pointing too low');
-        status.textContent = altitude < 0
+        say(altitude < 0
             ? `The camera is pointing ${Math.round(-altitude)}° below the horizon. Tilt the phone up toward the sky, then press Shoot.`
-            : 'The camera is pointing at the horizon, where buildings, trees and haze hide the stars. Tilt the phone up a little more, then press Shoot.';
+            : 'The camera is pointing at the horizon, where buildings, trees and haze hide the stars. Tilt the phone up a little more, then press Shoot.');
         return;
     }
     const ask = ++asked;
     shootButton.disabled = true;
     clearTimeout(watchTimer);
-    status.textContent = 'Hold still…';
+    say('Hold still…');
     try {
         const { photo, R0, f0, jd } = await stack();
+        // Done: a short buzz, so the shot need not be watched (Android; iPhones have none).
+        navigator.vibrate?.(60);
         stopLive();
         canvas.width = photo.width;
         canvas.height = photo.height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.putImageData(photo, 0, 0);
-        status.textContent = 'Looking for stars…';
+        say('Looking for stars…');
         await analyse({ ask, ctx, photo, jd, aim: { R0, f0 } });
     } catch (error) {
         note('shot failed', failed(error));
         stopLive();
-        status.textContent = `The shot didn't work. (${error.message})`;
+        say(`The shot didn't work. (${error.message})`);
     } finally {
         shootButton.disabled = false;
     }
 });
-cancelButton.addEventListener('click', () => { note('cancelled'); stopLive(); status.textContent = ''; });
+cancelButton.addEventListener('click', () => { note('cancelled'); stopLive(); say(''); });
 
 /* About STACK_MS of the camera's frames averaged into one picture (fainter stars stand
    out of the noise, as in a phone's night mode, though nothing here lines the frames up:
@@ -499,10 +605,10 @@ async function stack() {
         const t = performance.now();
         note('frame', { n: frames, gapMs: Math.round(t - last), shown: meta.presentedFrames, brightness: meanBrightness(data), alpha: reading.alpha, beta: reading.beta, gamma: reading.gamma });
         last = t;
-        status.textContent = `Hold still… (${plural(frames, 'frame')})`;
+        say(`Hold still… (${plural(frames, 'frame')})`);
     } while ((performance.now() - started < STACK_MS || frames < 2) && frames < 250);
     const now = stream?.getVideoTracks()[0]?.getSettings?.() ?? {};
-    note('stacked', { frames, ms: Math.round(performance.now() - started), exposureTime: now.exposureTime, iso: now.iso });
+    note('stacked', { frames, ms: Math.round(performance.now() - started), exposureTime: now.exposureTime, iso: now.iso, turnRateDegS: turnRate(samples, performance.now()) });
     if (!frames) throw new Error("the camera sent no pictures; try Aim and shoot again");
     const photo = new ImageData(width, height);
     for (let i = 0; i < sum.length; i++) photo.data[i] = (i & 3) === 3 ? 255 : Math.round(sum[i] / frames);
@@ -529,6 +635,12 @@ function rememberLens(f, width, height) {
 function stopLive() {
     if (stream) note('camera closed');
     clearTimeout(watchTimer);
+    document.documentElement.classList.remove('skyphoto-shooting');
+    if (document.fullscreenElement === live) document.exitFullscreen?.().catch(() => { /* already out */ });
+    wakeLock?.release().catch(() => { /* already released */ });
+    wakeLock = null;
+    tiltGauge.textContent = '';
+    steadyGauge.textContent = '';
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
     video.srcObject = null;

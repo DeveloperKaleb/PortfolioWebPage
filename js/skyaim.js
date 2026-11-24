@@ -74,6 +74,33 @@ export function cameraAltitude(beta, gamma) {
     return Math.asin(Math.min(1, Math.max(-1, -Math.cos(beta * DEG) * Math.cos(gamma * DEG)))) / DEG;
 }
 
+/** How fast the phone is turning, in degrees a second, from its recent orientation
+    readings [{ t (ms), alpha, beta, gamma }]: the turn between readings at least
+    STEADY.stepMs apart, over the time between them, averaged across the last
+    STEADY.windowMs. Steps rather than every reading, so the sensor's own flicker (a tenth
+    of a degree or so a reading) does not read as a shaking hand. Null until there is a
+    step to measure. */
+export const STEADY = { windowMs: 600, stepMs: 100, still: 0.25, nearly: 1 };
+export function turnRate(samples, now = samples.at(-1)?.t) {
+    const recent = samples.filter((s) => s.t >= now - STEADY.windowMs);
+    let turned = 0, time = 0, from = recent[0];
+    for (const s of recent.slice(1)) {
+        if (s.t - from.t < STEADY.stepMs) continue;
+        turned += turnBetween(deviceToHorizon(from.alpha, from.beta, from.gamma), deviceToHorizon(s.alpha, s.beta, s.gamma)) / DEG;
+        time += (s.t - from.t) / 1000;
+        from = s;
+    }
+    return time ? turned / time : null;
+}
+/** 'still', 'nearly' or 'moving' for a turn rate. Under STEADY.still (0.25 degrees a
+    second) a 1.2 s shot smears a star by 0.3 degrees at most, about 7 pixels on a main
+    camera at 1600 px across; at 1 degree a second, 30. A first guess, to tune from
+    calibration reports, which log the rate; the sensor's flicker may set a floor. */
+export function steadiness(rate) {
+    if (rate == null) return null;
+    return rate < STEADY.still ? 'still' : rate < STEADY.nearly ? 'nearly' : 'moving';
+}
+
 /** Where the phone says its camera points: the turn from camera to sky. */
 export function aimedTurn({ alpha, beta, gamma, screenAngle = 0, jd, lat, lon }) {
     return times(times(horizonToSky(jd, lat, lon), deviceToHorizon(alpha, beta, gamma)), cameraToDevice(screenAngle));

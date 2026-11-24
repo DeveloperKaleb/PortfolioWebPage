@@ -5122,6 +5122,41 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
     quarter of stars lost) 91 of 100, from 95. A share of 0.6 lost 17 of 76 harsh skies,
     so 0.5. No real sky was ever named wrongly in any sweep. The aim-and-shoot search
     (js/skyaim.js) has its own missing-star cost and is unchanged.
+- **Phones and the dark (owner, 2026-11-24).** Pitched four ideas; the owner took night
+  mode and the full-screen shooter, with less text on phones and tap-target fixes folded in,
+  and accepted large differences between what phones and computers are served.
+  - **Night mode** (`rubin/night.js`, colours `js/nightcolors.js`): dim red on black,
+    because white and blue light undo dark adaptation (20-30 minutes to regain) and red
+    barely touches it. On by itself on a phone once the Sun is 6 degrees down (its own
+    low-precision Sun, tested against Madison's noon heights and November dusk), at the
+    place aim and shoot saved (0.1 degree, this phone only), else at the time zone's
+    longitude and 40 N. The button's choice lasts 12 hours. Pure red text fails the
+    contrast floor for protanopes (4.18); `#ff4a2a` clears 5.24. The camera's view and the
+    photo are shown grey and multiplied by pure red (`.skyphoto-view::after`): a CSS colour
+    filter tried first left bright parts orange and yellow.
+  - **Why a classic script in the head:** night mode and the phone layout (`html.phone`)
+    must be decided before the page paints, or a phone at night flashes the day colours
+    and the computer layout. It also reads `?layout=phone|wide`, which is how the phone
+    layout was checked on a computer (the browser tool cannot fake a touch screen).
+  - **Phone layout:** one line and "How it works" folded instead of the subtitle; Aim and
+    shoot first, full width; text 17 px (the report box 16, below which iOS zooms in);
+    answers in plain words, at most eight names ("and 63 more": a rich photo named 71, a
+    wall of text) with the numbers under "Technical details", open on a computer.
+  - **The shooter:** on a phone aim and shoot fills the screen at the tap (full screen
+    where the browser allows; iPhones do not for a div, the fixed layer covers anyway).
+    Over the view: the status, "Tilt up N°" or "Aimed N° up", and Steady / Nearly steady
+    / Hold still from `turnRate` (degrees a second over 0.6 s, in steps of 0.1 s so
+    sensor flicker is not shaking; thresholds 0.25 and 1, a first guess, logged in the
+    calibration report at Shoot and over the stack for tuning). Cancel left, a round Shoot
+    centre. The screen is kept awake (Wake Lock) while the camera is up, the likely cause
+    of a stall being the page hidden; a 60 ms buzz when the shot is taken (not on iPhones).
+    The view is `contain`, not `cover`: everything shown is what is shot.
+  - Controls everywhere now take the site's button colours (teal and cream) instead of the
+    browser's white, and the disabled ones its disabled colours, never opacity.
+  - **Unchecked on a real phone:** all of it. The browser tool could not shrink its window,
+    so the phone layout was seen at desktop width via `?layout=phone`; no real camera,
+    compass or vibration; the red layer over a live camera, full screen on Android, and the
+    wake lock are untried.
 
 **Still to do:** a real photo of a clear sky, ideally at 1×, to check the solver itself
 and `MAX_NIGHT_MEDIAN`; a first real aim-and-shoot test (see the unchecked list above);
