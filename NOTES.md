@@ -3116,6 +3116,15 @@ of text, and the far edge alone was 3,300 px.
   was strongest in 2016, at 0.66 with 13 objects, and is 0.38 with 18 now"), its count
   beside each figure. Each picker is a full-width search box (16 px, Select all and Clear
   beside it) over one row of names that scrolls sideways, in place of a scrolling block.
+- **Text sizes (owner, 2026-11-24: "the text on mobile is still all too small"):** set
+  from the published guidance: Apple's iPhone body text defaults to 17 pt (smallest 11 pt),
+  Material's body text is 16 sp, and Lighthouse's old legibility check failed text under
+  12 px. On a phone the page's text is 17 px (as on the sky-photo page); tables, names and
+  legends 16 px; source links and small notes 15 px; the footer 14 px. Words in the
+  drawings are at least 13 px as shown: 14 px on the map, whose names now take more room
+  when placed (`PHONE_LABEL` in `js/rubinview.js`, so fewer fit until you zoom in), and
+  the method chart is drawn 360 wide like the history chart (it showed its words at about
+  6 px). Before: 14.4 px tables and names, and chart words of 6 to 11 px.
 - Seen only at 390 px in a frame on a computer (the browser tool cannot be a phone): no
   real touch, pinch, keyboard or iPhone full screen tried.
 

@@ -3540,6 +3540,43 @@ html.phone .rubin-chip {
     white-space: nowrap;
 }
 
+/* Text sizes on a phone (owner, 2026-11-24: "the text on mobile is still all too small").
+   Set from the published guidance: Apple's default body text on iPhone is 17pt and its
+   smallest 11pt; Material's body text is 16sp; Lighthouse flagged text under 12px as hard
+   to read on a phone. So reading text is 17px, as on the sky-photo page; tables, names and
+   legends 16px; the smallest notes 15px; and words in the charts at least 13px as shown
+   (their sizes are set in the drawing's own units, scaled with it - see rubin.js). */
+html.phone main.rubin:not(.skyphoto),
+html.phone .rubin-dialog {
+    font-size: 17px;
+    line-height: 1.5;
+}
+
+html.phone main.rubin:not(.skyphoto) .rubin-fold-line {
+    font-size: 17px;
+}
+
+html.phone main.rubin:not(.skyphoto) :is(.rubin-table, .rubin-chip, .rubin-legend, .rubin-confirmed, .rubin-unconfirmed),
+html.phone .rubin-tooltip {
+    font-size: 16px;
+}
+
+html.phone main.rubin:not(.skyphoto) :is(.rubin-source, .rubin-flag, .rubin-map-go-planets, .rubin-map-go-far, .rubin-size-item figcaption) {
+    font-size: 15px;
+}
+
+html.phone main.rubin:not(.skyphoto) .rubin-svg :is(.rubin-axis, .rubin-label) {
+    font-size: 14px;
+}
+
+html.phone main.rubin:not(.skyphoto) .rubin-dial :is(.rubin-axis, .rubin-label) {
+    font-size: 16px;
+}
+
+html.phone #last-updated {
+    font-size: 14px;
+}
+
 /* --- Sky photos on a phone (html.phone, set by rubin/night.js for a coarse pointer or
    ?layout=phone; owner, 2026-11-24) ---
    Larger type and controls, the short introduction instead of the long one, Aim and shoot

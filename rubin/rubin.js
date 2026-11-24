@@ -15,7 +15,7 @@ import {
     projector, FLAT, TILT_3D, turnBy, ringStretch, orbitOnMap, centredOn, atHome,
     zoomLevel, MAP_ZOOM, maxZoomOf, mapSizeFor, PHONE_MAP_GUTTER, fullScreenSizeFor, resizedView, PLANET_DRAW_PX, PLANET_LABEL_PX, MOON_DRAW_PX, planeText, summary, sections, displayName, sizeOf, flagsOf,
     whyWatched, changeLines, chartData, mapData, percent, kilometres, au, longDate, CHART_RANGE, discoveryText,
-    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, LABEL, nasaImages, knownRow, knownWorlds, isKnownShape,
+    rubinStatus, brightnessText, crossCheckText, offsetText, KIND_LABEL, properName, placeLabels, LABEL, PHONE_LABEL, nasaImages, knownRow, knownWorlds, isKnownShape,
     sizeRange, STAR_SIZES, sizeLineup, lineupText, lineupSubjects, LINEUP_PX,
 } from '../js/rubinview.js';
 import {
@@ -1248,9 +1248,9 @@ function drawMap(digest) {
            placed later (placeLabels) where its box says (LABEL). */
         const keepClear = (body, text) => {
             const [x, y] = at3(body.x, body.y, body.z ?? 0);
-            const left = x + LABEL.offset;
-            const bottom = y - LABEL.offset + 3;
-            ringNames.push({ left, right: left + text.length * LABEL.charPx, top: bottom - LABEL.linePx, bottom });
+            const left = x + FIT.offset;
+            const bottom = y - FIT.offset + 3;
+            ringNames.push({ left, right: left + text.length * FIT.charPx, top: bottom - FIT.linePx, bottom });
         };
         if (pickedStar && starsOut()) keepClear(pickedStar.at, pickedStar.name ?? `A star, ${lightYearsText(pickedStar.pc)}`);
         for (const n of notablesShown()) keepClear(n.body, n.name);
@@ -1263,7 +1263,7 @@ function drawMap(digest) {
             parts.push(svg('ellipse', { cx: rx, cy: ry, rx: across, ry: tall, fill: 'none', stroke: C.grid, 'stroke-width': 1 }));
             if (Math.round(r / gap) % nameEvery) continue;
             const name = ringLabel(r);
-            const spot = ringLabelSpot(rx, ry, across, tall, SIZE, name.length * 6.5, ringNames);
+            const spot = ringLabelSpot(rx, ry, across, tall, SIZE, name.length * (PHONE ? 7.6 : 6.5), ringNames, PHONE ? 14 : 12);
             if (spot) parts.push(svg('text', { x: spot.x, y: spot.y, class: 'rubin-axis' }, name));
         }
         /* In 3D, a dashed line from a body to that plane, with a tick where it meets it: how
@@ -1731,8 +1731,8 @@ function drawMap(digest) {
         /* Planets and tundrs first, then the largest objects; a name with no room is left
            out until zooming in makes some. */
         labels.sort((a, b) => b.rank - a.rank);
-        for (const l of placeLabels(labels, SIZE)) {
-            parts.push(svg('text', { x: l.x + 7, y: l.y - 7, class: 'rubin-axis rubin-map-label' }, l.text));
+        for (const l of placeLabels(labels, SIZE, FIT)) {
+            parts.push(svg('text', { x: l.x + FIT.offset, y: l.y - FIT.offset, class: 'rubin-axis rubin-map-label' }, l.text));
         }
         layer.replaceChildren(...parts);
         stars?.draw(view, cam, starsOut(), focusPc(), ownStreetPc());
@@ -2518,7 +2518,9 @@ function drawMap(digest) {
 function drawChart() {
     const section = document.getElementById('rubin-method');
     const data = chartData();
-    const W = 640, H = 340, m = { left: 52, right: 16, top: 16, bottom: 44 };
+    /* On a phone it is drawn at about the width it is shown, so its words are not shrunk
+       to half their size (owner, 2026-11-24: text too small). */
+    const W = PHONE ? 360 : 640, H = PHONE ? 300 : 340, m = PHONE ? { left: 44, right: 12, top: 16, bottom: 46 } : { left: 52, right: 16, top: 16, bottom: 44 };
     const logMin = Math.log10(CHART_RANGE.minKm), logMax = Math.log10(CHART_RANGE.maxKm);
     const x = (km) => m.left + (Math.log10(km) - logMin) / (logMax - logMin) * (W - m.left - m.right);
     const y = (chance) => m.top + (1 - chance) * (H - m.top - m.bottom);
@@ -2861,6 +2863,8 @@ const params = new URLSearchParams(location.search);
 /* The phone layout, set before the page painted by rubin/night.js (a coarse pointer, or
    ?layout=phone to preview it on a computer). */
 const PHONE = document.documentElement.classList.contains('phone');
+/* Where a name on the map sits and how much room it takes: larger on a phone (style.css). */
+const FIT = PHONE ? PHONE_LABEL : LABEL;
 
 async function loadDigest() {
     try {

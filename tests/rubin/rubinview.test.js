@@ -4,7 +4,7 @@ import {
     chartData, mapData, percent, kilometres, au, longDate, matchesQuery, FILTER_FROM, planeParts, planeText,
     KIND_LABEL, bodyKind, properName, placeLabels, NASA_IMAGES, nasaImages, knownWorlds, WORLD_PREFIX,
     KNOWN_SHAPES, isKnownShape, knownRow, worldsOn, CERES_ELEMENTS, KNOWN_MOONS, knownMoons, MOON_DRAW_PX, initialView, MAP_ZOOM,
-    ringLabelSpot,
+    ringLabelSpot, LABEL, PHONE_LABEL,
 } from '../../js/rubinview.js';
 import { FLAGS } from '../../js/flags.js';
 import { positionAt } from '../../js/orbit.js';
@@ -332,6 +332,13 @@ describe('Labels on the map', () => {
     test('zooming in, which spreads the dots, makes room for both', () => {
         const kept = placeLabels([{ x: 100, y: 100, text: 'Neptune' }, { x: 160, y: 140, text: 'Pluto' }], 440);
         expect(kept).toHaveLength(2);
+    });
+
+    test("a phone's larger names take more room, so close neighbours that fit at 12px do not", () => {
+        const pair = [{ x: 100, y: 100, text: 'Neptune' }, { x: 152, y: 100, text: 'Pluto' }];
+        expect(placeLabels(pair, 440)).toHaveLength(2);
+        expect(placeLabels(pair, 440, PHONE_LABEL)).toHaveLength(1);
+        expect(PHONE_LABEL.charPx).toBeGreaterThan(LABEL.charPx);
     });
 });
 

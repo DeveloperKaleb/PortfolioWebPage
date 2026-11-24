@@ -642,13 +642,15 @@ export const properName = (entry) => entry.name.match(/^\d+\s+(.+?)\s+\(/)?.[1] 
 /* The label's box, from where the text sits beside its dot: 12px text, about 7px a
    character, set 7px right of and above the dot. */
 export const LABEL = { offset: 7, charPx: 7, linePx: 14 };
+/* On a phone the names are 14px (owner, 2026-11-24: text too small), so each takes more room. */
+export const PHONE_LABEL = { offset: 8, charPx: 8.2, linePx: 16 };
 
-export function placeLabels(labels, sizePx) {
+export function placeLabels(labels, sizePx, fit = LABEL) {
     const kept = [];
     for (const label of labels) {
-        const x0 = label.x + LABEL.offset;
-        const y1 = label.y - LABEL.offset + 3;
-        const box = { x0, x1: x0 + label.text.length * LABEL.charPx, y0: y1 - LABEL.linePx, y1 };
+        const x0 = label.x + fit.offset;
+        const y1 = label.y - fit.offset + 3;
+        const box = { x0, x1: x0 + label.text.length * fit.charPx, y0: y1 - fit.linePx, y1 };
         if (box.x0 < 0 || box.x1 > sizePx || box.y0 < 0 || box.y1 > sizePx) continue;
         if (kept.some(({ box: k }) => box.x0 < k.x1 && k.x0 < box.x1 && box.y0 < k.y1 && k.y0 < box.y1)) continue;
         kept.push({ ...label, box });
