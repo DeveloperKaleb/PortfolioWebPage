@@ -5194,6 +5194,11 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
     wall of text) with the numbers under "Technical details", open on a computer.
   - **The shooter:** on a phone aim and shoot fills the screen at the tap (full screen
     where the browser allows; iPhones do not for a div, the fixed layer covers anyway).
+    The top bar keeps clear of the front camera (owner, 2026-11-24: its words were partly
+    under it on their Android phone): skyphoto.html's viewport has `viewport-fit=cover`
+    so the browser reports the cut-out (`env(safe-area-inset-*)`), and the bar's top
+    padding is that plus 0.75rem, never under 3rem for a phone that reports nothing;
+    the buttons keep clear of the gesture bar the same way.
     Over the view: the status, "Tilt up N°" or "Aimed N° up", and Steady / Nearly steady
     / Hold still from `turnRate` (degrees a second over 0.6 s, in steps of 0.1 s so
     sensor flicker is not shaking; thresholds 0.25 and 1, a first guess, logged in the

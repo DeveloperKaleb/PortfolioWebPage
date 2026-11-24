@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- viewport-fit=cover: so the browser reports where a phone's camera cut-out is
+         (env(safe-area-inset-*)), and aim and shoot's full-screen bars keep clear of it. -->
     <title>Stars in your photo (test) - Kaleb's Portfolio</title>
     <!-- Sky photos, step 1 (NOTES.md, "Sky photos"): a test page, linked from nowhere yet.
          It finds the stars in a photo and names them (step 2, js/skysolve.js). The
@@ -11,9 +13,9 @@
     <meta name="theme-color" content="#3b3026" />
     <!-- Night mode decides before the page paints (rubin/night.js), so a phone at night
          never flashes the day colours. -->
-    <script src="/PortfolioWebPage/rubin/night.js?v=20261124-1707"></script>
-    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261124-1707" rel="stylesheet" />
-    <link href="/PortfolioWebPage/style.css?v=20261124-1707" rel="stylesheet" />
+    <script src="/PortfolioWebPage/rubin/night.js?v=20261124-1717"></script>
+    <link href="/PortfolioWebPage/vendor/normalize.css?v=20261124-1717" rel="stylesheet" />
+    <link href="/PortfolioWebPage/style.css?v=20261124-1717" rel="stylesheet" />
 </head>
 <body>
     <header id="global-nav"></header>
@@ -130,9 +132,9 @@
             </div>
         </dialog>
     </main>
-    <script src="/PortfolioWebPage/scripts/nav.js?v=20261124-1707"></script>
-    <script src="/PortfolioWebPage/scripts/footer.js?v=20261124-1707"></script>
-    <script src="/PortfolioWebPage/scripts/offline.js?v=20261124-1707"></script>
-    <script type="module" src="./skyphoto.js?v=20261124-1707"></script>
+    <script src="/PortfolioWebPage/scripts/nav.js?v=20261124-1717"></script>
+    <script src="/PortfolioWebPage/scripts/footer.js?v=20261124-1717"></script>
+    <script src="/PortfolioWebPage/scripts/offline.js?v=20261124-1717"></script>
+    <script type="module" src="./skyphoto.js?v=20261124-1717"></script>
 </body>
 </html>

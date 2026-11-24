@@ -3656,7 +3656,11 @@ html.phone .skyphoto-hud {
     top: 0;
     left: 0;
     right: 0;
-    padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+    /* Clear of the camera at the top of the screen (owner, 2026-11-24: the words were
+       partly under it). The browser says where its cut-out is (viewport-fit=cover in
+       skyphoto.html); 3rem is the floor for a phone that reports nothing, deeper than a
+       status bar, where front cameras sit. */
+    padding: max(3rem, calc(env(safe-area-inset-top) + 0.75rem)) max(1rem, env(safe-area-inset-right)) 0.75rem max(1rem, env(safe-area-inset-left));
     background: rgba(0, 0, 0, 0.6);
     color: #e3e7af;
     text-align: center;
@@ -3674,7 +3678,7 @@ html.phone .skyphoto-live-buttons {
     right: 0;
     bottom: 0;
     margin: 0;
-    padding: 1rem 1.5rem max(1.25rem, env(safe-area-inset-bottom));
+    padding: 1rem max(1.5rem, env(safe-area-inset-right)) max(1.25rem, calc(env(safe-area-inset-bottom) + 0.5rem)) max(1.5rem, env(safe-area-inset-left));
     justify-content: space-between;
     align-items: center;
     background: rgba(0, 0, 0, 0.6);
