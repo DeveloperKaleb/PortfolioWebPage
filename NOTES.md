@@ -3108,6 +3108,14 @@ of text, and the far edge alone was 3,300 px.
   passes already among the known worlds. Picking a body on the map or in the map's table
   opens its section before scrolling to the card (`openFold`). On a phone 390 px wide the
   page went from about 10,000 px to 2,400 with everything folded.
+- **Stage 3, the heavy parts:** the far edge's "What could explain it" is a card for
+  each explanation (its name, "Predicts:" with the source, "This page measures:") instead
+  of three columns squeezed into 1,150 px. Its history chart is drawn 360 wide on a phone
+  (640 on a computer), so its words are near their intended size, with a year every four
+  and a shorter axis title; the caption opens with the trend ("In hindsight the bunching
+  was strongest in 2016, at 0.66 with 13 objects, and is 0.38 with 18 now"), its count
+  beside each figure. Each picker is a full-width search box (16 px, Select all and Clear
+  beside it) over one row of names that scrolls sideways, in place of a scrolling block.
 - Seen only at 390 px in a frame on a computer (the browser tool cannot be a phone): no
   real touch, pinch, keyboard or iPhone full screen tried.
 

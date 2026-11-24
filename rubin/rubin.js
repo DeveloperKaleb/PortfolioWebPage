@@ -2705,7 +2705,9 @@ function drawFarEdge(digest) {
     /* The history: hindsight by year, then the weeks as they are recorded. */
     const hind = far.backfill.filter((p) => p.r !== null);
     const weeks = far.history.filter((p) => p.extreme?.r !== null && p.extreme?.r !== undefined);
-    const W = 640, H = 310, m = { left: 44, right: 20, top: 16, bottom: 50 };
+    /* On a phone (stage 3, owner 2026-11-24) the chart is drawn at about the width it is
+       shown, so its words stay readable instead of being shrunk to half their size. */
+    const W = PHONE ? 360 : 640, H = PHONE ? 260 : 310, m = PHONE ? { left: 36, right: 12, top: 16, bottom: 46 } : { left: 44, right: 20, top: 16, bottom: 50 };
     const firstYear = (hind[0]?.year ?? Number(digest.date.slice(0, 4))) - 1;
     const lastYear = Number(digest.date.slice(0, 4)) + 1;
     const hx = (year) => m.left + (year - firstYear) / (lastYear - firstYear) * (W - m.left - m.right);
@@ -2715,11 +2717,12 @@ function drawFarEdge(digest) {
         chart.append(svg('line', { x1: m.left, x2: W - m.right, y1: hy(r), y2: hy(r), stroke: C.grid, 'stroke-width': 1 }));
         chart.append(svg('text', { x: m.left - 8, y: hy(r) + 4, 'text-anchor': 'end', class: 'rubin-axis' }, r.toFixed(2).replace(/\.?0+$/, '') || '0'));
     });
-    for (let year = Math.ceil(firstYear / 2) * 2; year <= lastYear; year += 2) {
+    const yearStep = PHONE ? 4 : 2;
+    for (let year = Math.ceil(firstYear / yearStep) * yearStep; year <= lastYear; year += yearStep) {
         chart.append(svg('line', { x1: hx(year), x2: hx(year), y1: H - m.bottom, y2: H - m.bottom + 5, stroke: C.muted, 'stroke-width': 1 }));
         chart.append(svg('text', { x: hx(year), y: H - m.bottom + 18, 'text-anchor': 'middle', class: 'rubin-axis' }, String(year)));
     }
-    chart.append(svg('text', { x: (m.left + W - m.right) / 2, y: H - 12, 'text-anchor': 'middle', class: 'rubin-axis' }, 'Bunching of the long axes (0 none, 1 all the same), by year'));
+    chart.append(svg('text', { x: (m.left + W - m.right) / 2, y: H - 12, 'text-anchor': 'middle', class: 'rubin-axis' }, PHONE ? 'Bunching (0 none, 1 all the same), by year' : 'Bunching of the long axes (0 none, 1 all the same), by year'));
     /* 2016: Batygin & Brown propose the planet. */
     if (firstYear < 2016 && lastYear > 2016) {
         chart.append(svg('line', { x1: hx(2016), x2: hx(2016), y1: m.top, y2: H - m.bottom, stroke: C.muted, 'stroke-width': 1, 'stroke-dasharray': '3 4' }));
@@ -2760,8 +2763,13 @@ function drawFarEdge(digest) {
     );
     const peak = hind.reduce((best, p) => (p.r > (best?.r ?? 0) && p.n >= 10 ? p : best), null);
     const now = hind.at(-1);
-    historyFigure.querySelector('figcaption').textContent =
-        `The pale line is hindsight: what the dial would have shown at the end of each year, using today's orbits and counting only the objects found by then. Nobody had these orbits at the time, and no figure is given for fewer than five objects.${peak && now && peak.year !== now.year ? ` On that reckoning the bunching was strongest in ${peak.year}, at ${peak.r.toFixed(2)} with ${peak.n} objects, and is ${now.r.toFixed(2)} with ${now.n} now.` : ''} The blue points are this page's own record, one a week since ${longDate(far.history[0].date)}, and are never recalculated.`;
+    const trend = peak && now && peak.year !== now.year ? ` On that reckoning the bunching was strongest in ${peak.year}, at ${peak.r.toFixed(2)} with ${peak.n} objects, and is ${now.r.toFixed(2)} with ${now.n} now.` : '';
+    const reading = `The pale line is hindsight: what the dial would have shown at the end of each year, using today's orbits and counting only the objects found by then. Nobody had these orbits at the time, and no figure is given for fewer than five objects.`;
+    const record = ` The blue points are this page's own record, one a week since ${longDate(far.history[0].date)}, and are never recalculated.`;
+    /* On a phone the trend, the one sentence most will want, comes first. */
+    historyFigure.querySelector('figcaption').textContent = PHONE && trend
+        ? `${trend.trim().replace(/^On that reckoning t/, 'In hindsight t')} ${reading}${record}`
+        : `${reading}${trend}${record}`;
     const joined = far.history.filter((p) => p.joined?.length);
     historyTable.replaceChildren(table(
         ['When', 'Extreme objects', 'Bunching', 'Kind'],
@@ -2783,7 +2791,17 @@ function drawFarEdge(digest) {
         const e = EXPLANATIONS[k];
         row.cells[1].append(' ', el('a', { class: 'rubin-source', href: e.url, target: '_blank', rel: 'noopener' }, `Source: ${e.source}`));
     });
-    section.querySelector('.rubin-far-explain').replaceChildren(explain);
+    /* On a phone a card for each explanation instead of three narrow columns (stage 3):
+       the same words, the source and the measurement under each. */
+    if (PHONE) {
+        section.querySelector('.rubin-far-explain').replaceChildren(...EXPLANATIONS.map((e) => {
+            const item = el('div', { class: 'rubin-far-card' });
+            const predicts = el('p', {}, `Predicts: ${e.predicts} `);
+            predicts.append(el('a', { class: 'rubin-source', href: e.url, target: '_blank', rel: 'noopener' }, `Source: ${e.source}`));
+            item.append(el('h5', {}, e.name), predicts, el('p', {}, `This page measures: ${evidenceText(e.evidence, far)}`));
+            return item;
+        }));
+    } else section.querySelector('.rubin-far-explain').replaceChildren(explain);
 
     const published = el('ul', { class: 'rubin-far-published' });
     PUBLISHED.forEach((p) => {
