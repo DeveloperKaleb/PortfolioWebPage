@@ -178,12 +178,28 @@ export function recentReturn(windows = [], today) {
 
 /* Rubin's forum (www.rubin.community, a Discourse forum) lists its News category as JSON.
    The status posts have no single title format, so the newest one whose title looks
-   like a status report is taken - nothing is read from the prose. */
-export const STATUS_TITLE = /summit technical progress|operations update|observatory status|recovery|storm|downtime|maintenance/i;
+   like a status report is taken - nothing is read from the prose. Rubin renamed them on
+   going back on sky (October 2026: "LSST weekly update", "Rubin Status November 17",
+   "Rubin is back to the LSST"), and the page went on showing the last post under the old
+   name for a month; the new names are here too (owner, 2026-11-27). */
+export const STATUS_TITLE = /summit technical progress|operations update|weekly update|\bstatus\b|back on sky|back to the lsst|recovery|storm|downtime|maintenance/i;
+
+/* The safety net for the next rename: when Rubin's newest news post is more than this
+   many days newer than the status post found, the page says there is newer news and
+   links to the News page, rather than quietly showing an old post. */
+export const NEWER_NEWS_DAYS = 14;
+
+const topicDate = (t) => String(t.created_at).slice(0, 10);
 
 export function latestStatusPost(newsJson, origin = 'https://www.rubin.community') {
-    const topics = newsJson?.topic_list?.topics ?? [];
-    const post = topics.filter((t) => !t.pinned && STATUS_TITLE.test(t.title ?? ''))
-        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
-    return post ? { title: post.title, url: `${origin}/t/${post.slug}/${post.id}`, date: String(post.created_at).slice(0, 10) } : null;
+    const topics = (newsJson?.topic_list?.topics ?? []).filter((t) => !t.pinned)
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    const post = topics.find((t) => STATUS_TITLE.test(t.title ?? ''));
+    if (!post) return null;
+    const found = { title: post.title, url: `${origin}/t/${post.slug}/${post.id}`, date: topicDate(post) };
+    const newest = topics[0];
+    if ((dayStart(topicDate(newest)) - dayStart(found.date)) / DAY > NEWER_NEWS_DAYS) {
+        found.newer = { date: topicDate(newest), url: `${origin}/c/news/7` };
+    }
+    return found;
 }

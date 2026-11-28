@@ -3091,8 +3091,9 @@ of text, and the far edge alone was 3,300 px.
   `rubin/rubin.js` reads the class.
 - **Stage 1, the map:** edge to edge (`PHONE_MAP_GUTTER`); + and − on its corner; under it
   Go to (its list opens upward, over the map, clear of the keyboard; 16 px text so an
-  iPhone does not zoom) and Filter, then Places (Galactic street, block, neighborhood, in
-  a menu), Whole map, Flat or 3D, Show, Spacecraft and full screen. Every menu opens as a
+  iPhone does not zoom) and Filter, then Places (Solar System - added 2026-11-27 as the way
+  back in once zoomed out, and as a button on a computer too - then Galactic street,
+  block, neighborhood, in a menu), Whole map, Flat or 3D, Show, Spacecraft and full screen. Every menu opens as a
   sheet from the foot of the screen. The same buttons and handlers as on a computer,
   only rearranged, so nothing the map does is lost. The light ruler and this visit's light
   stay; the first visit's light, the ruler's note and the caption (with "How to read the
@@ -3741,6 +3742,14 @@ change. Both sources were the owner's choice (2026-10-02):
   title matches `STATUS_TITLE` (Summit technical progress, Operations Update, Observatory
   Status, recovery, storm, downtime, maintenance) becomes the notice's link. Nothing is
   read from the prose, so no date can be misread. The fallback is the window's own link.
+  **Renamed posts (owner, 2026-11-27):** back on sky, Rubin titled its posts "LSST weekly
+  update", "Rubin Status November 17", "Rubin is back to the LSST", so the page went on
+  showing 23 October's "Summit technical progress" for a month. `STATUS_TITLE` now also
+  takes weekly update, status, back on sky and back to the LSST; and as a safety net for
+  the next rename, if Rubin's newest news post is more than `NEWER_NEWS_DAYS` (14) newer
+  than the post found, the notice adds "Rubin has posted newer news since, most recently
+  on ...: see Rubin's news", linking the News page (owner chose this over a fixed list
+  alone, or showing the newest news whatever it is).
 - **The last pull, for data from before it was recorded.** The first live run pulled
   Fink before `state.lastPullNight` existed, so the next month would have pulled with
   "history unknown" even with nothing new. A run with `finkFetchedMonth` but no

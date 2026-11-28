@@ -1844,6 +1844,9 @@ function drawMap(digest) {
     /* Going somewhere: the map glides there (glideView), by way of the view that holds both
        systems when it is crossing between them (journeyView). For a visitor who asked for
        less motion it is simply there. */
+    /* Home: the Solar System, the way back in once zoomed out to the wide views (owner,
+       2026-11-27). */
+    const homeButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, 'Solar System');
     const nearestButton = el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.both.label);
     const blockButton = PLACES.block ? el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.block.label) : null;
     const hoodButton = PLACES.neighborhood ? el('button', { type: 'button', class: 'rubin-tool', 'aria-pressed': 'false' }, PLACES.neighborhood.label) : null;
@@ -1856,6 +1859,7 @@ function drawMap(digest) {
     /* "Zoom on" steps for each neighbour that has them, shown while there. */
     const zoomRows = new Map(system.systems.filter((on) => on.system.rungs).map((on) => [on.system.id, el('span', { class: 'rubin-map-zoom-on' })]));
     function showPlace() {
+        homeButton.setAttribute('aria-pressed', String(place.id === 'sun'));
         nearestButton.setAttribute('aria-pressed', String(place.id === 'both'));
         blockButton?.setAttribute('aria-pressed', String(place.id === 'block'));
         hoodButton?.setAttribute('aria-pressed', String(place.id === 'neighborhood'));
@@ -2293,8 +2297,9 @@ function drawMap(digest) {
     filter.menu.append(tick('Has confirmed planets', GO_SYSTEMS.filter((s) => s.confirmedPlanets > 0).length, (on) => { goFilter.planets = on; applyFilter(); }));
     filter.menu.append(filterCount);
     applyFilter();
+    homeButton.addEventListener('click', () => goTo(PLACES.sun));
     nearestButton.addEventListener('click', () => goTo(PLACES.both));
-    travel.append(goBox, filter.box, nearestButton);
+    travel.append(goBox, filter.box, homeButton, nearestButton);
     if (PLACES.block) {
         blockButton.addEventListener('click', () => goTo(PLACES.block));
         hoodButton.addEventListener('click', () => goTo(PLACES.neighborhood));
@@ -2331,7 +2336,7 @@ function drawMap(digest) {
     stage.append(panel, frame, sizeBox);
     /* The phone view (owner, 2026-11-24): the same controls, rearranged as a maps app has
        them. Zoom on the map's corner; under it, within the thumb's reach, Go to and its
-       filter, then Places (the three wide views, in a menu), Whole map, Flat or 3D, Show,
+       filter, then Places (the Solar System and the three wide views, in a menu), Whole map, Flat or 3D, Show,
        Spacecraft and full screen; the menus open as sheets from the foot of the screen
        (style.css, html.phone). Nothing the map does is left out. */
     if (PHONE) {
@@ -2339,7 +2344,7 @@ function drawMap(digest) {
         float.append(zoomIn, zoomOut);
         frame.append(float);
         const places = dropdown('Places ▾', 'rubin-map-places', 'Places the map can show', 'rubin-map-places');
-        for (const button of [nearestButton, blockButton, hoodButton].filter(Boolean)) {
+        for (const button of [homeButton, nearestButton, blockButton, hoodButton].filter(Boolean)) {
             places.menu.append(button);
             button.addEventListener('click', () => places.open(false));
         }
@@ -2837,6 +2842,13 @@ function showNotice(digest) {
         const more = el('p', { class: 'rubin-notice-link' });
         more.append(el('a', { href: link, target: '_blank', rel: 'noopener' }, post ? `Rubin's latest status post: ${post.title} (${longDate(post.date)})` : "Rubin's latest announcement"));
         parts.push(more);
+        /* Rubin has posted since under a title the collector does not know (rubinstatus.js,
+           NEWER_NEWS_DAYS): say so, rather than let the post above pass for the latest. */
+        if (post?.newer) {
+            const newer = el('p', { class: 'rubin-notice-link' });
+            newer.append(`Rubin has posted newer news since, most recently on ${longDate(post.newer.date)}: `, el('a', { href: post.newer.url, target: '_blank', rel: 'noopener' }, "see Rubin's news"), '.');
+            parts.push(newer);
+        }
     }
     for (const line of updateText(nextUpdates({ now, status, finkFetchedMonth: obs.finkFetchedMonth }))) {
         parts.push(el('p', { class: 'rubin-notice-update' }, line));

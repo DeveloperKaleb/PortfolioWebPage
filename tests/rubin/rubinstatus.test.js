@@ -208,6 +208,25 @@ describe("Rubin's latest status post", () => {
         expect(latestStatusPost({ topic_list: { topics: [] } })).toBeNull();
     });
 
+    test("takes the titles Rubin has used since going back on sky (owner, 2026-11-27)", () => {
+        for (const title of ['LSST weekly update (week ending 2026-11-20)', 'Rubin Status November 17, 2026', 'Rubin is back to the LSST', 'Rubin Observatory is back on sky!']) {
+            const news = { topic_list: { topics: [
+                { id: 9, slug: 'new', title, created_at: '2026-11-23T00:00:00Z' },
+                { id: 8, slug: 'old', title: 'Summit technical progress (week ending 2026-10-23)', created_at: '2026-10-24T00:00:00Z' },
+            ] } };
+            expect(latestStatusPost(news).url).toBe('https://www.rubin.community/t/new/9');
+        }
+        expect(latestStatusPost({ topic_list: { topics: [{ id: 1, slug: 'r', title: 'RTN-011 v10: Rubin Early Science Program', created_at: '2026-11-19T00:00:00Z' }] } })).toBeNull();
+    });
+
+    test('says when newer news has been posted under a title it does not know', () => {
+        const old = { id: 8, slug: 'old', title: 'Summit technical progress (week ending 2026-10-23)', created_at: '2026-10-24T00:00:00Z' };
+        const later = (date) => ({ topic_list: { topics: [{ id: 9, slug: 'x', title: 'A new kind of post', created_at: `${date}T00:00:00Z` }, old] } });
+        expect(latestStatusPost(later('2026-11-23')).newer).toEqual({ date: '2026-11-23', url: 'https://www.rubin.community/c/news/7' });
+        expect(latestStatusPost(later('2026-11-05')).newer).toBeUndefined();
+        expect(latestStatusPost({ topic_list: { topics: [old] } }).newer).toBeUndefined();
+    });
+
     test('a whole run records it in the digest', async () => {
         const dir = mkdtempSync(join(tmpdir(), 'rubin-data-'));
         try {
