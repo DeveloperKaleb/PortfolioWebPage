@@ -9,7 +9,7 @@
  * by their own email app, after seeing what is in them. The page itself sends nothing.
  * On a phone (pointer: coarse) aim and shoot fills the screen like a camera app, with tilt
  * and steadiness shown live; night mode (rubin/night.js) turns the page red after dusk. */
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, shotLog, meanBrightness, REASONS, REPORT_TO, REPORT_SUBJECT, reportBody, reportContents, fitForEmail, reportLink } from '/PortfolioWebPage/js/skyphoto.js';
+import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, nextExposure, shotLog, meanBrightness, REASONS, REPORT_TO, REPORT_SUBJECT, reportBody, reportContents, fitForEmail, reportLink } from '/PortfolioWebPage/js/skyphoto.js';
 import { aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness } from '/PortfolioWebPage/js/skyaim.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
@@ -433,6 +433,7 @@ aimButton.addEventListener('click', async () => {
         note('preview playing', { video: `${video.videoWidth}x${video.videoHeight}` });
         live.hidden = false;
         watch();
+        level();
         keepAwake();
         const fix = await where;
         place = fix.coords;
@@ -480,8 +481,10 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
    a preview gone white, on the owner's phone (NOTES.md, "Aim and shoot"). */
 const MAX_EXPOSURE = 2500;
 const MIN_ALTITUDE = 10;
+let camCaps = {};
 async function brighten(track) {
     const caps = track.getCapabilities?.() ?? {};
+    camCaps = caps;
     const want = {};
     if (caps.exposureMode?.includes('manual') && caps.exposureTime) {
         want.exposureMode = 'manual';
@@ -493,6 +496,41 @@ async function brighten(track) {
     note('camera asked for', want);
     try { await track.applyConstraints({ advanced: [want] }); } catch (error) { note('camera refused', failed(error)); }
     note('camera settings now', cameraFigures(track.getSettings?.()));
+}
+
+/* While aiming, the exposure follows the preview (js/skyphoto.js nextExposure): down from
+   the top when the sky or the scene reads too bright, back up when too dark. Every
+   LEVEL_MS, so a step has had a few frames to take hold; held still during the shot. Only
+   where the camera lets a page set ISO and exposure (Chrome on Android, some cameras). */
+const LEVEL_MS = 900;
+let levelTimer = null;
+let levelling = false;
+function level() {
+    if (!camCaps.iso || !camCaps.exposureTime || !camCaps.exposureMode?.includes('manual')) return;
+    const small = document.createElement('canvas');
+    small.width = 64;
+    small.height = 48;
+    const sctx = small.getContext('2d', { willReadFrequently: true });
+    const step = async () => {
+        if (!stream) return;
+        if (!levelling) {
+            const track = stream.getVideoTracks()[0];
+            const s = track?.getSettings?.() ?? {};
+            sctx.drawImage(video, 0, 0, 64, 48);
+            const median = photoStats(toGray(sctx.getImageData(0, 0, 64, 48).data, 64, 48)).median;
+            const next = s.iso && s.exposureTime ? nextExposure({ median, iso: s.iso, exposureTime: s.exposureTime }, camCaps, MAX_EXPOSURE) : null;
+            if (next) {
+                try {
+                    await track.applyConstraints({ advanced: [{ exposureMode: 'manual', ...next }] });
+                    note('exposure set', { median, ...next });
+                } catch (error) {
+                    note('exposure refused', { median, ...next, ...failed(error) });
+                }
+            }
+        }
+        if (stream) levelTimer = setTimeout(step, LEVEL_MS);
+    };
+    levelTimer = setTimeout(step, LEVEL_MS);
 }
 
 /* The camera figures worth knowing, out of the many a browser may list. */
@@ -543,6 +581,9 @@ shootButton.addEventListener('click', async () => {
     const ask = ++asked;
     shootButton.disabled = true;
     clearTimeout(watchTimer);
+    // The exposure is held as it is for the shot.
+    levelling = true;
+    clearTimeout(levelTimer);
     say('Hold still…');
     try {
         const { photo, R0, f0, jd } = await stack();
@@ -561,6 +602,7 @@ shootButton.addEventListener('click', async () => {
         say(`The shot didn't work. (${error.message})`);
     } finally {
         shootButton.disabled = false;
+        levelling = false;
     }
 });
 cancelButton.addEventListener('click', () => { note('cancelled'); stopLive(); say(''); });
@@ -635,6 +677,7 @@ function rememberLens(f, width, height) {
 function stopLive() {
     if (stream) note('camera closed');
     clearTimeout(watchTimer);
+    clearTimeout(levelTimer);
     document.documentElement.classList.remove('skyphoto-shooting');
     if (document.fullscreenElement === live) document.exitFullscreen?.().catch(() => { /* already out */ });
     wakeLock?.release().catch(() => { /* already released */ });

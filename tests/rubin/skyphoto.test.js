@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX, REPORT_TO, REPORT_SUBJECT, REPORT_MAX_ENCODED, reportBody, reportContents, fitForEmail, reportLink } from '../../js/skyphoto.js';
+import { twinCount, nextExposure, EXPOSURE, toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX, REPORT_TO, REPORT_SUBJECT, REPORT_MAX_ENCODED, reportBody, reportContents, fitForEmail, reportLink } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -93,6 +93,53 @@ describe('sky photos', () => {
         const verdict = judgeSky(photoStats(cloud.gray), findStars(cloud.gray, cloud.width, cloud.height));
         expect(verdict.reason).toBe('few');
         expect(verdict.message).toMatch(/outside at night/);
+    });
+});
+
+describe('lights, not stars (owner, 2026-11-27)', () => {
+    // The four spots the owner's phone found pointed at outdoor lights: two tight pairs.
+    const lights = [[1057.0, 1184.9, 131, 16], [1064.0, 1185.7, 127, 15], [1175.2, 1193.1, 77, 13], [1175.1, 1206.3, 77, 13]]
+        .map(([x, y, peak, size]) => ({ x, y, peak, size, flux: peak * size }));
+    const stats = { median: 97, white: 0.07 };
+
+    it('are told apart by coming in matching pairs, and nothing is named', () => {
+        expect(twinCount(lights)).toBe(4);
+        const verdict = judgeSky(stats, lights, { minStars: 1 });
+        expect(verdict.reason).toBe('lights');
+        expect(verdict.message).toMatch(/away from lights/);
+    });
+
+    it('a real star field, with the odd close pair, still goes through', () => {
+        const night = sky({ stars: field(20, 9) });
+        const found = findStars(night.gray, night.width, night.height);
+        expect(twinCount(found) * 2).toBeLessThan(found.length);
+        expect(judgeSky(photoStats(night.gray), found)).toEqual({ ok: true });
+        // Two stars close together but unlike in brightness are not twins.
+        expect(twinCount([{ x: 0, y: 0, peak: 200, size: 8 }, { x: 10, y: 0, peak: 90, size: 5 }])).toBe(0);
+    });
+});
+
+describe('the exposure, set from the live preview (owner, 2026-11-27)', () => {
+    // The owner's Pixel 8 Pro, as it reported itself.
+    const caps = { iso: { min: 21, max: 10666 }, exposureTime: { min: 0.2635, max: 160000 } };
+    const longest = 2500;
+
+    it('turns the ISO down first when the preview is too bright, by more when far too bright', () => {
+        expect(nextExposure({ median: 140, iso: 10666, exposureTime: 2500 }, caps, longest)).toEqual({ iso: 5333, exposureTime: 2500 });
+        expect(nextExposure({ median: 200, iso: 10666, exposureTime: 2500 }, caps, longest)).toEqual({ iso: 2667, exposureTime: 2500 });
+        // At the lowest ISO, the frame shortens.
+        expect(nextExposure({ median: 120, iso: 21, exposureTime: 2500 }, caps, longest)).toEqual({ iso: 21, exposureTime: 1250 });
+    });
+
+    it("turns it back up when too dark: the frame first, up to the page's limit, then the ISO", () => {
+        expect(nextExposure({ median: 10, iso: 600, exposureTime: 1250 }, caps, longest)).toEqual({ iso: 600, exposureTime: 2500 });
+        expect(nextExposure({ median: 10, iso: 600, exposureTime: 2500 }, caps, longest)).toEqual({ iso: 1200, exposureTime: 2500 });
+        // A dark sky at the top: left there.
+        expect(nextExposure({ median: 10, iso: 10666, exposureTime: 2500 }, caps, longest)).toBeNull();
+    });
+
+    it('leaves a preview in the band alone', () => {
+        for (const median of [EXPOSURE.low, 40, EXPOSURE.high]) expect(nextExposure({ median, iso: 2000, exposureTime: 2500 }, caps, longest)).toBeNull();
     });
 });
 

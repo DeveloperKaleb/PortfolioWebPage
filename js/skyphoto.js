@@ -195,7 +195,23 @@ export const NOT_SKY = {
     few: "We couldn't find enough stars in this picture to work out which part of the sky it shows. Clouds, haze or city glow may be hiding them. Try a photo taken outside at night, pointed up at a clear patch of sky, away from streetlights and roof lights if you can. Holding the phone very still (or leaning it on something) helps a lot.",
     unmatched: "We found the stars but couldn't match them to the sky. Some may not be stars at all (thin cloud, lights, planes), or there may be too few real ones to make out a pattern. A clear night works best.",
     slow: "We found the stars but couldn't work out which part of the sky this is in the time we allow. A photo of a clear patch of sky, with more stars in it, may work better.",
+    lights: "These look like lights rather than stars: they come in matching pairs, which stars almost never do (a lamp and its reflection in the lens, or two lamps side by side). Point at a patch of sky away from lights and try again.",
 };
+
+/* Lights, not stars (owner, 2026-11-27). Pointed at outdoor lights, the owner's phone found
+   four "stars" in two tight pairs - each pair a few pixels apart, the same brightness and
+   size - and the compass matched them to Rasalhague and Rasalgethi. A lamp and its
+   reflection in the lens (or two lamps on one pole) make such twins; real stars that close
+   and that alike are rare in a phone photo. So when at least half the spots have a twin,
+   nothing is named. */
+export const TWIN = { px: 20, peak: 0.85, size: 0.7 };
+const twins = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= TWIN.px
+    && Math.min(a.peak, b.peak) >= TWIN.peak * Math.max(a.peak, b.peak)
+    && Math.min(a.size, b.size) >= TWIN.size * Math.max(a.size, b.size);
+/** How many of the spots have a near-identical twin close by. */
+export function twinCount(stars) {
+    return stars.filter((s, i) => stars.some((t, j) => i !== j && twins(s, t))).length;
+}
 
 /* Below this 35 mm-equivalent focal length a photo came from a phone's ultra-wide (0.5x)
    lens: 13-16 mm on current phones, against 23-28 mm for the main lens. The owner's first
@@ -217,8 +233,38 @@ export const MAX_NIGHT_MEDIAN = 110;
     A shot aimed with the phone's sensors (js/skyaim.js) needs only one star. */
 export function judgeSky(stats, stars, { minStars = MIN_STARS } = {}) {
     if (stats.median > MAX_NIGHT_MEDIAN) return { ok: false, reason: 'bright', message: NOT_SKY.bright };
+    if (stars.length >= 2 && twinCount(stars) * 2 >= stars.length) return { ok: false, reason: 'lights', message: NOT_SKY.lights };
     if (stars.length < minStars) return { ok: false, reason: 'few', message: NOT_SKY.few };
     return { ok: true };
+}
+
+/* The camera's exposure, set from the live preview (owner, 2026-11-27). Turned all the way
+   up (the most sensitive ISO the camera allows and a quarter-second frame) the owner's
+   Pixel 8 Pro showed a city scene at 116-141 of 255 and could not take a sky that was not
+   too bright. So while aiming, the preview's median is kept between EXPOSURE.low and
+   EXPOSURE.high: the ISO comes down first when it is too bright (the frame stays long,
+   gathering light), and the frame lengthens first when too dark, up to the page's limit.
+   Under a truly dark sky it simply stays at the top. */
+export const EXPOSURE = { low: 25, high: 70 };
+/** The next { iso, exposureTime } for a preview median (0-255), within the camera's
+    caps { iso: {min, max}, exposureTime: {min, max} } and the page's longest frame; null to
+    leave it as it is. Halves or doubles a step, or quarters when far too bright. */
+export function nextExposure({ median, iso, exposureTime }, caps, longest) {
+    const isoMin = caps.iso?.min ?? iso, isoMax = caps.iso?.max ?? iso;
+    const timeMin = caps.exposureTime?.min ?? exposureTime;
+    const timeMax = Math.min(caps.exposureTime?.max ?? exposureTime, longest);
+    if (median > EXPOSURE.high) {
+        const step = median > 160 ? 4 : 2;
+        if (iso > isoMin) return { iso: Math.max(isoMin, Math.round(iso / step)), exposureTime };
+        if (exposureTime > timeMin) return { iso, exposureTime: Math.max(timeMin, exposureTime / step) };
+        return null;
+    }
+    if (median < EXPOSURE.low) {
+        if (exposureTime < timeMax) return { iso, exposureTime: Math.min(timeMax, exposureTime * 2) };
+        if (iso < isoMax) return { iso: Math.min(isoMax, Math.round(iso * 2)), exposureTime };
+        return null;
+    }
+    return null;
 }
 
 /* What a photo's EXIF says that the search can use: the 35 mm-equivalent focal length

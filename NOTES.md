@@ -5208,6 +5208,23 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
     so the browser reports the cut-out (`env(safe-area-inset-*)`), and the bar's top
     padding is that plus 0.75rem, never under 3rem for a phone that reports nothing;
     the buttons keep clear of the gesture bar the same way.
+  - **Exposure from the preview (owner, 2026-11-27).** The first try under a night sky
+    (Pixel 8 Pro, Chrome 158) could not take the sky: the camera was turned all the way
+    up (ISO 10,666, a quarter-second frame) and a city scene showed at 116-141 of 255, so
+    the sky most likely came out too bright (MAX_NIGHT_MEDIAN 110; that attempt sent no
+    report). Now, while aiming, every 0.9 s the preview's median is kept between 25 and
+    70 (`nextExposure`, js/skyphoto.js): the ISO comes down first (by 4 when over 160,
+    else by 2), then the frame shortens; when too dark the frame lengthens to 2,500 (the
+    page's limit), then the ISO goes up. Held during the shot; each step is logged
+    ("exposure set"). Only where the camera lets a page set them. Untested on a real
+    night sky.
+  - **Lights, not stars (owner, 2026-11-27).** Pointed at outdoor lights, the same phone
+    found four spots in two tight pairs (7 and 13 px apart, matching peaks and sizes) and
+    the compass "named" them Rasalhague and Rasalgethi (shown as a guess). Now when at
+    least half the spots have a twin (within 20 px, peaks within 15%, sizes within 30%:
+    `TWIN`, `twinCount`), `judgeSky` answers "lights" and nothing is named.
+  - **Night mode reddens the result too** (by design): on that test the picture of white
+    lights came out very red. The Night mode button turns it off for 12 hours.
     Over the view: the status, "Tilt up N°" or "Aimed N° up", and Steady / Nearly steady
     / Hold still from `turnRate` (degrees a second over 0.6 s, in steps of 0.1 s so
     sensor flicker is not shaking; thresholds 0.25 and 1, a first guess, logged in the
