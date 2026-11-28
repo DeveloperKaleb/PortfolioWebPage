@@ -235,8 +235,14 @@ export function judgeSky(stats, stars, { minStars = MIN_STARS } = {}) {
     if (stats.median > MAX_NIGHT_MEDIAN) return { ok: false, reason: 'bright', message: NOT_SKY.bright };
     if (stars.length >= 2 && twinCount(stars) * 2 >= stars.length) return { ok: false, reason: 'lights', message: NOT_SKY.lights };
     if (stars.length < minStars) return { ok: false, reason: 'few', message: NOT_SKY.few };
+    if (stars.length === 1 && stars[0].peak < LONE_PEAK) return { ok: false, reason: 'few', message: NOT_SKY.few };
     return { ok: true };
 }
+
+/* One spot alone is named (by the compass) only if it is bright: a planet or a bright star
+   (owner, 2026-11-27). The owner's phone named a lone spot only 6 above the sky "Hamal"
+   - barely more than noise, and nothing to check it against. */
+export const LONE_PEAK = 40;
 
 /* The camera's exposure, set from the live preview (owner, 2026-11-27). Turned all the way
    up (the most sensitive ISO the camera allows and a quarter-second frame) the owner's

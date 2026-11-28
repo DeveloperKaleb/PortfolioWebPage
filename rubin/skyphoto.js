@@ -10,7 +10,7 @@
  * On a phone (pointer: coarse) aim and shoot fills the screen like a camera app, with tilt
  * and steadiness shown live; night mode (rubin/night.js) turns the page red after dusk. */
 import { toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, NOT_SKY, nextExposure, shotLog, meanBrightness, REASONS, REPORT_TO, REPORT_SUBJECT, reportBody, reportContents, fitForEmail, reportLink } from '/PortfolioWebPage/js/skyphoto.js';
-import { aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness } from '/PortfolioWebPage/js/skyaim.js';
+import { aimedTurn, cameraAltitude, turnRate, steadiness, frameTurn, addAligned, frameRate, keepFrame } from '/PortfolioWebPage/js/skyaim.js';
 import { jdFromDate } from '/PortfolioWebPage/js/orbit.js';
 
 const input = document.getElementById('skyphoto-file');
@@ -478,14 +478,27 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
    one at all (Chrome on Android, for some cameras). Anything refused is left as it was.
    The exposure is held to MAX_EXPOSURE (exposureTime counts 100 microseconds): a camera's
    own maximum can be seconds a frame: the likely cause of a shot that never finished, and
-   a preview gone white, on the owner's phone (NOTES.md, "Aim and shoot"). */
-const MAX_EXPOSURE = 2500;
+   a preview gone white, on the owner's phone (NOTES.md, "Aim and shoot"). A tenth of a
+   second since 2026-11-27 (was a quarter): shorter frames and more of them (owner's
+   choice), so a hand turning 1 degree a second smears a star only 2 px within a frame,
+   and lining the frames up (addAligned) takes care of the rest. */
+const MAX_EXPOSURE = 1000;
 const MIN_ALTITUDE = 10;
 let camCaps = {};
+// Everything asked of the camera so far: each applyConstraints replaces the last, so the
+// exposure steps carry the focus with them.
+let camWant = {};
 async function brighten(track) {
     const caps = track.getCapabilities?.() ?? {};
     camCaps = caps;
+    camWant = {};
     const want = {};
+    // Focus fixed as far as the camera goes (owner, 2026-11-27): left to itself in the dark,
+    // autofocus has nothing to lock on and can settle anywhere, blurring every star.
+    if (caps.focusMode?.includes('manual') && caps.focusDistance?.max) {
+        want.focusMode = 'manual';
+        want.focusDistance = caps.focusDistance.max;
+    }
     if (caps.exposureMode?.includes('manual') && caps.exposureTime) {
         want.exposureMode = 'manual';
         want.exposureTime = Math.max(caps.exposureTime.min ?? 0, Math.min(caps.exposureTime.max, MAX_EXPOSURE));
@@ -494,7 +507,7 @@ async function brighten(track) {
     note('camera can do', cameraFigures(caps));
     if (!Object.keys(want).length) { note('camera settings: none a page can set'); return; }
     note('camera asked for', want);
-    try { await track.applyConstraints({ advanced: [want] }); } catch (error) { note('camera refused', failed(error)); }
+    try { await track.applyConstraints({ advanced: [want] }); camWant = want; } catch (error) { note('camera refused', failed(error)); }
     note('camera settings now', cameraFigures(track.getSettings?.()));
 }
 
@@ -521,7 +534,9 @@ function level() {
             const next = s.iso && s.exposureTime ? nextExposure({ median, iso: s.iso, exposureTime: s.exposureTime }, camCaps, MAX_EXPOSURE) : null;
             if (next) {
                 try {
-                    await track.applyConstraints({ advanced: [{ exposureMode: 'manual', ...next }] });
+                    const asking = { ...camWant, exposureMode: 'manual', ...next };
+                    await track.applyConstraints({ advanced: [asking] });
+                    camWant = asking;
                     note('exposure set', { median, ...next });
                 } catch (error) {
                     note('exposure refused', { median, ...next, ...failed(error) });
@@ -584,9 +599,12 @@ shootButton.addEventListener('click', async () => {
     // The exposure is held as it is for the shot.
     levelling = true;
     clearTimeout(levelTimer);
-    say('Hold still…');
     try {
-        const { photo, R0, f0, jd } = await stack();
+        // A short self-timer, so the thumb's jolt on Shoot has passed before the frames.
+        say('Keep it pointed at the sky…');
+        await new Promise((done) => setTimeout(done, SELF_TIMER_MS));
+        if (!stream) return;
+        const { photo, R0, f0, jd, shaky } = await stack();
         // Done: a short buzz, so the shot need not be watched (Android; iPhones have none).
         navigator.vibrate?.(60);
         stopLive();
@@ -594,7 +612,7 @@ shootButton.addEventListener('click', async () => {
         canvas.height = photo.height;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.putImageData(photo, 0, 0);
-        say('Looking for stars…');
+        say(shaky ? 'The phone was moving for most of the shot, so this may be blurred. Looking for stars…' : 'Looking for stars…');
         await analyse({ ask, ctx, photo, jd, aim: { R0, f0 } });
     } catch (error) {
         note('shot failed', failed(error));
@@ -607,19 +625,34 @@ shootButton.addEventListener('click', async () => {
 });
 cancelButton.addEventListener('click', () => { note('cancelled'); stopLive(); say(''); });
 
+/* Keep the steady moments (owner, 2026-11-27: "I really don't want to expect much of
+   users keeping their phone still"). Shoot no longer waits for the phone to settle: after
+   a short self-timer the frames are gathered for STACK_MS whatever the hand does, each
+   frame's turn since the one before is measured from the phone's own readings, and only
+   frames taken while it turned under KEEP_RATE (js/skyaim.js keepFrame) are added. A shaky
+   hand gives fewer good frames rather than a refused or smeared shot; with fewer than
+   MIN_KEPT, every frame is used and the page says the shot may be blurred. */
+const SELF_TIMER_MS = 1000;
+const MIN_KEPT = 5;
+
 /* About STACK_MS of the camera's frames averaged into one picture (fainter stars stand
-   out of the noise, as in a phone's night mode, though nothing here lines the frames up:
-   hence holding still), and the sensors' readings over the same time. */
-const STACK_MS = 1200;
-const STACK_GIVE_UP = 6000;
+   out of the noise, as in a phone's night mode), each turned back to where the first
+   frame pointed by the phone's own readings (js/skyaim.js addAligned). 5 s (owner,
+   2026-11-27; was 1.2 s, 2 s, then 4 s), since frames taken while the phone moved are
+   left out. Two sums, steady frames and the rest, each frame lined up once: the rest are
+   added back in only when too few were steady. */
+const STACK_MS = 5000;
+const STACK_GIVE_UP = 9000;
 async function stack() {
     const { width, height } = fitSize(video.videoWidth, video.videoHeight);
     const scratch = document.createElement('canvas');
     scratch.width = width;
     scratch.height = height;
     const sctx = scratch.getContext('2d', { willReadFrequently: true });
-    const sum = new Uint16Array(width * height * 4);
-    const turns = [];
+    const kept = { sum: new Uint16Array(width * height * 4), count: new Uint16Array(width * height), frames: 0 };
+    const rest = { sum: new Uint16Array(width * height * 4), count: new Uint16Array(width * height), frames: 0 };
+    const f = lensGuess(width, height);
+    let first = null, before = null;
     const started = performance.now();
     const middle = new Date(Date.now() + STACK_MS / 2);
     const jd = jdFromDate(middle);
@@ -639,22 +672,38 @@ async function stack() {
     do {
         const meta = await nextFrame(started + STACK_GIVE_UP - performance.now());
         if (!meta) { note('gave up waiting for frames', { waitedMs: Math.round(performance.now() - started) }); break; }
+        const t = performance.now();
         sctx.drawImage(video, 0, 0, width, height);
         const data = sctx.getImageData(0, 0, width, height).data;
-        for (let i = 0; i < data.length; i++) sum[i] += data[i];
-        turns.push(aimedTurn({ ...reading, screenAngle, jd, lat: place.latitude, lon: place.longitude }));
+        const turn = aimedTurn({ ...reading, screenAngle, jd, lat: place.latitude, lon: place.longitude });
+        first ??= turn;
+        // How fast it turned since the last frame (the first: over the last 0.6 s).
+        const rate = before ? frameRate(before.turn, turn, t - before.t) : turnRate(samples, t);
+        const steady = keepFrame(rate);
+        const M = frameTurn(first, turn);
+        const into = steady ? kept : rest;
+        addAligned(into.sum, into.count, data, width, height, M, f);
+        into.frames++;
+        before = { turn, t };
         frames++;
-        const t = performance.now();
-        note('frame', { n: frames, gapMs: Math.round(t - last), shown: meta.presentedFrames, brightness: meanBrightness(data), alpha: reading.alpha, beta: reading.beta, gamma: reading.gamma });
+        note('frame', { n: frames, gapMs: Math.round(t - last), shown: meta.presentedFrames, brightness: meanBrightness(data), turnRateDegS: rate, kept: steady });
         last = t;
-        say(`Hold still… (${plural(frames, 'frame')})`);
+        say(`Keep it pointed at the sky… (${plural(kept.frames, 'steady frame')})`);
     } while ((performance.now() - started < STACK_MS || frames < 2) && frames < 250);
     const now = stream?.getVideoTracks()[0]?.getSettings?.() ?? {};
-    note('stacked', { frames, ms: Math.round(performance.now() - started), exposureTime: now.exposureTime, iso: now.iso, turnRateDegS: turnRate(samples, performance.now()) });
+    const shaky = kept.frames < MIN_KEPT;
+    if (shaky) {
+        for (let i = 0; i < kept.sum.length; i++) kept.sum[i] += rest.sum[i];
+        for (let i = 0; i < kept.count.length; i++) kept.count[i] += rest.count[i];
+    }
+    const use = kept;
+    note('stacked', { frames, kept: kept.frames, used: shaky ? 'every frame' : 'steady frames', ms: Math.round(performance.now() - started), exposureTime: now.exposureTime, iso: now.iso });
     if (!frames) throw new Error("the camera sent no pictures; try Aim and shoot again");
     const photo = new ImageData(width, height);
-    for (let i = 0; i < sum.length; i++) photo.data[i] = (i & 3) === 3 ? 255 : Math.round(sum[i] / frames);
-    return { photo, R0: averageTurn(turns), f0: lensGuess(width, height), jd };
+    // Each pixel over the frames that covered it; the picture is where the first frame
+    // pointed, so that is the aim it is matched with.
+    for (let i = 0; i < use.sum.length; i++) photo.data[i] = (i & 3) === 3 ? 255 : Math.round(use.sum[i] / Math.max(1, use.count[i >> 2]));
+    return { photo, R0: first, f0: f, jd, shaky };
 }
 
 /* The camera's focal length in pixels: 26 mm equivalent across the long side of a 4:3

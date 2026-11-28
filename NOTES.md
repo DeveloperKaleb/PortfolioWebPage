@@ -5223,7 +5223,45 @@ from the start, dropped in step 2 while the pattern search was fast enough on cl
     the compass "named" them Rasalhague and Rasalgethi (shown as a guess). Now when at
     least half the spots have a twin (within 20 px, peaks within 15%, sizes within 30%:
     `TWIN`, `twinCount`), `judgeSky` answers "lights" and nothing is named.
-  - **Night mode reddens the result too** (by design): on that test the picture of white
+  - **Second night test, three shots (owner, 2026-11-27):** the sky came out at 57-62 of
+    255 at full ISO, inside the band, so the exposure rightly stayed put; but 1, 0 and 0
+    spots were found. The phone was turning 0.7-2.7 degrees a second when Shoot was
+    pressed and the 4 frames (1.3 s) were added without lining them up: 10-30 px of smear
+    at 21 px a degree. Autofocus was left on (continuous) in the dark. And a lone spot only
+    6 above the sky was "named" Hamal by the compass. Owner chose all three fixes:
+    - **Steady shutter:** Shoot waits until the phone turns under 0.5 degrees a second for
+      1 s (SETTLE_RATE, SETTLE_MS), saying "Hold still…" then "Steady… keep still"; after
+      8 s it says to lean the phone on something and keeps the camera up for another try.
+    - **Frames lined up** by the phone's own reading at each frame (`frameTurn`,
+      `addAligned` in js/skyaim.js): each frame is turned back to where the first
+      pointed before it is added, nearest pixel, each pixel averaged over the frames that
+      cover it; the picture is matched with the first frame's aim. About 45 ms a frame on
+      a desktop. The stack is now 2 s (was 1.2 s).
+    - **Focus fixed far:** manual focus at the camera's farthest distance (5.9 m on the
+      Pixel 8 Pro, as Chrome reports it); every exposure step re-asks for it, since each
+      applyConstraints replaces the last.
+    - **Shorter frames, twice the time** (owner's choice, same evening, after asking why
+      stillness is still needed if frames are lined up: lining up fixes drift between
+      frames, not the smear within one). Frames are now at most a tenth of a second
+      (MAX_EXPOSURE 1000, was 2500), the stack runs 4 s (was 2), and the steady shutter
+      takes 1 degree a second (was 0.5): about 2 px of smear in a frame. How many frames
+      a phone manages in 4 s (and so how much light is gathered) depends on how fast it
+      lines each one up; the reports' frame lines show it.
+    - **Keep the steady moments** (owner, same evening: "I really don't want to expect
+      much of users keeping their phone still"). The steady shutter is gone: Shoot
+      starts a 1 s self-timer (the thumb's jolt), then gathers frames for 5 s whatever
+      the hand does. Each frame's turn since the last is measured from the sensors
+      (`frameRate`); frames under `KEEP_RATE` (2 degrees a second, about 4 px of smear
+      in a tenth of a second, above the sensors' own flicker) go into one sum, the rest
+      into another, each lined up once. With fewer than 5 steady frames both are used
+      and the page says the shot may be blurred. The report's frame lines give each
+      frame's rate and whether it was kept; "stacked" gives the counts.
+    - **A lone spot is named only if bright** (peak at least `LONE_PEAK`, 40, above the
+      sky); otherwise "not enough stars".
+  - **Night mode no longer reddens the picture** (owner, 2026-11-27: "I don't like night
+    mode making the picture red at all"): the camera's view and the photo keep their own
+    colours; only the page around them is red. NIGHT_COLORS.tint is gone. Before that
+    (by design): on that test the picture of white
     lights came out very red. The Night mode button turns it off for 12 hours.
     Over the view: the status, "Tilt up N°" or "Aimed N° up", and Steady / Nearly steady
     / Hold still from `turnRate` (degrees a second over 0.6 s, in steps of 0.1 s so

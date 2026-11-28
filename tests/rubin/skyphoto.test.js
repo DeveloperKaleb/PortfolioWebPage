@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { twinCount, nextExposure, EXPOSURE, toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX, REPORT_TO, REPORT_SUBJECT, REPORT_MAX_ENCODED, reportBody, reportContents, fitForEmail, reportLink } from '../../js/skyphoto.js';
+import { twinCount, nextExposure, EXPOSURE, LONE_PEAK, toGray, fitSize, photoStats, findStars, judgeSky, readExif, lensTip, MIN_STARS, MAX_SIDE, logValue, logLine, shotLog, meanBrightness, LOG_MAX, REPORT_TO, REPORT_SUBJECT, REPORT_MAX_ENCODED, reportBody, reportContents, fitForEmail, reportLink } from '../../js/skyphoto.js';
 
 // A repeatable made-up night: a seeded random, Gaussian noise, Gaussian stars.
 function rng(seed) {
@@ -116,6 +116,14 @@ describe('lights, not stars (owner, 2026-11-27)', () => {
         expect(judgeSky(photoStats(night.gray), found)).toEqual({ ok: true });
         // Two stars close together but unlike in brightness are not twins.
         expect(twinCount([{ x: 0, y: 0, peak: 200, size: 8 }, { x: 10, y: 0, peak: 90, size: 5 }])).toBe(0);
+    });
+});
+
+describe('a lone spot (owner, 2026-11-27)', () => {
+    const stats = { median: 59, white: 0 };
+    it('is named only if bright: the faint spot taken for Hamal is not', () => {
+        expect(judgeSky(stats, [{ x: 316.3, y: 321.4, peak: 6, size: 6, flux: 30 }], { minStars: 1 }).reason).toBe('few');
+        expect(judgeSky(stats, [{ x: 316.3, y: 321.4, peak: LONE_PEAK + 20, size: 8, flux: 600 }], { minStars: 1 })).toEqual({ ok: true });
     });
 });
 

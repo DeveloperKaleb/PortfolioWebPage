@@ -3736,18 +3736,9 @@ html.night #skyphoto-dialog .skyphoto-send {
 html.night .skyphoto-photo:focus-within .skyphoto-pick {
     outline-color: #ff4a2a;
 }
-html.night .skyphoto-view video,
-html.night .skyphoto-view canvas {
-    filter: grayscale(1) brightness(0.8);
-}
-html.night .skyphoto-view::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: #ff0000;                    /* NIGHT_COLORS.tint, multiplied: red only */
-    mix-blend-mode: multiply;
-    pointer-events: none;
-}
+/* The camera's view and the photo keep their own colours in night mode (owner,
+   2026-11-27: "I don't like night mode making the picture red at all"). Only the page
+   around them turns red. */
 html.night .skyphoto-hud {
     color: #ff4a2a;
     background: rgba(0, 0, 0, 0.7);

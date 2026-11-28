@@ -106,6 +106,55 @@ export function aimedTurn({ alpha, beta, gamma, screenAngle = 0, jd, lat, lon })
     return times(times(horizonToSky(jd, lat, lon), deviceToHorizon(alpha, beta, gamma)), cameraToDevice(screenAngle));
 }
 
+/* Lining up the frames of a shot (owner, 2026-11-27). The owner's first night shots were
+   held by hand, turning 0.7-2.7 degrees a second, so over the 1.3 s of frames each star was
+   smeared 10-30 px (21 px a degree at the main camera) and faded into the noise. Each frame
+   has the phone's own reading of where it pointed (aimedTurn), so before it is added it is
+   turned back to where the first frame pointed: for a pixel of the first frame, the ray
+   it sees (cameraVector) is carried by Ri^T R0 into frame i, and frame i's pixel there is
+   the one added. Nearest pixel: the sensors are good to a pixel or two, no better. */
+
+/** The 3x3 turn carrying the first frame's camera rays into frame i's (R0, Ri: camera to sky). */
+export function frameTurn(R0, Ri) {
+    const RiT = [Ri[0], Ri[3], Ri[6], Ri[1], Ri[4], Ri[7], Ri[2], Ri[5], Ri[8]];
+    return times(RiT, R0);
+}
+
+/** Adds an RGBA frame into sum (and count, per pixel) as seen from the first frame's aim:
+    M from frameTurn, f the focal length in pixels. Pixels that land outside the frame are
+    left out, and counted out, so the edges are averaged over the frames that cover them. */
+export function addAligned(sum, count, data, width, height, M, f) {
+    const cx = width / 2, cy = height / 2;
+    for (let y = 0; y < height; y++) {
+        const dy = y + 0.5 - cy;
+        for (let x = 0; x < width; x++) {
+            const dx = x + 0.5 - cx;
+            const z = M[6] * dx + M[7] * dy + M[8] * f;
+            if (z <= 0) continue;
+            const sx = Math.floor(cx + f * (M[0] * dx + M[1] * dy + M[2] * f) / z);
+            const sy = Math.floor(cy + f * (M[3] * dx + M[4] * dy + M[5] * f) / z);
+            if (sx < 0 || sy < 0 || sx >= width || sy >= height) continue;
+            const from = (sy * width + sx) * 4, to = (y * width + x) * 4;
+            sum[to] += data[from];
+            sum[to + 1] += data[from + 1];
+            sum[to + 2] += data[from + 2];
+            count[y * width + x]++;
+        }
+    }
+}
+
+/** Degrees a second the phone turned between two frames' readings (camera-to-sky turns),
+    ms apart. */
+export function frameRate(A, B, ms) {
+    return ms > 0 ? turnBetween(A, B) / DEG / (ms / 1000) : null;
+}
+/* Which frames of a shot are added (owner, 2026-11-27: keep the steady moments). At a
+   tenth of a second a frame, 2 degrees a second smears a star 0.2 degrees, about 4 px at
+   the main camera; the sensors' own flicker reads as up to about 1 degree a second
+   between frames, so the line sits above it. Unknown (no reading yet) counts as steady. */
+export const KEEP_RATE = 2;
+export const keepFrame = (rate) => rate == null || rate <= KEEP_RATE;
+
 /* The average of several turns, made a turn again (Gram-Schmidt on its columns): the
    sensors' readings over the second the shot takes. */
 export function averageTurn(turns) {

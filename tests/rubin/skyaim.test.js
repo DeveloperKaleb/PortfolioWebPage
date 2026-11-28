@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness, STEADY, solveAimed, times, turnBetween } from '../../js/skyaim.js';
+import { gmst, horizonToSky, deviceToHorizon, cameraToDevice, aimedTurn, averageTurn, cameraAltitude, turnRate, steadiness, STEADY, solveAimed, times, turnBetween, frameTurn, addAligned, frameRate, keepFrame, KEEP_RATE } from '../../js/skyaim.js';
 import { apply, applyT, skyObjects, skyVector, focalPixels, toPixel } from '../../js/skysolve.js';
 import { jdFromDate } from '../../js/orbit.js';
 
@@ -177,5 +177,56 @@ describe('how steady the phone is', () => {
         expect(turnRate([at(0, 1, 2, 3)])).toBeNull();
         expect(steadiness(null)).toBeNull();
         expect(steadiness(0.5)).toBe('nearly');
+    });
+});
+
+describe('lining up the frames of a shot (owner, 2026-11-27)', () => {
+    const W = 120, H = 160, f = 120;
+    // A dark frame with one bright pixel, as the camera saw it from where it pointed.
+    const frameWith = (x, y) => { const d = new Uint8ClampedArray(W * H * 4); d[(y * W + x) * 4] = 200; return d; };
+    const brightest = (sum, count) => {
+        let best = -1, at = null;
+        for (let i = 0; i < W * H; i++) { const v = count[i] ? sum[i * 4] / count[i] : 0; if (v > best) { best = v; at = [i % W, Math.floor(i / W)]; } }
+        return at;
+    };
+
+    it('the same aim adds pixel to pixel', () => {
+        const sum = new Uint16Array(W * H * 4), count = new Uint16Array(W * H);
+        const R = aimedTurn({ alpha: 30, beta: 140, gamma: 2, jd: 2461372.6, lat: 43, lon: -89.4 });
+        addAligned(sum, count, frameWith(70, 90), W, H, frameTurn(R, R), f);
+        expect(brightest(sum, count)).toEqual([70, 90]);
+        expect(count.every((c) => c === 1)).toBe(true);
+    });
+
+    it('a frame taken after the phone turned lands back where the first frame saw the star', () => {
+        const at = { jd: 2461372.6, lat: 43, lon: -89.4 };
+        const R0 = aimedTurn({ alpha: 30, beta: 140, gamma: 2, ...at });
+        const R1 = aimedTurn({ alpha: 31.5, beta: 141, gamma: 2.5, ...at });
+        // Where a star at the first frame's pixel (60, 80) shows in the second frame.
+        const star = apply(R0, [60 + 0.5 - W / 2, 80 + 0.5 - H / 2, f].map((v, _, a) => v / Math.hypot(...a)));
+        const c = applyT(R1, star);
+        const x1 = Math.floor(W / 2 + f * c[0] / c[2]), y1 = Math.floor(H / 2 + f * c[1] / c[2]);
+        expect(Math.hypot(x1 - 60, y1 - 80)).toBeGreaterThan(2);
+        const sum = new Uint16Array(W * H * 4), count = new Uint16Array(W * H);
+        addAligned(sum, count, frameWith(x1, y1), W, H, frameTurn(R0, R1), f);
+        const [x, y] = brightest(sum, count);
+        expect(Math.hypot(x - 60, y - 80)).toBeLessThanOrEqual(1);
+    });
+});
+
+describe('keeping the steady moments of a shot (owner, 2026-11-27)', () => {
+    const at = { jd: 2461372.6, lat: 43, lon: -89.4 };
+    it('measures how fast the phone turned between two frames', () => {
+        const A = aimedTurn({ alpha: 30, beta: 140, gamma: 0, ...at });
+        const B = aimedTurn({ alpha: 30, beta: 141, gamma: 0, ...at });
+        expect(frameRate(A, B, 500)).toBeCloseTo(2, 5);
+        expect(frameRate(A, A, 100)).toBeCloseTo(0, 5);
+        expect(frameRate(A, B, 0)).toBeNull();
+    });
+    it('keeps frames taken while it turned slowly, and leaves out a twitch', () => {
+        expect(keepFrame(0.4)).toBe(true);
+        expect(keepFrame(KEEP_RATE)).toBe(true);
+        expect(keepFrame(2.7)).toBe(false);
+        expect(keepFrame(null)).toBe(true);
     });
 });
